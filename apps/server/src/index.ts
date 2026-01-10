@@ -3,16 +3,31 @@ import http from "node:http";
 import { WebSocketServer } from "ws";
 import * as pty from "node-pty";
 
-import type { Event, Style, WsIncoming, WsOutgoing } from "./types.js";
+import type { Event, SourceMode, SourceState, Style, WsIncoming, WsOutgoing } from "./types.js";
 import { redact } from "./redact.js";
 import { extractEvents } from "./extract.js";
 import { comment } from "./styles/index.js";
+import { getAutoDetectedSource, resetAutoDetection } from "./rulesets/index.js";
 
 const PORT = Number(process.env.PORT ?? 8787);
 
 function isStyle(value: unknown): value is Style {
   return value === "standard" || value === "kansai" || value === "zundamon";
 }
+
+function normalizeSource(value?: string): SourceMode {
+  const source = (value ?? "").trim().toLowerCase();
+  if (source === "claude" || source === "codex" || source === "generic") return source;
+  return "auto";
+}
+
+const sourceMode = normalizeSource(process.env.LOG_SOURCE);
+const sourceState: SourceState = {
+  mode: sourceMode,
+  detected: sourceMode === "auto" ? null : sourceMode
+};
+
+resetAutoDetection();
 
 // rate limit: max once per 2s (error is always allowed)
 let lastEmit = 0;
@@ -47,8 +62,15 @@ function broadcast(msg: WsOutgoing) {
   }
 }
 
+function broadcastSource(nextDetected: SourceState["detected"]) {
+  if (sourceState.mode !== "auto") return;
+  if (!nextDetected || sourceState.detected === nextDetected) return;
+  sourceState.detected = nextDetected;
+  broadcast({ kind: "source", source: sourceState });
+}
+
 wss.on("connection", (ws) => {
-  ws.send(JSON.stringify({ kind: "hello", style: currentStyle }));
+  ws.send(JSON.stringify({ kind: "hello", style: currentStyle, source: sourceState }));
 
   ws.on("message", (buf) => {
     try {
@@ -91,6 +113,8 @@ broadcast({ kind: "event", ev: { ts: Date.now(), type: "start", summary: "開始
 term.onData((data) => {
   const clean = redact(data);
   const evs = extractEvents(clean);
+  const detected = getAutoDetectedSource();
+  if (detected) broadcastSource(detected);
 
   // raw は “マスク後” を送る（MVP）
   broadcast({ kind: "raw", data: clean });

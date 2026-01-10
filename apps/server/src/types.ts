@@ -1,4 +1,7 @@
 export type Style = "standard" | "kansai" | "zundamon";
+export type DetectedSource = "claude" | "codex" | "generic";
+export type SourceMode = "auto" | DetectedSource;
+export type SourceState = { mode: SourceMode; detected: DetectedSource | null };
 
 export type EventType =
   | "start"
@@ -22,8 +25,9 @@ export type Event = {
 };
 
 export type WsOutgoing =
-  | { kind: "hello"; style: Style }
+  | { kind: "hello"; style: Style; source: SourceState }
   | { kind: "style"; style: Style }
+  | { kind: "source"; source: SourceState }
   | { kind: "raw"; data: string }
   | { kind: "event"; ev: Event }
   | { kind: "commentary"; ts: number; text: string; ev: Event };

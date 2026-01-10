@@ -2,10 +2,14 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import "./App.css";
 
 type Style = "standard" | "kansai" | "zundamon";
+type DetectedSource = "claude" | "codex" | "generic";
+type SourceMode = "auto" | DetectedSource;
+type SourceState = { mode: SourceMode; detected: DetectedSource | null };
 
 type Msg =
-  | { kind: "hello"; style: Style }
+  | { kind: "hello"; style: Style; source: SourceState }
   | { kind: "style"; style: Style }
+  | { kind: "source"; source: SourceState }
   | { kind: "commentary"; ts: number; text: string };
 
 type LegacyHello = { type: "hello"; style: Style };
@@ -13,6 +17,7 @@ type LegacyHello = { type: "hello"; style: Style };
 export default function App() {
   const [items, setItems] = useState<Array<{ ts: number; text: string }>>([]);
   const [style, setStyle] = useState<Style>("kansai");
+  const [source, setSource] = useState<SourceState>({ mode: "auto", detected: null });
   const wsRef = useRef<WebSocket | null>(null);
 
   const wsUrl = useMemo(() => {
@@ -28,8 +33,12 @@ export default function App() {
       try {
         const msg = JSON.parse(e.data) as Msg | LegacyHello;
         const kind = "kind" in msg ? msg.kind : msg.type;
-        if (kind === "hello") setStyle(msg.style);
+        if (kind === "hello") {
+          setStyle(msg.style);
+          if ("source" in msg) setSource(msg.source);
+        }
         if (kind === "style") setStyle(msg.style);
+        if (kind === "source") setSource(msg.source);
         if (kind === "commentary") {
           setItems((prev) => [...prev, { ts: msg.ts, text: msg.text }].slice(-200));
         }
@@ -44,6 +53,13 @@ export default function App() {
     wsRef.current?.send(JSON.stringify({ kind: "setStyle", style: s }));
   };
 
+  const sourceLabel =
+    source.mode === "auto"
+      ? source.detected
+        ? `auto → ${source.detected}`
+        : "auto (detecting)"
+      : source.mode;
+
   return (
     <div style={{ maxWidth: 900, margin: "0 auto", padding: 16 }}>
       <h1>CLI 実況（MVP）</h1>
@@ -56,6 +72,10 @@ export default function App() {
           <option value="zundamon">ずんだもん風（テキスト）</option>
         </select>
         <span style={{ fontSize: 12, opacity: 0.6 }}>（イベント時＋最大2秒に1回）</span>
+      </div>
+
+      <div style={{ fontSize: 12, opacity: 0.7, marginBottom: 8 }}>
+        Ruleset: {sourceLabel}
       </div>
 
       <div style={{ border: "1px solid #ccc", borderRadius: 8, padding: 12, height: "70vh", overflow: "auto" }}>
