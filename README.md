@@ -6,3 +6,7 @@
 日本語: CLIの出力を別ウィンドウで実況するMVPのリポジトリです。詳細は `README.ja.md` を参照してください。
 
 English: This repository is an MVP for streaming CLI commentary in a separate window. See `README.en.md` for details.
+
+## Getting Started
+- JA docs: `./docs/getting-started.ja.md`
+- EN docs: `./docs/getting-started.en.md`
