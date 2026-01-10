@@ -59,6 +59,24 @@ TARGET_CMD=git TARGET_ARGS="status -sb" pnpm -C apps/server dev
 
 Use the web UI dropdown to switch between Standard / Kansai / Zundamon (text).
 
+## Troubleshooting
+
+### Error: posix_spawnp failed
+
+The `node-pty` `spawn-helper` binary may lack execute permissions (commonly reported under pnpm layouts).
+
+```bash
+find node_modules/.pnpm -path '*node-pty*' -name spawn-helper -print -exec ls -l {} \;
+```
+
+If it is not executable, add permissions:
+
+```bash
+chmod 755 <path-to-spawn-helper>
+```
+
+`node_modules` can be regenerated on reinstall, so repeat this if the issue returns.
+
 ## Notes
 
 - Commentary is emitted **on events + at most once per 2 seconds**

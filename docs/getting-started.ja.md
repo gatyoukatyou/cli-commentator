@@ -59,6 +59,24 @@ TARGET_CMD=git TARGET_ARGS="status -sb" pnpm -C apps/server dev
 
 Web UIのプルダウンから切り替えできます（標準 / 関西弁 / ずんだもん風）。
 
+## トラブルシューティング
+
+### Error: posix_spawnp failed
+
+`node-pty` の `spawn-helper` に実行権限が付いていない場合があります（pnpm 配下で起きやすい報告あり）。
+
+```bash
+find node_modules/.pnpm -path '*node-pty*' -name spawn-helper -print -exec ls -l {} \;
+```
+
+実行権限が付いていない場合は付与してください。
+
+```bash
+chmod 755 <path-to-spawn-helper>
+```
+
+`node_modules` は再インストールで戻る可能性があるため、再発時は同じ手順で対応してください。
+
 ## 備考
 
 - 実況テキストは **イベント時 + 最大2秒に1回** で送信されます
