@@ -1,0 +1,5 @@
+rg -n "TODO" src
+git status
+pnpm run build
+jest
+Hello world

@@ -1,0 +1,194 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`extractEvents fixtures > claude.basic.log 1`] = `
+[
+  {
+    "detail": "⏺ Read(/Users/demo/project/README.md)",
+    "summary": "ファイルを読み込んでいる",
+    "ts": 1735689600000,
+    "type": "read",
+  },
+  {
+    "detail": "⏺ Glob(src/**/*.ts)",
+    "summary": "ファイル一覧を検索している",
+    "ts": 1735689600000,
+    "type": "search",
+  },
+  {
+    "detail": "⏺ Grep("WebSocket")",
+    "summary": "該当箇所を検索している",
+    "ts": 1735689600000,
+    "type": "search",
+  },
+  {
+    "detail": "⏺ Update(src/index.ts)",
+    "summary": "ファイルを更新している",
+    "ts": 1735689600000,
+    "type": "write",
+  },
+  {
+    "detail": "⏺ Write(src/index.ts)",
+    "summary": "ファイルを書き込んでいる",
+    "ts": 1735689600000,
+    "type": "write",
+  },
+  {
+    "detail": "⏺ Bash(pnpm test)",
+    "summary": "コマンドを実行している",
+    "ts": 1735689600000,
+    "type": "stdout",
+  },
+  {
+    "detail": "rg -n "foo" src",
+    "summary": "該当箇所を検索している",
+    "ts": 1735689600000,
+    "type": "search",
+  },
+  {
+    "detail": "pnpm install",
+    "summary": "依存関係/スクリプトを処理している",
+    "ts": 1735689600000,
+    "type": "install",
+  },
+  {
+    "detail": "git status -sb",
+    "summary": "Git操作をしている",
+    "ts": 1735689600000,
+    "type": "git",
+  },
+  {
+    "detail": "gh issue list",
+    "summary": "GitHub操作をしている",
+    "ts": 1735689600000,
+    "type": "github",
+  },
+  {
+    "detail": "error TS1234: Example",
+    "summary": "エラーが出ている",
+    "ts": 1735689600000,
+    "type": "error",
+  },
+]
+`;
+
+exports[`extractEvents fixtures > claude.readonly.log 1`] = `
+[
+  {
+    "detail": "Read-only mode: write is disabled",
+    "summary": "書き込みが制限されている",
+    "ts": 1735689600000,
+    "type": "error",
+  },
+  {
+    "detail": "⏺ Write(src/index.ts)",
+    "summary": "ファイルを書き込んでいる",
+    "ts": 1735689600000,
+    "type": "write",
+  },
+  {
+    "detail": "write is disabled in read-only mode",
+    "summary": "書き込みが制限されている",
+    "ts": 1735689600000,
+    "type": "error",
+  },
+]
+`;
+
+exports[`extractEvents fixtures > codex.approval.log 1`] = `
+[
+  {
+    "detail": "Would you like to run the following command?",
+    "summary": "コマンド実行の確認待ち",
+    "ts": 1735689600000,
+    "type": "stdout",
+  },
+  {
+    "detail": "You approved codex to run: pnpm install",
+    "summary": "コマンド実行が承認された",
+    "ts": 1735689600000,
+    "type": "stdout",
+  },
+  {
+    "detail": "apply_patch",
+    "summary": "パッチを適用している",
+    "ts": 1735689600000,
+    "type": "write",
+  },
+  {
+    "detail": "⏺ Read(/Users/demo/project/src/index.ts)",
+    "summary": "ファイルを読み込んでいる",
+    "ts": 1735689600000,
+    "type": "read",
+  },
+  {
+    "detail": "⏺ Bash(pnpm install)",
+    "summary": "コマンドを実行している",
+    "ts": 1735689600000,
+    "type": "stdout",
+  },
+]
+`;
+
+exports[`extractEvents fixtures > codex.lifecycle-error.log 1`] = `
+[
+  {
+    "detail": "> pnpm test",
+    "summary": "テスト/型チェックを実行している",
+    "ts": 1735689600000,
+    "type": "test",
+  },
+  {
+    "detail": "ELIFECYCLE",
+    "summary": "スクリプトが異常終了している",
+    "ts": 1735689600000,
+    "type": "error",
+  },
+  {
+    "detail": "Command failed with exit code 1",
+    "summary": "終了コードで失敗している",
+    "ts": 1735689600000,
+    "type": "error",
+  },
+  {
+    "detail": "error: failed",
+    "summary": "エラーが出ている",
+    "ts": 1735689600000,
+    "type": "error",
+  },
+]
+`;
+
+exports[`extractEvents fixtures > generic.shell.log 1`] = `
+[
+  {
+    "detail": "rg -n "TODO" src",
+    "summary": "該当箇所を検索している",
+    "ts": 1735689600000,
+    "type": "search",
+  },
+  {
+    "detail": "git status",
+    "summary": "Git操作をしている",
+    "ts": 1735689600000,
+    "type": "git",
+  },
+  {
+    "detail": "pnpm run build",
+    "summary": "依存関係/スクリプトを処理している",
+    "ts": 1735689600000,
+    "type": "install",
+  },
+  {
+    "detail": "jest",
+    "summary": "テスト/型チェックを実行している",
+    "ts": 1735689600000,
+    "type": "test",
+  },
+  {
+    "detail": "Hello world",
+    "summary": "ログ更新",
+    "ts": 1735689600000,
+    "type": "stdout",
+  },
+]
+`;

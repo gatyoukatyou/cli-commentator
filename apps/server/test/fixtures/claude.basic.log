@@ -1,0 +1,11 @@
+⏺ Read(/Users/demo/project/README.md)
+⏺ Glob(src/**/*.ts)
+⏺ Grep("WebSocket")
+⏺ Update(src/index.ts)
+⏺ Write(src/index.ts)
+⏺ Bash(pnpm test)
+rg -n "foo" src
+pnpm install
+git status -sb
+gh issue list
+error TS1234: Example
