@@ -33,14 +33,24 @@ export default function App() {
       try {
         const msg = JSON.parse(e.data) as Msg | LegacyHello;
         const kind = "kind" in msg ? msg.kind : msg.type;
-        if (kind === "hello") {
-          setStyle(msg.style);
-          if ("source" in msg) setSource(msg.source);
-        }
-        if (kind === "style") setStyle(msg.style);
-        if (kind === "source") setSource(msg.source);
-        if (kind === "commentary") {
-          setItems((prev) => [...prev, { ts: msg.ts, text: msg.text }].slice(-200));
+        switch (kind) {
+          case "hello":
+            if ("style" in msg) setStyle(msg.style);
+            if ("source" in msg) setSource(msg.source);
+            break;
+          case "style":
+            if ("style" in msg) setStyle(msg.style);
+            break;
+          case "source":
+            if ("source" in msg) setSource(msg.source);
+            break;
+          case "commentary":
+            if ("ts" in msg && "text" in msg) {
+              setItems((prev) => [...prev, { ts: msg.ts, text: msg.text }].slice(-200));
+            }
+            break;
+          default:
+            break;
         }
       } catch {}
     };

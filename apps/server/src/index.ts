@@ -27,7 +27,9 @@ const sourceState: SourceState = {
   detected: sourceMode === "auto" ? null : sourceMode
 };
 
-resetAutoDetection();
+if (sourceMode === "auto") {
+  resetAutoDetection();
+}
 
 // rate limit: max once per 2s (error is always allowed)
 let lastEmit = 0;
