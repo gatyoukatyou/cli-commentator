@@ -55,6 +55,13 @@ set TARGET_CMD=your-cli && pnpm -C apps/server dev
 TARGET_CMD=git TARGET_ARGS="status -sb" pnpm -C apps/server dev
 ```
 
+## ログソースの指定（LOG_SOURCE）
+
+`apps/server/.env` に `LOG_SOURCE` を指定すると、ログ解析ルールセットを選択できます。
+
+- `auto`（デフォルト）: 行の特徴から自動判定し、該当がなければ `generic` を使う
+- `claude` / `codex` / `generic`: 明示指定
+
 ## 口調プリセット
 
 Web UIのプルダウンから切り替えできます（標準 / 関西弁 / ずんだもん風）。

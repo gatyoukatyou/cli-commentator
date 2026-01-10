@@ -55,6 +55,13 @@ To pass arguments, set `TARGET_ARGS` with space-separated values.
 TARGET_CMD=git TARGET_ARGS="status -sb" pnpm -C apps/server dev
 ```
 
+## Log source selection (LOG_SOURCE)
+
+Set `LOG_SOURCE` in `apps/server/.env` to choose a ruleset.
+
+- `auto` (default): detect from line patterns, fallback to `generic`
+- `claude` / `codex` / `generic`: explicit selection
+
 ## Tone presets
 
 Use the web UI dropdown to switch between Standard / Kansai / Zundamon (text).
