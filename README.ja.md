@@ -16,3 +16,7 @@ CLIの出力を別ウィンドウで実況するMVP。
 - READMEは `README.ja.md` / `README.en.md` を正とする
 - 今後のドキュメントは `docs/<topic>.ja.md` / `docs/<topic>.en.md` のペアで作成する
 - 各ドキュメントの先頭に相互リンクの言語切替ボタンを置く
+
+## TARGET_CMD の例
+
+`apps/server/.env` の `TARGET_CMD` に指定します。例: `/bin/bash`, `/bin/zsh`, `powershell`, `claude`, `codex`

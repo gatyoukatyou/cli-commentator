@@ -16,3 +16,7 @@ Public documentation is maintained in both Japanese and English.
 - `README.ja.md` and `README.en.md` are the canonical project readmes.
 - Future docs go in `docs/<topic>.ja.md` and `docs/<topic>.en.md`.
 - Each paired document starts with language switch links.
+
+## Target CLI Examples
+
+Set `TARGET_CMD` in `apps/server/.env`. Examples: `/bin/bash`, `/bin/zsh`, `powershell`, `claude`, `codex`
