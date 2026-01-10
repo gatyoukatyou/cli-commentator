@@ -1,0 +1,14 @@
+{
+  "name": "cli-commentator",
+  "private": true,
+  "packageManager": "pnpm@9.0.0",
+  "scripts": {
+    "dev": "concurrently -n server,web \"pnpm -C apps/server dev\" \"pnpm -C apps/web dev\"",
+    "dev:server": "pnpm -C apps/server dev",
+    "dev:web": "pnpm -C apps/web dev"
+  },
+  "devDependencies": {
+    "concurrently": "^9.0.0",
+    "cross-env": "^7.0.3"
+  }
+}
