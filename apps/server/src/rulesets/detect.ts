@@ -1,0 +1,107 @@
+import type { RuleSetId } from "./types.js";
+
+type Scores = { claude: number; codex: number };
+
+type DetectorOptions = {
+  threshold?: number;
+  maxLines?: number;
+};
+
+const CLAUDE_STRONG = [
+  /^(⏺|•)\s*(Read|Bash|Glob|Grep|Update|Write|Edit)\(/,
+  /⎿/
+];
+const CLAUDE_MEDIUM = [/AskUserQuestion/i, /read[-\s]?only/i];
+
+const CODEX_STRONG = [
+  /would you like to run the following command\?/i,
+  /you approved .* to run/i,
+  /\bapply_patch\b|apply patch/i
+];
+const CODEX_MEDIUM = [/\bcodex\b/i];
+const CODEX_WEAK = [/\bELIFECYCLE\b/i, /exit code/i];
+
+function scoreLine(line: string): Scores {
+  let claude = 0;
+  let codex = 0;
+
+  for (const re of CLAUDE_STRONG) {
+    if (re.test(line)) claude += 3;
+  }
+  for (const re of CLAUDE_MEDIUM) {
+    if (re.test(line)) claude += 2;
+  }
+
+  for (const re of CODEX_STRONG) {
+    if (re.test(line)) codex += 3;
+  }
+  for (const re of CODEX_MEDIUM) {
+    if (re.test(line)) codex += 2;
+  }
+  for (const re of CODEX_WEAK) {
+    if (re.test(line)) codex += 1;
+  }
+
+  return { claude, codex };
+}
+
+function decide(scores: Scores, threshold: number): RuleSetId | null {
+  const diff = Math.abs(scores.claude - scores.codex);
+  if (diff < threshold) return null;
+  return scores.claude > scores.codex ? "claude" : "codex";
+}
+
+export function createAutoDetector(options: DetectorOptions = {}) {
+  const threshold = options.threshold ?? 3;
+  const maxLines = options.maxLines ?? 50;
+
+  let detected: RuleSetId | null = null;
+  let scores: Scores = { claude: 0, codex: 0 };
+  let seen = 0;
+
+  function update(line: string): RuleSetId | null {
+    if (detected) return detected;
+
+    const delta = scoreLine(line);
+    scores = {
+      claude: scores.claude + delta.claude,
+      codex: scores.codex + delta.codex
+    };
+    seen += 1;
+
+    const decided = decide(scores, threshold);
+    if (decided) {
+      detected = decided;
+      return detected;
+    }
+
+    if (seen >= maxLines) {
+      detected = "generic";
+      return detected;
+    }
+
+    return null;
+  }
+
+  function get(): RuleSetId | null {
+    return detected;
+  }
+
+  function reset() {
+    detected = null;
+    scores = { claude: 0, codex: 0 };
+    seen = 0;
+  }
+
+  return { update, get, reset };
+}
+
+export function detectSourceFromText(text: string, options: DetectorOptions = {}): RuleSetId {
+  const detector = createAutoDetector(options);
+  const lines = text.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+  for (const line of lines) {
+    const decided = detector.update(line);
+    if (decided) return decided;
+  }
+  return detector.get() ?? "generic";
+}

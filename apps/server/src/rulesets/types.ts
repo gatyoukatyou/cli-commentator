@@ -1,5 +1,7 @@
 import type { EventType } from "../types.js";
 
+export type RuleSetId = "claude" | "codex" | "generic";
+
 export type Rule = {
   id: string;
   priority: number;
@@ -9,7 +11,7 @@ export type Rule = {
 };
 
 export type RuleSet = {
-  id: "claude" | "codex" | "generic";
+  id: RuleSetId;
   label: string;
   rules: Rule[];
   detect?: (line: string) => boolean;
