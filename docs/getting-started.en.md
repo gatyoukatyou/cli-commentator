@@ -59,6 +59,14 @@ TARGET_CMD=git TARGET_ARGS="status -sb" pnpm -C apps/server dev
 
 Use the web UI dropdown to switch between Standard / Kansai / Zundamon (text).
 
+## UI sync check (two tabs)
+
+1. Open two browser tabs (A/B).
+2. In tab A, switch `standard → kansai → zundamon`.
+3. Tab B should update its displayed style immediately.
+4. Subsequent commentary should follow the new style.
+
+<a name="troubleshooting"></a>
 ## Troubleshooting
 
 ### Error: posix_spawnp failed
@@ -81,3 +89,4 @@ chmod 755 <path-to-spawn-helper>
 
 - Commentary is emitted **on events + at most once per 2 seconds**
 - Redaction is minimal in the MVP (hardening is a Should)
+- You may see `exit code 143` when you stop the process manually (SIGTERM)

@@ -15,3 +15,7 @@ English: This repository is an MVP for streaming CLI commentary in a separate wi
 日本語: `apps/server/.env` の `TARGET_CMD` に指定します。例: `/bin/bash`, `/bin/zsh`, `powershell`, `claude`, `codex`
 
 English: Set `TARGET_CMD` in `apps/server/.env`. Examples: `/bin/bash`, `/bin/zsh`, `powershell`, `claude`, `codex`
+
+## Troubleshooting
+- JA: docs/getting-started.ja.md#troubleshooting
+- EN: docs/getting-started.en.md#troubleshooting

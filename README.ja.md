@@ -20,3 +20,7 @@ CLIの出力を別ウィンドウで実況するMVP。
 ## TARGET_CMD の例
 
 `apps/server/.env` の `TARGET_CMD` に指定します。例: `/bin/bash`, `/bin/zsh`, `powershell`, `claude`, `codex`
+
+## トラブルシューティング
+
+- docs/getting-started.ja.md#troubleshooting

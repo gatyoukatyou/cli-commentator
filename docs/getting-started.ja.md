@@ -59,6 +59,14 @@ TARGET_CMD=git TARGET_ARGS="status -sb" pnpm -C apps/server dev
 
 Web UIのプルダウンから切り替えできます（標準 / 関西弁 / ずんだもん風）。
 
+## UI同期の確認（2タブ）
+
+1. ブラウザで2タブ開く（A/B）。
+2. タブAで `standard → kansai → zundamon` と切り替える。
+3. タブBの口調表示が即時に追随する。
+4. 直後の実況（commentary）が新しい口調で表示される。
+
+<a name="troubleshooting"></a>
 ## トラブルシューティング
 
 ### Error: posix_spawnp failed
@@ -81,3 +89,4 @@ chmod 755 <path-to-spawn-helper>
 
 - 実況テキストは **イベント時 + 最大2秒に1回** で送信されます
 - マスク処理は最低限のルールです（強化はShould）
+- 手動停止時に `exit code 143` が出ることがあります（SIGTERMのため正常な挙動）

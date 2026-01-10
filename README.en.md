@@ -20,3 +20,7 @@ Public documentation is maintained in both Japanese and English.
 ## Target CLI Examples
 
 Set `TARGET_CMD` in `apps/server/.env`. Examples: `/bin/bash`, `/bin/zsh`, `powershell`, `claude`, `codex`
+
+## Troubleshooting
+
+- docs/getting-started.en.md#troubleshooting
