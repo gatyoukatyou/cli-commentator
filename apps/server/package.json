@@ -3,9 +3,10 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "cross-env PORT=8787 tsx src/index.ts"
+    "dev": "tsx src/index.ts"
   },
   "dependencies": {
+    "dotenv": "^16.4.5",
     "node-pty": "^1.1.0",
     "ws": "^8.19.0"
   },
