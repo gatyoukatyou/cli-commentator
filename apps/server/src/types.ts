@@ -22,7 +22,7 @@ export type Event = {
 };
 
 export type WsOutgoing =
-  | { type: "hello"; style: Style }
+  | { kind: "hello"; style: Style }
   | { kind: "style"; style: Style }
   | { kind: "raw"; data: string }
   | { kind: "event"; ev: Event }

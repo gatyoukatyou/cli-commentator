@@ -48,7 +48,7 @@ function broadcast(msg: WsOutgoing) {
 }
 
 wss.on("connection", (ws) => {
-  ws.send(JSON.stringify({ type: "hello", style: currentStyle }));
+  ws.send(JSON.stringify({ kind: "hello", style: currentStyle }));
 
   ws.on("message", (buf) => {
     try {

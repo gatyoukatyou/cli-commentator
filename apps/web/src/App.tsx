@@ -4,9 +4,11 @@ import "./App.css";
 type Style = "standard" | "kansai" | "zundamon";
 
 type Msg =
-  | { type: "hello"; style: Style }
+  | { kind: "hello"; style: Style }
   | { kind: "style"; style: Style }
   | { kind: "commentary"; ts: number; text: string };
+
+type LegacyHello = { type: "hello"; style: Style };
 
 export default function App() {
   const [items, setItems] = useState<Array<{ ts: number; text: string }>>([]);
@@ -24,10 +26,11 @@ export default function App() {
 
     ws.onmessage = (e) => {
       try {
-        const msg: Msg = JSON.parse(e.data);
-        if ("type" in msg && msg.type === "hello") setStyle(msg.style);
-        if ("kind" in msg && msg.kind === "style") setStyle(msg.style);
-        if ("kind" in msg && msg.kind === "commentary") {
+        const msg = JSON.parse(e.data) as Msg | LegacyHello;
+        const kind = "kind" in msg ? msg.kind : msg.type;
+        if (kind === "hello") setStyle(msg.style);
+        if (kind === "style") setStyle(msg.style);
+        if (kind === "commentary") {
           setItems((prev) => [...prev, { ts: msg.ts, text: msg.text }].slice(-200));
         }
       } catch {}
