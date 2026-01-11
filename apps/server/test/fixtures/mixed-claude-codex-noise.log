@@ -1,0 +1,26 @@
+session start
+note: mixed signals with noise
+codex
+⏺ Read(file-01.txt)
+noise: line 01
+Would you like to run the following command?
+noise: line 02
+⏺ Write(output-01.txt)
+apply_patch
+noise: line 03
+⏺ Update(config.json)
+You approved the action to run
+noise: line 04
+⏺ Glob(src/**/*.ts)
+apply patch
+noise: line 05
+⏺ Grep("TODO", src/index.ts)
+Would you like to run the following command?
+noise: line 06
+⏺ Bash(pnpm test)
+You approved the request to run
+noise: line 07
+extra output line
+log: running tasks
+still going
+end
