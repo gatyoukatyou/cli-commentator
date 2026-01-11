@@ -15,6 +15,7 @@ const cases = [
   { name: "codex.lifecycle-error.log", expected: "generic" },
   { name: "generic.shell.log", expected: "generic" },
   { name: "lock-does-not-flip-after-initial-detect.log", expected: "claude" },
+  { name: "mixed-claude-codex-noise.log", expected: "generic" },
   { name: "mixed-claude-codex-strong.log", expected: "generic" },
   { name: "ignore-strong-signal-after-50-lines.log", expected: "generic" }
 ] as const;
