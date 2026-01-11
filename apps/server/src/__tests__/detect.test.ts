@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { MAX_DETECT_LINES, detectSourceFromText } from "../rulesets/detect.js";
+import { MAX_DETECT_LINES, createAutoDetector, detectSourceFromText } from "../rulesets/detect.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -14,6 +14,7 @@ const cases = [
   { name: "codex.approval.log", expected: "codex" },
   { name: "codex.lifecycle-error.log", expected: "generic" },
   { name: "generic.shell.log", expected: "generic" },
+  { name: "lock-does-not-flip-after-initial-detect.log", expected: "claude" },
   { name: "mixed-claude-codex-strong.log", expected: "generic" },
   { name: "ignore-strong-signal-after-50-lines.log", expected: "generic" }
 ] as const;
@@ -26,6 +27,32 @@ describe("ruleset auto detect", () => {
       expect(detectSourceFromText(content)).toBe(testCase.expected);
     });
   }
+
+  it("keeps the initial decision even if opposite signals appear later", async () => {
+    const filePath = path.join(fixturesDir, "lock-does-not-flip-after-initial-detect.log");
+    const content = await fs.readFile(filePath, "utf8");
+    const lines = content.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+    const detector = createAutoDetector();
+
+    let firstDecisionLine = -1;
+    let firstDecisionValue: string | null = null;
+
+    for (const [index, line] of lines.entries()) {
+      const decided = detector.update(line);
+      if (decided && firstDecisionValue === null) {
+        firstDecisionValue = decided;
+        firstDecisionLine = index;
+      }
+    }
+
+    if (firstDecisionValue === null) {
+      throw new Error("Expected an initial decision before reaching the end of the fixture.");
+    }
+
+    expect(firstDecisionLine).toBeLessThan(lines.length - 1);
+    expect(firstDecisionValue).toBe("claude");
+    expect(detector.get()).toBe("claude");
+  });
 
   it("exports MAX_DETECT_LINES", () => {
     expect(MAX_DETECT_LINES).toBe(50);
