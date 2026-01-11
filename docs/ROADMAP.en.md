@@ -66,9 +66,13 @@ Build a minimal MVP that reliably works, then expand once value is proven.
 ---
 
 ## Current status (as of 2026-01-11)
-- Done: bilingual README & docs policy, GitHub repo created and pushed
-- Done: detect boundary tests fixed in place (PR #1)
-- Next: requirements → MVP scaffold → refine event rules & tone presets using real logs
+**Done**
+- PR #1: detect boundary tests (mixed => generic, 50-line limit, exported constants)
+- PR #2: add roadmap docs (JA/EN + links from docs/README)
+
+**Next**
+- P0: add detect lock boundary fixture (highest priority)
+- P1: minimal CI via GitHub Actions
 
 ---
 

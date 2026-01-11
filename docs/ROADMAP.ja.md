@@ -70,10 +70,14 @@ CLI Commentator は「ターミナルの作業ログを見て、別ウィンド�
 
 ---
 
-## 現在地（2026-01-11 時点のまとめ）
-- Done：README日英整理、docs運用ポリシー追加、GitHubリポジトリ作成＆push
-- Done：detect境界の壊れやすさを **テストで固定**（PR #1）
-- Next：要件固定 → MVP雛形（server/web） → 口調・イベント抽出を実ログに寄せる
+## 現在地（2026-01-11 時点）
+**Done**
+- PR #1：detect 境界テスト（混在→generic、50行制限、重要定数export）
+- PR #2：ロードマップ docs 追加（日英＋docs/READMEからリンク）
+
+**Next**
+- P0：detect のロック境界 fixture を追加（最優先）
+- P1：CI（GitHub Actions）最小導入
 
 ---
 
