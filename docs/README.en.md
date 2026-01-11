@@ -13,3 +13,5 @@ This folder will host public documentation in paired Japanese and English files.
 ## Language switch links
 
 Each document should start with mutual links so readers can switch languages easily.
+
+- [Roadmap](ROADMAP.en.md)
