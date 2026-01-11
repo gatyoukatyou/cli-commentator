@@ -7,6 +7,9 @@ type DetectorOptions = {
   maxLines?: number;
 };
 
+export const MAX_DETECT_LINES = 50;
+export const MIN_DELTA = 3;
+
 const CLAUDE_STRONG = [
   /^(⏺|•)\s*(Read|Bash|Glob|Grep|Update|Write|Edit)\(/,
   /⎿/
@@ -52,8 +55,8 @@ function decide(scores: Scores, threshold: number): RuleSetId | null {
 }
 
 export function createAutoDetector(options: DetectorOptions = {}) {
-  const threshold = options.threshold ?? 3;
-  const maxLines = options.maxLines ?? 50;
+  const threshold = options.threshold ?? MIN_DELTA;
+  const maxLines = options.maxLines ?? MAX_DETECT_LINES;
 
   let detected: RuleSetId | null = null;
   let scores: Scores = { claude: 0, codex: 0 };
