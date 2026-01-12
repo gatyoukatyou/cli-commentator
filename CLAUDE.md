@@ -27,11 +27,16 @@ cli-commentator/
 │   │   │   │   ├── standard.ts   # 標準
 │   │   │   │   ├── kansai.ts     # 関西弁
 │   │   │   │   └── zundamon.ts   # ずんだもん風
-│   │   │   └── rulesets/     # CLI検出ルール
-│   │   │       ├── detect.ts     # 自動検出
-│   │   │       ├── claude.ts     # Claude Code用
-│   │   │       ├── codex.ts      # Codex用
-│   │   │       └── generic.ts    # 汎用
+│   │   │   ├── rulesets/     # CLI検出ルール
+│   │   │   │   ├── detect.ts     # 自動検出
+│   │   │   │   ├── claude.ts     # Claude Code用
+│   │   │   │   ├── codex.ts      # Codex用
+│   │   │   │   └── generic.ts    # 汎用
+│   │   │   └── llm/          # LLM Adapter層
+│   │   │       ├── types.ts      # 型定義
+│   │   │       ├── adapter.ts    # LLMAdapter interface
+│   │   │       ├── factory.ts    # プロバイダー選択
+│   │   │       └── providers/    # mock, disabled
 │   │   └── __tests__/        # テスト
 │   └── web/              # フロントエンド (React + Vite)
 └── docs/                 # ドキュメント (日英両対応)
@@ -64,6 +69,8 @@ cli-commentator/
 | `TARGET_ARGS` | (empty) | CLIへの引数（空白区切り） |
 | `TARGET_CWD` | (cwd) | 作業ディレクトリ |
 | `LOG_SOURCE` | auto | ルールセット選択 (auto/claude/codex/generic) |
+| `LLM_PROVIDER` | disabled | LLMプロバイダー (disabled/mock/openai/anthropic/gemini) |
+| `MOCK_LLM_MODE` | (empty) | `error` でmockがエラーを投げる（テスト用） |
 
 ## Architecture
 
@@ -84,3 +91,9 @@ cli-commentator/
 - 実況スタイルはWeb UIから切り替え可能
 - LOG_SOURCE=auto の場合、出力内容から自動でルールセット判定
 - ローカル端末には生データ、Web UIにはマスク後データを送信
+
+## LLM Adapter
+
+- 設計ドキュメント: `docs/LLM_ADAPTER.ja.md`
+- 実装: `apps/server/src/llm/`
+- 現状は土台のみ（統合はまだ）
