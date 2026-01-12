@@ -31,6 +31,9 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    // D-1: Prevent ghost reconnection on unmount/hot-reload
+    let cancelled = false;
+
     // Exponential backoff: 500ms, 1s, 2s, 4s, 8s, max 10s
     const getReconnectDelay = (attempt: number): number => {
       const baseDelay = 500;
@@ -39,6 +42,8 @@ export default function App() {
     };
 
     const connect = () => {
+      if (cancelled) return;
+
       // Clear any existing reconnect timeout
       if (reconnectTimeoutRef.current) {
         clearTimeout(reconnectTimeoutRef.current);
@@ -51,12 +56,14 @@ export default function App() {
       wsRef.current = ws;
 
       ws.onopen = () => {
+        if (cancelled) return;
         console.log("WebSocket connected");
         setConnectionStatus("connected");
         reconnectAttemptRef.current = 0;
       };
 
       ws.onmessage = (e) => {
+        if (cancelled) return;
         try {
           const msg = JSON.parse(e.data) as Msg | LegacyHello;
           const kind = "kind" in msg ? msg.kind : msg.type;
@@ -88,8 +95,12 @@ export default function App() {
 
       ws.onclose = (event) => {
         console.log("WebSocket closed:", event.code, event.reason);
-        setConnectionStatus("disconnected");
         wsRef.current = null;
+
+        // D-1: Don't reconnect if cancelled (unmount/hot-reload)
+        if (cancelled) return;
+
+        setConnectionStatus("disconnected");
 
         // Schedule reconnect with exponential backoff
         const delay = getReconnectDelay(reconnectAttemptRef.current);
@@ -106,6 +117,7 @@ export default function App() {
 
     return () => {
       // Cleanup on unmount
+      cancelled = true;
       if (reconnectTimeoutRef.current) {
         clearTimeout(reconnectTimeoutRef.current);
       }
@@ -117,7 +129,10 @@ export default function App() {
 
   const sendStyle = (s: Style) => {
     setStyle(s);
-    wsRef.current?.send(JSON.stringify({ kind: "setStyle", style: s }));
+    // D-2: Only send when connection is open
+    if (wsRef.current?.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify({ kind: "setStyle", style: s }));
+    }
   };
 
   const sourceLabel =

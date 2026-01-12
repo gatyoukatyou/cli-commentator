@@ -175,16 +175,20 @@ function cleanup(exitCode: number = 0): void {
 
   // 4. WebSocket server close + HTTP server close → 終了
   let closed = 0;
+
+  // D-3: Keep fallback timer reference to clear on normal exit
+  const fallbackTimer = setTimeout(() => process.exit(exitCode), 3000);
+
   const tryExit = () => {
     closed++;
-    if (closed >= 2) process.exit(exitCode);
+    if (closed >= 2) {
+      clearTimeout(fallbackTimer);
+      process.exit(exitCode);
+    }
   };
 
   wss.close(() => tryExit());
   server.close(() => tryExit());
-
-  // Timeout fallback (3秒後に強制終了)
-  setTimeout(() => process.exit(exitCode), 3000);
 }
 
 // --- Signal handlers ---
