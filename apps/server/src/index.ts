@@ -129,9 +129,11 @@ term.onData((data) => {
     broadcast({ kind: "event", ev });
     if (ev.type === "error" || shouldEmitNow()) {
       // comment() is async - fire and forget, errors are handled inside
-      void comment(ev, currentStyle).then((text) => {
-        broadcast({ kind: "commentary", ts: ev.ts, text, ev });
-      });
+      void comment(ev, currentStyle)
+        .then((text) => {
+          broadcast({ kind: "commentary", ts: ev.ts, text, ev });
+        })
+        .catch(() => {});
     }
   }
 });
@@ -139,11 +141,28 @@ term.onData((data) => {
 term.onExit(({ exitCode }) => {
   const ev: Event = { ts: Date.now(), type: "done", summary: `終了 code=${exitCode}` };
   broadcast({ kind: "event", ev });
-  // comment() is async - wait for it before cleanup
-  void comment(ev, currentStyle).then((text) => {
-    broadcast({ kind: "commentary", ts: ev.ts, text, ev });
-    setTimeout(() => cleanup(exitCode ?? 0), 100);
-  });
+
+  // 安全タイマー付き二重化（comment()がsettleしなくてもcleanup確実実行）
+  const exitWithCode = exitCode ?? 0;
+  let exited = false;
+  const safeCleanup = () => {
+    if (exited) return;
+    exited = true;
+    cleanup(exitWithCode);
+  };
+
+  // 1.5秒後に強制cleanup（comment()がハングしても確実に終了）
+  const hardTimeout = setTimeout(safeCleanup, 1500);
+
+  void comment(ev, currentStyle)
+    .then((text) => {
+      broadcast({ kind: "commentary", ts: ev.ts, text, ev });
+    })
+    .catch(() => {})
+    .finally(() => {
+      clearTimeout(hardTimeout);
+      setTimeout(safeCleanup, 100);
+    });
 });
 
 server.listen(PORT, () => {
