@@ -45,16 +45,24 @@ Build a minimal MVP that reliably works, then expand once value is proven.
 - Event extraction → commentary → separate window UI
 - Rate limit (max once per 2s), minimal redaction, tone presets
 
-**Now (next work)**
+**Done**
 - Freeze requirements (Must/Should/Could) in docs/requirements.*
-- Scaffold MVP apps (apps/server + apps/web) and make “commentary flows” work end-to-end
+- MVP implementation complete (apps/server + apps/web working end-to-end)
+- Add detect lock boundary fixture
+- Minimal CI via GitHub Actions
 
 ---
 
 ### Phase 3: Make it daily-usable (Should scope)
+
+**Now (next work)**
+- Operational Resilience
+  - Server exit cleanup (terminal protection)
+  - Web WebSocket reconnection
+
+**Next**
 - Pluggable LLM adapters
 - CLI profiles (cmd/cwd/env/tone)
-- Crash/restart/reconnect robustness
 - Stabilize Windows builds (node-pty mitigation plan)
 
 ---
@@ -65,14 +73,21 @@ Build a minimal MVP that reliably works, then expand once value is proven.
 
 ---
 
-## Current status (as of 2026-01-11)
+## Current status (as of 2026-01-12)
 **Done**
 - PR #1: detect boundary tests (mixed => generic, 50-line limit, exported constants)
 - PR #2: add roadmap docs (JA/EN + links from docs/README)
+- PR #4: detect lock boundary fixture + CI
+- MVP implementation complete (apps/server + apps/web working)
+
+**Now**
+- Sprint 4: Operational Resilience (Phase 3)
+  - Server exit cleanup (terminal protection)
+  - Web WebSocket reconnection
 
 **Next**
-- P0: add detect lock boundary fixture (highest priority)
-- P1: minimal CI via GitHub Actions
+- LLM Adapter design
+- CLI profiles
 
 ---
 

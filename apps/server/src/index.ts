@@ -102,12 +102,16 @@ const term = pty.spawn(cmd, args, {
 term.onData((data) => process.stdout.write(data));
 
 // 入力をPTYへ（対話CLIを一応動かせる）
+function handleStdinData(d: Buffer) {
+  term.write(d.toString());
+}
+
 if (process.stdin.isTTY) {
   try {
     process.stdin.setRawMode(true);
   } catch {}
   process.stdin.resume();
-  process.stdin.on("data", (d) => term.write(d.toString()));
+  process.stdin.on("data", handleStdinData);
 }
 
 broadcast({ kind: "event", ev: { ts: Date.now(), type: "start", summary: "開始", detail: `${cmd} ${args.join(" ")}` } });
@@ -133,8 +137,77 @@ term.onExit(({ exitCode }) => {
   const ev: Event = { ts: Date.now(), type: "done", summary: `終了 code=${exitCode}` };
   broadcast({ kind: "event", ev });
   broadcast({ kind: "commentary", ts: ev.ts, text: comment(ev, currentStyle), ev });
+  setTimeout(() => cleanup(exitCode ?? 0), 100);
 });
 
 server.listen(PORT, () => {
   console.log(`server listening on http://localhost:${PORT}`);
+});
+
+// --- Cleanup ---
+let isCleaningUp = false;
+
+function cleanup(exitCode: number = 0): void {
+  if (isCleaningUp) return;
+  isCleaningUp = true;
+  console.log("\nCleaning up...");
+
+  // 1. stdin: removeListener + pause + raw mode復元
+  if (process.stdin.isTTY) {
+    process.stdin.removeListener("data", handleStdinData);
+    process.stdin.pause();
+    try {
+      process.stdin.setRawMode(false);
+    } catch {}
+  }
+
+  // 2. PTY kill
+  try {
+    term.kill();
+  } catch {}
+
+  // 3. WebSocket clients close
+  for (const client of wss.clients) {
+    try {
+      client.close();
+    } catch {}
+  }
+
+  // 4. WebSocket server close + HTTP server close → 終了
+  let closed = 0;
+
+  // D-3: Keep fallback timer reference to clear on normal exit
+  const fallbackTimer = setTimeout(() => process.exit(exitCode), 3000);
+
+  const tryExit = () => {
+    closed++;
+    if (closed >= 2) {
+      clearTimeout(fallbackTimer);
+      process.exit(exitCode);
+    }
+  };
+
+  wss.close(() => tryExit());
+  server.close(() => tryExit());
+}
+
+// --- Signal handlers ---
+process.once("SIGINT", () => {
+  console.log("\nReceived SIGINT");
+  cleanup(0);
+});
+
+process.once("SIGTERM", () => {
+  console.log("\nReceived SIGTERM");
+  cleanup(0);
+});
+
+process.on("uncaughtException", (err) => {
+  console.error("Uncaught Exception:", err);
+  cleanup(1);
+});
+
+process.on("unhandledRejection", (reason) => {
+  console.error("Unhandled Rejection:", reason);
+  cleanup(1);
 });

@@ -45,21 +45,29 @@ CLI Commentator は「ターミナルの作業ログを見て、別ウィンド�
 
 ---
 
-### Phase 2：MVPを“体験できる形”に繋ぐ（最小価値の提示）
+### Phase 2：MVPを"体験できる形"に繋ぐ（最小価値の提示）
 - PTYでCLIを包んで起動（またはログ取り込み）
 - ログをイベント化 → 実況生成 → 別ウィンドウに表示
 - 2秒間隔の連打抑制、最低限のマスク、口調プリセット
 
-**Now（次の作業）**
+**Done**
 - 要件表（Must/Should/Could）を docs/requirements.* で固定
-- apps/server + apps/web のMVP雛形を作成（起動して実況が流れるところまで）
+- apps/server + apps/web のMVP実装完了（実況が流れる状態）
+- detectロック境界fixtureを追加
+- GitHub Actions CI最小導入
 
 ---
 
 ### Phase 3：使い続けたくなる（Should領域）
+
+**Now（次の作業）**
+- 運用堅牢性（Operational Resilience）
+  - サーバー終了時のクリーンアップ（ターミナル保護）
+  - Web側WebSocket再接続
+
+**Next**
 - LLM差し替え可能なAdapter設計
 - CLIプロファイル保存（cmd/cwd/env/口調）
-- エラー時の再起動・再接続
 - Windowsビルド安定化（node-ptyが詰まる場合の方針）
 
 ---
@@ -70,14 +78,21 @@ CLI Commentator は「ターミナルの作業ログを見て、別ウィンド�
 
 ---
 
-## 現在地（2026-01-11 時点）
+## 現在地（2026-01-12 時点）
 **Done**
 - PR #1：detect 境界テスト（混在→generic、50行制限、重要定数export）
 - PR #2：ロードマップ docs 追加（日英＋docs/READMEからリンク）
+- PR #4：detectロック境界fixture + CI導入
+- MVP実装完了（apps/server + apps/web が動作する状態）
+
+**Now**
+- Sprint 4：運用堅牢性（Phase 3）
+  - サーバー終了時クリーンアップ（ターミナル保護）
+  - Web WebSocket再接続
 
 **Next**
-- P0：detect のロック境界 fixture を追加（最優先）
-- P1：CI（GitHub Actions）最小導入
+- LLM Adapter設計
+- CLIプロファイル保存
 
 ---
 
