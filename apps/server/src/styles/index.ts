@@ -63,8 +63,8 @@ function buildLLMPrompt(ev: Event, style: Style): string {
 }
 
 export async function comment(ev: Event, style: Style): Promise<string> {
-  // 1) provider未指定 → 従来ルール実況
-  if (!LLM_PROVIDER) {
+  // 1) provider未指定 or disabled → 従来ルール実況
+  if (!LLM_PROVIDER || LLM_PROVIDER === "disabled") {
     return commentByRules(ev, style);
   }
 

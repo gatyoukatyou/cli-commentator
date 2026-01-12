@@ -72,6 +72,16 @@ cli-commentator/
 | `LLM_PROVIDER` | disabled | LLMプロバイダー (disabled/mock/openai/anthropic/gemini) |
 | `MOCK_LLM_MODE` | (empty) | `error` でmockがエラーを投げる（テスト用） |
 
+### LLM_PROVIDER の動作
+
+| 値 | 動作 |
+|----|------|
+| 未設定 / `disabled` | ルールベース実況のみ（LLM呼び出しなし） |
+| `mock` | 決定論的モック応答（テスト用、`[mock-XXXX]` 形式） |
+| `openai` / `anthropic` / `gemini` | 未実装（フォールバックでルールベースに） |
+
+**フォールバック仕様:** LLM呼び出しが失敗した場合（未実装/APIエラー/空応答）、自動的にルールベース実況にフォールバック。
+
 ## Architecture
 
 ```
@@ -91,9 +101,12 @@ cli-commentator/
 - 実況スタイルはWeb UIから切り替え可能
 - LOG_SOURCE=auto の場合、出力内容から自動でルールセット判定
 - ローカル端末には生データ、Web UIにはマスク後データを送信
+- macOS には `timeout` コマンドがない。代替方法:
+  - `gtimeout`（`brew install coreutils`）
+  - または `pnpm dev:server &` でバックグラウンド起動し、終了時は `kill %1`
 
 ## LLM Adapter
 
 - 設計ドキュメント: `docs/LLM_ADAPTER.ja.md`
 - 実装: `apps/server/src/llm/`
-- 現状は土台のみ（統合はまだ）
+- `comment()` 関数で LLM_PROVIDER に応じて分岐（Sprint 6 で統合済み）
