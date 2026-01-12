@@ -122,13 +122,16 @@ term.onData((data) => {
   const detected = getAutoDetectedSource();
   if (detected) broadcastSource(detected);
 
-  // raw は “マスク後” を送る（MVP）
+  // raw は "マスク後" を送る（MVP）
   broadcast({ kind: "raw", data: clean });
 
   for (const ev of evs) {
     broadcast({ kind: "event", ev });
     if (ev.type === "error" || shouldEmitNow()) {
-      broadcast({ kind: "commentary", ts: ev.ts, text: comment(ev, currentStyle), ev });
+      // comment() is async - fire and forget, errors are handled inside
+      void comment(ev, currentStyle).then((text) => {
+        broadcast({ kind: "commentary", ts: ev.ts, text, ev });
+      });
     }
   }
 });
@@ -136,8 +139,11 @@ term.onData((data) => {
 term.onExit(({ exitCode }) => {
   const ev: Event = { ts: Date.now(), type: "done", summary: `終了 code=${exitCode}` };
   broadcast({ kind: "event", ev });
-  broadcast({ kind: "commentary", ts: ev.ts, text: comment(ev, currentStyle), ev });
-  setTimeout(() => cleanup(exitCode ?? 0), 100);
+  // comment() is async - wait for it before cleanup
+  void comment(ev, currentStyle).then((text) => {
+    broadcast({ kind: "commentary", ts: ev.ts, text, ev });
+    setTimeout(() => cleanup(exitCode ?? 0), 100);
+  });
 });
 
 server.listen(PORT, () => {

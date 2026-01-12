@@ -3,7 +3,7 @@ import { comment } from "../styles/index.js";
 import type { Event, Style } from "../types.js";
 
 describe("commentary", () => {
-  it("renders styles consistently", () => {
+  it("renders styles consistently", async () => {
     const ev: Event = {
       ts: 1735689600000,
       type: "search",
@@ -12,7 +12,9 @@ describe("commentary", () => {
     };
 
     const styles: Style[] = ["standard", "kansai", "zundamon"];
-    const output = styles.map((style) => ({ style, text: comment(ev, style) }));
+    const output = await Promise.all(
+      styles.map(async (style) => ({ style, text: await comment(ev, style) }))
+    );
 
     expect(output).toMatchSnapshot();
   });
