@@ -24,8 +24,26 @@ describe("createLLMAdapter", () => {
   });
 
   it("throws for unimplemented providers", () => {
-    expect(() => createLLMAdapter({ LLM_PROVIDER: "openai" })).toThrow(
+    // groq, local, anthropic, gemini are not yet implemented
+    expect(() => createLLMAdapter({ LLM_PROVIDER: "groq" })).toThrow(
       /not yet implemented/
+    );
+    expect(() => createLLMAdapter({ LLM_PROVIDER: "anthropic" })).toThrow(
+      /not yet implemented/
+    );
+  });
+
+  it("returns openai adapter when LLM_PROVIDER=openai with API key", () => {
+    const adapter = createLLMAdapter({
+      LLM_PROVIDER: "openai",
+      OPENAI_API_KEY: "sk-test",
+    });
+    expect(adapter.name).toBe("openai");
+  });
+
+  it("throws when openai provider lacks API key", () => {
+    expect(() => createLLMAdapter({ LLM_PROVIDER: "openai" })).toThrow(
+      /OPENAI_API_KEY is required/
     );
   });
 });
