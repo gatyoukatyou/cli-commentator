@@ -2,7 +2,7 @@ import type { LLMAdapter } from "./adapter.js";
 import { disabledAdapter } from "./providers/disabled.js";
 import { mockAdapter } from "./providers/mock.js";
 
-const VALID_PROVIDERS = ["disabled", "mock", "openai", "anthropic", "gemini"] as const;
+const VALID_PROVIDERS = ["disabled", "mock", "openai", "groq", "local", "anthropic", "gemini"] as const;
 
 export function createLLMAdapter(env: Record<string, string | undefined> = process.env): LLMAdapter {
   const provider = env.LLM_PROVIDER?.toLowerCase() ?? "";

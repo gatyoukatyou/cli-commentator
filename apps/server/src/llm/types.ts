@@ -1,4 +1,4 @@
-export type ProviderName = "disabled" | "mock" | "openai" | "anthropic" | "gemini";
+export type ProviderName = "disabled" | "mock" | "openai" | "groq" | "local" | "anthropic" | "gemini";
 
 export type ChatMessage = {
   role: "system" | "user" | "assistant";
