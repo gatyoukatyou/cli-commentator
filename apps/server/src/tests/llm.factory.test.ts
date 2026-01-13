@@ -24,13 +24,19 @@ describe("createLLMAdapter", () => {
   });
 
   it("throws for unimplemented providers", () => {
-    // local, anthropic, gemini are not yet implemented
-    expect(() => createLLMAdapter({ LLM_PROVIDER: "local" })).toThrow(
-      /not yet implemented/
-    );
+    // anthropic, gemini are not yet implemented
     expect(() => createLLMAdapter({ LLM_PROVIDER: "anthropic" })).toThrow(
       /not yet implemented/
     );
+    expect(() => createLLMAdapter({ LLM_PROVIDER: "gemini" })).toThrow(
+      /not yet implemented/
+    );
+  });
+
+  it("returns local adapter when LLM_PROVIDER=local", () => {
+    // local doesn't require any env vars, uses defaults
+    const adapter = createLLMAdapter({ LLM_PROVIDER: "local" });
+    expect(adapter.name).toBe("local");
   });
 
   it("returns groq adapter when LLM_PROVIDER=groq with API key", () => {
