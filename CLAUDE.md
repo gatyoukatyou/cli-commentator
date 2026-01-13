@@ -36,7 +36,7 @@ cli-commentator/
 │   │   │       ├── types.ts      # 型定義
 │   │   │       ├── adapter.ts    # LLMAdapter interface
 │   │   │       ├── factory.ts    # プロバイダー選択
-│   │   │       └── providers/    # mock, disabled
+│   │   │       └── providers/    # openai, groq, local, gemini, mock, disabled
 │   │   └── __tests__/        # テスト
 │   └── web/              # フロントエンド (React + Vite)
 └── docs/                 # ドキュメント (日英両対応)
@@ -69,7 +69,7 @@ cli-commentator/
 | `TARGET_ARGS` | (empty) | CLIへの引数（空白区切り） |
 | `TARGET_CWD` | (cwd) | 作業ディレクトリ |
 | `LOG_SOURCE` | auto | ルールセット選択 (auto/claude/codex/generic) |
-| `LLM_PROVIDER` | disabled | LLMプロバイダー (disabled/mock/openai/anthropic/gemini) |
+| `LLM_PROVIDER` | disabled | LLMプロバイダー (disabled/mock/openai/groq/local/gemini) |
 | `MOCK_LLM_MODE` | (empty) | `error` でmockがエラーを投げる（テスト用） |
 | `COMMENT_TIMEOUT_MS` | 3000 | comment()のLLM呼び出しタイムアウト（ms） |
 | `COMMENT_EXIT_TIMEOUT_MS` | 1500 | 終了時のcleanup強制実行までの待機時間（ms） |
@@ -80,9 +80,42 @@ cli-commentator/
 |----|------|
 | 未設定 / `disabled` | ルールベース実況のみ（LLM呼び出しなし） |
 | `mock` | 決定論的モック応答（テスト用、`[mock-XXXX]` 形式） |
-| `openai` / `anthropic` / `gemini` | 未実装（フォールバックでルールベースに） |
+| `openai` | OpenAI API（要: `OPENAI_API_KEY`） |
+| `groq` | Groq API（要: `GROQ_API_KEY`） |
+| `local` | ローカルLLM（Ollama/vLLM等、OpenAI互換エンドポイント） |
+| `gemini` | Google Gemini API（要: `GOOGLE_API_KEY`） |
+| `anthropic` | 未実装（フォールバックでルールベースに） |
 
-**フォールバック仕様:** LLM呼び出しが失敗した場合（未実装/APIエラー/空応答）、自動的にルールベース実況にフォールバック。
+### プロバイダー別環境変数
+
+#### OpenAI (`LLM_PROVIDER=openai`)
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `OPENAI_API_KEY` | (required) | OpenAI APIキー |
+| `OPENAI_BASE_URL` | https://api.openai.com/v1 | APIエンドポイント |
+| `OPENAI_MODEL` | gpt-4o-mini | 使用モデル |
+
+#### Groq (`LLM_PROVIDER=groq`)
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `GROQ_API_KEY` | (required) | Groq APIキー |
+| `GROQ_BASE_URL` | https://api.groq.com/openai/v1 | APIエンドポイント |
+| `GROQ_MODEL` | llama-3.3-70b-versatile | 使用モデル |
+
+#### Local (`LLM_PROVIDER=local`)
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `LOCAL_BASE_URL` | http://localhost:11434/v1 | APIエンドポイント（Ollama等） |
+| `LOCAL_MODEL` | llama3.2 | 使用モデル |
+| `LOCAL_API_KEY` | not-required | APIキー（不要な場合は省略可） |
+
+#### Gemini (`LLM_PROVIDER=gemini`)
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `GOOGLE_API_KEY` | (required) | Google AI APIキー |
+| `GEMINI_MODEL` | gemini-2.0-flash | 使用モデル |
+
+**フォールバック仕様:** LLM呼び出しが失敗した場合（APIエラー/タイムアウト/空応答）、自動的にルールベース実況にフォールバック。
 
 ## Architecture
 
