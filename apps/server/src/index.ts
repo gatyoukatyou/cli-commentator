@@ -10,6 +10,7 @@ import { comment } from "./styles/index.js";
 import { getAutoDetectedSource, resetAutoDetection } from "./rulesets/index.js";
 
 const PORT = Number(process.env.PORT ?? 8787);
+const COMMENT_EXIT_TIMEOUT_MS = parseInt(process.env.COMMENT_EXIT_TIMEOUT_MS ?? "1500", 10);
 
 function isStyle(value: unknown): value is Style {
   return value === "standard" || value === "kansai" || value === "zundamon";
@@ -151,8 +152,8 @@ term.onExit(({ exitCode }) => {
     cleanup(exitWithCode);
   };
 
-  // 1.5秒後に強制cleanup（comment()がハングしても確実に終了）
-  const hardTimeout = setTimeout(safeCleanup, 1500);
+  // COMMENT_EXIT_TIMEOUT_MS後に強制cleanup（comment()がハングしても確実に終了）
+  const hardTimeout = setTimeout(safeCleanup, COMMENT_EXIT_TIMEOUT_MS);
 
   void comment(ev, currentStyle)
     .then((text) => {

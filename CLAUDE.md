@@ -71,6 +71,8 @@ cli-commentator/
 | `LOG_SOURCE` | auto | ルールセット選択 (auto/claude/codex/generic) |
 | `LLM_PROVIDER` | disabled | LLMプロバイダー (disabled/mock/openai/anthropic/gemini) |
 | `MOCK_LLM_MODE` | (empty) | `error` でmockがエラーを投げる（テスト用） |
+| `COMMENT_TIMEOUT_MS` | 3000 | comment()のLLM呼び出しタイムアウト（ms） |
+| `COMMENT_EXIT_TIMEOUT_MS` | 1500 | 終了時のcleanup強制実行までの待機時間（ms） |
 
 ### LLM_PROVIDER の動作
 
@@ -110,3 +112,5 @@ cli-commentator/
 - 設計ドキュメント: `docs/LLM_ADAPTER.ja.md`
 - 実装: `apps/server/src/llm/`
 - `comment()` 関数で LLM_PROVIDER に応じて分岐（Sprint 6 で統合済み）
+- タイムアウト保護: `comment()` は `COMMENT_TIMEOUT_MS` 後に自動でルールベースにフォールバック（Sprint 8）
+- AbortController 対応: LLM リクエストに signal を渡して abort 可能（Sprint 8）

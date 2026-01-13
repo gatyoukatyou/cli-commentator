@@ -10,6 +10,7 @@ export type GenerateTextRequest = {
   model?: string;
   temperature?: number;
   maxTokens?: number;
+  signal?: AbortSignal;
 };
 
 export type GenerateTextResponse = {

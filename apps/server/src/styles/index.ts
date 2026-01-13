@@ -6,6 +6,7 @@ import { createLLMAdapter } from "../llm/factory.js";
 import type { LLMAdapter } from "../llm/adapter.js";
 
 const LLM_PROVIDER = (process.env.LLM_PROVIDER ?? "").trim().toLowerCase();
+const COMMENT_TIMEOUT_MS = parseInt(process.env.COMMENT_TIMEOUT_MS ?? "3000", 10);
 
 // 起動時に1回だけ作る（未実装providerでも落とさない）
 const llm: LLMAdapter | null = (() => {
@@ -62,7 +63,7 @@ function buildLLMPrompt(ev: Event, style: Style): string {
 回答は実況コメント1文のみ（説明不要）:`;
 }
 
-export async function comment(ev: Event, style: Style): Promise<string> {
+async function commentInternal(ev: Event, style: Style, signal?: AbortSignal): Promise<string> {
   // 1) provider未指定 or disabled → 従来ルール実況
   if (!LLM_PROVIDER || LLM_PROVIDER === "disabled") {
     return commentByRules(ev, style);
@@ -77,6 +78,7 @@ export async function comment(ev: Event, style: Style): Promise<string> {
     const prompt = buildLLMPrompt(ev, style);
     const res = await llm.generateText({
       messages: [{ role: "user", content: prompt }],
+      signal,
     });
 
     if (res.text && res.text.trim()) {
@@ -85,5 +87,39 @@ export async function comment(ev: Event, style: Style): Promise<string> {
     return commentByRules(ev, style);
   } catch {
     return commentByRules(ev, style);
+  }
+}
+
+/**
+ * comment() with timeout protection.
+ * If LLM call takes longer than COMMENT_TIMEOUT_MS, abort and fallback to rules.
+ */
+export async function comment(ev: Event, style: Style): Promise<string> {
+  // ルールベースのみの場合はタイムアウト不要
+  if (!LLM_PROVIDER || LLM_PROVIDER === "disabled" || !llm) {
+    return commentByRules(ev, style);
+  }
+
+  const controller = new AbortController();
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+
+  // Promise.race で確実にタイムアウトを効かせる
+  const timeoutPromise = new Promise<string>((_, reject) => {
+    timeoutId = setTimeout(() => {
+      controller.abort();
+      reject(new Error("comment_timeout"));
+    }, COMMENT_TIMEOUT_MS);
+  });
+
+  try {
+    return await Promise.race([
+      commentInternal(ev, style, controller.signal),
+      timeoutPromise,
+    ]);
+  } catch {
+    // タイムアウトまたは LLM エラー → ルールベースにフォールバック
+    return commentByRules(ev, style);
+  } finally {
+    if (timeoutId) clearTimeout(timeoutId);
   }
 }

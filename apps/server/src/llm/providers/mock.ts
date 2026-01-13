@@ -11,6 +11,9 @@ function hashMessages(messages: GenerateTextRequest["messages"]): string {
 export const mockAdapter: LLMAdapter = {
   name: "mock",
   async generateText(req): Promise<GenerateTextResponse> {
+    if (req.signal?.aborted) {
+      throw new Error("Aborted");
+    }
     if (process.env.MOCK_LLM_MODE === "error") {
       throw new Error("Mock LLM error mode enabled");
     }
