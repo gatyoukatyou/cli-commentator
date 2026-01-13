@@ -4,6 +4,7 @@ import { mockAdapter } from "./providers/mock.js";
 import { createOpenAIAdapter } from "./providers/openai.js";
 import { createGroqAdapter } from "./providers/groq.js";
 import { createLocalAdapter } from "./providers/local.js";
+import { createGeminiAdapter } from "./providers/gemini.js";
 
 const VALID_PROVIDERS = ["disabled", "mock", "openai", "groq", "local", "anthropic", "gemini"] as const;
 
@@ -30,8 +31,12 @@ export function createLLMAdapter(env: Record<string, string | undefined> = proce
     return createLocalAdapter(env);
   }
 
-  // 将来の実装: anthropic, gemini
-  if (provider === "anthropic" || provider === "gemini") {
+  if (provider === "gemini") {
+    return createGeminiAdapter(env);
+  }
+
+  // 将来の実装: anthropic
+  if (provider === "anthropic") {
     throw new Error(`LLM provider "${provider}" is not yet implemented.`);
   }
 

@@ -24,12 +24,23 @@ describe("createLLMAdapter", () => {
   });
 
   it("throws for unimplemented providers", () => {
-    // anthropic, gemini are not yet implemented
+    // anthropic is not yet implemented
     expect(() => createLLMAdapter({ LLM_PROVIDER: "anthropic" })).toThrow(
       /not yet implemented/
     );
+  });
+
+  it("returns gemini adapter when LLM_PROVIDER=gemini with API key", () => {
+    const adapter = createLLMAdapter({
+      LLM_PROVIDER: "gemini",
+      GOOGLE_API_KEY: "test-key",
+    });
+    expect(adapter.name).toBe("gemini");
+  });
+
+  it("throws when gemini provider lacks API key", () => {
     expect(() => createLLMAdapter({ LLM_PROVIDER: "gemini" })).toThrow(
-      /not yet implemented/
+      /GOOGLE_API_KEY is required/
     );
   });
 
