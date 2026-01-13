@@ -24,12 +24,26 @@ describe("createLLMAdapter", () => {
   });
 
   it("throws for unimplemented providers", () => {
-    // groq, local, anthropic, gemini are not yet implemented
-    expect(() => createLLMAdapter({ LLM_PROVIDER: "groq" })).toThrow(
+    // local, anthropic, gemini are not yet implemented
+    expect(() => createLLMAdapter({ LLM_PROVIDER: "local" })).toThrow(
       /not yet implemented/
     );
     expect(() => createLLMAdapter({ LLM_PROVIDER: "anthropic" })).toThrow(
       /not yet implemented/
+    );
+  });
+
+  it("returns groq adapter when LLM_PROVIDER=groq with API key", () => {
+    const adapter = createLLMAdapter({
+      LLM_PROVIDER: "groq",
+      GROQ_API_KEY: "gsk-test",
+    });
+    expect(adapter.name).toBe("groq");
+  });
+
+  it("throws when groq provider lacks API key", () => {
+    expect(() => createLLMAdapter({ LLM_PROVIDER: "groq" })).toThrow(
+      /GROQ_API_KEY is required/
     );
   });
 
