@@ -36,7 +36,7 @@ cli-commentator/
 │   │   │       ├── types.ts      # 型定義
 │   │   │       ├── adapter.ts    # LLMAdapter interface
 │   │   │       ├── factory.ts    # プロバイダー選択
-│   │   │       └── providers/    # openai, groq, local, gemini, mock, disabled
+│   │   │       └── providers/    # openai, groq, local, gemini, anthropic, mock, disabled
 │   │   └── __tests__/        # テスト
 │   └── web/              # フロントエンド (React + Vite)
 └── docs/                 # ドキュメント (日英両対応)
@@ -69,7 +69,7 @@ cli-commentator/
 | `TARGET_ARGS` | (empty) | CLIへの引数（空白区切り） |
 | `TARGET_CWD` | (cwd) | 作業ディレクトリ |
 | `LOG_SOURCE` | auto | ルールセット選択 (auto/claude/codex/generic) |
-| `LLM_PROVIDER` | disabled | LLMプロバイダー (disabled/mock/openai/groq/local/gemini) |
+| `LLM_PROVIDER` | disabled | LLMプロバイダー (disabled/mock/openai/groq/local/gemini/anthropic) |
 | `MOCK_LLM_MODE` | (empty) | `error` でmockがエラーを投げる（テスト用） |
 | `COMMENT_TIMEOUT_MS` | 3000 | comment()のLLM呼び出しタイムアウト（ms） |
 | `COMMENT_EXIT_TIMEOUT_MS` | 1500 | 終了時のcleanup強制実行までの待機時間（ms） |
@@ -84,7 +84,7 @@ cli-commentator/
 | `groq` | Groq API（要: `GROQ_API_KEY`） |
 | `local` | ローカルLLM（Ollama/vLLM等、OpenAI互換エンドポイント） |
 | `gemini` | Google Gemini API（要: `GOOGLE_API_KEY`） |
-| `anthropic` | 未実装（フォールバックでルールベースに） |
+| `anthropic` | Anthropic API（要: `ANTHROPIC_API_KEY`） |
 
 ### プロバイダー別環境変数
 
@@ -115,7 +115,25 @@ cli-commentator/
 | `GOOGLE_API_KEY` | (required) | Google AI APIキー |
 | `GEMINI_MODEL` | gemini-2.0-flash | 使用モデル |
 
+#### Anthropic (`LLM_PROVIDER=anthropic`)
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `ANTHROPIC_API_KEY` | (required) | Anthropic APIキー |
+| `ANTHROPIC_BASE_URL` | https://api.anthropic.com/v1 | APIエンドポイント |
+| `ANTHROPIC_MODEL` | claude-3-5-sonnet-20240620 | 使用モデル |
+
 **フォールバック仕様:** LLM呼び出しが失敗した場合（APIエラー/タイムアウト/空応答）、自動的にルールベース実況にフォールバック。
+
+### Anthropic スモークテスト
+
+```bash
+export LLM_PROVIDER=anthropic
+export ANTHROPIC_API_KEY=your-api-key
+export ANTHROPIC_MODEL=claude-3-5-sonnet-20240620
+export TARGET_CMD=echo
+export TARGET_ARGS="hello"
+pnpm dev:server
+```
 
 ## Architecture
 

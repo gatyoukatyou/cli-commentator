@@ -23,10 +23,17 @@ describe("createLLMAdapter", () => {
     );
   });
 
-  it("throws for unimplemented providers", () => {
-    // anthropic is not yet implemented
+  it("returns anthropic adapter when LLM_PROVIDER=anthropic with API key", () => {
+    const adapter = createLLMAdapter({
+      LLM_PROVIDER: "anthropic",
+      ANTHROPIC_API_KEY: "test-key",
+    });
+    expect(adapter.name).toBe("anthropic");
+  });
+
+  it("throws when anthropic provider lacks API key", () => {
     expect(() => createLLMAdapter({ LLM_PROVIDER: "anthropic" })).toThrow(
-      /not yet implemented/
+      /ANTHROPIC_API_KEY is required/
     );
   });
 
