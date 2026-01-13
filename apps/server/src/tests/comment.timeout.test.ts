@@ -109,7 +109,7 @@ describe("comment() timeout behavior", () => {
 });
 
 describe("mock adapter signal handling", () => {
-  it("throws when signal is already aborted", async () => {
+  it("throws CommentError when signal is already aborted", async () => {
     const { mockAdapter } = await import("../llm/providers/mock.js");
 
     const controller = new AbortController();
@@ -120,6 +120,6 @@ describe("mock adapter signal handling", () => {
         messages: [{ role: "user", content: "test" }],
         signal: controller.signal,
       })
-    ).rejects.toThrow("Aborted");
+    ).rejects.toThrow("comment_aborted");
   });
 });

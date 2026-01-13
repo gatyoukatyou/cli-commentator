@@ -4,9 +4,31 @@ import { commentKansai } from "./kansai.js";
 import { commentZundamon } from "./zundamon.js";
 import { createLLMAdapter } from "../llm/factory.js";
 import type { LLMAdapter } from "../llm/adapter.js";
+import { CommentError } from "../errors.js";
+import { withTimeout } from "../utils/timeout.js";
 
 const LLM_PROVIDER = (process.env.LLM_PROVIDER ?? "").trim().toLowerCase();
 const COMMENT_TIMEOUT_MS = parseInt(process.env.COMMENT_TIMEOUT_MS ?? "3000", 10);
+
+// --- Logging ---
+type CommentLogMeta = {
+  provider: string;
+  style: string;
+  eventType: string;
+};
+
+function logComment(
+  result: "ok" | "timeout" | "aborted" | "llm_error",
+  durationMs: number,
+  meta: CommentLogMeta
+): void {
+  const msg = `comment_${result} duration_ms=${durationMs} provider=${meta.provider} style=${meta.style} event=${meta.eventType}`;
+  if (result === "ok") {
+    if (process.env.DEBUG) console.log(msg);
+  } else {
+    console.warn(msg);
+  }
+}
 
 // 起動時に1回だけ作る（未実装providerでも落とさない）
 const llm: LLMAdapter | null = (() => {
@@ -69,57 +91,63 @@ async function commentInternal(ev: Event, style: Style, signal?: AbortSignal): P
     return commentByRules(ev, style);
   }
 
-  // 2) provider指定あり → まずLLMを試す（失敗したら従来へ）
-  try {
-    if (!llm) {
-      return commentByRules(ev, style);
-    }
-
-    const prompt = buildLLMPrompt(ev, style);
-    const res = await llm.generateText({
-      messages: [{ role: "user", content: prompt }],
-      signal,
-    });
-
-    if (res.text && res.text.trim()) {
-      return res.text.trim();
-    }
-    return commentByRules(ev, style);
-  } catch {
+  // 2) provider指定あり → LLMを試す（エラーは上位で処理）
+  if (!llm) {
     return commentByRules(ev, style);
   }
+
+  const prompt = buildLLMPrompt(ev, style);
+  const res = await llm.generateText({
+    messages: [{ role: "user", content: prompt }],
+    signal,
+  });
+
+  if (res.text && res.text.trim()) {
+    return res.text.trim();
+  }
+
+  // 空レスポンス → LLMエラーとして扱う
+  throw new CommentError("comment_llm_error", "Empty LLM response");
 }
 
 /**
- * comment() with timeout protection.
+ * comment() with timeout protection and logging.
  * If LLM call takes longer than COMMENT_TIMEOUT_MS, abort and fallback to rules.
  */
 export async function comment(ev: Event, style: Style): Promise<string> {
+  const meta: CommentLogMeta = {
+    provider: LLM_PROVIDER || "disabled",
+    style,
+    eventType: ev.type,
+  };
+
   // ルールベースのみの場合はタイムアウト不要
   if (!LLM_PROVIDER || LLM_PROVIDER === "disabled" || !llm) {
     return commentByRules(ev, style);
   }
 
   const controller = new AbortController();
-  let timeoutId: ReturnType<typeof setTimeout> | undefined;
-
-  // Promise.race で確実にタイムアウトを効かせる
-  const timeoutPromise = new Promise<string>((_, reject) => {
-    timeoutId = setTimeout(() => {
-      controller.abort();
-      reject(new Error("comment_timeout"));
-    }, COMMENT_TIMEOUT_MS);
-  });
+  const start = Date.now();
 
   try {
-    return await Promise.race([
+    const result = await withTimeout(
       commentInternal(ev, style, controller.signal),
-      timeoutPromise,
-    ]);
-  } catch {
-    // タイムアウトまたは LLM エラー → ルールベースにフォールバック
+      {
+        ms: COMMENT_TIMEOUT_MS,
+        timeoutError: () => new CommentError("comment_timeout"),
+        onTimeout: () => controller.abort(),
+      }
+    );
+    logComment("ok", Date.now() - start, meta);
+    return result;
+  } catch (err) {
+    const duration = Date.now() - start;
+    if (err instanceof CommentError) {
+      const resultType = err.code.replace("comment_", "") as "timeout" | "aborted" | "llm_error";
+      logComment(resultType, duration, meta);
+    } else {
+      logComment("llm_error", duration, meta);
+    }
     return commentByRules(ev, style);
-  } finally {
-    if (timeoutId) clearTimeout(timeoutId);
   }
 }

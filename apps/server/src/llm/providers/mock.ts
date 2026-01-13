@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import type { LLMAdapter } from "../adapter.js";
 import type { GenerateTextRequest, GenerateTextResponse } from "../types.js";
+import { CommentError } from "../../errors.js";
 
 function hashMessages(messages: GenerateTextRequest["messages"]): string {
   const hash = createHash("sha256");
@@ -12,10 +13,10 @@ export const mockAdapter: LLMAdapter = {
   name: "mock",
   async generateText(req): Promise<GenerateTextResponse> {
     if (req.signal?.aborted) {
-      throw new Error("Aborted");
+      throw new CommentError("comment_aborted");
     }
     if (process.env.MOCK_LLM_MODE === "error") {
-      throw new Error("Mock LLM error mode enabled");
+      throw new CommentError("comment_llm_error", "Mock LLM error mode enabled");
     }
     const id = hashMessages(req.messages);
     return {
