@@ -57,6 +57,7 @@ cli-commentator/
 | `pnpm dev:server` | サーバーのみ起動 |
 | `pnpm dev:web` | Web UIのみ起動 |
 | `pnpm -C apps/server test` | サーバーのテスト実行 |
+| `pnpm smoke:llm <provider>` | LLMプロバイダーのスモークテスト |
 
 ## Environment Variables
 
@@ -124,16 +125,34 @@ cli-commentator/
 
 **フォールバック仕様:** LLM呼び出しが失敗した場合（APIエラー/タイムアウト/空応答）、自動的にルールベース実況にフォールバック。
 
-### Anthropic スモークテスト
+### LLM Smoke Test
 
 ```bash
-export LLM_PROVIDER=anthropic
-export ANTHROPIC_API_KEY=your-api-key
-export ANTHROPIC_MODEL=claude-3-5-sonnet-20240620
-export TARGET_CMD=echo
-export TARGET_ARGS="hello"
-pnpm dev:server
+# 単一プロバイダーテスト
+pnpm smoke:llm openai
+pnpm smoke:llm anthropic
+pnpm smoke:llm gemini
+pnpm smoke:llm groq
+pnpm smoke:llm local
+pnpm smoke:llm mock
+
+# フォールバック確認（LLMエラー時）
+MOCK_LLM_MODE=error pnpm smoke:llm mock
+
+# 全プロバイダー一括（設定済みのみ実行）
+pnpm smoke:llm --all
 ```
+
+#### Exit Codes
+
+| Code | 意味 |
+|------|------|
+| 0 | LLM応答成功 |
+| 1 | 必須ENV未設定 |
+| 2 | サーバー起動失敗 |
+| 3 | コメントイベントなし |
+| 4 | 無効なprovider引数 |
+| 5 | フォールバック（LLM失敗→ルールベース） |
 
 ## Architecture
 
