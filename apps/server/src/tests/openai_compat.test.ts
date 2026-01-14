@@ -160,7 +160,7 @@ describe("createOpenAICompatAdapter", () => {
     });
   });
 
-  it("handles empty content in response", async () => {
+  it("throws comment_llm_error for empty content in response", async () => {
     globalThis.fetch = vi.fn().mockResolvedValue({
       ok: true,
       json: () =>
@@ -170,11 +170,14 @@ describe("createOpenAICompatAdapter", () => {
     });
 
     const adapter = createOpenAICompatAdapter(baseConfig);
-    const result = await adapter.generateText({
-      messages: [{ role: "user", content: "Hi" }],
+    await expect(
+      adapter.generateText({
+        messages: [{ role: "user", content: "Hi" }],
+      })
+    ).rejects.toMatchObject({
+      name: "CommentError",
+      code: "comment_llm_error",
     });
-
-    expect(result.text).toBe("");
   });
 
   it("uses custom defaultMaxTokens and defaultTemperature", async () => {

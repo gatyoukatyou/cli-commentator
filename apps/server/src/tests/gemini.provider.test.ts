@@ -220,7 +220,7 @@ describe("createGeminiAdapter", () => {
     });
   });
 
-  it("handles empty response gracefully", async () => {
+  it("throws comment_llm_error for empty response", async () => {
     globalThis.fetch = vi.fn().mockResolvedValue({
       ok: true,
       json: () =>
@@ -230,11 +230,14 @@ describe("createGeminiAdapter", () => {
     });
 
     const adapter = createGeminiAdapter({ GOOGLE_API_KEY: "test-key" });
-    const result = await adapter.generateText({
-      messages: [{ role: "user", content: "Hi" }],
+    await expect(
+      adapter.generateText({
+        messages: [{ role: "user", content: "Hi" }],
+      })
+    ).rejects.toMatchObject({
+      name: "CommentError",
+      code: "comment_llm_error",
     });
-
-    expect(result.text).toBe("");
   });
 
   it("passes signal to fetch", async () => {
