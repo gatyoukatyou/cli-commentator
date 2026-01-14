@@ -132,6 +132,10 @@ export function createAnthropicAdapter(
         .map((block) => block.text ?? "")
         .join("");
 
+      if (!text) {
+        throw new CommentError("comment_llm_error", "Empty response from LLM");
+      }
+
       return {
         text,
         usage: data.usage

@@ -116,7 +116,10 @@ export function createOpenAICompatAdapter(config: OpenAICompatConfig): LLMAdapte
         throw new CommentError("comment_llm_error", "Invalid JSON response");
       }
 
-      const text = data.choices?.[0]?.message?.content ?? "";
+      const text = data.choices?.[0]?.message?.content;
+      if (!text) {
+        throw new CommentError("comment_llm_error", "Empty response from LLM");
+      }
 
       return {
         text,

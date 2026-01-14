@@ -121,7 +121,10 @@ export function createGeminiAdapter(
       }
 
       // Extract text from response
-      const text = data.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+      const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+      if (!text) {
+        throw new CommentError("comment_llm_error", "Empty response from LLM");
+      }
 
       return {
         text,
