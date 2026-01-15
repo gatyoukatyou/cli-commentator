@@ -1,16 +1,18 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import "./App.css";
-
-type Style = "standard" | "kansai" | "zundamon";
-type DetectedSource = "claude" | "codex" | "generic";
-type SourceMode = "auto" | DetectedSource;
-type SourceState = { mode: SourceMode; detected: DetectedSource | null };
+import { ProfileSelector } from "./components/ProfileSelector";
+import { ProfileEditor } from "./components/ProfileEditor";
+import type { Style, SourceState, Profile, ProfileSummary, CreateProfileInput } from "./types";
 
 type Msg =
   | { kind: "hello"; style: Style; source: SourceState }
   | { kind: "style"; style: Style }
   | { kind: "source"; source: SourceState }
-  | { kind: "commentary"; ts: number; text: string };
+  | { kind: "commentary"; ts: number; text: string }
+  | { kind: "profiles"; profiles: ProfileSummary[]; activeId: string | null }
+  | { kind: "profileSaved"; profile: ProfileSummary; activeId: string | null }
+  | { kind: "profileDeleted"; id: string; activeId: string | null }
+  | { kind: "profileError"; error: string };
 
 type LegacyHello = { type: "hello"; style: Style };
 
@@ -24,6 +26,12 @@ export default function App() {
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectAttemptRef = useRef(0);
   const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Profile state
+  const [profiles, setProfiles] = useState<ProfileSummary[]>([]);
+  const [activeProfileId, setActiveProfileId] = useState<string | null>(null);
+  const [editingProfile, setEditingProfile] = useState<Profile | null | "new">(null);
+  const [profileError, setProfileError] = useState<string | null>(null);
 
   const wsUrl = useMemo(() => {
     const port = import.meta.env.VITE_WS_PORT ?? "8787";
@@ -83,6 +91,37 @@ export default function App() {
                 setItems((prev) => [...prev, { ts: msg.ts, text: msg.text }].slice(-200));
               }
               break;
+            case "profiles":
+              if ("profiles" in msg) {
+                setProfiles(msg.profiles);
+                setActiveProfileId(msg.activeId);
+              }
+              break;
+            case "profileSaved":
+              if ("profile" in msg) {
+                setProfiles((prev) => {
+                  const exists = prev.some((p) => p.id === msg.profile.id);
+                  if (exists) {
+                    return prev.map((p) => (p.id === msg.profile.id ? msg.profile : p));
+                  }
+                  return [...prev, msg.profile];
+                });
+                setActiveProfileId(msg.activeId);
+                setEditingProfile(null);
+                setProfileError(null);
+              }
+              break;
+            case "profileDeleted":
+              if ("id" in msg) {
+                setProfiles((prev) => prev.filter((p) => p.id !== msg.id));
+                setActiveProfileId(msg.activeId);
+              }
+              break;
+            case "profileError":
+              if ("error" in msg) {
+                setProfileError(msg.error);
+              }
+              break;
             default:
               break;
           }
@@ -135,6 +174,72 @@ export default function App() {
     }
   };
 
+  // Profile handlers
+  const handleSelectProfile = (id: string | null) => {
+    if (wsRef.current?.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify({ kind: "setActiveProfile", id }));
+    }
+  };
+
+  const handleEditProfile = (id: string) => {
+    const profile = profiles.find((p) => p.id === id);
+    if (profile) {
+      // For editing, we need full profile data - for now, create a partial one
+      // In a more complete implementation, we'd fetch the full profile
+      setEditingProfile({
+        id: profile.id,
+        name: profile.name,
+        cmd: profile.cmd,
+        args: [],
+        style: "kansai",
+        logSource: "auto",
+        createdAt: 0,
+        updatedAt: 0,
+      });
+    }
+  };
+
+  const handleCreateProfile = () => {
+    setEditingProfile("new");
+    setProfileError(null);
+  };
+
+  const handleDeleteProfile = (id: string) => {
+    if (wsRef.current?.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify({ kind: "deleteProfile", id }));
+    }
+  };
+
+  const handleSaveProfile = (input: {
+    id?: string;
+    name: string;
+    cmd: string;
+    args: string;
+    cwd: string;
+    style: Style;
+    logSource: SourceState["mode"];
+    llmProvider: string;
+  }) => {
+    if (wsRef.current?.readyState === WebSocket.OPEN) {
+      const profile: CreateProfileInput & { id?: string } = {
+        id: input.id,
+        name: input.name,
+        cmd: input.cmd,
+        args: input.args.split(" ").filter(Boolean),
+        cwd: input.cwd || undefined,
+        style: input.style,
+        logSource: input.logSource,
+        llmProvider: input.llmProvider as CreateProfileInput["llmProvider"],
+      };
+      wsRef.current.send(JSON.stringify({ kind: "saveProfile", profile }));
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setEditingProfile(null);
+    setProfileError(null);
+  };
+
   const sourceLabel =
     source.mode === "auto"
       ? source.detected
@@ -169,6 +274,27 @@ export default function App() {
         </span>
       </div>
 
+      {/* Profile Selector */}
+      <div style={{ margin: "12px 0", padding: "12px", backgroundColor: "#f5f5f5", borderRadius: 8 }}>
+        <ProfileSelector
+          profiles={profiles}
+          activeId={activeProfileId}
+          disabled={connectionStatus !== "connected"}
+          onSelect={handleSelectProfile}
+          onEdit={handleEditProfile}
+          onCreate={handleCreateProfile}
+          onDelete={handleDeleteProfile}
+        />
+        {profileError && (
+          <div style={{ color: "#ef4444", fontSize: 12, marginTop: 8 }}>
+            エラー: {profileError}
+          </div>
+        )}
+        <div style={{ fontSize: 11, color: "#666", marginTop: 8 }}>
+          ※ プロファイル切替は次回サーバー起動時に反映されます
+        </div>
+      </div>
+
       <div style={{ display: "flex", gap: 12, alignItems: "center", margin: "12px 0" }}>
         <label style={{ fontSize: 14, opacity: 0.8 }}>口調：</label>
         <select value={style} onChange={(e) => sendStyle(e.target.value as Style)}>
@@ -183,7 +309,7 @@ export default function App() {
         Ruleset: {sourceLabel}
       </div>
 
-      <div style={{ border: "1px solid #ccc", borderRadius: 8, padding: 12, height: "70vh", overflow: "auto" }}>
+      <div style={{ border: "1px solid #ccc", borderRadius: 8, padding: 12, height: "60vh", overflow: "auto" }}>
         {items.map((it, idx) => (
           <div key={idx} style={{ padding: "6px 0", borderBottom: "1px dashed #ddd" }}>
             <div style={{ fontSize: 12, opacity: 0.6 }}>{new Date(it.ts).toLocaleTimeString()}</div>
@@ -191,6 +317,15 @@ export default function App() {
           </div>
         ))}
       </div>
+
+      {/* Profile Editor Modal */}
+      {editingProfile && (
+        <ProfileEditor
+          profile={editingProfile === "new" ? null : editingProfile}
+          onSave={handleSaveProfile}
+          onCancel={handleCancelEdit}
+        />
+      )}
     </div>
   );
 }
