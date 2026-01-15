@@ -12,7 +12,9 @@ type Msg =
   | { kind: "profiles"; profiles: ProfileSummary[]; activeId: string | null }
   | { kind: "profileSaved"; profile: ProfileSummary; activeId: string | null }
   | { kind: "profileDeleted"; id: string; activeId: string | null }
-  | { kind: "profileError"; error: string };
+  | { kind: "profileError"; error: string }
+  | { kind: "ptyRestart"; cmd: string; args: string[]; profileId: string | null }
+  | { kind: "ptyError"; error: string };
 
 type LegacyHello = { type: "hello"; style: Style };
 
@@ -120,6 +122,16 @@ export default function App() {
             case "profileError":
               if ("error" in msg) {
                 setProfileError(msg.error);
+              }
+              break;
+            case "ptyRestart":
+              // Clear commentary items when PTY restarts
+              setItems([]);
+              setProfileError(null);
+              break;
+            case "ptyError":
+              if ("error" in msg) {
+                setProfileError(`PTY Error: ${msg.error}`);
               }
               break;
             default:
@@ -290,9 +302,6 @@ export default function App() {
             エラー: {profileError}
           </div>
         )}
-        <div style={{ fontSize: 11, color: "#666", marginTop: 8 }}>
-          ※ プロファイル切替は次回サーバー起動時に反映されます
-        </div>
       </div>
 
       <div style={{ display: "flex", gap: 12, alignItems: "center", margin: "12px 0" }}>

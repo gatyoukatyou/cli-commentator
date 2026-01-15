@@ -37,7 +37,10 @@ export type WsOutgoing =
   | { kind: "profiles"; profiles: ProfileSummary[]; activeId: string | null }
   | { kind: "profileSaved"; profile: ProfileSummary; activeId: string | null }
   | { kind: "profileDeleted"; id: string; activeId: string | null }
-  | { kind: "profileError"; error: string };
+  | { kind: "profileError"; error: string }
+  // PTY messages
+  | { kind: "ptyRestart"; cmd: string; args: string[]; profileId: string | null }
+  | { kind: "ptyError"; error: string };
 
 export type WsIncoming =
   | { kind: "setStyle"; style: Style }

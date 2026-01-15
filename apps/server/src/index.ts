@@ -1,7 +1,6 @@
 import "dotenv/config";
 import http from "node:http";
 import { WebSocketServer } from "ws";
-import * as pty from "node-pty";
 
 import type { Event, SourceMode, SourceState, Style, WsIncoming, WsOutgoing } from "./types.js";
 import { redact } from "./redact.js";
@@ -10,6 +9,7 @@ import { comment } from "./styles/index.js";
 import { getAutoDetectedSource, resetAutoDetection } from "./rulesets/index.js";
 import * as profileManager from "./profile/manager.js";
 import type { ProfileSummary } from "./profile/types.js";
+import { createPTYManager, configFromProfile, configFromEnv, type PTYConfig } from "./pty/index.js";
 
 const PORT = Number(process.env.PORT ?? 8787);
 const COMMENT_EXIT_TIMEOUT_MS = parseInt(process.env.COMMENT_EXIT_TIMEOUT_MS ?? "1500", 10);
@@ -24,15 +24,18 @@ function normalizeSource(value?: string): SourceMode {
   return "auto";
 }
 
-const sourceMode = normalizeSource(process.env.LOG_SOURCE);
-const sourceState: SourceState = {
-  mode: sourceMode,
-  detected: sourceMode === "auto" ? null : sourceMode
+// --- Mutable state ---
+let currentStyle: Style = "kansai";
+let currentSourceMode: SourceMode = normalizeSource(process.env.LOG_SOURCE);
+let sourceState: SourceState = {
+  mode: currentSourceMode,
+  detected: currentSourceMode === "auto" ? null : currentSourceMode,
 };
 
-if (sourceMode === "auto") {
-  resetAutoDetection();
-}
+// PTY restart serialization state
+let restartInFlight = false;
+let queuedProfileId: string | null | undefined = undefined; // undefined means no queue
+let currentlyRunningProfileId: string | null = null; // Track which profile the PTY is running with
 
 // rate limit: max once per 2s (error is always allowed)
 let lastEmit = 0;
@@ -58,7 +61,8 @@ const server = http.createServer((req, res) => {
 
 const wss = new WebSocketServer({ server });
 
-let currentStyle: Style = "kansai";
+// --- PTY Manager ---
+const ptyManager = createPTYManager();
 
 function broadcast(msg: WsOutgoing) {
   const data = JSON.stringify(msg);
@@ -74,6 +78,164 @@ function broadcastSource(nextDetected: SourceState["detected"]) {
   broadcast({ kind: "source", source: sourceState });
 }
 
+/**
+ * Setup PTY with event handlers
+ */
+function setupPTY(config: PTYConfig, profileId: string | null): void {
+  const term = ptyManager.spawn(config);
+
+  // Reset auto-detection when spawning new PTY
+  if (sourceState.mode === "auto") {
+    resetAutoDetection();
+    sourceState.detected = null;
+  }
+
+  // ローカル端末への表示は"生"のまま（実況/UIに出す時だけマスク）
+  term.onData((data) => process.stdout.write(data));
+
+  // Process and broadcast data
+  term.onData((data) => {
+    const clean = redact(data);
+    const evs = extractEvents(clean);
+    const detected = getAutoDetectedSource();
+    if (detected) broadcastSource(detected);
+
+    // raw は "マスク後" を送る（MVP）
+    broadcast({ kind: "raw", data: clean });
+
+    for (const ev of evs) {
+      broadcast({ kind: "event", ev });
+      if (ev.type === "error" || shouldEmitNow()) {
+        // comment() is async - fire and forget, errors are handled inside
+        void comment(ev, currentStyle)
+          .then((text) => {
+            broadcast({ kind: "commentary", ts: ev.ts, text, ev });
+          })
+          .catch(() => {});
+      }
+    }
+  });
+
+  // Handle PTY exit - only trigger cleanup for final exit, not for profile switch
+  term.onExit(({ exitCode }) => {
+    // If we're restarting, don't broadcast done or trigger cleanup
+    if (restartInFlight || queuedProfileId !== undefined) {
+      return;
+    }
+
+    const ev: Event = { ts: Date.now(), type: "done", summary: `終了 code=${exitCode}` };
+    broadcast({ kind: "event", ev });
+
+    // 安全タイマー付き二重化（comment()がsettleしなくてもcleanup確実実行）
+    const exitWithCode = exitCode ?? 0;
+    let exited = false;
+    const safeCleanup = () => {
+      if (exited) return;
+      exited = true;
+      cleanup(exitWithCode);
+    };
+
+    // COMMENT_EXIT_TIMEOUT_MS後に強制cleanup（comment()がハングしても確実に終了）
+    const hardTimeout = setTimeout(safeCleanup, COMMENT_EXIT_TIMEOUT_MS);
+
+    void comment(ev, currentStyle)
+      .then((text) => {
+        broadcast({ kind: "commentary", ts: ev.ts, text, ev });
+      })
+      .catch(() => {})
+      .finally(() => {
+        clearTimeout(hardTimeout);
+        setTimeout(safeCleanup, 100);
+      });
+  });
+
+  // Broadcast start event (ptyRestart is sent separately in restartPTY for correct ordering)
+  broadcast({
+    kind: "event",
+    ev: { ts: Date.now(), type: "start", summary: "開始", detail: `${config.cmd} ${config.args.join(" ")}` },
+  });
+}
+
+/**
+ * Restart PTY with new profile settings
+ * Serialized to prevent race conditions from rapid profile switches
+ */
+async function restartPTY(profileId: string | null): Promise<void> {
+  // If a restart is already in progress, queue this request (only keep the latest)
+  if (restartInFlight) {
+    queuedProfileId = profileId;
+    return;
+  }
+
+  // Check if we're already running this profile (skip unnecessary restart)
+  if (profileId === currentlyRunningProfileId && ptyManager.current !== null) {
+    // Already running this profile - no restart needed
+    return;
+  }
+
+  restartInFlight = true;
+
+  try {
+    let config: PTYConfig;
+    let newStyle = currentStyle;
+    let newSourceMode = currentSourceMode;
+
+    if (profileId) {
+      const profile = await profileManager.get(profileId);
+      if (!profile) {
+        broadcast({ kind: "ptyError", error: `Profile not found: ${profileId}` });
+        return;
+      }
+      config = configFromProfile(profile);
+      newStyle = profile.style;
+      newSourceMode = profile.logSource;
+    } else {
+      // No profile - use environment variables
+      config = configFromEnv();
+      newStyle = (process.env.STYLE as Style) ?? "kansai";
+      newSourceMode = normalizeSource(process.env.LOG_SOURCE);
+    }
+
+    // Kill existing PTY
+    ptyManager.kill();
+
+    // Update current state
+    currentStyle = newStyle;
+    currentSourceMode = newSourceMode;
+    sourceState = {
+      mode: newSourceMode,
+      detected: newSourceMode === "auto" ? null : newSourceMode,
+    };
+
+    // Broadcast in correct order: ptyRestart -> style -> source -> (then event:start from setupPTY)
+    broadcast({ kind: "ptyRestart", cmd: config.cmd, args: config.args, profileId });
+    broadcast({ kind: "style", style: currentStyle });
+    broadcast({ kind: "source", source: sourceState });
+
+    // Spawn new PTY (this broadcasts event:start at the end)
+    setupPTY(config, profileId);
+
+    // Update tracking
+    currentlyRunningProfileId = profileId;
+  } catch (err) {
+    broadcast({ kind: "ptyError", error: String(err) });
+    console.error("Failed to restart PTY:", err);
+  } finally {
+    restartInFlight = false;
+
+    // Process queued restart if any
+    if (queuedProfileId !== undefined) {
+      const nextProfileId = queuedProfileId;
+      queuedProfileId = undefined;
+      // Use setImmediate to avoid stack overflow on rapid calls
+      setImmediate(() => {
+        void restartPTY(nextProfileId);
+      });
+    }
+  }
+}
+
+// --- WebSocket connection handler ---
 wss.on("connection", async (ws) => {
   // Send initial state including profiles
   const profiles = await profileManager.list();
@@ -142,6 +304,8 @@ wss.on("connection", async (ws) => {
             await profileManager.setActive(id);
             const list = await profileManager.list();
             broadcast({ kind: "profiles", profiles: list, activeId: id });
+            // Restart PTY with new profile settings
+            await restartPTY(id);
           } catch (err) {
             ws.send(JSON.stringify({ kind: "profileError", error: String(err) }));
           }
@@ -152,25 +316,10 @@ wss.on("connection", async (ws) => {
   });
 });
 
-// --- Launch target CLI under PTY ---
-const cmd = process.env.TARGET_CMD ?? "bash";
-const args = process.env.TARGET_ARGS ? process.env.TARGET_ARGS.split(" ") : [];
-const cwd = process.env.TARGET_CWD ?? process.cwd();
-
-const term = pty.spawn(cmd, args, {
-  name: "xterm-256color",
-  cols: 120,
-  rows: 30,
-  cwd,
-  env: process.env as Record<string, string>
-});
-
-// ローカル端末への表示は“生”のまま（実況/UIに出す時だけマスク）
-term.onData((data) => process.stdout.write(data));
-
+// --- Initial PTY launch ---
 // 入力をPTYへ（対話CLIを一応動かせる）
 function handleStdinData(d: Buffer) {
-  term.write(d.toString());
+  ptyManager.write(d.toString());
 }
 
 if (process.stdin.isTTY) {
@@ -181,56 +330,9 @@ if (process.stdin.isTTY) {
   process.stdin.on("data", handleStdinData);
 }
 
-broadcast({ kind: "event", ev: { ts: Date.now(), type: "start", summary: "開始", detail: `${cmd} ${args.join(" ")}` } });
-
-term.onData((data) => {
-  const clean = redact(data);
-  const evs = extractEvents(clean);
-  const detected = getAutoDetectedSource();
-  if (detected) broadcastSource(detected);
-
-  // raw は "マスク後" を送る（MVP）
-  broadcast({ kind: "raw", data: clean });
-
-  for (const ev of evs) {
-    broadcast({ kind: "event", ev });
-    if (ev.type === "error" || shouldEmitNow()) {
-      // comment() is async - fire and forget, errors are handled inside
-      void comment(ev, currentStyle)
-        .then((text) => {
-          broadcast({ kind: "commentary", ts: ev.ts, text, ev });
-        })
-        .catch(() => {});
-    }
-  }
-});
-
-term.onExit(({ exitCode }) => {
-  const ev: Event = { ts: Date.now(), type: "done", summary: `終了 code=${exitCode}` };
-  broadcast({ kind: "event", ev });
-
-  // 安全タイマー付き二重化（comment()がsettleしなくてもcleanup確実実行）
-  const exitWithCode = exitCode ?? 0;
-  let exited = false;
-  const safeCleanup = () => {
-    if (exited) return;
-    exited = true;
-    cleanup(exitWithCode);
-  };
-
-  // COMMENT_EXIT_TIMEOUT_MS後に強制cleanup（comment()がハングしても確実に終了）
-  const hardTimeout = setTimeout(safeCleanup, COMMENT_EXIT_TIMEOUT_MS);
-
-  void comment(ev, currentStyle)
-    .then((text) => {
-      broadcast({ kind: "commentary", ts: ev.ts, text, ev });
-    })
-    .catch(() => {})
-    .finally(() => {
-      clearTimeout(hardTimeout);
-      setTimeout(safeCleanup, 100);
-    });
-});
+// Launch initial PTY with environment config
+const initialConfig = configFromEnv();
+setupPTY(initialConfig, null);
 
 server.listen(PORT, () => {
   console.log(`server listening on http://localhost:${PORT}`);
@@ -254,9 +356,7 @@ function cleanup(exitCode: number = 0): void {
   }
 
   // 2. PTY kill
-  try {
-    term.kill();
-  } catch {}
+  ptyManager.kill();
 
   // 3. WebSocket clients close
   for (const client of wss.clients) {
