@@ -8,6 +8,8 @@ import { redact } from "./redact.js";
 import { extractEvents } from "./extract.js";
 import { comment } from "./styles/index.js";
 import { getAutoDetectedSource, resetAutoDetection } from "./rulesets/index.js";
+import * as profileManager from "./profile/manager.js";
+import type { ProfileSummary } from "./profile/types.js";
 
 const PORT = Number(process.env.PORT ?? 8787);
 const COMMENT_EXIT_TIMEOUT_MS = parseInt(process.env.COMMENT_EXIT_TIMEOUT_MS ?? "1500", 10);
@@ -72,15 +74,79 @@ function broadcastSource(nextDetected: SourceState["detected"]) {
   broadcast({ kind: "source", source: sourceState });
 }
 
-wss.on("connection", (ws) => {
+wss.on("connection", async (ws) => {
+  // Send initial state including profiles
+  const profiles = await profileManager.list();
+  const activeId = await profileManager.getActiveId();
   ws.send(JSON.stringify({ kind: "hello", style: currentStyle, source: sourceState }));
+  ws.send(JSON.stringify({ kind: "profiles", profiles, activeId }));
 
-  ws.on("message", (buf) => {
+  ws.on("message", async (buf) => {
     try {
       const msg = JSON.parse(buf.toString()) as Partial<WsIncoming>;
-      if (msg?.kind === "setStyle" && isStyle(msg.style)) {
-        currentStyle = msg.style;
-        broadcast({ kind: "style", style: currentStyle });
+
+      switch (msg?.kind) {
+        case "setStyle":
+          if (isStyle(msg.style)) {
+            currentStyle = msg.style;
+            broadcast({ kind: "style", style: currentStyle });
+          }
+          break;
+
+        case "getProfiles": {
+          const list = await profileManager.list();
+          const active = await profileManager.getActiveId();
+          ws.send(JSON.stringify({ kind: "profiles", profiles: list, activeId: active }));
+          break;
+        }
+
+        case "saveProfile": {
+          try {
+            const input = msg.profile;
+            if (!input) throw new Error("Missing profile data");
+
+            let saved: ProfileSummary;
+            if (input.id) {
+              // Update existing
+              const updated = await profileManager.update(input.id, input);
+              saved = { id: updated.id, name: updated.name, cmd: updated.cmd };
+            } else {
+              // Create new
+              const created = await profileManager.create(input);
+              saved = { id: created.id, name: created.name, cmd: created.cmd };
+            }
+            const active = await profileManager.getActiveId();
+            broadcast({ kind: "profileSaved", profile: saved, activeId: active });
+          } catch (err) {
+            ws.send(JSON.stringify({ kind: "profileError", error: String(err) }));
+          }
+          break;
+        }
+
+        case "deleteProfile": {
+          try {
+            const id = msg.id;
+            if (!id) throw new Error("Missing profile id");
+            await profileManager.remove(id);
+            const active = await profileManager.getActiveId();
+            broadcast({ kind: "profileDeleted", id, activeId: active });
+          } catch (err) {
+            ws.send(JSON.stringify({ kind: "profileError", error: String(err) }));
+          }
+          break;
+        }
+
+        case "setActiveProfile": {
+          try {
+            const id = msg.id ?? null;
+            await profileManager.setActive(id);
+            const list = await profileManager.list();
+            broadcast({ kind: "profiles", profiles: list, activeId: id });
+          } catch (err) {
+            ws.send(JSON.stringify({ kind: "profileError", error: String(err) }));
+          }
+          break;
+        }
       }
     } catch {}
   });
