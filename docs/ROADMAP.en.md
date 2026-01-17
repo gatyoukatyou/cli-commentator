@@ -55,14 +55,20 @@ Build a minimal MVP that reliably works, then expand once value is proven.
 
 ### Phase 3: Make it daily-usable (Should scope)
 
-**Now (next work)**
+**Done**
 - Operational Resilience
   - Server exit cleanup (terminal protection)
   - Web WebSocket reconnection
+- LLM Adapter design (Sprint 5-9)
+  - OpenAI / Groq / Local / Gemini / Anthropic providers
+  - Timeout protection with AbortController
+  - Smoke tests & contract tests
+- CLI profiles (Sprint 11)
+  - Profile CRUD operations
+  - WebSocket-based profile management
+  - PTY restart on profile switch (Sprint 13)
 
 **Next**
-- Pluggable LLM adapters
-- CLI profiles (cmd/cwd/env/tone)
 - Stabilize Windows builds (node-pty mitigation plan)
 
 ---
@@ -70,24 +76,31 @@ Build a minimal MVP that reliably works, then expand once value is proven.
 ### Phase 4: Distribution & always-on (Tauri, etc.)
 - Desktop packaging, auto-launch, updates
 - OS integration, signing, distribution
+- Text-to-Speech (TTS)
+- External monitoring mode (tmux / log file tail)
 
 ---
 
-## Current status (as of 2026-01-12)
+## Current status (as of 2026-01-17)
 **Done**
 - PR #1: detect boundary tests (mixed => generic, 50-line limit, exported constants)
 - PR #2: add roadmap docs (JA/EN + links from docs/README)
 - PR #4: detect lock boundary fixture + CI
 - MVP implementation complete (apps/server + apps/web working)
+- PR #6: Sprint 4 Operational Resilience
+- PR #7-9: LLM Adapter foundation (factory + mock + comment integration)
+- Sprint 10: LLM Providers (OpenAI / Groq / Local / Gemini)
+- PR #19: Anthropic provider
+- PR #20-21: LLM smoke tests + contract tests
+- PR #22: CLI profile management
+- Sprint 13: PTY restart on profile switch
 
 **Now**
-- Sprint 4: Operational Resilience (Phase 3)
-  - Server exit cleanup (terminal protection)
-  - Web WebSocket reconnection
+- Phase 3 complete, preparing for Phase 4
 
 **Next**
-- LLM Adapter design
-- CLI profiles
+- Windows build stabilization
+- Tauri (desktop app)
 
 ---
 

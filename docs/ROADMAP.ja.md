@@ -60,14 +60,20 @@ CLI Commentator は「ターミナルの作業ログを見て、別ウィンド�
 
 ### Phase 3：使い続けたくなる（Should領域）
 
-**Now（次の作業）**
+**Done**
 - 運用堅牢性（Operational Resilience）
   - サーバー終了時のクリーンアップ（ターミナル保護）
   - Web側WebSocket再接続
+- LLM Adapter設計（Sprint 5-9）
+  - OpenAI / Groq / Local / Gemini / Anthropic プロバイダー対応
+  - タイムアウト保護・AbortController対応
+  - スモークテスト・コントラクトテスト
+- CLIプロファイル保存（Sprint 11）
+  - プロファイルのCRUD操作
+  - WebSocket経由でのプロファイル管理
+  - プロファイル切替でPTY即時再起動（Sprint 13）
 
 **Next**
-- LLM差し替え可能なAdapter設計
-- CLIプロファイル保存（cmd/cwd/env/口調）
 - Windowsビルド安定化（node-ptyが詰まる場合の方針）
 
 ---
@@ -75,24 +81,31 @@ CLI Commentator は「ターミナルの作業ログを見て、別ウィンド�
 ### Phase 4：配布・常用（Tauri化など）
 - デスクトップ化（常駐/自動起動/アップデート）
 - OS統合・署名・配布導線
+- 音声読み上げ（TTS）
+- 外部監視モード（tmux / ログファイル tail）
 
 ---
 
-## 現在地（2026-01-12 時点）
+## 現在地（2026-01-17 時点）
 **Done**
 - PR #1：detect 境界テスト（混在→generic、50行制限、重要定数export）
 - PR #2：ロードマップ docs 追加（日英＋docs/READMEからリンク）
 - PR #4：detectロック境界fixture + CI導入
 - MVP実装完了（apps/server + apps/web が動作する状態）
+- PR #6：Sprint 4 運用堅牢性
+- PR #7-9：LLM Adapter基盤（factory + mock + comment統合）
+- Sprint 10：LLM Providers（OpenAI / Groq / Local / Gemini）
+- PR #19：Anthropic provider
+- PR #20-21：LLM スモークテスト + コントラクトテスト
+- PR #22：CLIプロファイル管理
+- Sprint 13：プロファイル切替でPTY再起動
 
 **Now**
-- Sprint 4：運用堅牢性（Phase 3）
-  - サーバー終了時クリーンアップ（ターミナル保護）
-  - Web WebSocket再接続
+- Phase 3 完了、Phase 4 への移行準備
 
 **Next**
-- LLM Adapter設計
-- CLIプロファイル保存
+- Windowsビルド安定化
+- Tauri化（デスクトップアプリ）
 
 ---
 
