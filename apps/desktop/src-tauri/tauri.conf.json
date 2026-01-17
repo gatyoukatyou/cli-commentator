@@ -1,0 +1,37 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "CLI Commentator",
+  "version": "0.0.1",
+  "identifier": "com.cli-commentator.desktop",
+  "build": {
+    "devUrl": "http://127.0.0.1:5173",
+    "beforeDevCommand": "",
+    "beforeBuildCommand": "",
+    "frontendDist": "../../web/dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "CLI Commentator",
+        "width": 1024,
+        "height": 768,
+        "minWidth": 600,
+        "minHeight": 400
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["dmg", "app"],
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ]
+  }
+}
