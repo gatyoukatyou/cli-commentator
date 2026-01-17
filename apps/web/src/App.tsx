@@ -20,6 +20,72 @@ type LegacyHello = { type: "hello"; style: Style };
 
 type ConnectionStatus = "connecting" | "connected" | "disconnected" | "reconnecting";
 
+// Tauri debug panel for Gate B testing
+function TauriDebugPanel() {
+  const [isTauri, setIsTauri] = useState(false);
+  const [serverStatus, setServerStatus] = useState<string>("unknown");
+
+  useEffect(() => {
+    const tauri = (window as { __TAURI__?: { core?: { invoke: (cmd: string) => Promise<unknown> } } }).__TAURI__;
+    if (tauri?.core) {
+      setIsTauri(true);
+    }
+  }, []);
+
+  if (!isTauri) return null;
+
+  const tauri = (window as { __TAURI__?: { core?: { invoke: (cmd: string) => Promise<unknown> } } }).__TAURI__;
+
+  const handleStart = async () => {
+    try {
+      const result = await tauri?.core?.invoke("start_server");
+      setServerStatus(result ? "started" : "already running");
+    } catch (e) {
+      setServerStatus(`error: ${e}`);
+    }
+  };
+
+  const handleStop = async () => {
+    try {
+      await tauri?.core?.invoke("stop_server");
+      setServerStatus("stopped");
+    } catch (e) {
+      setServerStatus(`error: ${e}`);
+    }
+  };
+
+  const handleStatus = async () => {
+    try {
+      const result = await tauri?.core?.invoke("server_status");
+      setServerStatus(result ? "running" : "not running");
+    } catch (e) {
+      setServerStatus(`error: ${e}`);
+    }
+  };
+
+  return (
+    <div style={{
+      position: "fixed",
+      top: 8,
+      right: 8,
+      padding: 12,
+      backgroundColor: "#1e293b",
+      color: "#e2e8f0",
+      borderRadius: 8,
+      fontSize: 12,
+      zIndex: 9999,
+    }}>
+      <div style={{ fontWeight: "bold", marginBottom: 8 }}>Tauri Debug</div>
+      <div style={{ marginBottom: 8 }}>Server: {serverStatus}</div>
+      <div style={{ display: "flex", gap: 4 }}>
+        <button onClick={handleStart} style={{ padding: "4px 8px" }}>Start</button>
+        <button onClick={handleStop} style={{ padding: "4px 8px" }}>Stop</button>
+        <button onClick={handleStatus} style={{ padding: "4px 8px" }}>Status</button>
+      </div>
+    </div>
+  );
+}
+
 export default function App() {
   const [items, setItems] = useState<Array<{ ts: number; text: string }>>([]);
   const [style, setStyle] = useState<Style>("kansai");
@@ -261,6 +327,7 @@ export default function App() {
 
   return (
     <div style={{ maxWidth: 900, margin: "0 auto", padding: 16 }}>
+      <TauriDebugPanel />
       <h1>CLI 実況（MVP）</h1>
 
       {/* Connection status indicator */}
