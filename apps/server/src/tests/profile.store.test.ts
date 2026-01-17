@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { mkdtemp, rm, readFile, writeFile, mkdir } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import path, { join } from "node:path";
 import {
   getConfigDir,
   getStorePath,
@@ -11,11 +11,26 @@ import {
 } from "../profile/store.js";
 import type { ProfileStore } from "../profile/types.js";
 
+// Helper to restore env var (use delete for undefined, not assignment)
+function restoreEnv(key: string, value: string | undefined) {
+  if (value === undefined) {
+    delete process.env[key];
+  } else {
+    process.env[key] = value;
+  }
+}
+
 describe("profile/store", () => {
   let tempDir: string;
-  const originalEnv = { ...process.env };
+  let originalXdg: string | undefined;
+  let originalHome: string | undefined;
+  let originalAppdata: string | undefined;
 
   beforeEach(async () => {
+    // Save original env values
+    originalXdg = process.env.XDG_CONFIG_HOME;
+    originalHome = process.env.HOME;
+    originalAppdata = process.env.APPDATA;
     // Create a temporary directory for each test
     tempDir = await mkdtemp(join(tmpdir(), "cli-commentator-test-"));
     // Override XDG_CONFIG_HOME to use temp directory
@@ -23,9 +38,10 @@ describe("profile/store", () => {
   });
 
   afterEach(async () => {
-    // Restore original environment
-    process.env.XDG_CONFIG_HOME = originalEnv.XDG_CONFIG_HOME;
-    process.env.HOME = originalEnv.HOME;
+    // Restore original environment (use delete for undefined)
+    restoreEnv("XDG_CONFIG_HOME", originalXdg);
+    restoreEnv("HOME", originalHome);
+    restoreEnv("APPDATA", originalAppdata);
     // Clean up temp directory
     await rm(tempDir, { recursive: true, force: true });
   });
@@ -33,20 +49,28 @@ describe("profile/store", () => {
   describe("getConfigDir", () => {
     it("uses XDG_CONFIG_HOME when set", () => {
       process.env.XDG_CONFIG_HOME = "/custom/config";
-      expect(getConfigDir()).toBe("/custom/config/cli-commentator");
+      expect(getConfigDir()).toBe(path.join("/custom/config", "cli-commentator"));
     });
 
-    it("falls back to ~/.config when XDG_CONFIG_HOME is not set", () => {
+    it("falls back appropriately when XDG_CONFIG_HOME is not set", () => {
       delete process.env.XDG_CONFIG_HOME;
-      process.env.HOME = "/home/user";
-      expect(getConfigDir()).toBe("/home/user/.config/cli-commentator");
+
+      if (process.platform === "win32") {
+        // Windows: uses APPDATA
+        process.env.APPDATA = "C:\\Users\\test\\AppData\\Roaming";
+        expect(getConfigDir()).toBe(path.join("C:\\Users\\test\\AppData\\Roaming", "cli-commentator"));
+      } else {
+        // Unix: uses HOME/.config
+        process.env.HOME = "/home/user";
+        expect(getConfigDir()).toBe(path.join("/home/user", ".config", "cli-commentator"));
+      }
     });
   });
 
   describe("getStorePath", () => {
     it("returns path to profiles.json", () => {
       process.env.XDG_CONFIG_HOME = "/custom/config";
-      expect(getStorePath()).toBe("/custom/config/cli-commentator/profiles.json");
+      expect(getStorePath()).toBe(path.join("/custom/config", "cli-commentator", "profiles.json"));
     });
   });
 

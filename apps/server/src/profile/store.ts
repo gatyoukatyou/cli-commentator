@@ -1,6 +1,7 @@
 import { mkdir, readFile, writeFile, rename, unlink } from "node:fs/promises";
 import { existsSync } from "node:fs";
-import { join } from "node:path";
+import path from "node:path";
+import os from "node:os";
 import { randomUUID } from "node:crypto";
 import type { ProfileStore } from "./types.js";
 
@@ -8,24 +9,49 @@ const CONFIG_DIR_NAME = "cli-commentator";
 const STORE_FILE_NAME = "profiles.json";
 
 /**
- * Get the config directory path respecting XDG_CONFIG_HOME
+ * Options for getConfigDir (mainly for testing)
  */
-export function getConfigDir(): string {
-  const xdgConfigHome = process.env.XDG_CONFIG_HOME;
-  const home = process.env.HOME ?? "";
+export type GetConfigDirOptions = {
+  platform?: NodeJS.Platform;
+  env?: Record<string, string | undefined>;
+};
 
+/**
+ * Get the config directory path
+ * - XDG_CONFIG_HOME (explicit override, honored on all platforms for testing)
+ * - Windows: APPDATA > USERPROFILE\AppData\Roaming > os.homedir()
+ * - Unix: ~/.config
+ */
+export function getConfigDir(options?: GetConfigDirOptions): string {
+  const platform = options?.platform ?? process.platform;
+  const env = options?.env ?? process.env;
+
+  // XDG_CONFIG_HOME is an explicit override (honor on all platforms)
+  const xdgConfigHome = env.XDG_CONFIG_HOME;
   if (xdgConfigHome) {
-    return join(xdgConfigHome, CONFIG_DIR_NAME);
+    return path.join(xdgConfigHome, CONFIG_DIR_NAME);
   }
 
-  return join(home, ".config", CONFIG_DIR_NAME);
+  // Windows: APPDATA > USERPROFILE\AppData\Roaming > os.homedir()
+  if (platform === "win32") {
+    const appData =
+      env.APPDATA ??
+      (env.USERPROFILE
+        ? path.win32.join(env.USERPROFILE, "AppData", "Roaming")
+        : path.win32.join(os.homedir(), "AppData", "Roaming"));
+    return path.win32.join(appData, CONFIG_DIR_NAME);
+  }
+
+  // Unix: ~/.config
+  const home = env.HOME ?? os.homedir();
+  return path.posix.join(home, ".config", CONFIG_DIR_NAME);
 }
 
 /**
  * Get the full path to profiles.json
  */
 export function getStorePath(): string {
-  return join(getConfigDir(), STORE_FILE_NAME);
+  return path.join(getConfigDir(), STORE_FILE_NAME);
 }
 
 /**

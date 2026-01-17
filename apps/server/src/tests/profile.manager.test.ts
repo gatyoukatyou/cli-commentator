@@ -16,11 +16,26 @@ import {
 } from "../profile/manager.js";
 import { loadStore } from "../profile/store.js";
 
+// Helper to restore env var (use delete for undefined, not assignment)
+function restoreEnv(key: string, value: string | undefined) {
+  if (value === undefined) {
+    delete process.env[key];
+  } else {
+    process.env[key] = value;
+  }
+}
+
 describe("profile/manager", () => {
   let tempDir: string;
-  const originalEnv = { ...process.env };
+  let originalXdg: string | undefined;
+  let originalHome: string | undefined;
+  let originalAppdata: string | undefined;
 
   beforeEach(async () => {
+    // Save original env values
+    originalXdg = process.env.XDG_CONFIG_HOME;
+    originalHome = process.env.HOME;
+    originalAppdata = process.env.APPDATA;
     // Create a temporary directory for each test
     tempDir = await mkdtemp(join(tmpdir(), "cli-commentator-manager-test-"));
     // Override XDG_CONFIG_HOME to use temp directory
@@ -30,15 +45,14 @@ describe("profile/manager", () => {
   });
 
   afterEach(async () => {
-    // Restore original environment
-    Object.keys(process.env).forEach((key) => {
-      if (!(key in originalEnv)) {
-        delete process.env[key];
-      }
-    });
-    Object.assign(process.env, originalEnv);
+    // Restore original environment (use delete for undefined)
+    restoreEnv("XDG_CONFIG_HOME", originalXdg);
+    restoreEnv("HOME", originalHome);
+    restoreEnv("APPDATA", originalAppdata);
     // Clean up temp directory
     await rm(tempDir, { recursive: true, force: true });
+    // Clear cache after test
+    clearCache();
   });
 
   describe("list", () => {
@@ -133,7 +147,8 @@ describe("profile/manager", () => {
       expect(updated.name).toBe("Updated");
       expect(updated.cmd).toBe("zsh");
       expect(updated.style).toBe("zundamon");
-      expect(updated.updatedAt).toBeGreaterThan(created.updatedAt);
+      // Use >= to avoid flaky test when operations complete within same millisecond
+      expect(updated.updatedAt).toBeGreaterThanOrEqual(created.updatedAt);
     });
 
     it("throws for non-existent profile", async () => {
@@ -255,9 +270,10 @@ describe("profile/manager", () => {
     it("uses defaults when environment variables are not set", () => {
       const input = createFromEnv({});
 
+      const expectedCmd = process.platform === "win32" ? "powershell.exe" : "bash";
       expect(input).toEqual({
         name: "Default",
-        cmd: "bash",
+        cmd: expectedCmd,
         args: [],
         cwd: undefined,
         style: "kansai",

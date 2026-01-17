@@ -184,15 +184,50 @@ export async function remove(id: string): Promise<void> {
 }
 
 /**
+ * Get the default shell for the current platform
+ */
+function getDefaultShell(): string {
+  if (process.platform === "win32") {
+    return "powershell.exe";
+  }
+  return "bash";
+}
+
+/**
+ * Parse command arguments from environment variables
+ * TARGET_ARGS_JSON (JSON array) takes precedence over TARGET_ARGS (space-separated)
+ */
+function parseArgs(env: Record<string, string | undefined>): string[] {
+  if (env.TARGET_ARGS_JSON) {
+    try {
+      const raw = JSON.parse(env.TARGET_ARGS_JSON);
+      if (!Array.isArray(raw) || !raw.every((x) => typeof x === "string")) {
+        throw new Error("must be array of strings");
+      }
+      return raw;
+    } catch {
+      throw new Error(
+        "Invalid TARGET_ARGS_JSON (must be JSON array of strings)"
+      );
+    }
+  }
+
+  if (env.TARGET_ARGS) {
+    return env.TARGET_ARGS.split(" ").filter(Boolean);
+  }
+
+  return [];
+}
+
+/**
  * Create a profile input from current environment variables
  * Useful for backwards compatibility / initial profile creation
  */
 export function createFromEnv(
   env: Record<string, string | undefined> = process.env
 ): CreateProfileInput {
-  const cmd = env.TARGET_CMD ?? "bash";
-  const argsStr = env.TARGET_ARGS ?? "";
-  const args = argsStr ? argsStr.split(" ").filter(Boolean) : [];
+  const cmd = env.TARGET_CMD ?? getDefaultShell();
+  const args = parseArgs(env);
   const cwd = env.TARGET_CWD;
 
   const style = (env.STYLE as Style | undefined) ?? "kansai";

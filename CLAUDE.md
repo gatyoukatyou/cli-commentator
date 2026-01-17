@@ -66,14 +66,16 @@ cli-commentator/
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `PORT` | 8787 | サーバーポート |
-| `TARGET_CMD` | bash | 実行するCLIコマンド |
+| `TARGET_CMD` | bash (Win: powershell.exe) | 実行するCLIコマンド |
 | `TARGET_ARGS` | (empty) | CLIへの引数（空白区切り） |
+| `TARGET_ARGS_JSON` | (empty) | CLIへの引数（JSON配列、TARGET_ARGSより優先） |
 | `TARGET_CWD` | (cwd) | 作業ディレクトリ |
 | `LOG_SOURCE` | auto | ルールセット選択 (auto/claude/codex/generic) |
 | `LLM_PROVIDER` | disabled | LLMプロバイダー (disabled/mock/openai/groq/local/gemini/anthropic) |
 | `MOCK_LLM_MODE` | (empty) | `error` でmockがエラーを投げる（テスト用） |
 | `COMMENT_TIMEOUT_MS` | 3000 | comment()のLLM呼び出しタイムアウト（ms） |
 | `COMMENT_EXIT_TIMEOUT_MS` | 1500 | 終了時のcleanup強制実行までの待機時間（ms） |
+| `PTY_USE_CONPTY` | (auto) | Windows ConPTY使用 (1/0、未設定時はデバッガ検知で自動判定) |
 
 ### LLM_PROVIDER の動作
 
