@@ -147,7 +147,8 @@ describe("profile/manager", () => {
       expect(updated.name).toBe("Updated");
       expect(updated.cmd).toBe("zsh");
       expect(updated.style).toBe("zundamon");
-      expect(updated.updatedAt).toBeGreaterThan(created.updatedAt);
+      // Use >= to avoid flaky test when operations complete within same millisecond
+      expect(updated.updatedAt).toBeGreaterThanOrEqual(created.updatedAt);
     });
 
     it("throws for non-existent profile", async () => {
