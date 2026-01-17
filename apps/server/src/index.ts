@@ -150,10 +150,29 @@ function setupPTY(config: PTYConfig, profileId: string | null): void {
   });
 
   // Broadcast start event (ptyRestart is sent separately in restartPTY for correct ordering)
-  broadcast({
-    kind: "event",
-    ev: { ts: Date.now(), type: "start", summary: "開始", detail: `${config.cmd} ${config.args.join(" ")}` },
-  });
+  const startEvent: Event = {
+    ts: Date.now(),
+    type: "start",
+    summary: "開始",
+    detail: `${config.cmd} ${config.args.join(" ")}`,
+  };
+  broadcast({ kind: "event", ev: startEvent });
+
+  // Send commentary for start event
+  void comment(startEvent, currentStyle)
+    .then((text) => {
+      broadcast({ kind: "commentary", ts: Date.now(), text, ev: startEvent });
+    })
+    .catch((err) => {
+      // Fallback: show basic start message if LLM fails
+      broadcast({
+        kind: "commentary",
+        ts: Date.now(),
+        text: `開始: ${startEvent.detail}`,
+        ev: startEvent,
+      });
+      console.error("start commentary failed:", err);
+    });
 }
 
 /**
