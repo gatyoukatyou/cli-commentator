@@ -1,5 +1,5 @@
 import * as pty from "node-pty";
-import type { IPty } from "node-pty";
+import type { IPty, IPtyForkOptions } from "node-pty";
 import type { Profile } from "../profile/types.js";
 
 /**
@@ -12,6 +12,47 @@ export type PTYConfig = {
   cols?: number;
   rows?: number;
 };
+
+/**
+ * Get the default shell for the current platform
+ */
+function getDefaultShell(): string {
+  if (process.platform === "win32") {
+    return "powershell.exe";
+  }
+  return "bash";
+}
+
+/**
+ * Determine whether to use ConPTY on Windows
+ * Environment variable takes precedence, otherwise detect debugger
+ */
+function shouldUseConpty(): boolean {
+  const envValue = process.env.PTY_USE_CONPTY?.toLowerCase();
+
+  // Environment variable takes precedence if explicitly set
+  if (envValue === "0" || envValue === "false" || envValue === "off") {
+    return false;
+  }
+  if (envValue === "1" || envValue === "true" || envValue === "on") {
+    return true;
+  }
+
+  // If not set, detect debugger and disable ConPTY if found
+  const nodeOptions = process.env.NODE_OPTIONS ?? "";
+  const hasInspect =
+    process.execArgv.some(
+      (arg) => arg.includes("--inspect") || arg.includes("--inspect-brk")
+    ) ||
+    nodeOptions.includes("--inspect") ||
+    nodeOptions.includes("--inspect-brk");
+
+  if (hasInspect) {
+    return false;
+  }
+
+  return true;
+}
 
 /**
  * PTY Manager interface for managing terminal lifecycle
@@ -44,13 +85,26 @@ export function createPTYManager(): PTYManager {
         }
       }
 
-      currentPty = pty.spawn(config.cmd, config.args, {
+      // Filter out undefined values from process.env for node-pty stability
+      const cleanEnv: Record<string, string> = {};
+      for (const [k, v] of Object.entries(process.env)) {
+        if (typeof v === "string") cleanEnv[k] = v;
+      }
+
+      const options: IPtyForkOptions = {
         name: "xterm-256color",
         cols: config.cols ?? 120,
         rows: config.rows ?? 30,
         cwd: config.cwd,
-        env: process.env as Record<string, string>,
-      });
+        env: cleanEnv,
+      };
+
+      // On Windows, conditionally use ConPTY
+      if (process.platform === "win32") {
+        options.useConpty = shouldUseConpty();
+      }
+
+      currentPty = pty.spawn(config.cmd, config.args, options);
 
       return currentPty;
     },
@@ -86,14 +140,40 @@ export function configFromProfile(profile: Profile): PTYConfig {
 }
 
 /**
+ * Parse command arguments from environment variables
+ * TARGET_ARGS_JSON (JSON array) takes precedence over TARGET_ARGS (space-separated)
+ */
+function parseArgs(env: Record<string, string | undefined>): string[] {
+  if (env.TARGET_ARGS_JSON) {
+    try {
+      const raw = JSON.parse(env.TARGET_ARGS_JSON);
+      if (!Array.isArray(raw) || !raw.every((x) => typeof x === "string")) {
+        throw new Error("must be array of strings");
+      }
+      return raw;
+    } catch {
+      throw new Error(
+        "Invalid TARGET_ARGS_JSON (must be JSON array of strings)"
+      );
+    }
+  }
+
+  if (env.TARGET_ARGS) {
+    return env.TARGET_ARGS.split(" ").filter(Boolean);
+  }
+
+  return [];
+}
+
+/**
  * Create PTY config from environment variables
  */
 export function configFromEnv(
   env: Record<string, string | undefined> = process.env
 ): PTYConfig {
   return {
-    cmd: env.TARGET_CMD ?? "bash",
-    args: env.TARGET_ARGS ? env.TARGET_ARGS.split(" ").filter(Boolean) : [],
+    cmd: env.TARGET_CMD ?? getDefaultShell(),
+    args: parseArgs(env),
     cwd: env.TARGET_CWD ?? process.cwd(),
   };
 }

@@ -1,6 +1,7 @@
 import { mkdir, readFile, writeFile, rename, unlink } from "node:fs/promises";
 import { existsSync } from "node:fs";
-import { join } from "node:path";
+import path from "node:path";
+import os from "node:os";
 import { randomUUID } from "node:crypto";
 import type { ProfileStore } from "./types.js";
 
@@ -8,24 +9,52 @@ const CONFIG_DIR_NAME = "cli-commentator";
 const STORE_FILE_NAME = "profiles.json";
 
 /**
- * Get the config directory path respecting XDG_CONFIG_HOME
+ * Options for getConfigDir (mainly for testing)
  */
-export function getConfigDir(): string {
-  const xdgConfigHome = process.env.XDG_CONFIG_HOME;
-  const home = process.env.HOME ?? "";
+export type GetConfigDirOptions = {
+  platform?: NodeJS.Platform;
+  env?: Record<string, string | undefined>;
+};
 
-  if (xdgConfigHome) {
-    return join(xdgConfigHome, CONFIG_DIR_NAME);
+/**
+ * Get the config directory path
+ * - Windows: APPDATA > USERPROFILE\AppData\Roaming > os.homedir()
+ * - Unix: XDG_CONFIG_HOME > ~/.config
+ */
+export function getConfigDir(options?: GetConfigDirOptions): string {
+  const platform = options?.platform ?? process.platform;
+  const env = options?.env ?? process.env;
+  const p = platform === "win32" ? path.win32 : path.posix;
+
+  // Windows: APPDATA > USERPROFILE\AppData\Roaming > os.homedir()
+  if (platform === "win32") {
+    let appData = env.APPDATA;
+    if (!appData) {
+      const userProfile = env.USERPROFILE;
+      if (userProfile) {
+        appData = p.join(userProfile, "AppData", "Roaming");
+      } else {
+        // Final fallback: os.homedir() (returns C:\Users\... on Windows)
+        appData = p.join(os.homedir(), "AppData", "Roaming");
+      }
+    }
+    return p.join(appData, CONFIG_DIR_NAME);
   }
 
-  return join(home, ".config", CONFIG_DIR_NAME);
+  // Unix: XDG_CONFIG_HOME > ~/.config
+  const xdgConfigHome = env.XDG_CONFIG_HOME;
+  const home = env.HOME ?? os.homedir();
+  if (xdgConfigHome) {
+    return p.join(xdgConfigHome, CONFIG_DIR_NAME);
+  }
+  return p.join(home, ".config", CONFIG_DIR_NAME);
 }
 
 /**
  * Get the full path to profiles.json
  */
 export function getStorePath(): string {
-  return join(getConfigDir(), STORE_FILE_NAME);
+  return path.join(getConfigDir(), STORE_FILE_NAME);
 }
 
 /**

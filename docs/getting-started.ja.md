@@ -92,6 +92,71 @@ chmod 755 <path-to-spawn-helper>
 
 `node_modules` は再インストールで戻る可能性があるため、再発時は同じ手順で対応してください。
 
+## Windows 向け注意事項
+
+### 必要条件
+
+- Windows 10 1809+ (ConPTY対応)
+- Node.js 20+
+- Visual C++ Build Tools (node-pty ビルド用)
+
+### デフォルトシェル
+
+プロファイル無しで起動した場合、Windowsでは `powershell.exe` がデフォルトになります（Unix系は `bash`）。
+
+### 引数にスペースを含む場合
+
+`TARGET_ARGS_JSON` を使用（JSON配列形式）:
+
+**PowerShell:**
+
+```powershell
+$env:TARGET_ARGS_JSON='["-NoProfile","-Command","echo hello world"]'; pnpm dev:server
+```
+
+**cmd.exe:**
+
+```cmd
+set TARGET_ARGS_JSON=["-NoProfile","-Command","echo hello world"] && pnpm dev:server
+```
+
+### ConPTY ハング対策
+
+デバッガ使用時などでハングする場合:
+
+**PowerShell:**
+
+```powershell
+$env:PTY_USE_CONPTY='0'; pnpm dev:server
+```
+
+**cmd.exe:**
+
+```cmd
+set PTY_USE_CONPTY=0 && pnpm dev:server
+```
+
+### Windows トラブルシューティング
+
+#### node-pty がビルドに失敗する
+
+Visual C++ Build Tools が必要です。
+
+**推奨:** Visual Studio Installer で「C++ によるデスクトップ開発」ワークロードをインストール
+
+```
+1. Visual Studio Installer を起動
+2. 「変更」→「ワークロード」タブ
+3. 「C++ によるデスクトップ開発」にチェック → インストール
+```
+
+> **注:** `npm install --global windows-build-tools` は環境によっては途中で止まる報告があるため非推奨。
+
+#### デバッガ使用時にハングする
+
+`PTY_USE_CONPTY=0` を設定するか、`--inspect` フラグを外してください。
+自動検知により、`--inspect` / `--inspect-brk` が検出された場合は ConPTY が自動で無効化されます。
+
 ## 備考
 
 - 実況テキストは **イベント時 + 最大2秒に1回** で送信されます
