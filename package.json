@@ -6,8 +6,8 @@
     "dev": "concurrently -n server,web \"pnpm -C apps/server dev\" \"pnpm -C apps/web dev\"",
     "dev:server": "pnpm -C apps/server dev",
     "dev:web": "pnpm -C apps/web dev",
-    "dev:desktop": "concurrently -n server,web,tauri \"pnpm -C apps/server dev\" \"pnpm -C apps/web dev\" \"wait-on http://127.0.0.1:5173 tcp:127.0.0.1:8787 && pnpm -C apps/desktop tauri:dev\"",
-    "dev:desktop:managed": "concurrently -n web,tauri \"pnpm -C apps/web dev\" \"wait-on http://127.0.0.1:5173 && pnpm -C apps/desktop tauri:dev\"",
+    "dev:desktop": "concurrently -n server,web,tauri \"pnpm -C apps/server dev\" \"pnpm -C apps/web dev\" \"wait-on http://localhost:5173 tcp:localhost:8787 && pnpm -C apps/desktop tauri:dev\"",
+    "dev:desktop:managed": "concurrently -n web,tauri \"pnpm -C apps/web dev\" \"wait-on http://localhost:5173 && pnpm -C apps/desktop tauri:dev\"",
     "smoke:llm": "bash ./scripts/smoke-llm.sh"
   },
   "devDependencies": {

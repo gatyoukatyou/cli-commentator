@@ -4,7 +4,7 @@
   "version": "0.0.1",
   "identifier": "com.cli-commentator.desktop",
   "build": {
-    "devUrl": "http://127.0.0.1:5173",
+    "devUrl": "http://localhost:5173",
     "beforeDevCommand": "",
     "beforeBuildCommand": "",
     "frontendDist": "../../web/dist"
