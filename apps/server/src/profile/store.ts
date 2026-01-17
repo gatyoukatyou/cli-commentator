@@ -18,36 +18,33 @@ export type GetConfigDirOptions = {
 
 /**
  * Get the config directory path
+ * - XDG_CONFIG_HOME (explicit override, honored on all platforms for testing)
  * - Windows: APPDATA > USERPROFILE\AppData\Roaming > os.homedir()
- * - Unix: XDG_CONFIG_HOME > ~/.config
+ * - Unix: ~/.config
  */
 export function getConfigDir(options?: GetConfigDirOptions): string {
   const platform = options?.platform ?? process.platform;
   const env = options?.env ?? process.env;
-  const p = platform === "win32" ? path.win32 : path.posix;
+
+  // XDG_CONFIG_HOME is an explicit override (honor on all platforms)
+  const xdgConfigHome = env.XDG_CONFIG_HOME;
+  if (xdgConfigHome) {
+    return path.join(xdgConfigHome, CONFIG_DIR_NAME);
+  }
 
   // Windows: APPDATA > USERPROFILE\AppData\Roaming > os.homedir()
   if (platform === "win32") {
-    let appData = env.APPDATA;
-    if (!appData) {
-      const userProfile = env.USERPROFILE;
-      if (userProfile) {
-        appData = p.join(userProfile, "AppData", "Roaming");
-      } else {
-        // Final fallback: os.homedir() (returns C:\Users\... on Windows)
-        appData = p.join(os.homedir(), "AppData", "Roaming");
-      }
-    }
-    return p.join(appData, CONFIG_DIR_NAME);
+    const appData =
+      env.APPDATA ??
+      (env.USERPROFILE
+        ? path.win32.join(env.USERPROFILE, "AppData", "Roaming")
+        : path.win32.join(os.homedir(), "AppData", "Roaming"));
+    return path.win32.join(appData, CONFIG_DIR_NAME);
   }
 
-  // Unix: XDG_CONFIG_HOME > ~/.config
-  const xdgConfigHome = env.XDG_CONFIG_HOME;
+  // Unix: ~/.config
   const home = env.HOME ?? os.homedir();
-  if (xdgConfigHome) {
-    return p.join(xdgConfigHome, CONFIG_DIR_NAME);
-  }
-  return p.join(home, ".config", CONFIG_DIR_NAME);
+  return path.posix.join(home, ".config", CONFIG_DIR_NAME);
 }
 
 /**

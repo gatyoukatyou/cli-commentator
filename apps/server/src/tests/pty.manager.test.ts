@@ -77,7 +77,8 @@ describe("pty/manager", () => {
     it("uses defaults when env vars not set", () => {
       const config = configFromEnv({});
 
-      expect(config.cmd).toBe("bash");
+      const expectedCmd = process.platform === "win32" ? "powershell.exe" : "bash";
+      expect(config.cmd).toBe(expectedCmd);
       expect(config.args).toEqual([]);
       expect(config.cwd).toBe(process.cwd());
     });

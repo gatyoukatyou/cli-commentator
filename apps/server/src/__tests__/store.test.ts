@@ -3,7 +3,30 @@ import path from "node:path";
 import { getConfigDir } from "../profile/store.js";
 
 describe("getConfigDir", () => {
-  describe("Windows", () => {
+  describe("XDG_CONFIG_HOME (all platforms)", () => {
+    it("uses XDG_CONFIG_HOME when set (takes precedence)", () => {
+      const result = getConfigDir({
+        platform: "linux",
+        env: { XDG_CONFIG_HOME: "/custom/config", HOME: "/home/user" },
+      });
+      // XDG uses path.join (current platform separator)
+      expect(result).toBe(path.join("/custom/config", "cli-commentator"));
+    });
+
+    it("XDG_CONFIG_HOME works on Windows too (for test isolation)", () => {
+      const result = getConfigDir({
+        platform: "win32",
+        env: {
+          XDG_CONFIG_HOME: "/tmp/test-config",
+          APPDATA: "C:\\Users\\x\\AppData\\Roaming",
+        },
+      });
+      // XDG takes precedence even on Windows
+      expect(result).toBe(path.join("/tmp/test-config", "cli-commentator"));
+    });
+  });
+
+  describe("Windows (no XDG)", () => {
     it("uses APPDATA when available", () => {
       const result = getConfigDir({
         platform: "win32",
@@ -43,17 +66,7 @@ describe("getConfigDir", () => {
     });
   });
 
-  describe("Unix (Linux/macOS)", () => {
-    it("uses XDG_CONFIG_HOME when available", () => {
-      const result = getConfigDir({
-        platform: "linux",
-        env: { XDG_CONFIG_HOME: "/custom/config", HOME: "/home/user" },
-      });
-      expect(result).toBe(
-        path.posix.join("/custom/config", "cli-commentator")
-      );
-    });
-
+  describe("Unix (no XDG)", () => {
     it("falls back to HOME/.config when XDG_CONFIG_HOME is not set", () => {
       const result = getConfigDir({
         platform: "linux",
@@ -71,19 +84,6 @@ describe("getConfigDir", () => {
       });
       expect(result).toBe(
         path.posix.join("/Users/dev", ".config", "cli-commentator")
-      );
-    });
-
-    it("XDG_CONFIG_HOME takes precedence over HOME", () => {
-      const result = getConfigDir({
-        platform: "linux",
-        env: {
-          XDG_CONFIG_HOME: "/xdg/config",
-          HOME: "/home/user",
-        },
-      });
-      expect(result).toBe(
-        path.posix.join("/xdg/config", "cli-commentator")
       );
     });
   });

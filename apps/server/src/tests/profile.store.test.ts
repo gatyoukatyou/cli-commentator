@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { mkdtemp, rm, readFile, writeFile, mkdir } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import path, { join } from "node:path";
 import {
   getConfigDir,
   getStorePath,
@@ -33,20 +33,25 @@ describe("profile/store", () => {
   describe("getConfigDir", () => {
     it("uses XDG_CONFIG_HOME when set", () => {
       process.env.XDG_CONFIG_HOME = "/custom/config";
-      expect(getConfigDir()).toBe("/custom/config/cli-commentator");
+      expect(getConfigDir()).toBe(path.join("/custom/config", "cli-commentator"));
     });
 
     it("falls back to ~/.config when XDG_CONFIG_HOME is not set", () => {
       delete process.env.XDG_CONFIG_HOME;
       process.env.HOME = "/home/user";
-      expect(getConfigDir()).toBe("/home/user/.config/cli-commentator");
+      // On Windows without XDG, falls back to APPDATA; on Unix, HOME/.config
+      if (process.platform === "win32") {
+        // Skip this test on Windows (APPDATA would be used)
+        return;
+      }
+      expect(getConfigDir()).toBe(path.join("/home/user", ".config", "cli-commentator"));
     });
   });
 
   describe("getStorePath", () => {
     it("returns path to profiles.json", () => {
       process.env.XDG_CONFIG_HOME = "/custom/config";
-      expect(getStorePath()).toBe("/custom/config/cli-commentator/profiles.json");
+      expect(getStorePath()).toBe(path.join("/custom/config", "cli-commentator", "profiles.json"));
     });
   });
 

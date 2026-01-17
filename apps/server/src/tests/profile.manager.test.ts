@@ -255,9 +255,10 @@ describe("profile/manager", () => {
     it("uses defaults when environment variables are not set", () => {
       const input = createFromEnv({});
 
+      const expectedCmd = process.platform === "win32" ? "powershell.exe" : "bash";
       expect(input).toEqual({
         name: "Default",
-        cmd: "bash",
+        cmd: expectedCmd,
         args: [],
         cwd: undefined,
         style: "kansai",
