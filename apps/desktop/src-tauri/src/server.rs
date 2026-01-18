@@ -51,7 +51,21 @@ pub fn stop_server(state: State<'_, ServerState>) -> Result<(), String> {
     let mut proc = state.process.lock().map_err(|e| e.to_string())?;
 
     if let Some(mut child) = proc.take() {
-        child.kill().map_err(|e| format!("Failed to kill server: {}", e))?;
+        let pid = child.id();
+
+        // Kill the process group to also terminate child processes (node, etc.)
+        #[cfg(unix)]
+        {
+            use std::process::Command as StdCommand;
+            // Use pkill to kill all child processes of the pnpm process
+            let _ = StdCommand::new("pkill")
+                .args(["-P", &pid.to_string()])
+                .status();
+        }
+
+        // Then kill the main process
+        let _ = child.kill();
+        let _ = child.wait(); // Reap the zombie process
     }
 
     Ok(())
