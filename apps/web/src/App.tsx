@@ -29,6 +29,9 @@ type ServerStatusDetail = {
   crash_suspected: boolean;
   orphan_suspected: boolean;
   diagnostics: string | null;
+  health_ok: boolean;
+  last_seen_at: number | null;
+  port: number;
 };
 
 // Tauri debug panel for Gate B testing
@@ -104,10 +107,18 @@ function TauriDebugPanel() {
             color: status.actual === "alive" ? "#22c55e" :
                    status.actual === "dead" ? "#ef4444" : "#f59e0b"
           }}>{status.actual}</span></div>
-          <div>PID: {status.pid ?? "-"}</div>
+          <div>Health: <span style={{
+            color: status.health_ok ? "#22c55e" : "#ef4444"
+          }}>{status.health_ok ? "OK" : "NG"}</span></div>
+          <div>PID: {status.pid ?? "-"} (port {status.port})</div>
           {status.started_at && (
             <div style={{ fontSize: 10, opacity: 0.7 }}>
               Started: {new Date(status.started_at).toLocaleTimeString()}
+            </div>
+          )}
+          {status.last_seen_at && (
+            <div style={{ fontSize: 10, opacity: 0.7 }}>
+              Last seen: {new Date(status.last_seen_at).toLocaleTimeString()}
             </div>
           )}
           {status.crash_suspected && (
@@ -115,6 +126,9 @@ function TauriDebugPanel() {
           )}
           {status.orphan_suspected && (
             <div style={{ color: "#f59e0b", marginTop: 4 }}>Orphan: port in use</div>
+          )}
+          {status.actual === "alive" && !status.health_ok && (
+            <div style={{ color: "#f59e0b", marginTop: 4 }}>Health check failed</div>
           )}
           {status.diagnostics && (
             <div style={{ fontSize: 10, opacity: 0.6, marginTop: 4 }}>
