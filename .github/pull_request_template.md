@@ -2,6 +2,18 @@
 
 <!-- Brief description of changes -->
 
+## Related Issues
+
+<!--
+Use separate lines for auto-close:
+Closes #123
+Closes #456
+
+NOT: Closes #123, #456 (comma won't work)
+
+Note: Closing keywords only work for PRs targeting the default branch (main).
+-->
+
 ## Type of Change
 
 - [ ] Bug fix
