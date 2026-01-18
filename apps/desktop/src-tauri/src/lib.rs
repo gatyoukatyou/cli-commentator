@@ -1,6 +1,6 @@
 mod server;
 
-use server::{server_status, start_server, stop_server, ServerState};
+use server::{server_status, server_status_detailed, start_server, stop_server, ServerState};
 use tauri::Manager;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -10,7 +10,8 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             start_server,
             stop_server,
-            server_status
+            server_status,
+            server_status_detailed
         ])
         .on_window_event(|window, event| {
             if let tauri::WindowEvent::CloseRequested { .. } = event {

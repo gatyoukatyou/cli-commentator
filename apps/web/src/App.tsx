@@ -20,10 +20,21 @@ type LegacyHello = { type: "hello"; style: Style };
 
 type ConnectionStatus = "connecting" | "connected" | "disconnected" | "reconnecting";
 
+type ServerStatusDetail = {
+  desired: "running" | "stopped";
+  actual: "alive" | "dead" | "unknown";
+  pid: number | null;
+  started_at: number | null;
+  exit_code: number | null;
+  crash_suspected: boolean;
+  orphan_suspected: boolean;
+  diagnostics: string | null;
+};
+
 // Tauri debug panel for Gate B testing
 function TauriDebugPanel() {
   const [isTauri, setIsTauri] = useState(false);
-  const [serverStatus, setServerStatus] = useState<string>("unknown");
+  const [status, setStatus] = useState<ServerStatusDetail | null>(null);
 
   useEffect(() => {
     const tauri = (window as { __TAURI__?: { core?: { invoke: (cmd: string) => Promise<unknown> } } }).__TAURI__;
@@ -32,34 +43,42 @@ function TauriDebugPanel() {
     }
   }, []);
 
+  // Polling (3 second interval)
+  useEffect(() => {
+    if (!isTauri) return;
+    const tauri = (window as { __TAURI__?: { core?: { invoke: (cmd: string) => Promise<unknown> } } }).__TAURI__;
+
+    const poll = async () => {
+      try {
+        const result = await tauri?.core?.invoke("server_status_detailed");
+        setStatus(result as ServerStatusDetail);
+      } catch {
+        // Ignore polling errors
+      }
+    };
+
+    poll(); // Initial immediate call
+    const interval = setInterval(poll, 3000);
+    return () => clearInterval(interval);
+  }, [isTauri]);
+
   if (!import.meta.env.DEV || !isTauri) return null;
 
   const tauri = (window as { __TAURI__?: { core?: { invoke: (cmd: string) => Promise<unknown> } } }).__TAURI__;
 
   const handleStart = async () => {
     try {
-      const result = await tauri?.core?.invoke("start_server");
-      setServerStatus(result ? "started" : "already running");
-    } catch (e) {
-      setServerStatus(`error: ${e}`);
+      await tauri?.core?.invoke("start_server");
+    } catch {
+      // Ignore errors
     }
   };
 
   const handleStop = async () => {
     try {
       await tauri?.core?.invoke("stop_server");
-      setServerStatus("stopped");
-    } catch (e) {
-      setServerStatus(`error: ${e}`);
-    }
-  };
-
-  const handleStatus = async () => {
-    try {
-      const result = await tauri?.core?.invoke("server_status");
-      setServerStatus(result ? "running" : "not running");
-    } catch (e) {
-      setServerStatus(`error: ${e}`);
+    } catch {
+      // Ignore errors
     }
   };
 
@@ -74,13 +93,40 @@ function TauriDebugPanel() {
       borderRadius: 8,
       fontSize: 12,
       zIndex: 9999,
+      minWidth: 180,
     }}>
       <div style={{ fontWeight: "bold", marginBottom: 8 }}>Tauri Debug</div>
-      <div style={{ marginBottom: 8 }}>Server: {serverStatus}</div>
+
+      {status && (
+        <div style={{ marginBottom: 8, lineHeight: 1.6 }}>
+          <div>Desired: {status.desired}</div>
+          <div>Actual: <span style={{
+            color: status.actual === "alive" ? "#22c55e" :
+                   status.actual === "dead" ? "#ef4444" : "#f59e0b"
+          }}>{status.actual}</span></div>
+          <div>PID: {status.pid ?? "-"}</div>
+          {status.started_at && (
+            <div style={{ fontSize: 10, opacity: 0.7 }}>
+              Started: {new Date(status.started_at).toLocaleTimeString()}
+            </div>
+          )}
+          {status.crash_suspected && (
+            <div style={{ color: "#ef4444", marginTop: 4 }}>Crash suspected</div>
+          )}
+          {status.orphan_suspected && (
+            <div style={{ color: "#f59e0b", marginTop: 4 }}>Orphan: port in use</div>
+          )}
+          {status.diagnostics && (
+            <div style={{ fontSize: 10, opacity: 0.6, marginTop: 4 }}>
+              [{status.diagnostics}]
+            </div>
+          )}
+        </div>
+      )}
+
       <div style={{ display: "flex", gap: 4 }}>
         <button onClick={handleStart} style={{ padding: "4px 8px" }}>Start</button>
         <button onClick={handleStop} style={{ padding: "4px 8px" }}>Stop</button>
-        <button onClick={handleStatus} style={{ padding: "4px 8px" }}>Status</button>
       </div>
     </div>
   );
