@@ -32,7 +32,7 @@ function TauriDebugPanel() {
     }
   }, []);
 
-  if (!isTauri) return null;
+  if (!import.meta.env.DEV || !isTauri) return null;
 
   const tauri = (window as { __TAURI__?: { core?: { invoke: (cmd: string) => Promise<unknown> } } }).__TAURI__;
 
