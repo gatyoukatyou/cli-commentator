@@ -1,3 +1,4 @@
+use std::env;
 use std::net::TcpStream;
 use std::path::PathBuf;
 use std::process::Stdio;
@@ -12,7 +13,16 @@ use process_wrap::std::ProcessGroup;
 #[cfg(windows)]
 use process_wrap::std::JobObject;
 
-const SERVER_PORT: u16 = 8787;
+const DEFAULT_PORT: u16 = 8787;
+
+/// Get server port from CLI_COMMENTATOR_PORT or PORT env var, fallback to 8787
+fn get_server_port() -> u16 {
+    env::var("CLI_COMMENTATOR_PORT")
+        .or_else(|_| env::var("PORT"))
+        .ok()
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(DEFAULT_PORT)
+}
 
 #[derive(Clone, serde::Serialize)]
 pub struct ServerStatus {
@@ -68,9 +78,9 @@ impl ServerState {
 }
 
 /// Check if the server port is in use
-fn check_port_in_use() -> bool {
+fn check_port_in_use(port: u16) -> bool {
     TcpStream::connect_timeout(
-        &std::net::SocketAddr::from(([127, 0, 0, 1], SERVER_PORT)),
+        &std::net::SocketAddr::from(([127, 0, 0, 1], port)),
         Duration::from_millis(200),
     )
     .is_ok()
@@ -88,6 +98,7 @@ fn get_project_root() -> Result<PathBuf, String> {
 #[tauri::command]
 pub fn server_status_detailed(state: State<'_, ServerState>) -> ServerStatus {
     let mut rt = state.runtime.lock().unwrap();
+    let port = get_server_port();
 
     // 1. Check process liveness + cleanup if dead
     let (actual, exit_code) = match rt.process.as_mut() {
@@ -108,7 +119,7 @@ pub fn server_status_detailed(state: State<'_, ServerState>) -> ServerStatus {
     let crash_suspected = rt.desired == DesiredState::Running && actual == ActualState::Dead;
 
     // 3. Orphan detection (port in use but no tracked process)
-    let orphan_suspected = rt.process.is_none() && check_port_in_use();
+    let orphan_suspected = rt.process.is_none() && check_port_in_use(port);
 
     // 4. Log warnings
     if crash_suspected {
@@ -120,7 +131,7 @@ pub fn server_status_detailed(state: State<'_, ServerState>) -> ServerStatus {
     if orphan_suspected {
         eprintln!(
             "[WARN] Orphan suspected: port {} in use but no tracked process",
-            SERVER_PORT
+            port
         );
     }
 
@@ -168,10 +179,12 @@ pub fn start_server(state: State<'_, ServerState>) -> Result<bool, String> {
     }
 
     let project_root = get_project_root()?;
+    let port = get_server_port();
 
     let mut command = CommandWrap::with_new("pnpm", |cmd| {
         cmd.args(["-C", "apps/server", "dev"])
             .current_dir(&project_root)
+            .env("CLI_COMMENTATOR_PORT", port.to_string())
             .stdout(Stdio::inherit())
             .stderr(Stdio::inherit());
     });
