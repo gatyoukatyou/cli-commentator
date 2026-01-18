@@ -1,10 +1,17 @@
 use std::path::PathBuf;
-use std::process::{Child, Command, Stdio};
+use std::process::Stdio;
 use std::sync::Mutex;
 use tauri::State;
+use process_wrap::std::*;
+
+#[cfg(unix)]
+use process_wrap::std::ProcessGroup;
+
+#[cfg(windows)]
+use process_wrap::std::JobObject;
 
 pub struct ServerState {
-    process: Mutex<Option<Child>>,
+    process: Mutex<Option<Box<dyn ChildWrapper>>>,
 }
 
 impl ServerState {
@@ -34,11 +41,21 @@ pub fn start_server(state: State<'_, ServerState>) -> Result<bool, String> {
 
     let project_root = get_project_root()?;
 
-    let child = Command::new("pnpm")
-        .args(["-C", "apps/server", "dev"])
-        .current_dir(&project_root)
-        .stdout(Stdio::inherit()) // Inherit logs to avoid buffer issues
-        .stderr(Stdio::inherit())
+    let mut command = CommandWrap::with_new("pnpm", |cmd| {
+        cmd.args(["-C", "apps/server", "dev"])
+            .current_dir(&project_root)
+            .stdout(Stdio::inherit())
+            .stderr(Stdio::inherit());
+    });
+
+    // Platform-specific wrapper for proper child process cleanup
+    #[cfg(unix)]
+    command.wrap(ProcessGroup::leader());
+
+    #[cfg(windows)]
+    command.wrap(JobObject);
+
+    let child = command
         .spawn()
         .map_err(|e| format!("Failed to start server: {}", e))?;
 
@@ -51,21 +68,8 @@ pub fn stop_server(state: State<'_, ServerState>) -> Result<(), String> {
     let mut proc = state.process.lock().map_err(|e| e.to_string())?;
 
     if let Some(mut child) = proc.take() {
-        let pid = child.id();
-
-        // Kill the process group to also terminate child processes (node, etc.)
-        #[cfg(unix)]
-        {
-            use std::process::Command as StdCommand;
-            // Use pkill to kill all child processes of the pnpm process
-            let _ = StdCommand::new("pkill")
-                .args(["-P", &pid.to_string()])
-                .status();
-        }
-
-        // Then kill the main process
+        // kill() terminates the entire process group (Unix) or job object (Windows)
         let _ = child.kill();
-        let _ = child.wait(); // Reap the zombie process
     }
 
     Ok(())
