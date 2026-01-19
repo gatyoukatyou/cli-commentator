@@ -174,13 +174,13 @@ exports[`extractEvents fixtures > generic.shell.log 1`] = `
   },
   {
     "detail": "pnpm run build",
-    "summary": "依存関係/スクリプトを処理している",
+    "summary": "パッケージ/スクリプトを処理している",
     "ts": 1735689600000,
     "type": "install",
   },
   {
     "detail": "jest",
-    "summary": "テスト/型チェックを実行している",
+    "summary": "テストを実行している",
     "ts": 1735689600000,
     "type": "test",
   },

@@ -1,0 +1,14 @@
+$ gh pr create --title "feat: add new feature" --body "Description here"
+Creating pull request for feature/new-feature into main in user/repo
+
+https://github.com/user/repo/pull/42
+
+$ gh pr checks 42
+Some checks are still pending
+NAME         STATUS   ELAPSED  DESCRIPTION
+CI           pass     1m23s    Build and Test
+Lint         pass     45s      ESLint check
+Type Check   fail     32s      TypeScript compilation
+
+$ gh workflow run ci.yml
+✓ Created workflow_dispatch event for ci.yml at main

@@ -16,6 +16,9 @@ export type EventType =
   | "git"
   | "github"
   | "install"
+  | "build"
+  | "lint"
+  | "server"
   | "error"
   | "done";
 

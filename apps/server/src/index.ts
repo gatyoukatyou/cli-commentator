@@ -10,9 +10,15 @@ import { getAutoDetectedSource, resetAutoDetection } from "./rulesets/index.js";
 import * as profileManager from "./profile/manager.js";
 import type { ProfileSummary } from "./profile/types.js";
 import { createPTYManager, configFromProfile, configFromEnv, type PTYConfig } from "./pty/index.js";
+import { createFileTail, type FileTail } from "./input/index.js";
 
 const PORT = Number(process.env.CLI_COMMENTATOR_PORT ?? process.env.PORT ?? 8787);
 const COMMENT_EXIT_TIMEOUT_MS = parseInt(process.env.COMMENT_EXIT_TIMEOUT_MS ?? "1500", 10);
+
+// Input mode configuration
+type InputMode = "pty" | "file";
+const INPUT_MODE: InputMode = (process.env.INPUT_MODE?.toLowerCase() === "file") ? "file" : "pty";
+const INPUT_FILE = process.env.INPUT_FILE ?? "";
 
 function isStyle(value: unknown): value is Style {
   return value === "standard" || value === "kansai" || value === "zundamon";
@@ -66,6 +72,40 @@ const wss = new WebSocketServer({ server });
 // --- PTY Manager ---
 const ptyManager = createPTYManager();
 
+// --- File Tail (for file input mode) ---
+let fileTail: FileTail | null = null;
+
+/**
+ * Process incoming data from any input source (PTY or FileTail).
+ * This is the common data processing pipeline.
+ */
+function processInputData(data: string, writeToStdout: boolean = true): void {
+  // Write raw data to local terminal (only for PTY mode or when requested)
+  if (writeToStdout) {
+    process.stdout.write(data);
+  }
+
+  const clean = redact(data);
+  const evs = extractEvents(clean);
+  const detected = getAutoDetectedSource();
+  if (detected) broadcastSource(detected);
+
+  // raw は "マスク後" を送る（MVP）
+  broadcast({ kind: "raw", data: clean });
+
+  for (const ev of evs) {
+    broadcast({ kind: "event", ev });
+    if (ev.type === "error" || shouldEmitNow()) {
+      // comment() is async - fire and forget, errors are handled inside
+      void comment(ev, currentStyle)
+        .then((text) => {
+          broadcast({ kind: "commentary", ts: ev.ts, text, ev });
+        })
+        .catch(() => {});
+    }
+  }
+}
+
 function broadcast(msg: WsOutgoing) {
   const data = JSON.stringify(msg);
   for (const client of wss.clients) {
@@ -92,31 +132,8 @@ function setupPTY(config: PTYConfig, profileId: string | null): void {
     sourceState.detected = null;
   }
 
-  // ローカル端末への表示は"生"のまま（実況/UIに出す時だけマスク）
-  term.onData((data) => process.stdout.write(data));
-
-  // Process and broadcast data
-  term.onData((data) => {
-    const clean = redact(data);
-    const evs = extractEvents(clean);
-    const detected = getAutoDetectedSource();
-    if (detected) broadcastSource(detected);
-
-    // raw は "マスク後" を送る（MVP）
-    broadcast({ kind: "raw", data: clean });
-
-    for (const ev of evs) {
-      broadcast({ kind: "event", ev });
-      if (ev.type === "error" || shouldEmitNow()) {
-        // comment() is async - fire and forget, errors are handled inside
-        void comment(ev, currentStyle)
-          .then((text) => {
-            broadcast({ kind: "commentary", ts: ev.ts, text, ev });
-          })
-          .catch(() => {});
-      }
-    }
-  });
+  // Process and broadcast data using common pipeline
+  term.onData((data) => processInputData(data, true));
 
   // Handle PTY exit - only trigger cleanup for final exit, not for profile switch
   term.onExit(({ exitCode }) => {
@@ -337,26 +354,115 @@ wss.on("connection", async (ws) => {
   });
 });
 
-// --- Initial PTY launch ---
-// 入力をPTYへ（対話CLIを一応動かせる）
+// --- File Tail Setup ---
+/**
+ * Setup file tail input source for external log monitoring.
+ * @see Issue #40
+ */
+function setupFileTail(filePath: string): void {
+  if (!filePath) {
+    console.error("INPUT_FILE is required when INPUT_MODE=file");
+    process.exit(1);
+  }
+
+  console.log(`Starting file tail mode: ${filePath}`);
+
+  // Reset auto-detection
+  if (sourceState.mode === "auto") {
+    resetAutoDetection();
+    sourceState.detected = null;
+  }
+
+  fileTail = createFileTail({
+    filePath,
+    tailLines: 10,
+    encoding: "utf-8",
+  });
+
+  // Process data through common pipeline (no stdout echo for file mode)
+  fileTail.on("data", (data) => processInputData(data, false));
+
+  // Handle errors
+  fileTail.on("error", (err) => {
+    console.error("File tail error:", err.message);
+    const ev: Event = { ts: Date.now(), type: "error", summary: "ファイル監視エラー", detail: err.message };
+    broadcast({ kind: "event", ev });
+  });
+
+  // Handle exit
+  fileTail.on("exit", (code) => {
+    console.log(`File tail exited with code: ${code}`);
+    const ev: Event = { ts: Date.now(), type: "done", summary: `ファイル監視終了 code=${code}` };
+    broadcast({ kind: "event", ev });
+
+    void comment(ev, currentStyle)
+      .then((text) => {
+        broadcast({ kind: "commentary", ts: ev.ts, text, ev });
+      })
+      .catch(() => {})
+      .finally(() => {
+        cleanup(code ?? 0);
+      });
+  });
+
+  // Start tailing
+  try {
+    fileTail.start();
+
+    // Broadcast start event
+    const startEvent: Event = {
+      ts: Date.now(),
+      type: "start",
+      summary: "ファイル監視開始",
+      detail: `tail -f ${filePath}`,
+    };
+    broadcast({ kind: "event", ev: startEvent });
+
+    void comment(startEvent, currentStyle)
+      .then((text) => {
+        broadcast({ kind: "commentary", ts: Date.now(), text, ev: startEvent });
+      })
+      .catch((err) => {
+        broadcast({
+          kind: "commentary",
+          ts: Date.now(),
+          text: `ファイル監視開始: ${filePath}`,
+          ev: startEvent,
+        });
+        console.error("start commentary failed:", err);
+      });
+  } catch (err) {
+    console.error("Failed to start file tail:", err);
+    process.exit(1);
+  }
+}
+
+// --- Initial Input Source Launch ---
+// 入力をPTYへ（対話CLIを一応動かせる）- only for PTY mode
 function handleStdinData(d: Buffer) {
   ptyManager.write(d.toString());
 }
 
-if (process.stdin.isTTY) {
-  try {
-    process.stdin.setRawMode(true);
-  } catch {}
-  process.stdin.resume();
-  process.stdin.on("data", handleStdinData);
+if (INPUT_MODE === "pty") {
+  // PTY mode: setup stdin passthrough and launch PTY
+  if (process.stdin.isTTY) {
+    try {
+      process.stdin.setRawMode(true);
+    } catch {}
+    process.stdin.resume();
+    process.stdin.on("data", handleStdinData);
+  }
+
+  // Launch initial PTY with environment config
+  const initialConfig = configFromEnv();
+  setupPTY(initialConfig, null);
+} else {
+  // File mode: setup file tail
+  setupFileTail(INPUT_FILE);
 }
 
-// Launch initial PTY with environment config
-const initialConfig = configFromEnv();
-setupPTY(initialConfig, null);
-
 server.listen(PORT, () => {
-  console.log(`server listening on http://localhost:${PORT}`);
+  console.log(`server listening on http://localhost:${PORT} (mode: ${INPUT_MODE})`);
 });
 
 // --- Cleanup ---
@@ -376,8 +482,12 @@ function cleanup(exitCode: number = 0): void {
     } catch {}
   }
 
-  // 2. PTY kill
+  // 2. PTY kill / FileTail stop
   ptyManager.kill();
+  if (fileTail) {
+    fileTail.stop();
+    fileTail = null;
+  }
 
   // 3. WebSocket clients close
   for (const client of wss.clients) {

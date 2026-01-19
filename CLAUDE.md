@@ -67,7 +67,9 @@ cli-commentator/
 |----------|---------|-------------|
 | `CLI_COMMENTATOR_PORT` | 8787 | サーバーポート（Tauri/Server/Web共通） |
 | `PORT` | 8787 | サーバーポート（`CLI_COMMENTATOR_PORT`未設定時のフォールバック） |
-| `TARGET_CMD` | bash (Win: powershell.exe) | 実行するCLIコマンド |
+| `INPUT_MODE` | pty | 入力モード (pty/file) |
+| `INPUT_FILE` | (empty) | 監視対象ファイル（INPUT_MODE=file時に必須） |
+| `TARGET_CMD` | bash (Win: powershell.exe) | 実行するCLIコマンド（PTYモード用） |
 | `TARGET_ARGS` | (empty) | CLIへの引数（空白区切り） |
 | `TARGET_ARGS_JSON` | (empty) | CLIへの引数（JSON配列、TARGET_ARGSより優先） |
 | `TARGET_CWD` | (cwd) | 作業ディレクトリ |
@@ -77,6 +79,22 @@ cli-commentator/
 | `COMMENT_TIMEOUT_MS` | 3000 | comment()のLLM呼び出しタイムアウト（ms） |
 | `COMMENT_EXIT_TIMEOUT_MS` | 1500 | 終了時のcleanup強制実行までの待機時間（ms） |
 | `PTY_USE_CONPTY` | (auto) | Windows ConPTY使用 (1/0、未設定時はデバッガ検知で自動判定) |
+
+### INPUT_MODE の動作
+
+| 値 | 動作 |
+|----|------|
+| 未設定 / `pty` | PTYモード：CLIを起動して出力をキャプチャ（デフォルト） |
+| `file` | ファイル監視モード：`tail -f` でログファイルを監視（`INPUT_FILE` 必須） |
+
+**ファイル監視モードの使用例:**
+```bash
+# 外部プロセスのログを監視
+INPUT_MODE=file INPUT_FILE=/var/log/app.log pnpm dev:server
+
+# CIログを監視
+INPUT_MODE=file INPUT_FILE=./ci-output.log pnpm dev:server
+```
 
 ### LLM_PROVIDER の動作
 

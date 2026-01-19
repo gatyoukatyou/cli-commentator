@@ -1,0 +1,28 @@
+$ git status
+On branch feature/new-feature
+Your branch is up to date with 'origin/feature/new-feature'.
+
+Changes not staged for commit:
+  (use "git add <file>..." to update what will be committed)
+	modified:   src/index.ts
+	modified:   src/utils.ts
+
+Untracked files:
+  (use "git add <file>..." to include in what will be committed)
+	src/newfile.ts
+
+$ git add -A
+$ git commit -m "feat: add new feature"
+[feature/new-feature abc1234] feat: add new feature
+ 3 files changed, 45 insertions(+), 12 deletions(-)
+ create mode 100644 src/newfile.ts
+
+$ git push origin feature/new-feature
+Enumerating objects: 8, done.
+Counting objects: 100% (8/8), done.
+Delta compression using up to 8 threads
+Compressing objects: 100% (4/4), done.
+Writing objects: 100% (5/5), 1.23 KiB | 1.23 MiB/s, done.
+Total 5 (delta 3), reused 0 (delta 0)
+To github.com:user/repo.git
+   def5678..abc1234  feature/new-feature -> feature/new-feature

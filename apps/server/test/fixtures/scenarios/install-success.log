@@ -1,0 +1,6 @@
+$ pnpm install
+Lockfile is up to date, resolution step is skipped
+Progress: resolved 277, reused 277, downloaded 0, added 0
+packages are hard linked from the content-addressable store to the virtual store.
+
+Done in 1.2s

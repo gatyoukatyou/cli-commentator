@@ -1,0 +1,19 @@
+$ pnpm test
+
+> @cli-commentator/server@1.0.0 test
+> vitest
+
+ RUN  v3.2.4 /home/user/cli-commentator/apps/server
+
+ ✓ src/__tests__/extract.test.ts (5 tests) 24ms
+ × src/__tests__/redact.test.ts (33 tests | 2 failed) 15ms
+   × redact > GitHub token > should mask ghp_ token
+     AssertionError: expected 'ghp_abc123' to be 'ghp_[REDACTED]'
+   × redact > Slack token > should mask xoxb- token
+     AssertionError: expected 'xoxb-123' to be 'xoxb-[REDACTED]'
+
+ Test Files  1 failed | 2 passed (3)
+      Tests  2 failed | 43 passed (45)
+   Duration  1.02s
+
+ FAIL  Tests failed. See above for more details.

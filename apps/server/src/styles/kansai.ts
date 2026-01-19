@@ -5,6 +5,9 @@ export function commentKansai(ev: Event): string {
     ev.type === "write" ? "ファイル書き換えて修正反映してるで。" :
     ev.type === "search" ? "原因っぽいとこ探してるで。" :
     ev.type === "test" ? "テスト/型チェック回して確認中や。" :
+    ev.type === "build" ? "ビルド走らせてるで。" :
+    ev.type === "lint" ? "コードチェック/整形してるで。" :
+    ev.type === "server" ? "開発サーバー立ち上げてるで。" :
     ev.type === "git" ? "Gitで変更まとめてるで。" :
     ev.type === "github" ? "GitHubのIssue/PR触ってるで。" :
     ev.type === "install" ? "依存関係やスクリプト処理してるで。" :

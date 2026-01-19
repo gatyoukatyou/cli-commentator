@@ -1,0 +1,19 @@
+$ pnpm lint
+
+> cli-commentator@1.0.0 lint
+> eslint src --ext .ts,.tsx
+
+/home/user/project/src/index.ts
+  12:5  warning  Unexpected console statement  no-console
+  25:10 error    'foo' is defined but never used  @typescript-eslint/no-unused-vars
+
+/home/user/project/src/utils.ts
+  8:1   error    Missing return type on function  @typescript-eslint/explicit-function-return-type
+
+✖ 3 problems (2 errors, 1 warning)
+
+$ pnpm prettier --check src
+Checking formatting...
+[warn] src/index.ts
+[warn] src/utils.ts
+[warn] Code style issues found in 2 files. Run Prettier to fix.
