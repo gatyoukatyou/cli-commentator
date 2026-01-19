@@ -65,7 +65,8 @@ cli-commentator/
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `PORT` | 8787 | サーバーポート |
+| `CLI_COMMENTATOR_PORT` | 8787 | サーバーポート（Tauri/Server/Web共通） |
+| `PORT` | 8787 | サーバーポート（`CLI_COMMENTATOR_PORT`未設定時のフォールバック） |
 | `TARGET_CMD` | bash (Win: powershell.exe) | 実行するCLIコマンド |
 | `TARGET_ARGS` | (empty) | CLIへの引数（空白区切り） |
 | `TARGET_ARGS_JSON` | (empty) | CLIへの引数（JSON配列、TARGET_ARGSより優先） |

@@ -11,7 +11,7 @@ import * as profileManager from "./profile/manager.js";
 import type { ProfileSummary } from "./profile/types.js";
 import { createPTYManager, configFromProfile, configFromEnv, type PTYConfig } from "./pty/index.js";
 
-const PORT = Number(process.env.PORT ?? 8787);
+const PORT = Number(process.env.CLI_COMMENTATOR_PORT ?? process.env.PORT ?? 8787);
 const COMMENT_EXIT_TIMEOUT_MS = parseInt(process.env.COMMENT_EXIT_TIMEOUT_MS ?? "1500", 10);
 
 function isStyle(value: unknown): value is Style {
