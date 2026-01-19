@@ -50,9 +50,11 @@ function shouldEmitNow(): boolean {
 
 // --- HTTP + WS ---
 const server = http.createServer((req, res) => {
-  if (req.url === "/health") {
+  // /healthz is the primary health check endpoint (Kubernetes convention)
+  // /health is kept for backwards compatibility
+  if (req.url === "/healthz" || req.url === "/health") {
     res.writeHead(200, { "content-type": "application/json" });
-    res.end(JSON.stringify({ ok: true }));
+    res.end(JSON.stringify({ ok: true, ts: Date.now() }));
     return;
   }
   res.writeHead(404);

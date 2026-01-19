@@ -1,4 +1,5 @@
 use std::env;
+use std::io::{Read as IoRead, Write as IoWrite};
 use std::net::TcpStream;
 use std::path::PathBuf;
 use std::process::Stdio;
@@ -14,6 +15,7 @@ use process_wrap::std::ProcessGroup;
 use process_wrap::std::JobObject;
 
 const DEFAULT_PORT: u16 = 8787;
+const HEALTH_CHECK_TIMEOUT_MS: u64 = 500;
 
 /// Get server port from CLI_COMMENTATOR_PORT or PORT env var, fallback to 8787
 fn get_server_port() -> u16 {
@@ -34,6 +36,9 @@ pub struct ServerStatus {
     pub crash_suspected: bool,
     pub orphan_suspected: bool,
     pub diagnostics: Option<String>,
+    pub health_ok: bool,
+    pub last_seen_at: Option<u64>,
+    pub port: u16,
 }
 
 #[derive(Debug, Clone, Copy, serde::Serialize, PartialEq)]
@@ -57,6 +62,7 @@ struct ServerRuntime {
     pid: Option<u32>,
     started_at: Option<u64>,
     last_exit: Option<i32>,
+    last_seen_at: Option<u64>,
 }
 
 pub struct ServerState {
@@ -72,6 +78,7 @@ impl ServerState {
                 pid: None,
                 started_at: None,
                 last_exit: None,
+                last_seen_at: None,
             }),
         }
     }
@@ -84,6 +91,50 @@ fn check_port_in_use(port: u16) -> bool {
         Duration::from_millis(200),
     )
     .is_ok()
+}
+
+/// Check server health via HTTP GET /healthz
+/// Returns true if server responds with 200 OK
+fn check_health(port: u16) -> bool {
+    let addr = std::net::SocketAddr::from(([127, 0, 0, 1], port));
+    let timeout = Duration::from_millis(HEALTH_CHECK_TIMEOUT_MS);
+
+    // Connect with timeout
+    let mut stream = match TcpStream::connect_timeout(&addr, timeout) {
+        Ok(s) => s,
+        Err(_) => return false,
+    };
+
+    // Set read/write timeouts
+    let _ = stream.set_read_timeout(Some(timeout));
+    let _ = stream.set_write_timeout(Some(timeout));
+
+    // Send minimal HTTP GET request
+    let request = format!(
+        "GET /healthz HTTP/1.1\r\nHost: localhost:{}\r\nConnection: close\r\n\r\n",
+        port
+    );
+    if stream.write_all(request.as_bytes()).is_err() {
+        return false;
+    }
+
+    // Read response (we only need to check for "200 OK")
+    let mut buffer = [0u8; 128];
+    match stream.read(&mut buffer) {
+        Ok(n) if n > 0 => {
+            let response = String::from_utf8_lossy(&buffer[..n]);
+            response.contains("200 OK") || response.contains("200 ")
+        }
+        _ => false,
+    }
+}
+
+/// Get current timestamp in milliseconds
+fn now_ms() -> u64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_millis() as u64)
+        .unwrap_or(0)
 }
 
 /// Get project root from CARGO_MANIFEST_DIR
@@ -115,13 +166,32 @@ pub fn server_status_detailed(state: State<'_, ServerState>) -> ServerStatus {
         None => (ActualState::Dead, rt.last_exit),
     };
 
-    // 2. Crash detection (desired=running but actual=dead)
+    // 2. Health check: if process appears alive, verify via /healthz
+    let health_ok = if actual == ActualState::Alive {
+        let ok = check_health(port);
+        if ok {
+            rt.last_seen_at = Some(now_ms());
+        } else {
+            // Process is alive but not responding to /healthz
+            // Keep actual as Alive but health_ok will be false
+            // This indicates a hung/degraded server
+            eprintln!(
+                "[WARN] Health check failed: process alive but /healthz not responding (port {})",
+                port
+            );
+        }
+        ok
+    } else {
+        false
+    };
+
+    // 3. Crash detection (desired=running but actual=dead)
     let crash_suspected = rt.desired == DesiredState::Running && actual == ActualState::Dead;
 
-    // 3. Orphan detection (port in use but no tracked process)
+    // 4. Orphan detection (port in use but no tracked process)
     let orphan_suspected = rt.process.is_none() && check_port_in_use(port);
 
-    // 4. Log warnings
+    // 5. Log warnings
     if crash_suspected {
         eprintln!(
             "[WARN] Crash suspected: desired={:?}, actual={:?}, pid={:?}",
@@ -135,12 +205,21 @@ pub fn server_status_detailed(state: State<'_, ServerState>) -> ServerStatus {
         );
     }
 
-    // 5. Generate diagnostics
-    let diagnostics = match (crash_suspected, orphan_suspected) {
-        (true, true) => Some("crash_and_orphan".to_string()),
-        (true, false) => Some("crash_suspected".to_string()),
-        (false, true) => Some("orphan_port_in_use".to_string()),
-        (false, false) => None,
+    // 6. Generate diagnostics
+    let mut diagnostics_parts = Vec::new();
+    if crash_suspected {
+        diagnostics_parts.push("crash_suspected");
+    }
+    if orphan_suspected {
+        diagnostics_parts.push("orphan_port_in_use");
+    }
+    if actual == ActualState::Alive && !health_ok {
+        diagnostics_parts.push("health_check_failed");
+    }
+    let diagnostics = if diagnostics_parts.is_empty() {
+        None
+    } else {
+        Some(diagnostics_parts.join(","))
     };
 
     ServerStatus {
@@ -152,13 +231,17 @@ pub fn server_status_detailed(state: State<'_, ServerState>) -> ServerStatus {
         crash_suspected,
         orphan_suspected,
         diagnostics,
+        health_ok,
+        last_seen_at: rt.last_seen_at,
+        port,
     }
 }
 
 #[tauri::command]
 pub fn server_status(state: State<'_, ServerState>) -> bool {
     let status = server_status_detailed(state);
-    status.actual == ActualState::Alive
+    // Only return true if process is alive AND responding to health checks
+    status.actual == ActualState::Alive && status.health_ok
 }
 
 #[tauri::command]
@@ -237,6 +320,7 @@ pub fn stop_server(state: State<'_, ServerState>) -> Result<(), String> {
     // Clear stale tracking info on intentional stop
     rt.pid = None;
     rt.started_at = None;
+    rt.last_seen_at = None;
 
     Ok(())
 }
