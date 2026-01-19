@@ -1,0 +1,7 @@
+$ pnpm add lodash
+Progress: resolved 278, reused 277, downloaded 1, added 1
+
+dependencies:
++ lodash 4.17.21
+
+Done in 2.5s

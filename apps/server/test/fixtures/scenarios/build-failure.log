@@ -1,0 +1,18 @@
+$ pnpm build
+
+> cli-commentator@1.0.0 build
+> tsc --build && vite build
+
+src/index.ts:42:5 - error TS2322: Type 'string' is not assignable to type 'number'.
+
+42     const count: number = "hello";
+       ~~~~~
+
+src/utils.ts:15:10 - error TS2339: Property 'foo' does not exist on type 'Bar'.
+
+15   return bar.foo;
+            ~~~
+
+Found 2 errors.
+
+ ELIFECYCLE  Command failed with exit code 2.

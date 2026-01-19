@@ -1,0 +1,11 @@
+$ pnpm build
+
+> cli-commentator@1.0.0 build
+> vite build
+
+vite v7.0.0 building for production...
+✓ 127 modules transformed.
+dist/index.html                  0.45 kB │ gzip:  0.29 kB
+dist/assets/index-abc123.css     1.23 kB │ gzip:  0.65 kB
+dist/assets/index-xyz789.js     45.67 kB │ gzip: 14.23 kB
+✓ built in 1.52s
