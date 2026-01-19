@@ -8,6 +8,23 @@ import path from "node:path";
 import os from "node:os";
 import { FileTail, createFileTail } from "../input/file-tail.js";
 
+/**
+ * Wait for a condition to become true with polling.
+ * Useful for async tests where timing varies (especially on Windows).
+ */
+async function eventually(
+  fn: () => boolean,
+  timeout = 3000,
+  interval = 50
+): Promise<void> {
+  const start = Date.now();
+  while (Date.now() - start < timeout) {
+    if (fn()) return;
+    await new Promise((r) => setTimeout(r, interval));
+  }
+  throw new Error(`Condition not met within ${timeout}ms`);
+}
+
 describe("FileTail", () => {
   let tempDir: string;
   let testFile: string;
@@ -88,11 +105,16 @@ describe("FileTail", () => {
       // Wait for tail to start
       await new Promise((resolve) => setTimeout(resolve, 100));
 
-      // Append new content
+      // Append new content (use sync write to ensure bytes are flushed)
       fs.appendFileSync(testFile, "new line appended\n");
 
-      // Wait for data event
-      await new Promise((resolve) => setTimeout(resolve, 200));
+      // Wait for data event using eventually pattern
+      // Windows file watchers can be slow to detect changes
+      await eventually(
+        () => chunks.join("").includes("new line appended"),
+        3000,
+        50
+      );
 
       const allContent = chunks.join("");
       expect(allContent).toContain("new line appended");
