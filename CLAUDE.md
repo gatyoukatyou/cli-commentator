@@ -86,6 +86,7 @@ cli-commentator/
 |----|------|
 | 未設定 / `pty` | PTYモード：CLIを起動して出力をキャプチャ（デフォルト） |
 | `file` | ファイル監視モード：`tail -f` でログファイルを監視（`INPUT_FILE` 必須） |
+| その他 | 警告を出力してPTYモードにフォールバック |
 
 **ファイル監視モードの使用例:**
 ```bash
@@ -95,6 +96,10 @@ INPUT_MODE=file INPUT_FILE=/var/log/app.log pnpm dev:server
 # CIログを監視
 INPUT_MODE=file INPUT_FILE=./ci-output.log pnpm dev:server
 ```
+
+**バリデーション:**
+- `INPUT_MODE=file` で `INPUT_FILE` が未設定 → エラー終了 (exit 1)
+- `INPUT_MODE=file` で `INPUT_FILE` のファイルが存在しない → エラー終了 (exit 1)
 
 ### LLM_PROVIDER の動作
 
@@ -205,3 +210,34 @@ pnpm smoke:llm --all
 - `comment()` 関数で LLM_PROVIDER に応じて分岐（Sprint 6 で統合済み）
 - タイムアウト保護: `comment()` は `COMMENT_TIMEOUT_MS` 後に自動でルールベースにフォールバック（Sprint 8）
 - AbortController 対応: LLM リクエストに signal を渡して abort 可能（Sprint 8）
+
+## Typical Use Cases
+
+### 1. PTYモード（デフォルト）
+```bash
+# Claude Codeの実況
+TARGET_CMD="claude" TARGET_ARGS="code ." pnpm dev
+
+# カスタムコマンドの実況
+TARGET_CMD="npm" TARGET_ARGS="run build" pnpm dev
+```
+
+### 2. ファイル監視モード
+```bash
+# 外部プロセスのログを監視（プロセスは別で起動済み）
+INPUT_MODE=file INPUT_FILE=/var/log/myapp.log pnpm dev:server
+
+# 別ターミナルでWeb UIを起動
+pnpm dev:web
+```
+
+### 3. Tauriデスクトップアプリ
+```bash
+# 開発モード（サーバー自動起動）
+pnpm dev:desktop:managed
+
+# DebugPanelでサーバー状態を確認
+# - Desired/Actual state
+# - PID
+# - Crash/Orphan detection
+```

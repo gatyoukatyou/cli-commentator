@@ -1,4 +1,5 @@
 import "dotenv/config";
+import fs from "node:fs";
 import http from "node:http";
 import { WebSocketServer } from "ws";
 
@@ -17,7 +18,18 @@ const COMMENT_EXIT_TIMEOUT_MS = parseInt(process.env.COMMENT_EXIT_TIMEOUT_MS ?? 
 
 // Input mode configuration
 type InputMode = "pty" | "file";
-const INPUT_MODE: InputMode = (process.env.INPUT_MODE?.toLowerCase() === "file") ? "file" : "pty";
+const INPUT_MODE_RAW = process.env.INPUT_MODE; // For debugging
+
+function parseInputMode(value?: string): InputMode {
+  const normalized = (value ?? "").trim().toLowerCase();
+  if (normalized === "" || normalized === "pty") return "pty";
+  if (normalized === "file") return "file";
+  // Unknown value: warn and fallback to pty
+  console.warn(`[WARN] Unknown INPUT_MODE="${value}", falling back to "pty". Valid values: pty, file`);
+  return "pty";
+}
+
+const INPUT_MODE: InputMode = parseInputMode(INPUT_MODE_RAW);
 const INPUT_FILE = process.env.INPUT_FILE ?? "";
 
 function isStyle(value: unknown): value is Style {
@@ -457,11 +469,47 @@ if (INPUT_MODE === "pty") {
   const initialConfig = configFromEnv();
   setupPTY(initialConfig, null);
 } else {
-  // File mode: setup file tail
+  // File mode: early validation before setupFileTail
+  if (!INPUT_FILE) {
+    console.error("[ERROR] INPUT_FILE is required when INPUT_MODE=file");
+    process.exit(1);
+  }
+  if (!fs.existsSync(INPUT_FILE)) {
+    console.error(`[ERROR] INPUT_FILE not found: ${INPUT_FILE}`);
+    process.exit(1);
+  }
   setupFileTail(INPUT_FILE);
 }
 
+/**
+ * Log startup configuration (no secrets).
+ * Called after currentStyle/currentSourceMode are resolved.
+ */
+function logStartupConfig(): void {
+  const config: Record<string, unknown> = {
+    mode: INPUT_MODE,
+    input_mode_raw: INPUT_MODE_RAW ?? "(unset)",
+    port: PORT,
+  };
+
+  if (INPUT_MODE === "pty") {
+    config.target_cmd = process.env.TARGET_CMD ?? (process.platform === "win32" ? "powershell.exe" : "bash");
+    config.target_args = process.env.TARGET_ARGS_JSON ?? process.env.TARGET_ARGS ?? "";
+    config.target_cwd = process.env.TARGET_CWD ?? process.cwd();
+  } else {
+    config.input_file = INPUT_FILE;
+  }
+
+  // Safe values only (no API keys)
+  config.log_source = currentSourceMode ?? "unknown";
+  config.llm_provider = process.env.LLM_PROVIDER ?? "disabled";
+  config.style = currentStyle ?? "unknown";
+
+  console.log(`[startup] ${JSON.stringify(config)}`);
+}
+
 server.listen(PORT, () => {
+  logStartupConfig();
   console.log(`server listening on http://localhost:${PORT} (mode: ${INPUT_MODE})`);
 });
 
