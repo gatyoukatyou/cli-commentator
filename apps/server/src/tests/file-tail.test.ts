@@ -9,13 +9,21 @@ import os from "node:os";
 import { FileTail, createFileTail } from "../input/file-tail.js";
 
 /**
+ * Platform-aware defaults for eventually() helper.
+ * Windows fs.watch is slower to detect changes, so we use longer timeouts.
+ */
+const isWindows = process.platform === "win32";
+const DEFAULT_TIMEOUT = isWindows ? 8000 : 3000;
+const DEFAULT_INTERVAL = isWindows ? 100 : 50;
+
+/**
  * Wait for a condition to become true with polling.
  * Useful for async tests where timing varies (especially on Windows).
  */
 async function eventually(
   fn: () => boolean,
-  timeout = 3000,
-  interval = 50
+  timeout = DEFAULT_TIMEOUT,
+  interval = DEFAULT_INTERVAL
 ): Promise<void> {
   const start = Date.now();
   while (Date.now() - start < timeout) {
