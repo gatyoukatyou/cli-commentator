@@ -176,7 +176,7 @@ pub fn server_status_detailed(state: State<'_, ServerState>) -> ServerStatus {
             // Keep actual as Alive but health_ok will be false
             // This indicates a hung/degraded server
             eprintln!(
-                "[WARN] Health check failed: process alive but /healthz not responding (port {})",
+                "[warn] {{\"event\":\"health_check_failed\",\"port\":{}}}",
                 port
             );
         }
@@ -194,13 +194,15 @@ pub fn server_status_detailed(state: State<'_, ServerState>) -> ServerStatus {
     // 5. Log warnings
     if crash_suspected {
         eprintln!(
-            "[WARN] Crash suspected: desired={:?}, actual={:?}, pid={:?}",
-            rt.desired, actual, rt.pid
+            "[warn] {{\"event\":\"crash_suspected\",\"desired\":\"{:?}\",\"actual\":\"{:?}\",\"pid\":{}}}",
+            rt.desired,
+            actual,
+            rt.pid.map(|p| p.to_string()).unwrap_or_else(|| "null".to_string())
         );
     }
     if orphan_suspected {
         eprintln!(
-            "[WARN] Orphan suspected: port {} in use but no tracked process",
+            "[warn] {{\"event\":\"orphan_suspected\",\"port\":{}}}",
             port
         );
     }
