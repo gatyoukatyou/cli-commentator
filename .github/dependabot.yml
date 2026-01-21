@@ -1,22 +1,118 @@
 version: 2
 updates:
-  # Node/pnpm (root package.json + pnpm-lock.yaml)
+  # ─────────────────────────────────────────────
+  # JS/TS (pnpm workspace)
+  # ─────────────────────────────────────────────
   - package-ecosystem: "npm"
-    directory: "/"
+    directories:
+      - "/"
+      - "/apps/server"
+      - "/apps/web"
+      - "/apps/desktop"
     schedule:
       interval: "weekly"
-    open-pull-requests-limit: 10
+      day: "monday"
+      time: "02:00"
+      timezone: "Asia/Tokyo"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "deps:npm"
+    commit-message:
+      prefix: "deps"
+      prefix-development: "deps-dev"
+      include: "scope"
+    groups:
+      # 1) security updates: combine into single PR
+      security:
+        applies-to: "security-updates"
+        patterns:
+          - "*"
 
+      # 2) version updates: group minor/patch by dependency type
+      prod-minor-patch:
+        applies-to: "version-updates"
+        dependency-type: "production"
+        update-types: ["minor", "patch"]
+        patterns:
+          - "*"
+
+      dev-minor-patch:
+        applies-to: "version-updates"
+        dependency-type: "development"
+        update-types: ["minor", "patch"]
+        patterns:
+          - "*"
+
+      # 3) dev major tooling: group safe-to-batch updates
+      dev-major-tooling:
+        applies-to: "version-updates"
+        dependency-type: "development"
+        update-types: ["major"]
+        patterns:
+          - "eslint*"
+          - "@typescript-eslint/*"
+          - "prettier*"
+          - "typescript"
+          - "@types/*"
+          - "vitest*"
+          - "@vitest/*"
+
+  # ─────────────────────────────────────────────
   # Rust/Tauri
+  # ─────────────────────────────────────────────
   - package-ecosystem: "cargo"
-    directory: "/apps/desktop/src-tauri"
+    directories:
+      - "/apps/desktop/src-tauri"
     schedule:
       interval: "weekly"
-    open-pull-requests-limit: 10
+      day: "monday"
+      time: "02:30"
+      timezone: "Asia/Tokyo"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "deps:cargo"
+    commit-message:
+      prefix: "deps(cargo)"
+      include: "scope"
+    groups:
+      security:
+        applies-to: "security-updates"
+        patterns:
+          - "*"
+      minor-patch:
+        applies-to: "version-updates"
+        update-types: ["minor", "patch"]
+        patterns:
+          - "*"
+      major-tooling:
+        applies-to: "version-updates"
+        update-types: ["major"]
+        patterns:
+          - "tauri*"
+          - "serde*"
+          - "tokio*"
 
+  # ─────────────────────────────────────────────
   # GitHub Actions
+  # ─────────────────────────────────────────────
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "monthly"
-    open-pull-requests-limit: 10
+      time: "03:00"
+      timezone: "Asia/Tokyo"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "deps:actions"
+    commit-message:
+      prefix: "deps(actions)"
+      include: "scope"
+    groups:
+      minor-patch:
+        applies-to: "version-updates"
+        update-types: ["minor", "patch"]
+        patterns:
+          - "*"
