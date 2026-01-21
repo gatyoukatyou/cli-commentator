@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import "./App.css";
 import { ProfileSelector } from "./components/ProfileSelector";
 import { ProfileEditor } from "./components/ProfileEditor";
+import { isTTSSupported, speak, stopSpeech, getTTSEnabled, setTTSEnabled } from "./lib/tts";
 import type { Style, SourceState, Profile, ProfileSummary, CreateProfileInput } from "./types";
 
 type Msg =
@@ -161,10 +162,34 @@ export default function App() {
   const [editingProfile, setEditingProfile] = useState<Profile | null | "new">(null);
   const [profileError, setProfileError] = useState<string | null>(null);
 
+  // TTS state
+  const [ttsEnabled, setTtsEnabledState] = useState(() => getTTSEnabled());
+  const ttsSupported = isTTSSupported();
+  const ttsEnabledRef = useRef(ttsEnabled);
+
   const wsUrl = useMemo(() => {
     const port = import.meta.env.VITE_WS_PORT ?? "8787";
     return `ws://localhost:${port}`;
   }, []);
+
+  // TTS ref sync (to avoid stale closure in WebSocket handler)
+  useEffect(() => {
+    ttsEnabledRef.current = ttsEnabled;
+  }, [ttsEnabled]);
+
+  // TTS cleanup on unmount (prevent orphan speech on reload/navigation)
+  useEffect(() => () => stopSpeech(), []);
+
+  const handleTTSToggle = (enabled: boolean) => {
+    setTtsEnabledState(enabled);
+    setTTSEnabled(enabled);
+    if (enabled) {
+      // Safari対策: ユーザー操作をトリガーに一言喋らせる
+      speak("読み上げを開始します");
+    } else {
+      stopSpeech();
+    }
+  };
 
   useEffect(() => {
     // D-1: Prevent ghost reconnection on unmount/hot-reload
@@ -217,6 +242,10 @@ export default function App() {
             case "commentary":
               if ("ts" in msg && "text" in msg) {
                 setItems((prev) => [...prev, { ts: msg.ts, text: msg.text }].slice(-200));
+                // TTS: 有効なら読み上げ
+                if (ttsEnabledRef.current) {
+                  speak(msg.text);
+                }
               }
               break;
             case "profiles":
@@ -439,6 +468,25 @@ export default function App() {
           <option value="zundamon">ずんだもん風（テキスト）</option>
         </select>
         <span style={{ fontSize: 12, opacity: 0.6 }}>（イベント時＋最大2秒に1回）</span>
+      </div>
+
+      {/* TTS Toggle */}
+      <div style={{ display: "flex", gap: 12, alignItems: "center", margin: "12px 0" }}>
+        <label style={{ fontSize: 14, opacity: 0.8, cursor: ttsSupported ? "pointer" : "not-allowed" }}>
+          <input
+            type="checkbox"
+            checked={ttsEnabled}
+            onChange={(e) => handleTTSToggle(e.target.checked)}
+            disabled={!ttsSupported}
+            style={{ marginRight: 8 }}
+          />
+          読み上げ（TTS）
+        </label>
+        {!ttsSupported && (
+          <span style={{ fontSize: 12, color: "#ef4444" }}>
+            ※ このブラウザはTTS非対応です
+          </span>
+        )}
       </div>
 
       <div style={{ fontSize: 12, opacity: 0.7, marginBottom: 8 }}>
