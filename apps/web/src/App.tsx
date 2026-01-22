@@ -2,7 +2,18 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import "./App.css";
 import { ProfileSelector } from "./components/ProfileSelector";
 import { ProfileEditor } from "./components/ProfileEditor";
-import { isTTSSupported, speak, stopSpeech, getTTSEnabled, setTTSEnabled } from "./lib/tts";
+import {
+  isTTSSupported,
+  speak,
+  stopSpeech,
+  getTTSEnabled,
+  setTTSEnabled,
+  getTTSSettings,
+  setTTSSettings,
+  waitForVoices,
+  DEFAULT_TTS_SETTINGS,
+  type TTSSettings,
+} from "./lib/tts";
 import type { Style, SourceState, Profile, ProfileSummary, CreateProfileInput } from "./types";
 
 type Msg =
@@ -164,8 +175,13 @@ export default function App() {
 
   // TTS state
   const [ttsEnabled, setTtsEnabledState] = useState(() => getTTSEnabled());
+  const [ttsSettings, setTtsSettingsState] = useState<TTSSettings>(() => getTTSSettings());
+  const [ttsSettingsOpen, setTtsSettingsOpen] = useState(false);
+  const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
+  const [voicesLoaded, setVoicesLoaded] = useState(false);
   const ttsSupported = isTTSSupported();
   const ttsEnabledRef = useRef(ttsEnabled);
+  const ttsSettingsRef = useRef(ttsSettings);
 
   const wsUrl = useMemo(() => {
     const port = import.meta.env.VITE_WS_PORT ?? "8787";
@@ -177,6 +193,19 @@ export default function App() {
     ttsEnabledRef.current = ttsEnabled;
   }, [ttsEnabled]);
 
+  useEffect(() => {
+    ttsSettingsRef.current = ttsSettings;
+  }, [ttsSettings]);
+
+  // Load available voices
+  useEffect(() => {
+    if (!ttsSupported) return;
+    waitForVoices().then((v) => {
+      setVoices(v);
+      setVoicesLoaded(true);
+    });
+  }, [ttsSupported]);
+
   // TTS cleanup on unmount (prevent orphan speech on reload/navigation)
   useEffect(() => () => stopSpeech(), []);
 
@@ -185,10 +214,20 @@ export default function App() {
     setTTSEnabled(enabled);
     if (enabled) {
       // Safari対策: ユーザー操作をトリガーに一言喋らせる
-      speak("読み上げを開始します");
+      speak("読み上げを開始します", ttsSettings);
     } else {
       stopSpeech();
+      setTtsSettingsOpen(false);
     }
+  };
+
+  const handleTTSSettingsChange = (newSettings: TTSSettings) => {
+    setTtsSettingsState(newSettings);
+    setTTSSettings(newSettings);
+  };
+
+  const handleTestSpeak = () => {
+    speak("これはテスト読み上げです。設定を確認してください。", ttsSettings);
   };
 
   useEffect(() => {
@@ -244,7 +283,7 @@ export default function App() {
                 setItems((prev) => [...prev, { ts: msg.ts, text: msg.text }].slice(-200));
                 // TTS: 有効なら読み上げ
                 if (ttsEnabledRef.current) {
-                  speak(msg.text);
+                  speak(msg.text, ttsSettingsRef.current);
                 }
               }
               break;
@@ -482,12 +521,178 @@ export default function App() {
           />
           読み上げ（TTS）
         </label>
+        {ttsSupported && ttsEnabled && (
+          <button
+            onClick={() => setTtsSettingsOpen((prev) => !prev)}
+            style={{
+              fontSize: 12,
+              padding: "2px 8px",
+              cursor: "pointer",
+              backgroundColor: ttsSettingsOpen ? "#e5e7eb" : "transparent",
+              border: "1px solid #d1d5db",
+              borderRadius: 4,
+            }}
+          >
+            {ttsSettingsOpen ? "▼ 設定" : "▶ 設定"}
+          </button>
+        )}
         {!ttsSupported && (
           <span style={{ fontSize: 12, color: "#ef4444" }}>
             ※ このブラウザはTTS非対応です
           </span>
         )}
       </div>
+
+      {/* TTS Settings Panel */}
+      {ttsSupported && ttsEnabled && ttsSettingsOpen && (
+        <div
+          style={{
+            margin: "0 0 12px 0",
+            padding: 12,
+            backgroundColor: "#f9fafb",
+            border: "1px solid #e5e7eb",
+            borderRadius: 8,
+            fontSize: 13,
+          }}
+        >
+          {/* Voice Select */}
+          <div style={{ marginBottom: 12 }}>
+            <label style={{ display: "block", marginBottom: 4, fontWeight: 500 }}>
+              音声:
+            </label>
+            {voices.length > 0 ? (
+              <select
+                value={ttsSettings.voiceURI ?? ""}
+                onChange={(e) =>
+                  handleTTSSettingsChange({
+                    ...ttsSettings,
+                    voiceURI: e.target.value || null,
+                  })
+                }
+                style={{ width: "100%", padding: 4 }}
+              >
+                <option value="">デフォルト</option>
+                {voices.map((v) => (
+                  <option key={v.voiceURI} value={v.voiceURI}>
+                    {v.name} ({v.lang})
+                  </option>
+                ))}
+              </select>
+            ) : voicesLoaded ? (
+              <span style={{ color: "#6b7280" }}>音声一覧は取得できません（デフォルト音声のみ）</span>
+            ) : (
+              <span style={{ color: "#6b7280" }}>音声リストを読み込み中...</span>
+            )}
+          </div>
+
+          {/* Rate Slider */}
+          <div style={{ marginBottom: 12 }}>
+            <label style={{ display: "block", marginBottom: 4, fontWeight: 500 }}>
+              速度: {ttsSettings.rate.toFixed(1)}
+            </label>
+            <input
+              type="range"
+              min="0.5"
+              max="2"
+              step="0.1"
+              value={ttsSettings.rate}
+              onChange={(e) =>
+                handleTTSSettingsChange({
+                  ...ttsSettings,
+                  rate: parseFloat(e.target.value),
+                })
+              }
+              style={{ width: "100%" }}
+            />
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, color: "#9ca3af" }}>
+              <span>遅い (0.5)</span>
+              <span>速い (2.0)</span>
+            </div>
+          </div>
+
+          {/* Pitch Slider */}
+          <div style={{ marginBottom: 12 }}>
+            <label style={{ display: "block", marginBottom: 4, fontWeight: 500 }}>
+              音程: {ttsSettings.pitch.toFixed(1)}
+            </label>
+            <input
+              type="range"
+              min="0.5"
+              max="2"
+              step="0.1"
+              value={ttsSettings.pitch}
+              onChange={(e) =>
+                handleTTSSettingsChange({
+                  ...ttsSettings,
+                  pitch: parseFloat(e.target.value),
+                })
+              }
+              style={{ width: "100%" }}
+            />
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, color: "#9ca3af" }}>
+              <span>低い (0.5)</span>
+              <span>高い (2.0)</span>
+            </div>
+          </div>
+
+          {/* Volume Slider */}
+          <div style={{ marginBottom: 12 }}>
+            <label style={{ display: "block", marginBottom: 4, fontWeight: 500 }}>
+              音量: {Math.round(ttsSettings.volume * 100)}%
+            </label>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.1"
+              value={ttsSettings.volume}
+              onChange={(e) =>
+                handleTTSSettingsChange({
+                  ...ttsSettings,
+                  volume: parseFloat(e.target.value),
+                })
+              }
+              style={{ width: "100%" }}
+            />
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, color: "#9ca3af" }}>
+              <span>0%</span>
+              <span>100%</span>
+            </div>
+          </div>
+
+          {/* Test & Reset Buttons */}
+          <div style={{ display: "flex", gap: 8 }}>
+            <button
+              onClick={handleTestSpeak}
+              style={{
+                padding: "6px 12px",
+                backgroundColor: "#3b82f6",
+                color: "white",
+                border: "none",
+                borderRadius: 4,
+                cursor: "pointer",
+                fontSize: 12,
+              }}
+            >
+              テスト読み上げ
+            </button>
+            <button
+              onClick={() => handleTTSSettingsChange(DEFAULT_TTS_SETTINGS)}
+              style={{
+                padding: "6px 12px",
+                backgroundColor: "#6b7280",
+                color: "white",
+                border: "none",
+                borderRadius: 4,
+                cursor: "pointer",
+                fontSize: 12,
+              }}
+            >
+              リセット
+            </button>
+          </div>
+        </div>
+      )}
 
       <div style={{ fontSize: 12, opacity: 0.7, marginBottom: 8 }}>
         Ruleset: {sourceLabel}
