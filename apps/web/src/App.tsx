@@ -16,6 +16,8 @@ import {
 } from "./lib/tts";
 import type { Style, SourceState, Profile, ProfileSummary, CreateProfileInput } from "./types";
 
+export type Skin = "standard" | "brutalism" | "paper";
+
 type Msg =
   | { kind: "hello"; style: Style; source: SourceState }
   | { kind: "style"; style: Style }
@@ -97,60 +99,50 @@ function TauriDebugPanel() {
     }
   };
 
+  const getStatusColor = (actual: string) => {
+    if (actual === "alive") return "var(--color-success)";
+    if (actual === "dead") return "var(--color-danger)";
+    return "var(--color-warning)";
+  };
+
   return (
-    <div style={{
-      position: "fixed",
-      top: 8,
-      right: 8,
-      padding: 12,
-      backgroundColor: "#1e293b",
-      color: "#e2e8f0",
-      borderRadius: 8,
-      fontSize: 12,
-      zIndex: 9999,
-      minWidth: 180,
-    }}>
-      <div style={{ fontWeight: "bold", marginBottom: 8 }}>Tauri Debug</div>
+    <div className="debug-panel">
+      <div className="debug-panel__title">Tauri Debug</div>
 
       {status && (
-        <div style={{ marginBottom: 8, lineHeight: 1.6 }}>
+        <div className="debug-panel__status">
           <div>Desired: {status.desired}</div>
-          <div>Actual: <span style={{
-            color: status.actual === "alive" ? "#22c55e" :
-                   status.actual === "dead" ? "#ef4444" : "#f59e0b"
-          }}>{status.actual}</span></div>
-          <div>Health: <span style={{
-            color: status.health_ok ? "#22c55e" : "#ef4444"
-          }}>{status.health_ok ? "OK" : "NG"}</span></div>
+          <div>Actual: <span style={{ color: getStatusColor(status.actual) }}>{status.actual}</span></div>
+          <div>Health: <span style={{ color: status.health_ok ? "var(--color-success)" : "var(--color-danger)" }}>{status.health_ok ? "OK" : "NG"}</span></div>
           <div>PID: {status.pid ?? "-"} (port {status.port})</div>
           {status.started_at && (
-            <div style={{ fontSize: 10, opacity: 0.7 }}>
+            <div className="debug-panel__meta">
               Started: {new Date(status.started_at).toLocaleTimeString()}
             </div>
           )}
           {status.last_seen_at && (
-            <div style={{ fontSize: 10, opacity: 0.7 }}>
+            <div className="debug-panel__meta">
               Last seen: {new Date(status.last_seen_at).toLocaleTimeString()}
             </div>
           )}
           {status.crash_suspected && (
-            <div style={{ color: "#ef4444", marginTop: 4 }}>Crash suspected</div>
+            <div className="debug-panel__alert debug-panel__alert--crash">Crash suspected</div>
           )}
           {status.orphan_suspected && (
-            <div style={{ color: "#f59e0b", marginTop: 4 }}>Orphan: port in use</div>
+            <div className="debug-panel__alert debug-panel__alert--warning">Orphan: port in use</div>
           )}
           {status.actual === "alive" && !status.health_ok && (
-            <div style={{ color: "#f59e0b", marginTop: 4 }}>Health check failed</div>
+            <div className="debug-panel__alert debug-panel__alert--warning">Health check failed</div>
           )}
           {status.diagnostics && (
-            <div style={{ fontSize: 10, opacity: 0.6, marginTop: 4 }}>
+            <div className="debug-panel__meta">
               [{status.diagnostics}]
             </div>
           )}
         </div>
       )}
 
-      <div style={{ display: "flex", gap: 4 }}>
+      <div className="debug-panel__actions">
         <button onClick={handleStart} style={{ padding: "4px 8px" }}>Start</button>
         <button onClick={handleStop} style={{ padding: "4px 8px" }}>Stop</button>
       </div>
@@ -163,6 +155,10 @@ export default function App() {
   const [style, setStyle] = useState<Style>("kansai");
   const [source, setSource] = useState<SourceState>({ mode: "auto", detected: null });
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>("connecting");
+  const [skin, setSkin] = useState<Skin>(() => {
+    const saved = localStorage.getItem("cli-commentator-skin");
+    return (saved as Skin) || "standard";
+  });
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectAttemptRef = useRef(0);
   const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -187,6 +183,12 @@ export default function App() {
     const port = import.meta.env.VITE_WS_PORT ?? "8787";
     return `ws://localhost:${port}`;
   }, []);
+
+  // Apply skin to document
+  useEffect(() => {
+    document.documentElement.setAttribute("data-skin", skin);
+    localStorage.setItem("cli-commentator-skin", skin);
+  }, [skin]);
 
   // TTS ref sync (to avoid stale closure in WebSocket handler)
   useEffect(() => {
@@ -453,27 +455,37 @@ export default function App() {
         : "auto (detecting)"
       : source.mode;
 
+  const getStatusIndicatorClass = () => {
+    switch (connectionStatus) {
+      case "connected":
+        return "status-indicator status-indicator--connected";
+      case "connecting":
+      case "reconnecting":
+        return "status-indicator status-indicator--connecting";
+      default:
+        return "status-indicator status-indicator--disconnected";
+    }
+  };
+
   return (
-    <div style={{ maxWidth: 900, margin: "0 auto", padding: 16 }}>
+    <div style={{ maxWidth: 900, margin: "0 auto", padding: "var(--space-4)" }}>
       <TauriDebugPanel />
       <h1>CLI 実況（MVP）</h1>
 
+      {/* Skin selector */}
+      <div className="skin-selector">
+        <span className="skin-selector__label">スキン：</span>
+        <select value={skin} onChange={(e) => setSkin(e.target.value as Skin)}>
+          <option value="standard">Standard</option>
+          <option value="brutalism">Brutalism</option>
+          <option value="paper">Paper</option>
+        </select>
+      </div>
+
       {/* Connection status indicator */}
-      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12, fontSize: 12 }}>
-        <span
-          style={{
-            width: 8,
-            height: 8,
-            borderRadius: "50%",
-            backgroundColor:
-              connectionStatus === "connected"
-                ? "#22c55e"
-                : connectionStatus === "connecting" || connectionStatus === "reconnecting"
-                ? "#f59e0b"
-                : "#ef4444",
-          }}
-        />
-        <span style={{ opacity: 0.7 }}>
+      <div className="control-row" style={{ fontSize: "var(--text-sm)" }}>
+        <span className={getStatusIndicatorClass()} />
+        <span style={{ color: "var(--color-fg-secondary)" }}>
           {connectionStatus === "connected" && "接続中"}
           {connectionStatus === "connecting" && "接続しています..."}
           {connectionStatus === "reconnecting" && "再接続しています..."}
@@ -482,7 +494,7 @@ export default function App() {
       </div>
 
       {/* Profile Selector */}
-      <div style={{ margin: "12px 0", padding: "12px", backgroundColor: "#f5f5f5", borderRadius: 8 }}>
+      <div className="panel" style={{ margin: "var(--space-3) 0" }}>
         <ProfileSelector
           profiles={profiles}
           activeId={activeProfileId}
@@ -493,51 +505,44 @@ export default function App() {
           onDelete={handleDeleteProfile}
         />
         {profileError && (
-          <div style={{ color: "#ef4444", fontSize: 12, marginTop: 8 }}>
+          <div className="error-message">
             エラー: {profileError}
           </div>
         )}
       </div>
 
-      <div style={{ display: "flex", gap: 12, alignItems: "center", margin: "12px 0" }}>
-        <label style={{ fontSize: 14, opacity: 0.8 }}>口調：</label>
+      <div className="control-row">
+        <label className="control-row__label">口調：</label>
         <select value={style} onChange={(e) => sendStyle(e.target.value as Style)}>
           <option value="standard">標準</option>
           <option value="kansai">関西弁</option>
           <option value="zundamon">ずんだもん風（テキスト）</option>
         </select>
-        <span style={{ fontSize: 12, opacity: 0.6 }}>（イベント時＋最大2秒に1回）</span>
+        <span style={{ fontSize: "var(--text-sm)", color: "var(--color-fg-tertiary)" }}>（イベント時＋最大2秒に1回）</span>
       </div>
 
       {/* TTS Toggle */}
-      <div style={{ display: "flex", gap: 12, alignItems: "center", margin: "12px 0" }}>
-        <label style={{ fontSize: 14, opacity: 0.8, cursor: ttsSupported ? "pointer" : "not-allowed" }}>
+      <div className="control-row">
+        <label className="control-row__label" style={{ cursor: ttsSupported ? "pointer" : "not-allowed" }}>
           <input
             type="checkbox"
             checked={ttsEnabled}
             onChange={(e) => handleTTSToggle(e.target.checked)}
             disabled={!ttsSupported}
-            style={{ marginRight: 8 }}
+            style={{ marginRight: "var(--space-2)" }}
           />
           読み上げ（TTS）
         </label>
         {ttsSupported && ttsEnabled && (
           <button
             onClick={() => setTtsSettingsOpen((prev) => !prev)}
-            style={{
-              fontSize: 12,
-              padding: "2px 8px",
-              cursor: "pointer",
-              backgroundColor: ttsSettingsOpen ? "#e5e7eb" : "transparent",
-              border: "1px solid #d1d5db",
-              borderRadius: 4,
-            }}
+            className={`settings-toggle ${ttsSettingsOpen ? "settings-toggle--active" : ""}`}
           >
             {ttsSettingsOpen ? "▼ 設定" : "▶ 設定"}
           </button>
         )}
         {!ttsSupported && (
-          <span style={{ fontSize: 12, color: "#ef4444" }}>
+          <span style={{ fontSize: "var(--text-sm)", color: "var(--color-danger)" }}>
             ※ このブラウザはTTS非対応です
           </span>
         )}
@@ -545,21 +550,10 @@ export default function App() {
 
       {/* TTS Settings Panel */}
       {ttsSupported && ttsEnabled && ttsSettingsOpen && (
-        <div
-          style={{
-            margin: "0 0 12px 0",
-            padding: 12,
-            backgroundColor: "#f9fafb",
-            border: "1px solid #e5e7eb",
-            borderRadius: 8,
-            fontSize: 13,
-          }}
-        >
+        <div className="tts-settings">
           {/* Voice Select */}
-          <div style={{ marginBottom: 12 }}>
-            <label style={{ display: "block", marginBottom: 4, fontWeight: 500 }}>
-              音声:
-            </label>
+          <div className="tts-settings__field">
+            <label className="tts-settings__label">音声:</label>
             {voices.length > 0 ? (
               <select
                 value={ttsSettings.voiceURI ?? ""}
@@ -569,7 +563,7 @@ export default function App() {
                     voiceURI: e.target.value || null,
                   })
                 }
-                style={{ width: "100%", padding: 4 }}
+                style={{ width: "100%", padding: "var(--space-1)" }}
               >
                 <option value="">デフォルト</option>
                 {voices.map((v) => (
@@ -579,15 +573,15 @@ export default function App() {
                 ))}
               </select>
             ) : voicesLoaded ? (
-              <span style={{ color: "#6b7280" }}>音声一覧は取得できません（デフォルト音声のみ）</span>
+              <span className="tts-settings__helper">音声一覧は取得できません（デフォルト音声のみ）</span>
             ) : (
-              <span style={{ color: "#6b7280" }}>音声リストを読み込み中...</span>
+              <span className="tts-settings__helper">音声リストを読み込み中...</span>
             )}
           </div>
 
           {/* Rate Slider */}
-          <div style={{ marginBottom: 12 }}>
-            <label style={{ display: "block", marginBottom: 4, fontWeight: 500 }}>
+          <div className="tts-settings__field">
+            <label className="tts-settings__label">
               速度: {ttsSettings.rate.toFixed(1)}
             </label>
             <input
@@ -604,15 +598,15 @@ export default function App() {
               }
               style={{ width: "100%" }}
             />
-            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, color: "#9ca3af" }}>
+            <div className="tts-settings__range-labels">
               <span>遅い (0.5)</span>
               <span>速い (2.0)</span>
             </div>
           </div>
 
           {/* Pitch Slider */}
-          <div style={{ marginBottom: 12 }}>
-            <label style={{ display: "block", marginBottom: 4, fontWeight: 500 }}>
+          <div className="tts-settings__field">
+            <label className="tts-settings__label">
               音程: {ttsSettings.pitch.toFixed(1)}
             </label>
             <input
@@ -629,15 +623,15 @@ export default function App() {
               }
               style={{ width: "100%" }}
             />
-            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, color: "#9ca3af" }}>
+            <div className="tts-settings__range-labels">
               <span>低い (0.5)</span>
               <span>高い (2.0)</span>
             </div>
           </div>
 
           {/* Volume Slider */}
-          <div style={{ marginBottom: 12 }}>
-            <label style={{ display: "block", marginBottom: 4, fontWeight: 500 }}>
+          <div className="tts-settings__field">
+            <label className="tts-settings__label">
               音量: {Math.round(ttsSettings.volume * 100)}%
             </label>
             <input
@@ -654,55 +648,33 @@ export default function App() {
               }
               style={{ width: "100%" }}
             />
-            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, color: "#9ca3af" }}>
+            <div className="tts-settings__range-labels">
               <span>0%</span>
               <span>100%</span>
             </div>
           </div>
 
           {/* Test & Reset Buttons */}
-          <div style={{ display: "flex", gap: 8 }}>
-            <button
-              onClick={handleTestSpeak}
-              style={{
-                padding: "6px 12px",
-                backgroundColor: "#3b82f6",
-                color: "white",
-                border: "none",
-                borderRadius: 4,
-                cursor: "pointer",
-                fontSize: 12,
-              }}
-            >
+          <div className="tts-settings__actions">
+            <button onClick={handleTestSpeak} className="btn-primary">
               テスト読み上げ
             </button>
-            <button
-              onClick={() => handleTTSSettingsChange(DEFAULT_TTS_SETTINGS)}
-              style={{
-                padding: "6px 12px",
-                backgroundColor: "#6b7280",
-                color: "white",
-                border: "none",
-                borderRadius: 4,
-                cursor: "pointer",
-                fontSize: 12,
-              }}
-            >
+            <button onClick={() => handleTTSSettingsChange(DEFAULT_TTS_SETTINGS)} className="btn-secondary">
               リセット
             </button>
           </div>
         </div>
       )}
 
-      <div style={{ fontSize: 12, opacity: 0.7, marginBottom: 8 }}>
+      <div style={{ fontSize: "var(--text-sm)", color: "var(--color-fg-secondary)", marginBottom: "var(--space-2)" }}>
         Ruleset: {sourceLabel}
       </div>
 
-      <div style={{ border: "1px solid #ccc", borderRadius: 8, padding: 12, height: "60vh", overflow: "auto" }}>
+      <div className="log-container">
         {items.map((it, idx) => (
-          <div key={idx} style={{ padding: "6px 0", borderBottom: "1px dashed #ddd" }}>
-            <div style={{ fontSize: 12, opacity: 0.6 }}>{new Date(it.ts).toLocaleTimeString()}</div>
-            <div style={{ fontSize: 16 }}>{it.text}</div>
+          <div key={idx} className="log-item">
+            <div className="log-item__time">{new Date(it.ts).toLocaleTimeString()}</div>
+            <div className="log-item__text">{it.text}</div>
           </div>
         ))}
       </div>

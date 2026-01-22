@@ -211,6 +211,64 @@ pnpm smoke:llm --all
 - タイムアウト保護: `comment()` は `COMMENT_TIMEOUT_MS` 後に自動でルールベースにフォールバック（Sprint 8）
 - AbortController 対応: LLM リクエストに signal を渡して abort 可能（Sprint 8）
 
+## Design Tokens & Skins
+
+Web UIはCSSカスタムプロパティ（デザイントークン）でスタイリングされており、スキン切替に対応している。
+
+### 利用可能なスキン
+
+| スキン | 説明 |
+|--------|------|
+| `standard` | デフォルト。ダーク/ライトモードに対応 |
+| `brutalism` | ブルータリズムスタイル。角丸なし、ハードシャドウ |
+| `paper` | 紙風の温かみのあるスタイル。セリフフォント |
+
+スキンはWeb UIのセレクターから切り替え可能。選択はlocalStorageに保存される。
+
+### トークン構造
+
+```
+apps/web/src/
+├── index.css    # トークン定義 + スキン上書き
+└── App.css      # コンポーネントクラス定義
+```
+
+### 主要トークン
+
+| カテゴリ | トークン例 |
+|----------|-----------|
+| 背景色 | `--color-bg-primary`, `--color-bg-secondary`, `--panel-bg` |
+| 文字色 | `--color-fg-primary`, `--color-fg-secondary`, `--color-fg-muted` |
+| アクセント | `--color-accent`, `--color-accent-hover` |
+| セマンティック | `--color-success`, `--color-warning`, `--color-danger` |
+| ボーダー | `--color-border`, `--color-border-strong` |
+| シャドウ | `--shadow-sm`, `--shadow-md`, `--shadow-lg` |
+| 角丸 | `--radius-sm`, `--radius-md`, `--radius-lg` |
+| スペーシング | `--space-1` ~ `--space-8` |
+| タイポグラフィ | `--text-sm`, `--text-base`, `--text-lg` |
+
+### 新規UIを追加する際のガイドライン
+
+1. **必ずトークン参照を使用** - 直書きの色コード禁止
+2. **App.cssにクラス定義** - インラインスタイルはトークン参照のみ許可
+3. **スキン切替テスト** - Standard/Brutalism/Paperで動作確認
+
+```css
+/* Good */
+.my-component {
+  background-color: var(--panel-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+/* Bad */
+.my-component {
+  background-color: #f5f5f5;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+}
+```
+
 ## Typical Use Cases
 
 ### 1. PTYモード（デフォルト）
