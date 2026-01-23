@@ -91,66 +91,45 @@ export function ProfileEditor({ profile, onSave, onCancel }: Props) {
 
   return (
     <div
-      style={{
-        position: "fixed",
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        backgroundColor: "rgba(0, 0, 0, 0.5)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        zIndex: 1000,
-      }}
+      className="modal-backdrop"
       onClick={(e) => {
         if (e.target === e.currentTarget) onCancel();
       }}
     >
-      <div
-        style={{
-          backgroundColor: "#fff",
-          borderRadius: 8,
-          padding: 24,
-          width: 480,
-          maxWidth: "90vw",
-          maxHeight: "90vh",
-          overflow: "auto",
-        }}
-      >
-        <h2 style={{ margin: "0 0 16px 0" }}>
+      <div className="modal">
+        <h2 className="modal__title">
           {isEditing ? "プロファイルを編集" : "新規プロファイル"}
         </h2>
 
         <form onSubmit={handleSubmit}>
-          <div style={{ marginBottom: 16 }}>
-            <label style={{ display: "block", marginBottom: 4, fontWeight: 500 }}>
-              名前 <span style={{ color: "#ef4444" }}>*</span>
+          <div className="form-field">
+            <label className="form-field__label">
+              名前 <span className="form-field__required">*</span>
             </label>
             <input
               type="text"
               value={input.name}
               onChange={(e) => setInput({ ...input, name: e.target.value })}
               placeholder="例: Claude Code開発用"
-              style={{ width: "100%", padding: 8, borderRadius: 4, border: "1px solid #ccc" }}
+              className="form-field__input"
             />
           </div>
 
-          <div style={{ marginBottom: 16 }}>
-            <label style={{ display: "block", marginBottom: 4, fontWeight: 500 }}>
-              コマンド <span style={{ color: "#ef4444" }}>*</span>
+          <div className="form-field">
+            <label className="form-field__label">
+              コマンド <span className="form-field__required">*</span>
             </label>
             <input
               type="text"
               value={input.cmd}
               onChange={(e) => setInput({ ...input, cmd: e.target.value })}
               placeholder="例: /bin/zsh"
-              style={{ width: "100%", padding: 8, borderRadius: 4, border: "1px solid #ccc" }}
+              className="form-field__input"
             />
           </div>
 
-          <div style={{ marginBottom: 16 }}>
-            <label style={{ display: "block", marginBottom: 4, fontWeight: 500 }}>
+          <div className="form-field">
+            <label className="form-field__label">
               引数（スペース区切り）
             </label>
             <input
@@ -158,12 +137,12 @@ export function ProfileEditor({ profile, onSave, onCancel }: Props) {
               value={input.args}
               onChange={(e) => setInput({ ...input, args: e.target.value })}
               placeholder="例: -l -i"
-              style={{ width: "100%", padding: 8, borderRadius: 4, border: "1px solid #ccc" }}
+              className="form-field__input"
             />
           </div>
 
-          <div style={{ marginBottom: 16 }}>
-            <label style={{ display: "block", marginBottom: 4, fontWeight: 500 }}>
+          <div className="form-field">
+            <label className="form-field__label">
               作業ディレクトリ
             </label>
             <input
@@ -171,18 +150,18 @@ export function ProfileEditor({ profile, onSave, onCancel }: Props) {
               value={input.cwd}
               onChange={(e) => setInput({ ...input, cwd: e.target.value })}
               placeholder="例: /home/user/project（空欄で現在のディレクトリ）"
-              style={{ width: "100%", padding: 8, borderRadius: 4, border: "1px solid #ccc" }}
+              className="form-field__input"
             />
           </div>
 
-          <div style={{ marginBottom: 16 }}>
-            <label style={{ display: "block", marginBottom: 4, fontWeight: 500 }}>
+          <div className="form-field">
+            <label className="form-field__label">
               口調
             </label>
             <select
               value={input.style}
               onChange={(e) => setInput({ ...input, style: e.target.value as Style })}
-              style={{ width: "100%", padding: 8, borderRadius: 4, border: "1px solid #ccc" }}
+              className="form-field__input"
             >
               {STYLES.map((s) => (
                 <option key={s.value} value={s.value}>
@@ -192,14 +171,14 @@ export function ProfileEditor({ profile, onSave, onCancel }: Props) {
             </select>
           </div>
 
-          <div style={{ marginBottom: 16 }}>
-            <label style={{ display: "block", marginBottom: 4, fontWeight: 500 }}>
+          <div className="form-field">
+            <label className="form-field__label">
               ルールセット
             </label>
             <select
               value={input.logSource}
               onChange={(e) => setInput({ ...input, logSource: e.target.value as SourceMode })}
-              style={{ width: "100%", padding: 8, borderRadius: 4, border: "1px solid #ccc" }}
+              className="form-field__input"
             >
               {LOG_SOURCES.map((s) => (
                 <option key={s.value} value={s.value}>
@@ -209,14 +188,14 @@ export function ProfileEditor({ profile, onSave, onCancel }: Props) {
             </select>
           </div>
 
-          <div style={{ marginBottom: 24 }}>
-            <label style={{ display: "block", marginBottom: 4, fontWeight: 500 }}>
+          <div className="form-field" style={{ marginBottom: "var(--space-6)" }}>
+            <label className="form-field__label">
               LLMプロバイダー
             </label>
             <select
               value={input.llmProvider}
               onChange={(e) => setInput({ ...input, llmProvider: e.target.value as ProviderName | "" })}
-              style={{ width: "100%", padding: 8, borderRadius: 4, border: "1px solid #ccc" }}
+              className="form-field__input"
             >
               {LLM_PROVIDERS.map((p) => (
                 <option key={p.value} value={p.value}>
@@ -224,35 +203,21 @@ export function ProfileEditor({ profile, onSave, onCancel }: Props) {
                 </option>
               ))}
             </select>
-            <div style={{ fontSize: 12, color: "#666", marginTop: 4 }}>
+            <div className="form-field__helper">
               ※ APIキーは環境変数で設定してください
             </div>
           </div>
 
-          <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+          <div className="form-actions">
             <button
               type="button"
               onClick={onCancel}
-              style={{
-                padding: "8px 16px",
-                borderRadius: 4,
-                border: "1px solid #ccc",
-                backgroundColor: "#fff",
-                cursor: "pointer",
-              }}
             >
               キャンセル
             </button>
             <button
               type="submit"
-              style={{
-                padding: "8px 16px",
-                borderRadius: 4,
-                border: "none",
-                backgroundColor: "#3b82f6",
-                color: "#fff",
-                cursor: "pointer",
-              }}
+              className="btn-primary"
             >
               {isEditing ? "更新" : "作成"}
             </button>

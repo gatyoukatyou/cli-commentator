@@ -26,8 +26,8 @@ export function ProfileSelector({
   };
 
   return (
-    <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-      <label style={{ fontSize: 14, opacity: 0.8 }}>プロファイル：</label>
+    <div className="control-row" style={{ flexWrap: "wrap" }}>
+      <label className="control-row__label">プロファイル：</label>
       <select
         value={activeId ?? ""}
         onChange={(e) => onSelect(e.target.value || null)}
@@ -64,11 +64,8 @@ export function ProfileSelector({
           <button
             onClick={() => handleDelete(activeId)}
             disabled={disabled}
-            style={{
-              padding: "4px 8px",
-              cursor: disabled ? "not-allowed" : "pointer",
-              color: "#ef4444",
-            }}
+            className="btn-danger"
+            style={{ padding: "4px 8px", cursor: disabled ? "not-allowed" : "pointer" }}
             title="削除"
           >
             削除
