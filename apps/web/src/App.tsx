@@ -385,6 +385,7 @@ export default function App() {
 
   // Profile handlers
   const handleSelectProfile = (id: string | null) => {
+    setProfileError(null);
     if (wsRef.current?.readyState !== WebSocket.OPEN) {
       setProfileError("サーバーに接続されていません");
       return;
@@ -416,6 +417,7 @@ export default function App() {
   };
 
   const handleDeleteProfile = (id: string) => {
+    setProfileError(null);
     if (wsRef.current?.readyState !== WebSocket.OPEN) {
       setProfileError("サーバーに接続されていません");
       return;
@@ -433,6 +435,7 @@ export default function App() {
     logSource: SourceState["mode"];
     llmProvider: string;
   }) => {
+    setProfileError(null);
     if (wsRef.current?.readyState !== WebSocket.OPEN) {
       setProfileError("サーバーに接続されていません。再接続を待ってください。");
       return;
