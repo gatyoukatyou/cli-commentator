@@ -261,6 +261,7 @@ export default function App() {
         if (cancelled) return;
         console.log("WebSocket connected");
         setConnectionStatus("connected");
+        setProfileError(null); // Clear WS offline error on reconnect
         reconnectAttemptRef.current = 0;
       };
 
@@ -384,9 +385,11 @@ export default function App() {
 
   // Profile handlers
   const handleSelectProfile = (id: string | null) => {
-    if (wsRef.current?.readyState === WebSocket.OPEN) {
-      wsRef.current.send(JSON.stringify({ kind: "setActiveProfile", id }));
+    if (wsRef.current?.readyState !== WebSocket.OPEN) {
+      setProfileError("サーバーに接続されていません");
+      return;
     }
+    wsRef.current.send(JSON.stringify({ kind: "setActiveProfile", id }));
   };
 
   const handleEditProfile = (id: string) => {
@@ -413,9 +416,11 @@ export default function App() {
   };
 
   const handleDeleteProfile = (id: string) => {
-    if (wsRef.current?.readyState === WebSocket.OPEN) {
-      wsRef.current.send(JSON.stringify({ kind: "deleteProfile", id }));
+    if (wsRef.current?.readyState !== WebSocket.OPEN) {
+      setProfileError("サーバーに接続されていません");
+      return;
     }
+    wsRef.current.send(JSON.stringify({ kind: "deleteProfile", id }));
   };
 
   const handleSaveProfile = (input: {
@@ -428,19 +433,21 @@ export default function App() {
     logSource: SourceState["mode"];
     llmProvider: string;
   }) => {
-    if (wsRef.current?.readyState === WebSocket.OPEN) {
-      const profile: CreateProfileInput & { id?: string } = {
-        id: input.id,
-        name: input.name,
-        cmd: input.cmd,
-        args: input.args.split(" ").filter(Boolean),
-        cwd: input.cwd || undefined,
-        style: input.style,
-        logSource: input.logSource,
-        llmProvider: input.llmProvider as CreateProfileInput["llmProvider"],
-      };
-      wsRef.current.send(JSON.stringify({ kind: "saveProfile", profile }));
+    if (wsRef.current?.readyState !== WebSocket.OPEN) {
+      setProfileError("サーバーに接続されていません。再接続を待ってください。");
+      return;
     }
+    const profile: CreateProfileInput & { id?: string } = {
+      id: input.id,
+      name: input.name,
+      cmd: input.cmd,
+      args: input.args.split(" ").filter(Boolean),
+      cwd: input.cwd || undefined,
+      style: input.style,
+      logSource: input.logSource,
+      llmProvider: input.llmProvider as CreateProfileInput["llmProvider"],
+    };
+    wsRef.current.send(JSON.stringify({ kind: "saveProfile", profile }));
   };
 
   const handleCancelEdit = () => {
@@ -683,6 +690,7 @@ export default function App() {
       {editingProfile && (
         <ProfileEditor
           profile={editingProfile === "new" ? null : editingProfile}
+          error={profileError}
           onSave={handleSaveProfile}
           onCancel={handleCancelEdit}
         />
