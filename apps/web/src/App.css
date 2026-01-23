@@ -274,11 +274,15 @@
   color: var(--color-fg-secondary);
 }
 
-/* Error message */
+/* Error message (used in ProfileSelector and ProfileEditor modal) */
 .error-message {
+  margin: var(--space-3) 0;
+  padding: var(--space-3);
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(220, 38, 38, 0.35);
+  background: rgba(220, 38, 38, 0.10);
   color: var(--color-danger);
   font-size: var(--text-sm);
-  margin-top: var(--space-2);
 }
 
 /* Skin selector */

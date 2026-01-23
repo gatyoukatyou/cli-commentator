@@ -14,6 +14,7 @@ type ProfileInput = {
 
 type Props = {
   profile?: Profile | null;
+  error?: string | null;
   onSave: (profile: ProfileInput) => void;
   onCancel: () => void;
 };
@@ -67,7 +68,7 @@ function profileToInput(profile: Profile): ProfileInput {
   };
 }
 
-export function ProfileEditor({ profile, onSave, onCancel }: Props) {
+export function ProfileEditor({ profile, error, onSave, onCancel }: Props) {
   const [input, setInput] = useState<ProfileInput>(createEmptyInput);
 
   useEffect(() => {
@@ -207,6 +208,8 @@ export function ProfileEditor({ profile, onSave, onCancel }: Props) {
               ※ APIキーは環境変数で設定してください
             </div>
           </div>
+
+          {error && <div className="error-message">{error}</div>}
 
           <div className="form-actions">
             <button
