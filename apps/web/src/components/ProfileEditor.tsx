@@ -15,6 +15,7 @@ type ProfileInput = {
 type Props = {
   profile?: Profile | null;
   error?: string | null;
+  isWsOpen?: boolean;
   onSave: (profile: ProfileInput) => void;
   onCancel: () => void;
 };
@@ -68,7 +69,7 @@ function profileToInput(profile: Profile): ProfileInput {
   };
 }
 
-export function ProfileEditor({ profile, error, onSave, onCancel }: Props) {
+export function ProfileEditor({ profile, error, isWsOpen = true, onSave, onCancel }: Props) {
   const [input, setInput] = useState<ProfileInput>(createEmptyInput);
 
   useEffect(() => {
@@ -221,6 +222,7 @@ export function ProfileEditor({ profile, error, onSave, onCancel }: Props) {
             <button
               type="submit"
               className="btn-primary"
+              disabled={!isWsOpen}
             >
               {isEditing ? "更新" : "作成"}
             </button>

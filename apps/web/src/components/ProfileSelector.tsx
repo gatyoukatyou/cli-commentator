@@ -45,7 +45,7 @@ export function ProfileSelector({
       <button
         onClick={onCreate}
         disabled={disabled}
-        style={{ padding: "4px 8px", cursor: disabled ? "not-allowed" : "pointer" }}
+        style={{ padding: "4px 8px" }}
         title="新規作成"
       >
         ＋ 新規
@@ -56,7 +56,7 @@ export function ProfileSelector({
           <button
             onClick={() => onEdit(activeId)}
             disabled={disabled}
-            style={{ padding: "4px 8px", cursor: disabled ? "not-allowed" : "pointer" }}
+            style={{ padding: "4px 8px" }}
             title="編集"
           >
             編集
@@ -65,7 +65,7 @@ export function ProfileSelector({
             onClick={() => handleDelete(activeId)}
             disabled={disabled}
             className="btn-danger"
-            style={{ padding: "4px 8px", cursor: disabled ? "not-allowed" : "pointer" }}
+            style={{ padding: "4px 8px" }}
             title="削除"
           >
             削除
