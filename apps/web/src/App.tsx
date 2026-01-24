@@ -694,6 +694,7 @@ export default function App() {
         <ProfileEditor
           profile={editingProfile === "new" ? null : editingProfile}
           error={profileError}
+          isWsOpen={connectionStatus === "connected"}
           onSave={handleSaveProfile}
           onCancel={handleCancelEdit}
         />

@@ -297,3 +297,10 @@
   font-size: var(--text-sm);
   color: var(--color-fg-secondary);
 }
+
+/* Hint text (for offline status, etc.) */
+.hint-text {
+  font-size: var(--text-sm);
+  color: var(--color-fg-muted);
+  margin-top: var(--space-2);
+}
