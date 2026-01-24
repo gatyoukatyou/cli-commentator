@@ -514,6 +514,9 @@ export default function App() {
           onCreate={handleCreateProfile}
           onDelete={handleDeleteProfile}
         />
+        {connectionStatus !== "connected" && (
+          <div className="hint-text">サーバー未接続のためプロファイル操作は無効です</div>
+        )}
         {profileError && (
           <div className="error-message">
             エラー: {profileError}

@@ -211,9 +211,6 @@ export function ProfileEditor({ profile, error, isWsOpen = true, onSave, onCance
           </div>
 
           {error && <div className="error-message">{error}</div>}
-          {!isWsOpen && (
-            <div className="hint-text">サーバー未接続のため保存できません</div>
-          )}
 
           <div className="form-actions">
             <button
@@ -226,7 +223,6 @@ export function ProfileEditor({ profile, error, isWsOpen = true, onSave, onCance
               type="submit"
               className="btn-primary"
               disabled={!isWsOpen}
-              style={{ cursor: isWsOpen ? "pointer" : "not-allowed" }}
             >
               {isEditing ? "更新" : "作成"}
             </button>
