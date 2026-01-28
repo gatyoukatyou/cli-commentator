@@ -312,6 +312,22 @@ wss.on("connection", async (ws) => {
           break;
         }
 
+        case "getProfile": {
+          try {
+            const id = msg.id;
+            if (!id) throw new Error("Missing profile id");
+            const profile = await profileManager.get(id);
+            if (!profile) {
+              ws.send(JSON.stringify({ kind: "profileError", error: `Profile not found: ${id}` }));
+            } else {
+              ws.send(JSON.stringify({ kind: "profileDetail", profile }));
+            }
+          } catch (err) {
+            ws.send(JSON.stringify({ kind: "profileError", error: String(err) }));
+          }
+          break;
+        }
+
         case "saveProfile": {
           try {
             const input = msg.profile;

@@ -26,6 +26,7 @@ type Msg =
   | { kind: "profiles"; profiles: ProfileSummary[]; activeId: string | null }
   | { kind: "profileSaved"; profile: ProfileSummary; activeId: string | null }
   | { kind: "profileDeleted"; id: string; activeId: string | null }
+  | { kind: "profileDetail"; profile: Profile }
   | { kind: "profileError"; error: string }
   | { kind: "ptyRestart"; cmd: string; args: string[]; profileId: string | null }
   | { kind: "ptyError"; error: string };
@@ -162,12 +163,14 @@ export default function App() {
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectAttemptRef = useRef(0);
   const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingEditIdRef = useRef<string | null>(null);
 
   // Profile state
   const [profiles, setProfiles] = useState<ProfileSummary[]>([]);
   const [activeProfileId, setActiveProfileId] = useState<string | null>(null);
-  const [editingProfile, setEditingProfile] = useState<Profile | null | "new">(null);
+  const [editingProfile, setEditingProfile] = useState<Profile | null | "new" | "loading">(null);
   const [profileError, setProfileError] = useState<string | null>(null);
+  const profilesRef = useRef<ProfileSummary[]>([]);
 
   // TTS state
   const [ttsEnabled, setTtsEnabledState] = useState(() => getTTSEnabled());
@@ -198,6 +201,11 @@ export default function App() {
   useEffect(() => {
     ttsSettingsRef.current = ttsSettings;
   }, [ttsSettings]);
+
+  // Profile ref sync (to avoid stale closure in WebSocket handler)
+  useEffect(() => {
+    profilesRef.current = profiles;
+  }, [profiles]);
 
   // Load available voices
   useEffect(() => {
@@ -297,7 +305,7 @@ export default function App() {
               }
               break;
             case "profileSaved":
-              if ("profile" in msg) {
+              if ("profile" in msg && "activeId" in msg) {
                 setProfiles((prev) => {
                   const exists = prev.some((p) => p.id === msg.profile.id);
                   if (exists) {
@@ -316,9 +324,29 @@ export default function App() {
                 setActiveProfileId(msg.activeId);
               }
               break;
+            case "profileDetail":
+              if ("kind" in msg && msg.kind === "profileDetail") {
+                // Verify this is the response for the pending edit request
+                if (pendingEditIdRef.current === msg.profile.id) {
+                  setEditingProfile(msg.profile);
+                  pendingEditIdRef.current = null;
+                }
+              }
+              break;
             case "profileError":
               if ("error" in msg) {
                 setProfileError(msg.error);
+                // If a profile detail fetch was pending, fall back to summary data
+                const pid = pendingEditIdRef.current;
+                if (pid) {
+                  pendingEditIdRef.current = null;
+                  const summary = profilesRef.current.find((p) => p.id === pid);
+                  if (summary) {
+                    setEditingProfile(stubProfileFromSummary(summary));
+                  } else {
+                    setEditingProfile(null);
+                  }
+                }
               }
               break;
             case "ptyRestart":
@@ -383,6 +411,18 @@ export default function App() {
     }
   };
 
+  // Build a stub Profile from summary data with defaults (fallback when detail fetch fails)
+  const stubProfileFromSummary = (summary: ProfileSummary): Profile => ({
+    id: summary.id,
+    name: summary.name,
+    cmd: summary.cmd,
+    args: [],
+    style: "kansai",
+    logSource: "auto",
+    createdAt: 0,
+    updatedAt: 0,
+  });
+
   // Profile handlers
   const handleSelectProfile = (id: string | null) => {
     setProfileError(null);
@@ -394,21 +434,14 @@ export default function App() {
   };
 
   const handleEditProfile = (id: string) => {
-    const profile = profiles.find((p) => p.id === id);
-    if (profile) {
-      // For editing, we need full profile data - for now, create a partial one
-      // In a more complete implementation, we'd fetch the full profile
-      setEditingProfile({
-        id: profile.id,
-        name: profile.name,
-        cmd: profile.cmd,
-        args: [],
-        style: "kansai",
-        logSource: "auto",
-        createdAt: 0,
-        updatedAt: 0,
-      });
+    setProfileError(null);
+    if (wsRef.current?.readyState !== WebSocket.OPEN) {
+      setProfileError("サーバーに接続されていません");
+      return;
     }
+    pendingEditIdRef.current = id;
+    setEditingProfile("loading");
+    wsRef.current.send(JSON.stringify({ kind: "getProfile", id }));
   };
 
   const handleCreateProfile = () => {
@@ -456,6 +489,7 @@ export default function App() {
   const handleCancelEdit = () => {
     setEditingProfile(null);
     setProfileError(null);
+    pendingEditIdRef.current = null;
   };
 
   const sourceLabel =
@@ -693,7 +727,19 @@ export default function App() {
       </div>
 
       {/* Profile Editor Modal */}
-      {editingProfile && (
+      {editingProfile === "loading" && (
+        <div className="modal-backdrop">
+          <div className="modal">
+            <h2 className="modal__title">プロファイルを読み込み中...</h2>
+            <div className="form-actions">
+              <button type="button" onClick={handleCancelEdit}>
+                キャンセル
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {editingProfile && editingProfile !== "loading" && (
         <ProfileEditor
           profile={editingProfile === "new" ? null : editingProfile}
           error={profileError}
