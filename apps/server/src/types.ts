@@ -1,4 +1,4 @@
-import type { ProfileSummary, CreateProfileInput, UpdateProfileInput } from "./profile/types.js";
+import type { Profile, ProfileSummary, CreateProfileInput, UpdateProfileInput } from "./profile/types.js";
 
 export type Style = "standard" | "kansai" | "zundamon";
 export type DetectedSource = "claude" | "codex" | "generic";
@@ -40,6 +40,7 @@ export type WsOutgoing =
   | { kind: "profiles"; profiles: ProfileSummary[]; activeId: string | null }
   | { kind: "profileSaved"; profile: ProfileSummary; activeId: string | null }
   | { kind: "profileDeleted"; id: string; activeId: string | null }
+  | { kind: "profileDetail"; profile: Profile }
   | { kind: "profileError"; error: string }
   // PTY messages
   | { kind: "ptyRestart"; cmd: string; args: string[]; profileId: string | null }
@@ -49,6 +50,7 @@ export type WsIncoming =
   | { kind: "setStyle"; style: Style }
   // Profile messages
   | { kind: "getProfiles" }
+  | { kind: "getProfile"; id: string }
   | { kind: "saveProfile"; profile: CreateProfileInput & { id?: string } }
   | { kind: "deleteProfile"; id: string }
   | { kind: "setActiveProfile"; id: string | null };
