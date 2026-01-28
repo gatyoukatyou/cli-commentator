@@ -299,3 +299,9 @@ pnpm dev:desktop:managed
 # - PID
 # - Crash/Orphan detection
 ```
+
+## CI & Maintenance
+
+- pnpm workspace では依存更新PRに `pnpm-lock.yaml` が必ず含まれること（無いと lockfile mismatch で CI が落ちやすい）
+- Dependabot PR が DIRTY/CONFLICTING のまま `@dependabot rebase` が効かない場合は `@dependabot recreate` が有効なことがある
+- このリポは merge commit 禁止 → **squash merge** を標準とする
