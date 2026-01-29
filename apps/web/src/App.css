@@ -304,3 +304,43 @@
   color: var(--color-fg-muted);
   margin-top: var(--space-2);
 }
+
+/* PTY Error Banner (node-pty unavailable) */
+.pty-error-banner {
+  position: sticky;
+  top: 0;
+  z-index: var(--z-toast);
+  padding: var(--space-4);
+  background: var(--color-danger);
+  color: white;
+  border-bottom: 2px solid var(--color-border-strong);
+  margin-bottom: var(--space-4);
+  border-radius: var(--radius-md);
+  text-align: left;
+}
+
+.pty-error-banner strong {
+  display: block;
+  margin-bottom: var(--space-2);
+  font-size: var(--text-lg);
+}
+
+.pty-error-banner p {
+  margin: var(--space-2) 0;
+}
+
+.pty-error-banner .suggestion {
+  font-size: var(--text-sm);
+  opacity: 0.9;
+}
+
+.pty-error-banner a {
+  color: white;
+  text-decoration: underline;
+}
+
+.pty-error-banner code {
+  background: rgba(255, 255, 255, 0.2);
+  padding: 0 var(--space-1);
+  border-radius: var(--radius-sm);
+}

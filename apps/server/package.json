@@ -8,8 +8,10 @@
   },
   "dependencies": {
     "dotenv": "^17.2.3",
-    "node-pty": "^1.1.0",
     "ws": "^8.19.0"
+  },
+  "optionalDependencies": {
+    "node-pty": "^1.1.0"
   },
   "devDependencies": {
     "@types/node": "^25.0.10",

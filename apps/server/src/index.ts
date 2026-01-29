@@ -10,7 +10,7 @@ import { comment } from "./styles/index.js";
 import { getAutoDetectedSource, resetAutoDetection } from "./rulesets/index.js";
 import * as profileManager from "./profile/manager.js";
 import type { ProfileSummary } from "./profile/types.js";
-import { createPTYManager, configFromProfile, configFromEnv, type PTYConfig } from "./pty/index.js";
+import { createPTYManager, configFromProfile, configFromEnv, getNodePtyError, type PTYConfig } from "./pty/index.js";
 import { createFileTail, type FileTail } from "./input/index.js";
 
 const PORT = Number(process.env.CLI_COMMENTATOR_PORT ?? process.env.PORT ?? 8787);
@@ -54,6 +54,10 @@ let sourceState: SourceState = {
 let restartInFlight = false;
 let queuedProfileId: string | null | undefined = undefined; // undefined means no queue
 let currentlyRunningProfileId: string | null = null; // Track which profile the PTY is running with
+
+// PTY availability state (for graceful degradation when node-pty build fails)
+let ptyAvailable = true;
+let ptyInitError: string | null = null;
 
 // rate limit: max once per 2s (error is always allowed)
 let lastEmit = 0;
@@ -286,12 +290,28 @@ async function restartPTY(profileId: string | null): Promise<void> {
 }
 
 // --- WebSocket connection handler ---
+// Helper to send a message to a single client
+function sendTo(client: typeof wss.clients extends Set<infer T> ? T : never, msg: WsOutgoing) {
+  if (client.readyState === 1) {
+    client.send(JSON.stringify(msg));
+  }
+}
+
 wss.on("connection", async (ws) => {
   // Send initial state including profiles
   const profiles = await profileManager.list();
   const activeId = await profileManager.getActiveId();
   ws.send(JSON.stringify({ kind: "hello", style: currentStyle, source: sourceState }));
   ws.send(JSON.stringify({ kind: "profiles", profiles, activeId }));
+
+  // Notify client if PTY is unavailable (e.g., node-pty build failed)
+  if (!ptyAvailable && ptyInitError) {
+    sendTo(ws, {
+      kind: "ptyUnavailable",
+      error: ptyInitError,
+      suggestion: "INPUT_MODE=file INPUT_FILE=/path/to/log pnpm dev:server で file 監視モードが使用可能です。",
+    });
+  }
 
   ws.on("message", async (buf) => {
     try {
@@ -483,7 +503,19 @@ if (INPUT_MODE === "pty") {
 
   // Launch initial PTY with environment config
   const initialConfig = configFromEnv();
-  setupPTY(initialConfig, null);
+  try {
+    setupPTY(initialConfig, null);
+  } catch (err) {
+    ptyAvailable = false;
+    ptyInitError = err instanceof Error ? err.message : String(err);
+    // Also check for lazy-load error from getNodePtyError()
+    const loadError = getNodePtyError();
+    if (loadError) {
+      ptyInitError = loadError;
+    }
+    console.error("[WARN] PTY initialization failed:", ptyInitError);
+    console.error("[INFO] Server will continue without PTY. Use INPUT_MODE=file for file monitoring.");
+  }
 } else {
   // File mode: early validation before setupFileTail
   if (!INPUT_FILE) {
