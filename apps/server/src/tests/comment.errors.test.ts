@@ -108,7 +108,7 @@ describe("comment() error classification", () => {
 
     const { comment } = await import("../styles/index.js");
 
-    const ev: Event = { ts: Date.now(), type: "cmd", summary: "test" };
+    const ev: Event = { ts: Date.now(), type: "stdout", summary: "test" };
     await comment(ev, "standard");
 
     expect(warnSpy).toHaveBeenCalled();
@@ -129,7 +129,7 @@ describe("comment() error classification", () => {
     // Must re-import after setting env vars
     const { comment } = await import("../styles/index.js");
 
-    const ev: Event = { ts: Date.now(), type: "cmd", summary: "test" };
+    const ev: Event = { ts: Date.now(), type: "stdout", summary: "test" };
     await comment(ev, "standard");
 
     expect(warnSpy).toHaveBeenCalled();
@@ -147,7 +147,7 @@ describe("comment() error classification", () => {
 
     const { comment } = await import("../styles/index.js");
 
-    const ev: Event = { ts: Date.now(), type: "cmd", summary: "test" };
+    const ev: Event = { ts: Date.now(), type: "stdout", summary: "test" };
     await comment(ev, "standard");
 
     expect(logSpy).toHaveBeenCalled();
