@@ -44,7 +44,8 @@ export type WsOutgoing =
   | { kind: "profileError"; error: string }
   // PTY messages
   | { kind: "ptyRestart"; cmd: string; args: string[]; profileId: string | null }
-  | { kind: "ptyError"; error: string };
+  | { kind: "ptyError"; error: string }
+  | { kind: "ptyUnavailable"; error: string; suggestion: string };
 
 export type WsIncoming =
   | { kind: "setStyle"; style: Style }

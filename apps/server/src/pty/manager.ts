@@ -1,6 +1,68 @@
-import * as pty from "node-pty";
-import type { IPty, IPtyForkOptions } from "node-pty";
+import { createRequire } from "node:module";
 import type { Profile } from "../profile/types.js";
+
+// Local type definitions (to avoid runtime import of node-pty)
+type IPty = {
+  onData: (cb: (data: string) => void) => { dispose: () => void };
+  onExit: (cb: (e: { exitCode: number; signal?: number }) => void) => { dispose: () => void };
+  write: (data: string) => void;
+  kill: (signal?: string) => void;
+  resize: (cols: number, rows: number) => void;
+};
+
+type IPtyForkOptions = {
+  name?: string;
+  cols?: number;
+  rows?: number;
+  cwd?: string;
+  env?: Record<string, string>;
+  useConpty?: boolean;
+};
+
+type NodePty = {
+  spawn: (cmd: string, args: string[], options: IPtyForkOptions) => IPty;
+};
+
+// Lazy-loaded node-pty state
+let nodePty: NodePty | null = null;
+let nodePtyError: string | null = null;
+
+/**
+ * Lazily load node-pty module.
+ * Throws if node-pty is not available (e.g., build failed on Windows without Visual C++ Build Tools).
+ */
+function loadNodePty(): NodePty {
+  if (nodePty) return nodePty;
+  if (nodePtyError) throw new Error(nodePtyError);
+
+  try {
+    const require = createRequire(import.meta.url);
+    nodePty = require("node-pty") as NodePty;
+    return nodePty;
+  } catch (err) {
+    nodePtyError = `node-pty not available: ${err instanceof Error ? err.message : String(err)}. Use INPUT_MODE=file for file monitoring mode.`;
+    throw new Error(nodePtyError);
+  }
+}
+
+/**
+ * Check if node-pty is available without throwing.
+ */
+export function isNodePtyAvailable(): boolean {
+  try {
+    loadNodePty();
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Get the error message if node-pty failed to load.
+ */
+export function getNodePtyError(): string | null {
+  return nodePtyError;
+}
 
 /**
  * PTY configuration for spawning a terminal
@@ -76,6 +138,9 @@ export function createPTYManager(): PTYManager {
     },
 
     spawn(config: PTYConfig): IPty {
+      // Load node-pty lazily (throws if unavailable)
+      const pty = loadNodePty();
+
       // Kill existing PTY if any
       if (currentPty) {
         try {

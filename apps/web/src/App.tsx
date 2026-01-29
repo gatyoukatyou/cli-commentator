@@ -29,7 +29,8 @@ type Msg =
   | { kind: "profileDetail"; profile: Profile }
   | { kind: "profileError"; error: string }
   | { kind: "ptyRestart"; cmd: string; args: string[]; profileId: string | null }
-  | { kind: "ptyError"; error: string };
+  | { kind: "ptyError"; error: string }
+  | { kind: "ptyUnavailable"; error: string; suggestion: string };
 
 type LegacyHello = { type: "hello"; style: Style };
 
@@ -171,6 +172,9 @@ export default function App() {
   const [editingProfile, setEditingProfile] = useState<Profile | null | "new" | "loading">(null);
   const [profileError, setProfileError] = useState<string | null>(null);
   const profilesRef = useRef<ProfileSummary[]>([]);
+
+  // PTY unavailable state (when node-pty build fails)
+  const [ptyUnavailable, setPtyUnavailable] = useState<{ error: string; suggestion: string } | null>(null);
 
   // TTS state
   const [ttsEnabled, setTtsEnabledState] = useState(() => getTTSEnabled());
@@ -359,6 +363,11 @@ export default function App() {
                 setProfileError(`PTY Error: ${msg.error}`);
               }
               break;
+            case "ptyUnavailable":
+              if ("error" in msg && "suggestion" in msg) {
+                setPtyUnavailable({ error: msg.error, suggestion: msg.suggestion });
+              }
+              break;
             default:
               break;
           }
@@ -513,6 +522,24 @@ export default function App() {
 
   return (
     <div style={{ maxWidth: 900, margin: "0 auto", padding: "var(--space-4)" }}>
+      {/* PTY unavailable error banner */}
+      {ptyUnavailable && (
+        <div className="pty-error-banner">
+          <strong>PTY 初期化エラー</strong>
+          <p>{ptyUnavailable.error}</p>
+          <p className="suggestion">{ptyUnavailable.suggestion}</p>
+          <p>
+            <a
+              href="https://github.com/gatyoukatyou/cli-commentator/blob/main/docs/getting-started.ja.md#troubleshooting"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              トラブルシューティング
+            </a>
+          </p>
+        </div>
+      )}
+
       <TauriDebugPanel />
       <h1>CLI 実況（MVP）</h1>
 

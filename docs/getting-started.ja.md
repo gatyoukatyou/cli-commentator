@@ -140,7 +140,22 @@ set PTY_USE_CONPTY=0 && pnpm dev:server
 
 #### node-pty がビルドに失敗する
 
-Visual C++ Build Tools が必要です。
+node-pty のビルドには Visual C++ Build Tools が必要ですが、
+ビルドできない環境でも **file モード** で cli-commentator を使用できます。
+
+**file モードで起動する例:**
+
+```bash
+# 監視したいログファイルを指定
+INPUT_MODE=file INPUT_FILE=/path/to/your-app.log pnpm dev:server
+
+# 別ターミナルで Web UI を起動
+pnpm dev:web
+```
+
+**根本解決したい場合:**
+
+Visual C++ Build Tools をインストールしてください。
 
 **推奨:** Visual Studio Installer で「C++ によるデスクトップ開発」ワークロードをインストール
 
@@ -149,6 +164,12 @@ Visual C++ Build Tools が必要です。
 2. 「変更」→「ワークロード」タブ
 3. 「C++ によるデスクトップ開発」にチェック → インストール
 ```
+
+または [Visual Studio Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/) を直接インストール:
+
+1. 「C++ によるデスクトップ開発」ワークロードを選択
+2. Node.js を再インストール（または `npm config set msvs_version 2022`）
+3. `pnpm install` を再実行
 
 > **注:** `npm install --global windows-build-tools` は環境によっては途中で止まる報告があるため非推奨。
 
