@@ -1,5 +1,5 @@
 import type { LLMAdapter } from "../adapter.js";
-import type { GenerateTextRequest, GenerateTextResponse } from "../types.js";
+import type { ChatMessage, GenerateTextRequest, GenerateTextResponse } from "../types.js";
 import { CommentError } from "../../errors.js";
 
 const DEFAULT_BASE_URL = "https://api.anthropic.com/v1";
@@ -67,10 +67,10 @@ export function createAnthropicAdapter(
         .join("\n\n");
 
       const messages: AnthropicMessage[] = req.messages
-        .filter((m) => m.role !== "system")
+        .filter((m): m is ChatMessage & { role: "user" | "assistant" } => m.role !== "system")
         .map((m) => ({
           role: m.role,
-          content: [{ type: "text", text: m.content }],
+          content: [{ type: "text" as const, text: m.content }],
         }));
 
       const body: AnthropicRequest = {

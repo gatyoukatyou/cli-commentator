@@ -37,7 +37,7 @@ describe("comment() timeout behavior", () => {
 
     const ev: Event = {
       ts: Date.now(),
-      type: "cmd",
+      type: "stdout",
       summary: "テストコマンド",
     };
 
@@ -62,7 +62,7 @@ describe("comment() timeout behavior", () => {
 
     const ev: Event = {
       ts: Date.now(),
-      type: "cmd",
+      type: "stdout",
       summary: "テストコマンド",
     };
 
@@ -94,7 +94,7 @@ describe("comment() timeout behavior", () => {
 
     const ev: Event = {
       ts: Date.now(),
-      type: "cmd",
+      type: "stdout",
       summary: "テスト",
     };
 

@@ -32,6 +32,9 @@ jobs:
       - name: Server tests
         run: pnpm -C apps/server test
 
+      - name: Server typecheck
+        run: pnpm -C apps/server exec tsc --noEmit
+
       - name: Web build
         run: pnpm -C apps/web build
 
@@ -59,6 +62,9 @@ jobs:
 
       - name: Server tests
         run: pnpm -C apps/server test
+
+      - name: Server typecheck
+        run: pnpm -C apps/server exec tsc --noEmit
 
       - name: Web build
         run: pnpm -C apps/web build
