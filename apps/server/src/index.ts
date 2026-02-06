@@ -11,7 +11,7 @@ import { getAutoDetectedSource, resetAutoDetection } from "./rulesets/index.js";
 import * as profileManager from "./profile/manager.js";
 import type { ProfileSummary } from "./profile/types.js";
 import { createPTYManager, configFromProfile, configFromEnv, getNodePtyError, type PTYConfig } from "./pty/index.js";
-import { createFileTail, type FileTail } from "./input/index.js";
+import { createFileTail, resolveFileFallback, type FileTail } from "./input/index.js";
 
 const PORT = Number(process.env.CLI_COMMENTATOR_PORT ?? process.env.PORT ?? 8787);
 const COMMENT_EXIT_TIMEOUT_MS = parseInt(process.env.COMMENT_EXIT_TIMEOUT_MS ?? "1500", 10);
@@ -33,6 +33,7 @@ function parseInputMode(value?: string): InputMode {
 
 const INPUT_MODE: InputMode = parseInputMode(INPUT_MODE_RAW);
 const INPUT_FILE = process.env.INPUT_FILE ?? "";
+let runtimeInputMode: InputMode = INPUT_MODE;
 
 function isStyle(value: unknown): value is Style {
   return value === "standard" || value === "kansai" || value === "zundamon";
@@ -109,6 +110,9 @@ const ptyManager = createPTYManager();
 
 // --- File Tail (for file input mode) ---
 let fileTail: FileTail | null = null;
+let ignoredFileTailExit: FileTail | null = null;
+let stdinPassthroughEnabled = false;
+let isCleaningUp = false;
 
 /**
  * Process incoming data from any input source (PTY or FileTail).
@@ -269,8 +273,10 @@ async function restartPTY(profileId: string | null): Promise<void> {
       newSourceMode = normalizeSource(process.env.LOG_SOURCE);
     }
 
-    // Kill existing PTY
+    // Kill existing PTY / file tail fallback
     ptyManager.kill();
+    stopFileTail(true);
+    disableStdinPassthrough();
 
     // Update current state
     currentStyle = newStyle;
@@ -287,6 +293,8 @@ async function restartPTY(profileId: string | null): Promise<void> {
 
     // Spawn new PTY (this broadcasts event:start at the end)
     setupPTY(config, profileId);
+    runtimeInputMode = "pty";
+    enableStdinPassthrough();
 
     // Update tracking
     currentlyRunningProfileId = profileId;
@@ -297,6 +305,9 @@ async function restartPTY(profileId: string | null): Promise<void> {
       const unavailableError = loadError ?? errorMessage;
       markPtyUnavailable(unavailableError);
       broadcast(createPtyUnavailableMessage(unavailableError));
+      if (tryStartFileFallback("restart")) {
+        console.warn(`[INFO] Switched to file monitoring fallback (${INPUT_FILE}) after PTY restart failure.`);
+      }
       console.error("[WARN] PTY restart failed because node-pty is unavailable:", unavailableError);
       return;
     }
@@ -446,24 +457,36 @@ function setupFileTail(filePath: string): void {
     sourceState.detected = null;
   }
 
-  fileTail = createFileTail({
+  const tail = createFileTail({
     filePath,
     tailLines: 10,
     encoding: "utf-8",
   });
+  fileTail = tail;
 
   // Process data through common pipeline (no stdout echo for file mode)
-  fileTail.on("data", (data) => processInputData(data, false));
+  tail.on("data", (data) => processInputData(data, false));
 
   // Handle errors
-  fileTail.on("error", (err) => {
+  tail.on("error", (err) => {
     console.error("File tail error:", err.message);
     const ev: Event = { ts: Date.now(), type: "error", summary: "ファイル監視エラー", detail: err.message };
     broadcast({ kind: "event", ev });
   });
 
   // Handle exit
-  fileTail.on("exit", (code) => {
+  tail.on("exit", (code) => {
+    if (fileTail === tail) {
+      fileTail = null;
+    }
+    const ignoredExit = ignoredFileTailExit === tail || isCleaningUp;
+    if (ignoredFileTailExit === tail) {
+      ignoredFileTailExit = null;
+    }
+    if (ignoredExit) {
+      return;
+    }
+
     console.log(`File tail exited with code: ${code}`);
     const ev: Event = { ts: Date.now(), type: "done", summary: `ファイル監視終了 code=${code}` };
     broadcast({ kind: "event", ev });
@@ -480,7 +503,7 @@ function setupFileTail(filePath: string): void {
 
   // Start tailing
   try {
-    fileTail.start();
+    tail.start();
 
     // Broadcast start event
     const startEvent: Event = {
@@ -516,39 +539,91 @@ function handleStdinData(d: Buffer) {
   ptyManager.write(d.toString());
 }
 
-if (INPUT_MODE === "pty") {
-  // PTY mode: setup stdin passthrough and launch PTY
-  if (process.stdin.isTTY) {
-    try {
-      process.stdin.setRawMode(true);
-    } catch {}
-    process.stdin.resume();
-    process.stdin.on("data", handleStdinData);
+function enableStdinPassthrough(): void {
+  if (stdinPassthroughEnabled || !process.stdin.isTTY) return;
+  try {
+    process.stdin.setRawMode(true);
+  } catch {}
+  process.stdin.resume();
+  process.stdin.on("data", handleStdinData);
+  stdinPassthroughEnabled = true;
+}
+
+function disableStdinPassthrough(): void {
+  if (!stdinPassthroughEnabled || !process.stdin.isTTY) return;
+  process.stdin.removeListener("data", handleStdinData);
+  process.stdin.pause();
+  try {
+    process.stdin.setRawMode(false);
+  } catch {}
+  stdinPassthroughEnabled = false;
+}
+
+function stopFileTail(ignoreExitHandler: boolean): void {
+  if (!fileTail) return;
+  const tail = fileTail;
+  if (ignoreExitHandler) {
+    ignoredFileTailExit = tail;
+  }
+  tail.stop();
+  if (fileTail === tail) {
+    fileTail = null;
+  }
+}
+
+function tryStartFileFallback(context: "startup" | "restart"): boolean {
+  if (fileTail) return true;
+
+  const decision = resolveFileFallback(INPUT_FILE, (filePath) => fs.existsSync(filePath));
+  if (!decision.enabled) {
+    if (context === "restart") {
+      console.warn(`[WARN] File fallback unavailable (${decision.reason}). Set INPUT_FILE to a readable log file.`);
+    }
+    return false;
   }
 
-  // Launch initial PTY with environment config
+  try {
+    disableStdinPassthrough();
+    setupFileTail(decision.filePath);
+    runtimeInputMode = "file";
+    return true;
+  } catch (err) {
+    console.error("[ERROR] Failed to switch to file monitoring fallback:", err);
+    return false;
+  }
+}
+
+if (INPUT_MODE === "pty") {
+  // PTY mode: launch PTY first, then enable stdin passthrough when spawn succeeds
   const initialConfig = configFromEnv();
   try {
     setupPTY(initialConfig, null);
+    runtimeInputMode = "pty";
+    enableStdinPassthrough();
   } catch (err) {
     const errorMessage = toErrorMessage(err);
     const loadError = getNodePtyError();
     const unavailableError = loadError ?? errorMessage;
     markPtyUnavailable(unavailableError);
+    if (tryStartFileFallback("startup")) {
+      console.warn(`[INFO] Switched to file monitoring fallback (${INPUT_FILE}) after PTY startup failure.`);
+    }
     console.error("[WARN] PTY initialization failed:", ptyInitError);
     console.error("[INFO] Server will continue without PTY. Use INPUT_MODE=file for file monitoring.");
   }
 } else {
   // File mode: early validation before setupFileTail
-  if (!INPUT_FILE) {
-    console.error("[ERROR] INPUT_FILE is required when INPUT_MODE=file");
+  const decision = resolveFileFallback(INPUT_FILE, (filePath) => fs.existsSync(filePath));
+  if (!decision.enabled) {
+    if (decision.reason === "missing_input_file") {
+      console.error("[ERROR] INPUT_FILE is required when INPUT_MODE=file");
+    } else {
+      console.error(`[ERROR] INPUT_FILE not found: ${INPUT_FILE}`);
+    }
     process.exit(1);
   }
-  if (!fs.existsSync(INPUT_FILE)) {
-    console.error(`[ERROR] INPUT_FILE not found: ${INPUT_FILE}`);
-    process.exit(1);
-  }
-  setupFileTail(INPUT_FILE);
+  setupFileTail(decision.filePath);
+  runtimeInputMode = "file";
 }
 
 /**
@@ -557,17 +632,20 @@ if (INPUT_MODE === "pty") {
  */
 function logStartupConfig(): void {
   const config: Record<string, unknown> = {
-    mode: INPUT_MODE,
+    mode: runtimeInputMode,
     input_mode_raw: INPUT_MODE_RAW ?? "(unset)",
     port: PORT,
   };
 
-  if (INPUT_MODE === "pty") {
+  if (runtimeInputMode === "pty") {
     config.target_cmd = process.env.TARGET_CMD ?? (process.platform === "win32" ? "powershell.exe" : "bash");
     config.target_args = process.env.TARGET_ARGS_JSON ?? process.env.TARGET_ARGS ?? "";
     config.target_cwd = process.env.TARGET_CWD ?? process.cwd();
   } else {
     config.input_file = INPUT_FILE;
+  }
+  if (INPUT_MODE === "pty" && runtimeInputMode === "file" && ptyInitError) {
+    config.fallback = "pty_unavailable_to_file";
   }
 
   // Safe values only (no API keys)
@@ -580,32 +658,21 @@ function logStartupConfig(): void {
 
 server.listen(PORT, () => {
   logStartupConfig();
-  console.log(`server listening on http://localhost:${PORT} (mode: ${INPUT_MODE})`);
+  console.log(`server listening on http://localhost:${PORT} (mode: ${runtimeInputMode})`);
 });
 
 // --- Cleanup ---
-let isCleaningUp = false;
-
 function cleanup(exitCode: number = 0): void {
   if (isCleaningUp) return;
   isCleaningUp = true;
   console.log("\nCleaning up...");
 
-  // 1. stdin: removeListener + pause + raw mode復元
-  if (process.stdin.isTTY) {
-    process.stdin.removeListener("data", handleStdinData);
-    process.stdin.pause();
-    try {
-      process.stdin.setRawMode(false);
-    } catch {}
-  }
+  // 1. stdin passthrough cleanup
+  disableStdinPassthrough();
 
   // 2. PTY kill / FileTail stop
   ptyManager.kill();
-  if (fileTail) {
-    fileTail.stop();
-    fileTail = null;
-  }
+  stopFileTail(true);
 
   // 3. WebSocket clients close
   for (const client of wss.clients) {
