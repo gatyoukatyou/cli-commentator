@@ -38,6 +38,9 @@ jobs:
       - name: Web build
         run: pnpm -C apps/web build
 
+      - name: Web lint
+        run: pnpm -C apps/web lint
+
   test_windows:
     runs-on: windows-latest
 
@@ -68,3 +71,6 @@ jobs:
 
       - name: Web build
         run: pnpm -C apps/web build
+
+      - name: Web lint
+        run: pnpm -C apps/web lint
