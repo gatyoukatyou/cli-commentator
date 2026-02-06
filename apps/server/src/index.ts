@@ -15,6 +15,8 @@ import { createFileTail, type FileTail } from "./input/index.js";
 
 const PORT = Number(process.env.CLI_COMMENTATOR_PORT ?? process.env.PORT ?? 8787);
 const COMMENT_EXIT_TIMEOUT_MS = parseInt(process.env.COMMENT_EXIT_TIMEOUT_MS ?? "1500", 10);
+const PTY_UNAVAILABLE_SUGGESTION =
+  "INPUT_MODE=file INPUT_FILE=/path/to/log pnpm dev:server で file 監視モードが使用可能です。";
 
 // Input mode configuration
 type InputMode = "pty" | "file";
@@ -58,6 +60,23 @@ let currentlyRunningProfileId: string | null = null; // Track which profile the 
 // PTY availability state (for graceful degradation when node-pty build fails)
 let ptyAvailable = true;
 let ptyInitError: string | null = null;
+
+function toErrorMessage(err: unknown): string {
+  return err instanceof Error ? err.message : String(err);
+}
+
+function createPtyUnavailableMessage(error: string): WsOutgoing {
+  return {
+    kind: "ptyUnavailable",
+    error,
+    suggestion: PTY_UNAVAILABLE_SUGGESTION,
+  };
+}
+
+function markPtyUnavailable(error: string): void {
+  ptyAvailable = false;
+  ptyInitError = error;
+}
 
 // rate limit: max once per 2s (error is always allowed)
 let lastEmit = 0;
@@ -272,7 +291,17 @@ async function restartPTY(profileId: string | null): Promise<void> {
     // Update tracking
     currentlyRunningProfileId = profileId;
   } catch (err) {
-    broadcast({ kind: "ptyError", error: String(err) });
+    const errorMessage = toErrorMessage(err);
+    const loadError = getNodePtyError();
+    if (loadError || errorMessage.includes("node-pty not available")) {
+      const unavailableError = loadError ?? errorMessage;
+      markPtyUnavailable(unavailableError);
+      broadcast(createPtyUnavailableMessage(unavailableError));
+      console.error("[WARN] PTY restart failed because node-pty is unavailable:", unavailableError);
+      return;
+    }
+
+    broadcast({ kind: "ptyError", error: errorMessage });
     console.error("Failed to restart PTY:", err);
   } finally {
     restartInFlight = false;
@@ -306,11 +335,7 @@ wss.on("connection", async (ws) => {
 
   // Notify client if PTY is unavailable (e.g., node-pty build failed)
   if (!ptyAvailable && ptyInitError) {
-    sendTo(ws, {
-      kind: "ptyUnavailable",
-      error: ptyInitError,
-      suggestion: "INPUT_MODE=file INPUT_FILE=/path/to/log pnpm dev:server で file 監視モードが使用可能です。",
-    });
+    sendTo(ws, createPtyUnavailableMessage(ptyInitError));
   }
 
   ws.on("message", async (buf) => {
@@ -506,13 +531,10 @@ if (INPUT_MODE === "pty") {
   try {
     setupPTY(initialConfig, null);
   } catch (err) {
-    ptyAvailable = false;
-    ptyInitError = err instanceof Error ? err.message : String(err);
-    // Also check for lazy-load error from getNodePtyError()
+    const errorMessage = toErrorMessage(err);
     const loadError = getNodePtyError();
-    if (loadError) {
-      ptyInitError = loadError;
-    }
+    const unavailableError = loadError ?? errorMessage;
+    markPtyUnavailable(unavailableError);
     console.error("[WARN] PTY initialization failed:", ptyInitError);
     console.error("[INFO] Server will continue without PTY. Use INPUT_MODE=file for file monitoring.");
   }

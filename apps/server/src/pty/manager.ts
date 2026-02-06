@@ -89,8 +89,18 @@ function getDefaultShell(): string {
  * Determine whether to use ConPTY on Windows
  * Environment variable takes precedence, otherwise detect debugger
  */
-function shouldUseConpty(): boolean {
-  const envValue = process.env.PTY_USE_CONPTY?.toLowerCase();
+export function resolveUseConpty(options?: {
+  platform?: NodeJS.Platform;
+  env?: Record<string, string | undefined>;
+  execArgv?: string[];
+}): boolean {
+  const platform = options?.platform ?? process.platform;
+  if (platform !== "win32") return false;
+
+  const env = options?.env ?? process.env;
+  const execArgv = options?.execArgv ?? process.execArgv;
+
+  const envValue = env.PTY_USE_CONPTY?.toLowerCase();
 
   // Environment variable takes precedence if explicitly set
   if (envValue === "0" || envValue === "false" || envValue === "off") {
@@ -101,9 +111,9 @@ function shouldUseConpty(): boolean {
   }
 
   // If not set, detect debugger and disable ConPTY if found
-  const nodeOptions = process.env.NODE_OPTIONS ?? "";
+  const nodeOptions = env.NODE_OPTIONS ?? "";
   const hasInspect =
-    process.execArgv.some(
+    execArgv.some(
       (arg) => arg.includes("--inspect") || arg.includes("--inspect-brk")
     ) ||
     nodeOptions.includes("--inspect") ||
@@ -166,7 +176,7 @@ export function createPTYManager(): PTYManager {
 
       // On Windows, conditionally use ConPTY
       if (process.platform === "win32") {
-        options.useConpty = shouldUseConpty();
+        options.useConpty = resolveUseConpty();
       }
 
       currentPty = pty.spawn(config.cmd, config.args, options);
