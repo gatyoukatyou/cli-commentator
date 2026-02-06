@@ -29,3 +29,22 @@ export type CreateProfileInput = {
   logSource?: SourceMode;
   llmProvider?: ProviderName;
 };
+
+export type PtyUnavailablePayload = {
+  error?: string;
+  suggestion?: string;
+};
+
+export type ServerToClientMessage =
+  | { kind: "hello"; style: Style; source: SourceState }
+  | { kind: "style"; style: Style }
+  | { kind: "source"; source: SourceState }
+  | { kind: "commentary"; ts: number; text: string }
+  | { kind: "profiles"; profiles: ProfileSummary[]; activeId: string | null }
+  | { kind: "profileSaved"; profile: ProfileSummary; activeId: string | null }
+  | { kind: "profileDeleted"; id: string; activeId: string | null }
+  | { kind: "profileDetail"; profile: Profile }
+  | { kind: "profileError"; error: string }
+  | { kind: "ptyRestart"; cmd: string; args: string[]; profileId: string | null }
+  | { kind: "ptyError"; error: string }
+  | { kind: "ptyUnavailable"; error?: string; suggestion?: string };

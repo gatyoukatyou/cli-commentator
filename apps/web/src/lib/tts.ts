@@ -20,6 +20,27 @@ export const DEFAULT_TTS_SETTINGS: TTSSettings = {
   volume: 1.0,
 };
 
+const ANSI_COLOR_CODE_RE = /\[(?:\d{1,3};)*\d{1,3}m/g;
+const BOX_DRAWING_CHARS_RE = /[─│┌┐└┘├┤┬┴┼╔╗╚╝╠╣╦╩╬═║]+/g;
+const CLI_DECORATIVE_SYMBOLS_RE =
+  /(?:⏺|⎿|✅|✓|✔|✗|✘|➜|➤|●|○|◉|◎|■|□|▪|▫|►|▶|◀|◁|★|☆|❯|❮|⚡|⚠️|🔴|🟢|🟡|⬛|⬜)+/gu;
+
+function stripControlChars(s: string): string {
+  let out = "";
+  for (let i = 0; i < s.length; i++) {
+    const c = s.charCodeAt(i);
+    if (c === 0x09 || c === 0x0a || c === 0x0d) {
+      out += s[i];
+      continue;
+    }
+    if (c <= 0x1f || c === 0x7f || (c >= 0x80 && c <= 0x9f)) {
+      continue;
+    }
+    out += s[i];
+  }
+  return out;
+}
+
 /** TTS サポート判定 */
 export function isTTSSupported(): boolean {
   return typeof window !== "undefined" && "speechSynthesis" in window;
@@ -87,10 +108,10 @@ export function waitForVoices(timeoutMs = 3000): Promise<SpeechSynthesisVoice[]>
  * テキスト正規化（ログ記号除去、長さ制限）
  */
 export function normalizeForSpeech(text: string, maxLength = 500): string {
-  const cleaned = text
-    .replace(/\x1b\[[0-9;]*m/g, "") // ANSI escape codes
-    .replace(/[─│┌┐└┘├┤┬┴┼╔╗╚╝╠╣╦╩╬═║]+/g, "") // Box drawing characters
-    .replace(/[⏺⎿✅✓✔✗✘➜➤●○◉◎■□▪▫►▶◀◁★☆❯❮⚡⚠️🔴🟢🟡⬛⬜]+/gu, "") // CLI decorative symbols
+  const cleaned = stripControlChars(text)
+    .replace(ANSI_COLOR_CODE_RE, "") // ANSI color payload remnants after ESC stripping
+    .replace(BOX_DRAWING_CHARS_RE, "") // Box drawing characters
+    .replace(CLI_DECORATIVE_SYMBOLS_RE, "") // CLI decorative symbols
     .replace(/\n{2,}/g, "\n") // 連続改行
     .trim();
 
