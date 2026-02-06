@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import type { Profile, Style, SourceMode, ProviderName } from "../types";
 
 type ProfileInput = {
@@ -70,15 +70,7 @@ function profileToInput(profile: Profile): ProfileInput {
 }
 
 export function ProfileEditor({ profile, error, isWsOpen = true, onSave, onCancel }: Props) {
-  const [input, setInput] = useState<ProfileInput>(createEmptyInput);
-
-  useEffect(() => {
-    if (profile) {
-      setInput(profileToInput(profile));
-    } else {
-      setInput(createEmptyInput());
-    }
-  }, [profile]);
+  const [input, setInput] = useState<ProfileInput>(() => (profile ? profileToInput(profile) : createEmptyInput()));
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();

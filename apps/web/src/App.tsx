@@ -14,25 +14,20 @@ import {
   DEFAULT_TTS_SETTINGS,
   type TTSSettings,
 } from "./lib/tts";
-import type { Style, SourceState, Profile, ProfileSummary, CreateProfileInput } from "./types";
+import type {
+  Style,
+  SourceState,
+  Profile,
+  ProfileSummary,
+  CreateProfileInput,
+  ServerToClientMessage,
+  PtyUnavailablePayload,
+} from "./types";
 
 export type Skin = "standard" | "brutalism" | "paper";
 
-type Msg =
-  | { kind: "hello"; style: Style; source: SourceState }
-  | { kind: "style"; style: Style }
-  | { kind: "source"; source: SourceState }
-  | { kind: "commentary"; ts: number; text: string }
-  | { kind: "profiles"; profiles: ProfileSummary[]; activeId: string | null }
-  | { kind: "profileSaved"; profile: ProfileSummary; activeId: string | null }
-  | { kind: "profileDeleted"; id: string; activeId: string | null }
-  | { kind: "profileDetail"; profile: Profile }
-  | { kind: "profileError"; error: string }
-  | { kind: "ptyRestart"; cmd: string; args: string[]; profileId: string | null }
-  | { kind: "ptyError"; error: string }
-  | { kind: "ptyUnavailable"; error: string; suggestion: string };
-
 type LegacyHello = { type: "hello"; style: Style };
+type PayloadMessage = { type?: string; payload?: PtyUnavailablePayload | Record<string, unknown> };
 
 type ConnectionStatus = "connecting" | "connected" | "disconnected" | "reconnecting";
 
@@ -50,26 +45,88 @@ type ServerStatusDetail = {
   port: number;
 };
 
+type TauriCore = { invoke: (cmd: string) => Promise<unknown> };
+
+const getTauriCore = (): TauriCore | undefined => {
+  if (typeof window === "undefined") return undefined;
+  return (window as Window & { __TAURI__?: { core?: TauriCore } }).__TAURI__?.core;
+};
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null;
+
+const getPayloadRecord = (msg: unknown): Record<string, unknown> | null => {
+  if (!isRecord(msg) || !("payload" in msg)) return null;
+  const payload = (msg as { payload?: unknown }).payload;
+  return isRecord(payload) ? payload : null;
+};
+
+const getStringField = (obj: Record<string, unknown> | null, key: string): string | undefined => {
+  if (!obj) return undefined;
+  const value = obj[key];
+  return typeof value === "string" ? value : undefined;
+};
+
+const normalizeSuggestion = (value?: string): string | undefined => {
+  if (!value) return undefined;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : undefined;
+};
+
+const copyWithFallback = async (text: string): Promise<boolean> => {
+  if (navigator?.clipboard?.writeText && window.isSecureContext) {
+    try {
+      await navigator.clipboard.writeText(text);
+      return true;
+    } catch {
+      // Fall through to legacy copy
+    }
+  }
+
+  try {
+    const textarea = document.createElement("textarea");
+    textarea.value = text;
+    textarea.setAttribute("readonly", "true");
+    textarea.style.position = "fixed";
+    textarea.style.top = "-9999px";
+    textarea.style.left = "-9999px";
+    document.body.appendChild(textarea);
+    textarea.select();
+    const ok = document.execCommand("copy");
+    document.body.removeChild(textarea);
+    return ok;
+  } catch {
+    return false;
+  }
+};
+
+function stubProfileFromSummary(summary: ProfileSummary): Profile {
+  return {
+    id: summary.id,
+    name: summary.name,
+    cmd: summary.cmd,
+    args: [],
+    style: "kansai",
+    logSource: "auto",
+    createdAt: 0,
+    updatedAt: 0,
+  };
+}
+
 // Tauri debug panel for Gate B testing
 function TauriDebugPanel() {
-  const [isTauri, setIsTauri] = useState(false);
+  const isTauri = Boolean(getTauriCore());
   const [status, setStatus] = useState<ServerStatusDetail | null>(null);
-
-  useEffect(() => {
-    const tauri = (window as { __TAURI__?: { core?: { invoke: (cmd: string) => Promise<unknown> } } }).__TAURI__;
-    if (tauri?.core) {
-      setIsTauri(true);
-    }
-  }, []);
 
   // Polling (3 second interval)
   useEffect(() => {
     if (!isTauri) return;
-    const tauri = (window as { __TAURI__?: { core?: { invoke: (cmd: string) => Promise<unknown> } } }).__TAURI__;
 
     const poll = async () => {
+      const core = getTauriCore();
+      if (!core) return;
       try {
-        const result = await tauri?.core?.invoke("server_status_detailed");
+        const result = await core.invoke("server_status_detailed");
         setStatus(result as ServerStatusDetail);
       } catch {
         // Ignore polling errors
@@ -83,19 +140,21 @@ function TauriDebugPanel() {
 
   if (!import.meta.env.DEV || !isTauri) return null;
 
-  const tauri = (window as { __TAURI__?: { core?: { invoke: (cmd: string) => Promise<unknown> } } }).__TAURI__;
-
   const handleStart = async () => {
+    const core = getTauriCore();
+    if (!core) return;
     try {
-      await tauri?.core?.invoke("start_server");
+      await core.invoke("start_server");
     } catch {
       // Ignore errors
     }
   };
 
   const handleStop = async () => {
+    const core = getTauriCore();
+    if (!core) return;
     try {
-      await tauri?.core?.invoke("stop_server");
+      await core.invoke("stop_server");
     } catch {
       // Ignore errors
     }
@@ -174,7 +233,14 @@ export default function App() {
   const profilesRef = useRef<ProfileSummary[]>([]);
 
   // PTY unavailable state (when node-pty build fails)
-  const [ptyUnavailable, setPtyUnavailable] = useState<{ error: string; suggestion: string } | null>(null);
+  const [ptyUnavailable, setPtyUnavailable] = useState<{
+    error?: string;
+    suggestion?: string;
+    receivedAt: number;
+  } | null>(null);
+  const [ptyError, setPtyError] = useState<string | null>(null);
+  const [copyState, setCopyState] = useState<"idle" | "copied" | "failed">("idle");
+  const copyResetRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // TTS state
   const [ttsEnabled, setTtsEnabledState] = useState(() => getTTSEnabled());
@@ -223,6 +289,15 @@ export default function App() {
   // TTS cleanup on unmount (prevent orphan speech on reload/navigation)
   useEffect(() => () => stopSpeech(), []);
 
+  // Copy feedback cleanup/reset
+  useEffect(() => {
+    return () => {
+      if (copyResetRef.current) {
+        clearTimeout(copyResetRef.current);
+      }
+    };
+  }, []);
+
   const handleTTSToggle = (enabled: boolean) => {
     setTtsEnabledState(enabled);
     setTTSEnabled(enabled);
@@ -242,6 +317,19 @@ export default function App() {
 
   const handleTestSpeak = () => {
     speak("これはテスト読み上げです。設定を確認してください。", ttsSettings);
+  };
+
+  const handleCopySuggestion = async () => {
+    const suggestion = normalizeSuggestion(ptyUnavailable?.suggestion);
+    if (!suggestion) return;
+    const ok = await copyWithFallback(suggestion);
+    setCopyState(ok ? "copied" : "failed");
+    if (copyResetRef.current) {
+      clearTimeout(copyResetRef.current);
+    }
+    copyResetRef.current = setTimeout(() => {
+      setCopyState("idle");
+    }, 1500);
   };
 
   useEffect(() => {
@@ -280,66 +368,76 @@ export default function App() {
       ws.onmessage = (e) => {
         if (cancelled) return;
         try {
-          const msg = JSON.parse(e.data) as Msg | LegacyHello;
+          const msg = JSON.parse(e.data) as ServerToClientMessage | LegacyHello | PayloadMessage;
           const kind = "kind" in msg ? msg.kind : msg.type;
+          const payload = getPayloadRecord(msg);
+          const data = (payload ?? msg) as Record<string, unknown>;
           switch (kind) {
             case "hello":
-              if ("style" in msg) setStyle(msg.style);
-              if ("source" in msg) setSource(msg.source);
+              if (typeof data.style === "string") setStyle(data.style as Style);
+              if (data.source) setSource(data.source as SourceState);
               break;
             case "style":
-              if ("style" in msg) setStyle(msg.style);
+              if (typeof data.style === "string") setStyle(data.style as Style);
               break;
             case "source":
-              if ("source" in msg) setSource(msg.source);
+              if (data.source) setSource(data.source as SourceState);
               break;
             case "commentary":
-              if ("ts" in msg && "text" in msg) {
-                setItems((prev) => [...prev, { ts: msg.ts, text: msg.text }].slice(-200));
+              if (typeof data.ts === "number" && typeof data.text === "string") {
+                setItems((prev) => [...prev, { ts: data.ts as number, text: data.text as string }].slice(-200));
                 // TTS: 有効なら読み上げ
                 if (ttsEnabledRef.current) {
-                  speak(msg.text, ttsSettingsRef.current);
+                  speak(data.text as string, ttsSettingsRef.current);
                 }
               }
               break;
             case "profiles":
-              if ("profiles" in msg) {
-                setProfiles(msg.profiles);
-                setActiveProfileId(msg.activeId);
+              if (Array.isArray(data.profiles)) {
+                setProfiles(data.profiles as ProfileSummary[]);
+                if ("activeId" in data) {
+                  setActiveProfileId((data.activeId as string | null) ?? null);
+                }
               }
               break;
             case "profileSaved":
-              if ("profile" in msg && "activeId" in msg) {
+              if (data.profile) {
+                const profile = data.profile as ProfileSummary;
                 setProfiles((prev) => {
-                  const exists = prev.some((p) => p.id === msg.profile.id);
+                  const exists = prev.some((p) => p.id === profile.id);
                   if (exists) {
-                    return prev.map((p) => (p.id === msg.profile.id ? msg.profile : p));
+                    return prev.map((p) => (p.id === profile.id ? profile : p));
                   }
-                  return [...prev, msg.profile];
+                  return [...prev, profile];
                 });
-                setActiveProfileId(msg.activeId);
+                if ("activeId" in data) {
+                  setActiveProfileId((data.activeId as string | null) ?? null);
+                }
                 setEditingProfile(null);
                 setProfileError(null);
               }
               break;
             case "profileDeleted":
-              if ("id" in msg) {
-                setProfiles((prev) => prev.filter((p) => p.id !== msg.id));
-                setActiveProfileId(msg.activeId);
+              if (typeof data.id === "string") {
+                setProfiles((prev) => prev.filter((p) => p.id !== data.id));
+                if ("activeId" in data) {
+                  setActiveProfileId((data.activeId as string | null) ?? null);
+                }
               }
               break;
             case "profileDetail":
-              if ("kind" in msg && msg.kind === "profileDetail") {
+              if (data.profile) {
+                const profile = data.profile as Profile;
                 // Verify this is the response for the pending edit request
-                if (pendingEditIdRef.current === msg.profile.id) {
-                  setEditingProfile(msg.profile);
+                if (pendingEditIdRef.current === profile.id) {
+                  setEditingProfile(profile);
                   pendingEditIdRef.current = null;
                 }
               }
               break;
             case "profileError":
-              if ("error" in msg) {
-                setProfileError(msg.error);
+              if (typeof data.error === "string") {
+                setProfileError(data.error);
                 // If a profile detail fetch was pending, fall back to summary data
                 const pid = pendingEditIdRef.current;
                 if (pid) {
@@ -357,21 +455,29 @@ export default function App() {
               // Clear commentary items when PTY restarts
               setItems([]);
               setProfileError(null);
+              setPtyError(null);
               break;
             case "ptyError":
-              if ("error" in msg) {
-                setProfileError(`PTY Error: ${msg.error}`);
+              if (typeof data.error === "string") {
+                setPtyError(data.error);
               }
               break;
             case "ptyUnavailable":
-              if ("error" in msg && "suggestion" in msg) {
-                setPtyUnavailable({ error: msg.error, suggestion: msg.suggestion });
-              }
+              setCopyState("idle");
+              setPtyUnavailable({
+                error: normalizeSuggestion(getStringField(data, "error")),
+                suggestion: normalizeSuggestion(getStringField(data, "suggestion")),
+                receivedAt: Date.now(),
+              });
               break;
             default:
               break;
           }
-        } catch {}
+        } catch (err) {
+          if (import.meta.env.DEV) {
+            console.debug("Ignored malformed WebSocket message", err);
+          }
+        }
       };
 
       ws.onerror = (error) => {
@@ -419,18 +525,6 @@ export default function App() {
       wsRef.current.send(JSON.stringify({ kind: "setStyle", style: s }));
     }
   };
-
-  // Build a stub Profile from summary data with defaults (fallback when detail fetch fails)
-  const stubProfileFromSummary = (summary: ProfileSummary): Profile => ({
-    id: summary.id,
-    name: summary.name,
-    cmd: summary.cmd,
-    args: [],
-    style: "kansai",
-    logSource: "auto",
-    createdAt: 0,
-    updatedAt: 0,
-  });
 
   // Profile handlers
   const handleSelectProfile = (id: string | null) => {
@@ -501,6 +595,17 @@ export default function App() {
     pendingEditIdRef.current = null;
   };
 
+  const suggestionText = normalizeSuggestion(ptyUnavailable?.suggestion);
+  const ptyUnavailableError = normalizeSuggestion(ptyUnavailable?.error);
+  const hasNotices = Boolean(ptyUnavailable || profileError || ptyError);
+  const copyLabel = copyState === "copied" ? "Copied" : "Copy";
+  const profileEditorKey =
+    editingProfile === "new"
+      ? "profile-new"
+      : editingProfile && editingProfile !== "loading"
+        ? `profile-${editingProfile.id}`
+        : "profile-empty";
+
   const sourceLabel =
     source.mode === "auto"
       ? source.detected
@@ -522,25 +627,51 @@ export default function App() {
 
   return (
     <div style={{ maxWidth: 900, margin: "0 auto", padding: "var(--space-4)" }}>
-      {/* PTY unavailable error banner */}
-      {ptyUnavailable && (
-        <div className="pty-error-banner">
-          <strong>PTY 初期化エラー</strong>
-          <p>{ptyUnavailable.error}</p>
-          <p className="suggestion">{ptyUnavailable.suggestion}</p>
-          <p>
-            <a
-              href="https://github.com/gatyoukatyou/cli-commentator/blob/main/docs/getting-started.ja.md#troubleshooting"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              トラブルシューティング
-            </a>
-          </p>
+      <TauriDebugPanel />
+      {hasNotices && (
+        <div className="notices">
+          {ptyUnavailable && (
+            <div className="notice notice--warning panel">
+              <div className="notice__title">PTYが利用できません</div>
+              <div className="notice__body">
+                <p>PTYが利用できないため、fileモードで起動してください。</p>
+                {ptyUnavailableError && <p className="notice__hint">{ptyUnavailableError}</p>}
+                {suggestionText ? (
+                  <div className="notice__code-row">
+                    <pre className="notice__code">
+                      <code>{suggestionText}</code>
+                    </pre>
+                    <div className="notice__actions">
+                      <button type="button" className="btn-secondary notice__copy" onClick={handleCopySuggestion}>
+                        {copyLabel}
+                      </button>
+                      {copyState === "failed" && (
+                        <span className="notice__copy-hint">コピーできませんでした。手動で選択してください。</span>
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  <p className="notice__hint">
+                    <code>INPUT_MODE=file</code> でログファイルを指定して起動できます。
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
+          {profileError && (
+            <div className="notice notice--error panel">
+              <div className="notice__title">プロファイルエラー</div>
+              <div className="notice__body">{profileError}</div>
+            </div>
+          )}
+          {ptyError && (
+            <div className="notice notice--error panel">
+              <div className="notice__title">PTYエラー</div>
+              <div className="notice__body">{ptyError}</div>
+            </div>
+          )}
         </div>
       )}
-
-      <TauriDebugPanel />
       <h1>CLI 実況（MVP）</h1>
 
       {/* Skin selector */}
@@ -577,11 +708,6 @@ export default function App() {
         />
         {connectionStatus !== "connected" && (
           <div className="hint-text">サーバー未接続のためプロファイル操作は無効です</div>
-        )}
-        {profileError && (
-          <div className="error-message">
-            エラー: {profileError}
-          </div>
         )}
       </div>
 
@@ -768,6 +894,7 @@ export default function App() {
       )}
       {editingProfile && editingProfile !== "loading" && (
         <ProfileEditor
+          key={profileEditorKey}
           profile={editingProfile === "new" ? null : editingProfile}
           error={profileError}
           isWsOpen={connectionStatus === "connected"}
