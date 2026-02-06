@@ -92,6 +92,17 @@ chmod 755 <path-to-spawn-helper>
 
 `node_modules` can be regenerated on reinstall, so repeat this if the issue returns.
 
+### node-pty build failure on Windows
+
+`node-pty` requires Visual C++ Build Tools. If build fails, you can still run in file monitoring mode.
+
+If `INPUT_MODE=pty` and `INPUT_FILE` is already set, the server automatically falls back to file monitoring when PTY initialization fails.
+
+```bash
+# Explicit file mode
+INPUT_MODE=file INPUT_FILE=/path/to/your-app.log pnpm dev:server
+```
+
 ## Notes
 
 - Commentary is emitted **on events + at most once per 2 seconds**

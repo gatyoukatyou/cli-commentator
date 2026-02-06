@@ -143,6 +143,9 @@ set PTY_USE_CONPTY=0 && pnpm dev:server
 node-pty のビルドには Visual C++ Build Tools が必要ですが、
 ビルドできない環境でも **file モード** で cli-commentator を使用できます。
 
+`INPUT_MODE=pty` のままでも `INPUT_FILE` が設定されていれば、
+node-pty 初期化失敗時に file 監視モードへ自動フォールバックします。
+
 **file モードで起動する例:**
 
 ```bash
