@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { configFromProfile, configFromEnv } from "../pty/manager.js";
+import { configFromProfile, configFromEnv, resolveUseConpty } from "../pty/manager.js";
 import type { Profile } from "../profile/types.js";
 
 describe("pty/manager", () => {
@@ -125,6 +125,44 @@ describe("pty/manager", () => {
       expect(typeof config.cmd).toBe("string");
       expect(Array.isArray(config.args)).toBe(true);
       expect(typeof config.cwd).toBe("string");
+    });
+  });
+
+  describe("resolveUseConpty", () => {
+    it("returns false on non-Windows platforms", () => {
+      expect(resolveUseConpty({ platform: "darwin", env: {}, execArgv: [] })).toBe(false);
+      expect(resolveUseConpty({ platform: "linux", env: {}, execArgv: [] })).toBe(false);
+    });
+
+    it("respects explicit disable via PTY_USE_CONPTY", () => {
+      expect(resolveUseConpty({ platform: "win32", env: { PTY_USE_CONPTY: "0" }, execArgv: [] })).toBe(false);
+      expect(resolveUseConpty({ platform: "win32", env: { PTY_USE_CONPTY: "false" }, execArgv: [] })).toBe(false);
+      expect(resolveUseConpty({ platform: "win32", env: { PTY_USE_CONPTY: "off" }, execArgv: [] })).toBe(false);
+    });
+
+    it("respects explicit enable via PTY_USE_CONPTY", () => {
+      expect(resolveUseConpty({ platform: "win32", env: { PTY_USE_CONPTY: "1" }, execArgv: [] })).toBe(true);
+      expect(resolveUseConpty({ platform: "win32", env: { PTY_USE_CONPTY: "true" }, execArgv: [] })).toBe(true);
+      expect(resolveUseConpty({ platform: "win32", env: { PTY_USE_CONPTY: "on" }, execArgv: [] })).toBe(true);
+    });
+
+    it("disables ConPTY when debugger flags are present in execArgv", () => {
+      expect(resolveUseConpty({ platform: "win32", env: {}, execArgv: ["--inspect=9229"] })).toBe(false);
+      expect(resolveUseConpty({ platform: "win32", env: {}, execArgv: ["--inspect-brk"] })).toBe(false);
+    });
+
+    it("disables ConPTY when debugger flags are present in NODE_OPTIONS", () => {
+      expect(
+        resolveUseConpty({
+          platform: "win32",
+          env: { NODE_OPTIONS: "--inspect=0.0.0.0:9229" },
+          execArgv: [],
+        })
+      ).toBe(false);
+    });
+
+    it("defaults to true on Windows when no override/debugger is present", () => {
+      expect(resolveUseConpty({ platform: "win32", env: {}, execArgv: [] })).toBe(true);
     });
   });
 });
