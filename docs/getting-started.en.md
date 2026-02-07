@@ -40,7 +40,7 @@ pnpm dev:desktop:managed
 - Rust toolchain installed (`rustup`)
 - Tauri v2 build prerequisites satisfied for your OS ([Tauri Prerequisites](https://v2.tauri.app/start/prerequisites/))
 
-### State transitions (Tauri Debug panel)
+### State transitions (Desktop Server panel)
 
 Start/stop status is exposed as a single `state` source.
 
@@ -59,7 +59,7 @@ Start/stop status is exposed as a single `state` source.
 Example: if another process already uses port `8787`, the state should move to `failed`.
 
 1. Stop the conflicting process
-2. Press `Start` in the Tauri Debug panel
+2. Press `Start` in the Desktop Server panel
 3. Confirm state returns to `running`
 
 ### Where to read logs

@@ -77,8 +77,8 @@
 /* Debug Panel */
 .debug-panel {
   position: fixed;
-  top: var(--space-2);
-  right: var(--space-2);
+  top: var(--space-3);
+  right: var(--space-3);
   padding: var(--space-3);
   background-color: var(--color-bg-secondary);
   color: var(--color-fg-primary);
@@ -86,17 +86,46 @@
   border-radius: var(--radius-md);
   font-size: var(--text-sm);
   z-index: var(--z-debug);
-  min-width: 180px;
+  width: min(360px, calc(100vw - 24px));
+  text-align: left;
+  box-shadow: var(--shadow-lg);
 }
 
 .debug-panel__title {
   font-weight: var(--font-bold);
-  margin-bottom: var(--space-2);
+  margin-bottom: var(--space-1);
 }
 
 .debug-panel__status {
   margin-bottom: var(--space-2);
-  line-height: 1.6;
+  border-top: var(--panel-border);
+  border-bottom: var(--panel-border);
+  padding: var(--space-2) 0;
+}
+
+.debug-panel__hint {
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-sm);
+  color: var(--color-fg-secondary);
+}
+
+.debug-panel__row {
+  display: grid;
+  grid-template-columns: 72px 1fr;
+  gap: var(--space-2);
+  align-items: center;
+  margin-bottom: var(--space-1);
+}
+
+.debug-panel__label {
+  color: var(--color-fg-tertiary);
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.debug-panel__badge {
+  font-weight: var(--font-bold);
 }
 
 .debug-panel__meta {
@@ -119,6 +148,46 @@
 .debug-panel__actions {
   display: flex;
   gap: var(--space-1);
+}
+
+.debug-panel__btn {
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+  border: var(--btn-border);
+  font-size: var(--text-sm);
+}
+
+.debug-panel__btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.debug-panel__btn--primary {
+  background-color: var(--color-bg-tertiary);
+}
+
+.debug-panel__btn--secondary {
+  background-color: transparent;
+}
+
+.debug-panel__recovery {
+  margin: 0 0 var(--space-2);
+  padding-left: var(--space-4);
+  color: var(--color-fg-secondary);
+}
+
+.debug-panel__recovery li {
+  margin-bottom: 2px;
+}
+
+@media (max-width: 768px) {
+  .debug-panel {
+    top: auto;
+    bottom: var(--space-2);
+    left: var(--space-2);
+    right: var(--space-2);
+    width: auto;
+  }
 }
 
 /* Log container */

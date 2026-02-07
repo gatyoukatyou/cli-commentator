@@ -79,6 +79,14 @@ const errorToMessage = (error: unknown): string => {
   return "Unknown error";
 };
 
+const DESKTOP_STATE_LABEL: Record<DesktopServerState, string> = {
+  stopped: "停止中",
+  starting: "起動中",
+  running: "稼働中",
+  stopping: "停止処理中",
+  failed: "失敗",
+};
+
 const copyWithFallback = async (text: string): Promise<boolean> => {
   if (navigator?.clipboard?.writeText && window.isSecureContext) {
     try {
@@ -119,8 +127,8 @@ function stubProfileFromSummary(summary: ProfileSummary): Profile {
   };
 }
 
-// Tauri debug panel for Gate B testing
-function TauriDebugPanel() {
+// Desktop server control panel (shown only in Tauri runtime)
+function TauriStatusPanel() {
   const isTauri = Boolean(getTauriCore());
   const [status, setStatus] = useState<ServerStatusDetail | null>(null);
   const [invokeError, setInvokeError] = useState<string | null>(null);
@@ -152,7 +160,7 @@ function TauriDebugPanel() {
     };
   }, [isTauri]);
 
-  if (!import.meta.env.DEV || !isTauri) return null;
+  if (!isTauri) return null;
 
   const state: DesktopServerState = status?.state ?? "stopped";
 
@@ -187,33 +195,82 @@ function TauriDebugPanel() {
     return "var(--color-fg-secondary)";
   };
 
+  const stateMessage = (() => {
+    if (state === "starting") return "サーバー起動処理中です。完了まで数秒待ってください。";
+    if (state === "running") return "サーバーは稼働中です。実況UIが接続されます。";
+    if (state === "stopping") return "サーバー停止処理中です。";
+    if (state === "failed") return "起動に失敗しました。原因を解消して Start を再試行してください。";
+    return "サーバーは停止しています。Start で起動できます。";
+  })();
+
+  const failureHints = (() => {
+    const source = `${status?.error ?? ""} ${invokeError ?? ""}`.toLowerCase();
+    if (state !== "failed" && !invokeError) return [] as string[];
+    if (source.includes("port") && (source.includes("in use") || source.includes("already"))) {
+      return [
+        "ポート 8787 を利用中のプロセスを停止してください。",
+        "競合解消後に Start を押して再起動してください。",
+      ];
+    }
+    if (source.includes("failed to get project root")) {
+      return [
+        "アプリの起動ディレクトリを確認してください。",
+        "リポジトリのルートから dev:desktop:managed を実行してください。",
+      ];
+    }
+    if (source.includes("failed to start server") || source.includes("pnpm")) {
+      return [
+        "依存関係が壊れていないか確認し、必要なら pnpm install を再実行してください。",
+        "その後 Start を押して再試行してください。",
+      ];
+    }
+    return ["エラーメッセージを確認して原因を解消し、Start で再試行してください。"];
+  })();
+
   const startDisabled = state === "starting" || state === "running" || state === "stopping";
   const stopDisabled = state === "stopped" || state === "stopping" || state === "failed";
+  const startLabel = state === "failed" ? "Retry Start" : "Start";
 
   return (
     <div className="debug-panel">
-      <div className="debug-panel__title">Tauri Debug</div>
+      <div className="debug-panel__title">Desktop Server</div>
+      <p className="debug-panel__hint">{stateMessage}</p>
 
       {status && (
         <div className="debug-panel__status">
-          <div>
-            State: <span style={{ color: getStateColor(state) }}>{state}</span>
+          <div className="debug-panel__row">
+            <span className="debug-panel__label">State</span>
+            <span className="debug-panel__badge" style={{ color: getStateColor(state) }}>
+              {DESKTOP_STATE_LABEL[state]}
+            </span>
           </div>
-          <div>Health: <span style={{ color: status.health_ok ? "var(--color-success)" : "var(--color-danger)" }}>{status.health_ok ? "OK" : "NG"}</span></div>
-          <div>PID: {status.pid ?? "-"} (port {status.port})</div>
+          <div className="debug-panel__row">
+            <span className="debug-panel__label">Health</span>
+            <span style={{ color: status.health_ok ? "var(--color-success)" : "var(--color-danger)" }}>
+              {status.health_ok ? "OK" : "NG"}
+            </span>
+          </div>
+          <div className="debug-panel__row">
+            <span className="debug-panel__label">PID</span>
+            <span>{status.pid ?? "-"}</span>
+          </div>
+          <div className="debug-panel__row">
+            <span className="debug-panel__label">Port</span>
+            <span>{status.port}</span>
+          </div>
           {status.transitioned_at && (
             <div className="debug-panel__meta">
-              State changed: {new Date(status.transitioned_at).toLocaleTimeString()}
+              状態更新: {new Date(status.transitioned_at).toLocaleTimeString()}
             </div>
           )}
           {status.started_at && (
             <div className="debug-panel__meta">
-              Started: {new Date(status.started_at).toLocaleTimeString()}
+              起動時刻: {new Date(status.started_at).toLocaleTimeString()}
             </div>
           )}
           {status.last_seen_at && (
             <div className="debug-panel__meta">
-              Last seen: {new Date(status.last_seen_at).toLocaleTimeString()}
+              最終ヘルス応答: {new Date(status.last_seen_at).toLocaleTimeString()}
             </div>
           )}
           {status.error && (
@@ -224,10 +281,21 @@ function TauriDebugPanel() {
       {invokeError && (
         <div className="debug-panel__alert debug-panel__alert--warning">{invokeError}</div>
       )}
+      {failureHints.length > 0 && (
+        <ul className="debug-panel__recovery">
+          {failureHints.map((hint) => (
+            <li key={hint}>{hint}</li>
+          ))}
+        </ul>
+      )}
 
       <div className="debug-panel__actions">
-        <button onClick={handleStart} disabled={startDisabled} style={{ padding: "4px 8px" }}>Start</button>
-        <button onClick={handleStop} disabled={stopDisabled} style={{ padding: "4px 8px" }}>Stop</button>
+        <button className="debug-panel__btn debug-panel__btn--primary" onClick={handleStart} disabled={startDisabled}>
+          {startLabel}
+        </button>
+        <button className="debug-panel__btn debug-panel__btn--secondary" onClick={handleStop} disabled={stopDisabled}>
+          Stop
+        </button>
       </div>
     </div>
   );
@@ -649,7 +717,7 @@ export default function App() {
 
   return (
     <div style={{ maxWidth: 900, margin: "0 auto", padding: "var(--space-4)" }}>
-      <TauriDebugPanel />
+      <TauriStatusPanel />
       {hasNotices && (
         <div className="notices">
           {ptyUnavailable && (
