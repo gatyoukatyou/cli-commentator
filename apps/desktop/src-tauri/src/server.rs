@@ -357,6 +357,72 @@ fn stop_child_blocking(mut child: Box<dyn ChildWrapper>) -> (Option<i32>, Option
     }
 }
 
+enum StartAction {
+    Noop(ServerStatus),
+    Start {
+        operation_id: u64,
+        started_at: u64,
+        status: ServerStatus,
+    },
+}
+
+fn begin_start_transition(rt: &mut ServerRuntime, port: u16) -> StartAction {
+    let current = build_status(rt, port);
+    if matches!(
+        current.state,
+        ServerLifecycleState::Starting
+            | ServerLifecycleState::Running
+            | ServerLifecycleState::Stopping
+    ) {
+        return StartAction::Noop(current);
+    }
+
+    let started_at = now_ms();
+    rt.operation_id += 1;
+    let operation_id = rt.operation_id;
+    rt.lifecycle = ServerLifecycle::Starting { started_at };
+    rt.last_seen_at = None;
+    StartAction::Start {
+        operation_id,
+        started_at,
+        status: status_from_runtime(rt, false, port),
+    }
+}
+
+enum StopAction {
+    Noop(ServerStatus),
+    Stop {
+        operation_id: u64,
+        child: Option<Box<dyn ChildWrapper>>,
+        status: ServerStatus,
+    },
+}
+
+fn begin_stop_transition(rt: &mut ServerRuntime, port: u16) -> StopAction {
+    let current = build_status(rt, port);
+    if matches!(
+        current.state,
+        ServerLifecycleState::Stopped
+            | ServerLifecycleState::Stopping
+            | ServerLifecycleState::Failed
+    ) {
+        return StopAction::Noop(current);
+    }
+
+    rt.operation_id += 1;
+    let operation_id = rt.operation_id;
+    rt.lifecycle = ServerLifecycle::Stopping {
+        started_at: now_ms(),
+    };
+    rt.last_seen_at = None;
+    let child = rt.process.take();
+    StopAction::Stop {
+        operation_id,
+        child,
+        status: status_from_runtime(rt, false, port),
+    }
+}
+
 #[tauri::command]
 pub fn server_status(state: State<'_, ServerState>) -> Result<ServerStatus, String> {
     let port = get_server_port();
@@ -369,27 +435,18 @@ pub fn server_start(state: State<'_, ServerState>) -> Result<ServerStatus, Strin
     let port = get_server_port();
     let runtime_arc = Arc::clone(&state.runtime);
     let mut rt = state.runtime.lock().map_err(|e| e.to_string())?;
-    let current = build_status(&mut rt, port);
-
-    if matches!(
-        current.state,
-        ServerLifecycleState::Starting
-            | ServerLifecycleState::Running
-            | ServerLifecycleState::Stopping
-    ) {
-        return Ok(current);
+    match begin_start_transition(&mut rt, port) {
+        StartAction::Noop(status) => Ok(status),
+        StartAction::Start {
+            operation_id,
+            started_at,
+            status,
+        } => {
+            drop(rt);
+            start_in_background(runtime_arc, operation_id, started_at, port);
+            Ok(status)
+        }
     }
-
-    let started_at = now_ms();
-    rt.operation_id += 1;
-    let op_id = rt.operation_id;
-    rt.lifecycle = ServerLifecycle::Starting { started_at };
-    rt.last_seen_at = None;
-    let response = status_from_runtime(&rt, false, port);
-    drop(rt);
-
-    start_in_background(runtime_arc, op_id, started_at, port);
-    Ok(response)
 }
 
 #[tauri::command]
@@ -397,30 +454,18 @@ pub fn server_stop(state: State<'_, ServerState>) -> Result<ServerStatus, String
     let port = get_server_port();
     let runtime_arc = Arc::clone(&state.runtime);
     let mut rt = state.runtime.lock().map_err(|e| e.to_string())?;
-    let current = build_status(&mut rt, port);
-
-    if matches!(
-        current.state,
-        ServerLifecycleState::Stopped
-            | ServerLifecycleState::Stopping
-            | ServerLifecycleState::Failed
-    ) {
-        return Ok(current);
+    match begin_stop_transition(&mut rt, port) {
+        StopAction::Noop(status) => Ok(status),
+        StopAction::Stop {
+            operation_id,
+            child,
+            status,
+        } => {
+            drop(rt);
+            stop_in_background(runtime_arc, operation_id, child);
+            Ok(status)
+        }
     }
-
-    let stopping_at = now_ms();
-    rt.operation_id += 1;
-    let op_id = rt.operation_id;
-    rt.lifecycle = ServerLifecycle::Stopping {
-        started_at: stopping_at,
-    };
-    rt.last_seen_at = None;
-    let child = rt.process.take();
-    let response = status_from_runtime(&rt, false, port);
-    drop(rt);
-
-    stop_in_background(runtime_arc, op_id, child);
-    Ok(response)
 }
 
 pub fn server_stop_for_shutdown(state: State<'_, ServerState>) -> Result<(), String> {
@@ -445,4 +490,220 @@ pub fn server_stop_for_shutdown(state: State<'_, ServerState>) -> Result<(), Str
     rt.lifecycle = ServerLifecycle::Stopped;
     rt.last_seen_at = None;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::io::Result as IoResult;
+    use std::process::{ChildStderr, ChildStdin, ChildStdout, ExitStatus};
+
+    #[derive(Debug)]
+    struct MockChild {
+        pid: u32,
+        exited: bool,
+        stdin: Option<ChildStdin>,
+        stdout: Option<ChildStdout>,
+        stderr: Option<ChildStderr>,
+    }
+
+    impl MockChild {
+        fn new(pid: u32) -> Self {
+            Self {
+                pid,
+                exited: false,
+                stdin: None,
+                stdout: None,
+                stderr: None,
+            }
+        }
+    }
+
+    #[cfg(unix)]
+    fn success_status() -> ExitStatus {
+        use std::os::unix::process::ExitStatusExt;
+        ExitStatus::from_raw(0)
+    }
+
+    #[cfg(windows)]
+    fn success_status() -> ExitStatus {
+        use std::os::windows::process::ExitStatusExt;
+        ExitStatus::from_raw(0)
+    }
+
+    impl ChildWrapper for MockChild {
+        fn inner(&self) -> &dyn ChildWrapper {
+            self
+        }
+
+        fn inner_mut(&mut self) -> &mut dyn ChildWrapper {
+            self
+        }
+
+        fn into_inner(self: Box<Self>) -> Box<dyn ChildWrapper> {
+            self
+        }
+
+        fn stdin(&mut self) -> &mut Option<ChildStdin> {
+            &mut self.stdin
+        }
+
+        fn stdout(&mut self) -> &mut Option<ChildStdout> {
+            &mut self.stdout
+        }
+
+        fn stderr(&mut self) -> &mut Option<ChildStderr> {
+            &mut self.stderr
+        }
+
+        fn id(&self) -> u32 {
+            self.pid
+        }
+
+        fn kill(&mut self) -> IoResult<()> {
+            self.exited = true;
+            Ok(())
+        }
+
+        fn start_kill(&mut self) -> IoResult<()> {
+            self.exited = true;
+            Ok(())
+        }
+
+        fn try_wait(&mut self) -> IoResult<Option<ExitStatus>> {
+            if self.exited {
+                Ok(Some(success_status()))
+            } else {
+                Ok(None)
+            }
+        }
+
+        fn wait(&mut self) -> IoResult<ExitStatus> {
+            self.exited = true;
+            Ok(success_status())
+        }
+    }
+
+    fn runtime_with(lifecycle: ServerLifecycle) -> ServerRuntime {
+        ServerRuntime {
+            process: None,
+            lifecycle,
+            operation_id: 0,
+            last_exit: None,
+            last_seen_at: None,
+        }
+    }
+
+    fn runtime_with_running_child() -> ServerRuntime {
+        ServerRuntime {
+            process: Some(Box::new(MockChild::new(1234))),
+            lifecycle: ServerLifecycle::Running {
+                pid: 1234,
+                started_at: now_ms(),
+            },
+            operation_id: 0,
+            last_exit: None,
+            last_seen_at: None,
+        }
+    }
+
+    #[test]
+    fn start_transition_is_idempotent_while_starting() {
+        let port = 8787;
+        let mut rt = runtime_with(ServerLifecycle::Stopped);
+        let first = begin_start_transition(&mut rt, port);
+        match first {
+            StartAction::Start { status, .. } => {
+                assert_eq!(status.state, ServerLifecycleState::Starting);
+            }
+            StartAction::Noop(_) => panic!("first start should transition to starting"),
+        }
+
+        let second = begin_start_transition(&mut rt, port);
+        match second {
+            StartAction::Noop(status) => {
+                assert_eq!(status.state, ServerLifecycleState::Starting);
+            }
+            StartAction::Start { .. } => panic!("second start should be no-op"),
+        }
+    }
+
+    #[test]
+    fn failed_state_can_retry_start() {
+        let port = 8787;
+        let mut rt = runtime_with(ServerLifecycle::Failed {
+            error: "spawn failed".to_string(),
+            at: now_ms(),
+        });
+
+        let next = begin_start_transition(&mut rt, port);
+        match next {
+            StartAction::Start { status, .. } => {
+                assert_eq!(status.state, ServerLifecycleState::Starting);
+                assert_eq!(status.error, None);
+            }
+            StartAction::Noop(_) => panic!("failed state should allow retry"),
+        }
+    }
+
+    #[test]
+    fn stop_transition_is_idempotent_outside_running() {
+        let port = 8787;
+        let mut stopped = runtime_with(ServerLifecycle::Stopped);
+        let noop = begin_stop_transition(&mut stopped, port);
+        match noop {
+            StopAction::Noop(status) => assert_eq!(status.state, ServerLifecycleState::Stopped),
+            StopAction::Stop { .. } => panic!("stopped should remain noop"),
+        }
+
+        let mut failed = runtime_with(ServerLifecycle::Failed {
+            error: "boom".to_string(),
+            at: now_ms(),
+        });
+        let noop_failed = begin_stop_transition(&mut failed, port);
+        match noop_failed {
+            StopAction::Noop(status) => assert_eq!(status.state, ServerLifecycleState::Failed),
+            StopAction::Stop { .. } => panic!("failed should remain noop"),
+        }
+    }
+
+    #[test]
+    fn stop_transition_moves_running_to_stopping_once() {
+        let port = 8787;
+        let mut rt = runtime_with_running_child();
+
+        let first = begin_stop_transition(&mut rt, port);
+        match first {
+            StopAction::Stop { status, child, .. } => {
+                assert_eq!(status.state, ServerLifecycleState::Stopping);
+                assert!(child.is_some());
+            }
+            StopAction::Noop(_) => panic!("running should transition to stopping"),
+        }
+
+        let second = begin_stop_transition(&mut rt, port);
+        match second {
+            StopAction::Noop(status) => {
+                assert_eq!(status.state, ServerLifecycleState::Stopping);
+            }
+            StopAction::Stop { .. } => panic!("second stop should be noop"),
+        }
+    }
+
+    #[test]
+    fn running_without_child_handle_falls_back_to_failed() {
+        let port = 8787;
+        let mut rt = runtime_with(ServerLifecycle::Running {
+            pid: 9999,
+            started_at: now_ms(),
+        });
+
+        let status = build_status(&mut rt, port);
+        assert_eq!(status.state, ServerLifecycleState::Failed);
+        assert!(status
+            .error
+            .as_deref()
+            .unwrap_or("")
+            .contains("handle is missing"));
+    }
 }
