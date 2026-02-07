@@ -38,7 +38,7 @@
   },
   "plugins": {
     "updater": {
-      "pubkey": "REPLACE_WITH_TAURI_UPDATER_PUBLIC_KEY_CONTENT",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDQwOUQ4MjcwOEVCMzhGM0UKUldRK2o3T09jSUtkUU40a29Dc3BSNmlWTjVCVFJsWnhLR1BtNWtmREF4c05JZlBHZlZlMllXMDgK",
       "endpoints": [
         "https://github.com/gatyoukatyou/cli-commentator/releases/latest/download/latest.json"
       ]
