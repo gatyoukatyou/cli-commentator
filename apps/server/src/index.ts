@@ -10,13 +10,19 @@ import { comment } from "./styles/index.js";
 import { getAutoDetectedSource, resetAutoDetection } from "./rulesets/index.js";
 import * as profileManager from "./profile/manager.js";
 import type { ProfileSummary } from "./profile/types.js";
-import { createPTYManager, configFromProfile, configFromEnv, getNodePtyError, type PTYConfig } from "./pty/index.js";
+import {
+  createPTYManager,
+  configFromProfile,
+  configFromEnv,
+  getNodePtyError,
+  classifyPtyFailure,
+  createPtyUnavailableMessage,
+  type PTYConfig,
+} from "./pty/index.js";
 import { createFileTail, resolveFileFallback, type FileTail } from "./input/index.js";
 
 const PORT = Number(process.env.CLI_COMMENTATOR_PORT ?? process.env.PORT ?? 8787);
 const COMMENT_EXIT_TIMEOUT_MS = parseInt(process.env.COMMENT_EXIT_TIMEOUT_MS ?? "1500", 10);
-const PTY_UNAVAILABLE_SUGGESTION =
-  "INPUT_MODE=file INPUT_FILE=/path/to/log pnpm dev:server で file 監視モードが使用可能です。";
 
 // Input mode configuration
 type InputMode = "pty" | "file";
@@ -61,18 +67,6 @@ let currentlyRunningProfileId: string | null = null; // Track which profile the 
 // PTY availability state (for graceful degradation when node-pty build fails)
 let ptyAvailable = true;
 let ptyInitError: string | null = null;
-
-function toErrorMessage(err: unknown): string {
-  return err instanceof Error ? err.message : String(err);
-}
-
-function createPtyUnavailableMessage(error: string): WsOutgoing {
-  return {
-    kind: "ptyUnavailable",
-    error,
-    suggestion: PTY_UNAVAILABLE_SUGGESTION,
-  };
-}
 
 function markPtyUnavailable(error: string): void {
   ptyAvailable = false;
@@ -299,20 +293,18 @@ async function restartPTY(profileId: string | null): Promise<void> {
     // Update tracking
     currentlyRunningProfileId = profileId;
   } catch (err) {
-    const errorMessage = toErrorMessage(err);
-    const loadError = getNodePtyError();
-    if (loadError || errorMessage.includes("node-pty not available")) {
-      const unavailableError = loadError ?? errorMessage;
-      markPtyUnavailable(unavailableError);
-      broadcast(createPtyUnavailableMessage(unavailableError));
+    const failure = classifyPtyFailure(err, getNodePtyError());
+    if (failure.kind === "ptyUnavailable") {
+      markPtyUnavailable(failure.error);
+      broadcast(createPtyUnavailableMessage(failure.error));
       if (tryStartFileFallback("restart")) {
         console.warn(`[INFO] Switched to file monitoring fallback (${INPUT_FILE}) after PTY restart failure.`);
       }
-      console.error("[WARN] PTY restart failed because node-pty is unavailable:", unavailableError);
+      console.error("[WARN] PTY restart failed because node-pty is unavailable:", failure.error);
       return;
     }
 
-    broadcast({ kind: "ptyError", error: errorMessage });
+    broadcast({ kind: "ptyError", error: failure.error });
     console.error("Failed to restart PTY:", err);
   } finally {
     restartInFlight = false;
@@ -601,15 +593,17 @@ if (INPUT_MODE === "pty") {
     runtimeInputMode = "pty";
     enableStdinPassthrough();
   } catch (err) {
-    const errorMessage = toErrorMessage(err);
-    const loadError = getNodePtyError();
-    const unavailableError = loadError ?? errorMessage;
-    markPtyUnavailable(unavailableError);
-    if (tryStartFileFallback("startup")) {
-      console.warn(`[INFO] Switched to file monitoring fallback (${INPUT_FILE}) after PTY startup failure.`);
+    const failure = classifyPtyFailure(err, getNodePtyError());
+    if (failure.kind === "ptyUnavailable") {
+      markPtyUnavailable(failure.error);
+      if (tryStartFileFallback("startup")) {
+        console.warn(`[INFO] Switched to file monitoring fallback (${INPUT_FILE}) after PTY startup failure.`);
+      }
+      console.error("[WARN] PTY initialization failed:", ptyInitError);
+      console.error("[INFO] Server will continue without PTY. Use INPUT_MODE=file for file monitoring.");
+    } else {
+      console.error("[ERROR] PTY initialization failed:", failure.error);
     }
-    console.error("[WARN] PTY initialization failed:", ptyInitError);
-    console.error("[INFO] Server will continue without PTY. Use INPUT_MODE=file for file monitoring.");
   }
 } else {
   // File mode: early validation before setupFileTail
