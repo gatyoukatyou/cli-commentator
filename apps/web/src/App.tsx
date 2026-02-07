@@ -132,6 +132,8 @@ function TauriStatusPanel() {
   const isTauri = Boolean(getTauriCore());
   const [status, setStatus] = useState<ServerStatusDetail | null>(null);
   const [invokeError, setInvokeError] = useState<string | null>(null);
+  const [autostartEnabled, setAutostartEnabled] = useState<boolean | null>(null);
+  const [autostartLoading, setAutostartLoading] = useState(false);
 
   // Polling (1.5 second interval)
   useEffect(() => {
@@ -160,6 +162,29 @@ function TauriStatusPanel() {
     };
   }, [isTauri]);
 
+  useEffect(() => {
+    if (!isTauri) return;
+    let cancelled = false;
+
+    const fetchAutostart = async () => {
+      const core = getTauriCore();
+      if (!core) return;
+      try {
+        const result = await core.invoke("autostart_status");
+        if (cancelled) return;
+        setAutostartEnabled(Boolean(result));
+      } catch (err) {
+        if (cancelled) return;
+        setInvokeError(errorToMessage(err));
+      }
+    };
+
+    fetchAutostart();
+    return () => {
+      cancelled = true;
+    };
+  }, [isTauri]);
+
   if (!isTauri) return null;
 
   const state: DesktopServerState = status?.state ?? "stopped";
@@ -185,6 +210,22 @@ function TauriStatusPanel() {
       setInvokeError(null);
     } catch (err) {
       setInvokeError(errorToMessage(err));
+    }
+  };
+
+  const handleToggleAutostart = async () => {
+    const core = getTauriCore();
+    if (!core || autostartEnabled === null) return;
+    setAutostartLoading(true);
+    try {
+      const command = autostartEnabled ? "autostart_disable" : "autostart_enable";
+      const result = await core.invoke(command);
+      setAutostartEnabled(Boolean(result));
+      setInvokeError(null);
+    } catch (err) {
+      setInvokeError(errorToMessage(err));
+    } finally {
+      setAutostartLoading(false);
     }
   };
 
@@ -230,6 +271,10 @@ function TauriStatusPanel() {
   const startDisabled = state === "starting" || state === "running" || state === "stopping";
   const stopDisabled = state === "stopped" || state === "stopping" || state === "failed";
   const startLabel = state === "failed" ? "Retry Start" : "Start";
+  const autostartLabel = autostartEnabled === null ? "確認中" : autostartEnabled ? "有効" : "無効";
+  const autostartButtonLabel =
+    autostartEnabled === null ? "読み込み中..." : autostartEnabled ? "自動起動を無効化" : "自動起動を有効化";
+  const autostartButtonDisabled = autostartLoading || autostartEnabled === null;
 
   return (
     <div className="debug-panel">
@@ -257,6 +302,10 @@ function TauriStatusPanel() {
           <div className="debug-panel__row">
             <span className="debug-panel__label">Port</span>
             <span>{status.port}</span>
+          </div>
+          <div className="debug-panel__row">
+            <span className="debug-panel__label">Auto-start</span>
+            <span>{autostartLabel}</span>
           </div>
           {status.transitioned_at && (
             <div className="debug-panel__meta">
@@ -295,6 +344,15 @@ function TauriStatusPanel() {
         </button>
         <button className="debug-panel__btn debug-panel__btn--secondary" onClick={handleStop} disabled={stopDisabled}>
           Stop
+        </button>
+      </div>
+      <div className="debug-panel__actions">
+        <button
+          className="debug-panel__btn debug-panel__btn--secondary"
+          onClick={handleToggleAutostart}
+          disabled={autostartButtonDisabled}
+        >
+          {autostartLoading ? "更新中..." : autostartButtonLabel}
         </button>
       </div>
     </div>
