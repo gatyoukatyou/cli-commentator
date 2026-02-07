@@ -53,13 +53,15 @@ jobs:
         run: pnpm -C apps/web build
 
       - name: Server tests
+        env:
+          CLI_COMMENTATOR_FORCE_NO_PTY: "1"
         run: pnpm -C apps/server test
 
       - name: Server typecheck
         run: pnpm -C apps/server exec tsc --noEmit
 
       - name: Build and draft release
-        uses: tauri-apps/tauri-action@v1
+        uses: tauri-apps/tauri-action@v0.6.1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}

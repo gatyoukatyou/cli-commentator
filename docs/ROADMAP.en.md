@@ -99,6 +99,7 @@ Build a minimal MVP that reliably works, then expand once value is proven.
 - PR #99: Desktop Server operational panel (state/recovery guidance) + auto-start toggle
 - PR #100: desktop distribution foundation (autostart controls + release checklist docs)
 - PR #101: updater check command + desktop panel status/action
+- PR #102: updater config baseline + tag-based desktop release workflow
 
 **Now**
 - Phase 4 in progress (updater production config foundation + tag-based release automation)

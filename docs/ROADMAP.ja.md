@@ -104,6 +104,7 @@ CLI Commentator は「ターミナルの作業ログを見て、別ウィンド�
 - PR #99：Desktop Server運用UI（状態表示/復旧ガイド） + Auto-startトグル
 - PR #100：Desktop配布基盤（Auto-start制御 + 配布チェックリストdocs）
 - PR #101：Updater確認コマンド + Desktopパネル表示/操作
+- PR #102：Updater設定の土台 + タグ起点desktopリリースワークフロー
 
 **Now**
 - Phase 4 実行中（Updater本番設定の土台 + タグ起点リリース自動化）
