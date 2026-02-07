@@ -27,6 +27,46 @@ pnpm dev
 - Server: `http://localhost:8787/health`
 - Web UI: Vite が表示するURL（通常 `http://localhost:5173`）
 
+## デスクトップ開発（managed）
+
+`pnpm dev:desktop:managed` で Web と Tauri を同時に起動できます。
+
+```bash
+pnpm dev:desktop:managed
+```
+
+### 前提
+
+- Rust ツールチェーン（`rustup`）が導入済み
+- Tauri v2 のビルド前提を満たしていること（OS別の詳細は [Tauri Prerequisites](https://v2.tauri.app/start/prerequisites/)）
+
+### 状態遷移（Tauri Debug パネル）
+
+起動/停止は `state` を単一ソースとして表示します。
+
+- 起動: `stopped -> starting -> running`
+- 停止: `running -> stopping -> stopped`
+- 失敗: `failed`（理由は `error` に表示）
+- 復旧: `failed` から `Start` で再試行
+
+### 連打ガード
+
+- `starting` / `running` の間は Start が無効（多重起動防止）
+- `stopping` / `stopped` の間は Stop が無効（多重停止防止）
+
+### 失敗の再現と復旧
+
+例: `8787` ポートを先に他プロセスで占有すると `failed` に遷移します。
+
+1. 競合プロセスを停止
+2. Tauri Debug パネルで `Start` を押して再試行
+3. `running` に戻ることを確認
+
+### ログの確認場所
+
+- `pnpm dev:desktop:managed` を実行しているターミナル
+- ここに Tauri 側と `apps/server` 側のログが出力されます
+
 ## 対象CLIの差し替え
 
 デフォルトは `bash` をPTYで起動します。別のCLIに変える場合は `TARGET_CMD` を指定します。
