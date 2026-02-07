@@ -97,13 +97,15 @@ Build a minimal MVP that reliably works, then expand once value is proven.
 - PR #97: Tauri managed startup lifecycle (idempotent start/stop, failed-state visibility)
 - PR #98: lock Tauri lifecycle contract with tests + desktop CI (cargo check/test)
 - PR #99: Desktop Server operational panel (state/recovery guidance) + auto-start toggle
+- PR #100: desktop distribution foundation (autostart controls + release checklist docs)
+- PR #101: updater check command + desktop panel status/action
 
 **Now**
-- Phase 4 in progress (hardening Tauri daily-use path)
+- Phase 4 in progress (updater production config foundation + tag-based release automation)
 
 **Next**
-- Distribution path (signing and updater enablement)
-- Release automation (tag-driven distribution workflow)
+- Replace updater public key placeholder and run signed draft release from a real tag
+- Expand release pipeline (notarization/code-signing and additional target platforms)
 
 ---
 

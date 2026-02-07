@@ -4,12 +4,14 @@
 # Desktop Release Guide (Tauri)
 
 This page is the practical checklist for desktop distribution.  
-Current status: **Auto-start and in-app update checks are implemented**, while **updater endpoints/signing are still in setup phase**.
+Current status: **Auto-start and in-app update checks are implemented**, and this repo now includes updater/release automation foundations.
 
 ## Current baseline
 
 - Auto-start can be enabled/disabled from the Desktop Server panel
 - Updater check can be triggered from the Desktop Server panel (`Check updates`)
+- `apps/desktop/src-tauri/tauri.conf.json` includes updater endpoint + artifact generation settings
+- `.github/workflows/release-desktop.yml` provides tag-triggered draft release automation
 - `desktop_check` CI runs on every PR (`cargo check` + `cargo test`)
 
 ## 1) Generate signing keys (for updater)
@@ -41,9 +43,14 @@ export TAURI_SIGNING_PRIVATE_KEY="$(cat ~/.tauri/cli-commentator-updater.key)"
 export TAURI_SIGNING_PRIVATE_KEY_PASSWORD="***"
 ```
 
+For GitHub Actions, store the same values as repository secrets:
+
+- `TAURI_SIGNING_PRIVATE_KEY`
+- `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`
+
 ## 3) Updater settings in `tauri.conf.json` (when enabling)
 
-When you turn updater on, set `apps/desktop/src-tauri/tauri.conf.json` like this:
+Set `apps/desktop/src-tauri/tauri.conf.json` like this:
 
 ```json
 {
@@ -54,15 +61,31 @@ When you turn updater on, set `apps/desktop/src-tauri/tauri.conf.json` like this
     "updater": {
       "pubkey": "public key contents (.pub file)",
       "endpoints": [
-        "https://example.com/cli-commentator/{{target}}/{{arch}}/{{current_version}}",
-        "https://github.com/<owner>/<repo>/releases/latest/download/latest.json"
+        "https://github.com/gatyoukatyou/cli-commentator/releases/latest/download/latest.json"
       ]
     }
   }
 }
 ```
 
-## 4) Verify updater wiring from Desktop panel
+`pubkey` must be the actual public-key text. The placeholder value in this repository must be replaced before production release.
+
+## 4) Tag-based release workflow
+
+This repository includes `.github/workflows/release-desktop.yml`.
+
+Trigger:
+
+- manual: `workflow_dispatch`
+- tag push: `v*` (for example `v0.1.0`)
+
+The workflow:
+
+1. Runs lint/build/tests
+2. Builds Tauri bundles for both macOS architectures
+3. Creates a draft GitHub Release with updater artifacts
+
+## 5) Verify updater wiring from Desktop panel
 
 After setting `plugins.updater`, start desktop managed mode and verify:
 
@@ -73,16 +96,19 @@ After setting `plugins.updater`, start desktop managed mode and verify:
    - `Updater: update available (vX.Y.Z)`
 4. If you still see `Updater: not configured`, re-check `pubkey` and `endpoints` in `tauri.conf.json`
 
-## 5) Minimal release flow
+## 6) Minimal release flow
 
 1. Bump version (`tauri.conf.json` and release notes if needed)
 2. `pnpm -C apps/web build`
 3. `pnpm -C apps/desktop tauri:build`
-4. Publish bundle artifacts and update metadata to distribution host
-5. Verify update checks from an installed app
+4. Create and push tag:
+   - `git tag -a vX.Y.Z -m "vX.Y.Z"`
+   - `git push origin vX.Y.Z`
+5. Validate draft release assets, then publish
+6. Verify update checks from an installed app
 
-## 6) Remaining tasks (next sprint)
+## 7) Remaining tasks (next sprint)
 
-- Enable updater in production (endpoint operation + key management policy)
-- Add macOS signing/notarization and Windows code signing in CI
-- Create tag-driven GitHub Actions release workflow
+- Replace updater public-key placeholder with the actual key
+- Add macOS notarization and Windows code signing in CI
+- Expand release matrix beyond macOS when distribution targets are finalized
