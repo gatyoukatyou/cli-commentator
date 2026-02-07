@@ -102,13 +102,15 @@ CLI Commentator は「ターミナルの作業ログを見て、別ウィンド�
 - PR #97：Tauri managed起動の状態機械化（start/stop冪等、failed可視化）
 - PR #98：Tauri状態機械の契約テスト + desktop CI（cargo check/test）
 - PR #99：Desktop Server運用UI（状態表示/復旧ガイド） + Auto-startトグル
+- PR #100：Desktop配布基盤（Auto-start制御 + 配布チェックリストdocs）
+- PR #101：Updater確認コマンド + Desktopパネル表示/操作
 
 **Now**
-- Phase 4 実行中（Tauri常用化の仕上げ）
+- Phase 4 実行中（Updater本番設定の土台 + タグ起点リリース自動化）
 
 **Next**
-- 配布導線（署名・アップデート）
-- リリース自動化（タグ起点の配布ワークフロー）
+- Updater公開鍵プレースホルダーの実値化と署名付きDraft Releaseの実運用
+- Notarization/コード署名と配布対象プラットフォーム拡張
 
 ---
 

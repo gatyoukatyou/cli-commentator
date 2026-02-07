@@ -4,12 +4,14 @@
 # Desktop配布ガイド（Tauri）
 
 このページは、デスクトップ版の配布導線を整えるための実務チェックリストです。  
-現時点では **Auto-start と更新確認（Updater check）は実装済み**、**Updater配信先/署名は手順整備フェーズ**です。
+現時点では **Auto-start と更新確認（Updater check）は実装済み** で、Updater/配布自動化の土台をこのリポジトリに追加済みです。
 
 ## 現在の到達点
 
 - Desktop Server パネルから Auto-start の有効/無効を切替可能
 - Desktop Server パネルから Updater の更新確認（`更新を確認`）が可能
+- `apps/desktop/src-tauri/tauri.conf.json` に Updater endpoint / artifact 生成設定を追加済み
+- `.github/workflows/release-desktop.yml` でタグ起点の Draft Release 自動化を用意
 - `desktop_check` CI（`cargo check` + `cargo test`）を毎PRで実行
 
 ## 1) 署名キーを準備する（Updater用）
@@ -41,9 +43,14 @@ export TAURI_SIGNING_PRIVATE_KEY="$(cat ~/.tauri/cli-commentator-updater.key)"
 export TAURI_SIGNING_PRIVATE_KEY_PASSWORD="***"
 ```
 
+GitHub Actions では同じ値を Repository Secrets に登録します。
+
+- `TAURI_SIGNING_PRIVATE_KEY`
+- `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`
+
 ## 3) `tauri.conf.json` のUpdater設定（有効化時）
 
-有効化時は `apps/desktop/src-tauri/tauri.conf.json` に以下を設定します。
+`apps/desktop/src-tauri/tauri.conf.json` は以下の形にします。
 
 ```json
 {
@@ -54,15 +61,31 @@ export TAURI_SIGNING_PRIVATE_KEY_PASSWORD="***"
     "updater": {
       "pubkey": "公開鍵の内容（.pubファイル）",
       "endpoints": [
-        "https://example.com/cli-commentator/{{target}}/{{arch}}/{{current_version}}",
-        "https://github.com/<owner>/<repo>/releases/latest/download/latest.json"
+        "https://github.com/gatyoukatyou/cli-commentator/releases/latest/download/latest.json"
       ]
     }
   }
 }
 ```
 
-## 4) DesktopパネルでUpdater動作確認
+`pubkey` には実際の公開鍵文字列を設定してください。現状リポジトリ内のプレースホルダー値は本番前に置換が必要です。
+
+## 4) タグ起点のリリースワークフロー
+
+このリポジトリには `.github/workflows/release-desktop.yml` を追加済みです。
+
+トリガー:
+
+- 手動: `workflow_dispatch`
+- タグ push: `v*`（例: `v0.1.0`）
+
+ワークフロー内容:
+
+1. lint/build/test を実行
+2. macOS 2アーキテクチャ向け Tauri bundle を作成
+3. Updaterアーティファクト付き Draft Release を作成
+
+## 5) DesktopパネルでUpdater動作確認
 
 `plugins.updater` を設定後、以下を確認します。
 
@@ -73,16 +96,19 @@ export TAURI_SIGNING_PRIVATE_KEY_PASSWORD="***"
    - `Updater: 更新あり (vX.Y.Z)`
 4. `Updater: 未設定` が出る場合は `tauri.conf.json` の `pubkey` / `endpoints` を再確認
 
-## 5) 配布手順（最小）
+## 6) 配布手順（最小）
 
 1. バージョン更新（`tauri.conf.json` + 必要ならリリースノート）
 2. `pnpm -C apps/web build`
 3. `pnpm -C apps/desktop tauri:build`
-4. 生成されたバンドルと更新メタデータを配布先へ配置
-5. リリース後、既存アプリで更新チェックを確認
+4. タグ作成・push
+   - `git tag -a vX.Y.Z -m "vX.Y.Z"`
+   - `git push origin vX.Y.Z`
+5. Draft Release の成果物を確認して Publish
+6. リリース後、既存アプリで更新チェックを確認
 
-## 6) 残タスク（次スプリント）
+## 7) 残タスク（次スプリント）
 
-- Updaterを本番有効化（エンドポイント運用・鍵管理ポリシー確定）
-- macOS署名/Notarization、Windows署名のCI化
-- リリースワークフロー（タグ起点）をGitHub Actions化
+- Updater公開鍵プレースホルダーを実値に差し替え
+- macOS Notarization / Windows署名のCI化
+- 配布対象確定後に macOS 以外のリリースマトリクス拡張
