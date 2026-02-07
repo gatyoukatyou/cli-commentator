@@ -40,7 +40,7 @@ pnpm dev:desktop:managed
 - Rust ツールチェーン（`rustup`）が導入済み
 - Tauri v2 のビルド前提を満たしていること（OS別の詳細は [Tauri Prerequisites](https://v2.tauri.app/start/prerequisites/)）
 
-### 状態遷移（Tauri Debug パネル）
+### 状態遷移（Desktop Server パネル）
 
 起動/停止は `state` を単一ソースとして表示します。
 
@@ -59,7 +59,7 @@ pnpm dev:desktop:managed
 例: `8787` ポートを先に他プロセスで占有すると `failed` に遷移します。
 
 1. 競合プロセスを停止
-2. Tauri Debug パネルで `Start` を押して再試行
+2. Desktop Server パネルで `Start` を押して再試行
 3. `running` に戻ることを確認
 
 ### ログの確認場所

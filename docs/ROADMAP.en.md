@@ -67,9 +67,7 @@ Build a minimal MVP that reliably works, then expand once value is proven.
   - Profile CRUD operations
   - WebSocket-based profile management
   - PTY restart on profile switch (Sprint 13)
-
-**Next**
-- Stabilize Windows builds (node-pty mitigation plan)
+- Windows build stabilization (node-pty unavailable contract + automatic fallback)
 
 ---
 
@@ -81,7 +79,7 @@ Build a minimal MVP that reliably works, then expand once value is proven.
 
 ---
 
-## Current status (as of 2026-01-17)
+## Current status (as of 2026-02-07)
 **Done**
 - PR #1: detect boundary tests (mixed => generic, 50-line limit, exported constants)
 - PR #2: add roadmap docs (JA/EN + links from docs/README)
@@ -94,13 +92,17 @@ Build a minimal MVP that reliably works, then expand once value is proven.
 - PR #20-21: LLM smoke tests + contract tests
 - PR #22: CLI profile management
 - Sprint 13: PTY restart on profile switch
+- PR #94: PTY unavailable UX + WS contract alignment + ConPTY resolver tests + web lint CI
+- PR #95-96: lock `ptyUnavailable` contract for node-pty failures (restart path + integration-like test)
+- PR #97: Tauri managed startup lifecycle (idempotent start/stop, failed-state visibility)
+- PR #98: lock Tauri lifecycle contract with tests + desktop CI (cargo check/test)
 
 **Now**
-- Phase 3 complete, preparing for Phase 4
+- Phase 4 in progress (hardening Tauri daily-use path)
 
 **Next**
-- Windows build stabilization
-- Tauri (desktop app)
+- Improve desktop operational UI (failure guidance and recovery path)
+- Distribution path (signing, updates, auto-start)
 
 ---
 

@@ -72,9 +72,7 @@ CLI Commentator は「ターミナルの作業ログを見て、別ウィンド�
   - プロファイルのCRUD操作
   - WebSocket経由でのプロファイル管理
   - プロファイル切替でPTY即時再起動（Sprint 13）
-
-**Next**
-- Windowsビルド安定化（node-ptyが詰まる場合の方針）
+- Windowsビルド安定化（node-pty不可時の契約固定 + 自動フォールバック）
 
 ---
 
@@ -86,7 +84,7 @@ CLI Commentator は「ターミナルの作業ログを見て、別ウィンド�
 
 ---
 
-## 現在地（2026-01-17 時点）
+## 現在地（2026-02-07 時点）
 **Done**
 - PR #1：detect 境界テスト（混在→generic、50行制限、重要定数export）
 - PR #2：ロードマップ docs 追加（日英＋docs/READMEからリンク）
@@ -99,13 +97,17 @@ CLI Commentator は「ターミナルの作業ログを見て、別ウィンド�
 - PR #20-21：LLM スモークテスト + コントラクトテスト
 - PR #22：CLIプロファイル管理
 - Sprint 13：プロファイル切替でPTY再起動
+- PR #94：PTY unavailable UX + WS契約整備 + ConPTY判定テスト + web lint CI
+- PR #95-96：node-pty失敗時の `ptyUnavailable` 契約固定（再起動経路/統合寄りテスト）
+- PR #97：Tauri managed起動の状態機械化（start/stop冪等、failed可視化）
+- PR #98：Tauri状態機械の契約テスト + desktop CI（cargo check/test）
 
 **Now**
-- Phase 3 完了、Phase 4 への移行準備
+- Phase 4 実行中（Tauri常用化の仕上げ）
 
 **Next**
-- Windowsビルド安定化
-- Tauri化（デスクトップアプリ）
+- Desktop運用UIの改善（失敗時ガイダンス/復旧導線）
+- 配布導線（署名・アップデート・自動起動）
 
 ---
 
