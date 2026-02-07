@@ -26,6 +26,7 @@
   },
   "bundle": {
     "active": true,
+    "createUpdaterArtifacts": true,
     "targets": ["dmg", "app"],
     "icon": [
       "icons/32x32.png",
@@ -34,5 +35,13 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ]
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "REPLACE_WITH_TAURI_UPDATER_PUBLIC_KEY_CONTENT",
+      "endpoints": [
+        "https://github.com/gatyoukatyou/cli-commentator/releases/latest/download/latest.json"
+      ]
+    }
   }
 }
