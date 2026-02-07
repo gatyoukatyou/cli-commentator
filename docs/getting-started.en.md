@@ -54,6 +54,11 @@ Start/stop status is exposed as a single `state` source.
 - Start is disabled while `starting` or `running` (prevents duplicate start)
 - Stop is disabled while `stopping` or `stopped` (prevents duplicate stop)
 
+### Auto-start
+
+- Use `Enable auto-start` / `Disable auto-start` in the Desktop Server panel.
+- After enabling, the app starts on next OS login (some OS policies may ask for first-time permission).
+
 ### Reproducing and recovering from failure
 
 Example: if another process already uses port `8787`, the state should move to `failed`.
