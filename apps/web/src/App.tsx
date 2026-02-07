@@ -31,15 +31,14 @@ type PayloadMessage = { type?: string; payload?: PtyUnavailablePayload | Record<
 
 type ConnectionStatus = "connecting" | "connected" | "disconnected" | "reconnecting";
 
+type DesktopServerState = "stopped" | "starting" | "running" | "stopping" | "failed";
+
 type ServerStatusDetail = {
-  desired: "running" | "stopped";
-  actual: "alive" | "dead" | "unknown";
+  state: DesktopServerState;
   pid: number | null;
   started_at: number | null;
-  exit_code: number | null;
-  crash_suspected: boolean;
-  orphan_suspected: boolean;
-  diagnostics: string | null;
+  transitioned_at: number | null;
+  error: string | null;
   health_ok: boolean;
   last_seen_at: number | null;
   port: number;
@@ -71,6 +70,13 @@ const normalizeSuggestion = (value?: string): string | undefined => {
   if (!value) return undefined;
   const trimmed = value.trim();
   return trimmed.length > 0 ? trimmed : undefined;
+};
+
+const errorToMessage = (error: unknown): string => {
+  if (error instanceof Error) return error.message;
+  if (typeof error === "string") return error;
+  if (error && typeof error === "object" && "toString" in error) return String(error);
+  return "Unknown error";
 };
 
 const copyWithFallback = async (text: string): Promise<boolean> => {
@@ -117,36 +123,48 @@ function stubProfileFromSummary(summary: ProfileSummary): Profile {
 function TauriDebugPanel() {
   const isTauri = Boolean(getTauriCore());
   const [status, setStatus] = useState<ServerStatusDetail | null>(null);
+  const [invokeError, setInvokeError] = useState<string | null>(null);
 
-  // Polling (3 second interval)
+  // Polling (1.5 second interval)
   useEffect(() => {
     if (!isTauri) return;
+    let cancelled = false;
 
     const poll = async () => {
       const core = getTauriCore();
       if (!core) return;
       try {
-        const result = await core.invoke("server_status_detailed");
+        const result = await core.invoke("server_status");
+        if (cancelled) return;
         setStatus(result as ServerStatusDetail);
-      } catch {
-        // Ignore polling errors
+        setInvokeError(null);
+      } catch (err) {
+        if (cancelled) return;
+        setInvokeError(errorToMessage(err));
       }
     };
 
     poll(); // Initial immediate call
-    const interval = setInterval(poll, 3000);
-    return () => clearInterval(interval);
+    const interval = setInterval(poll, 1500);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
   }, [isTauri]);
 
   if (!import.meta.env.DEV || !isTauri) return null;
+
+  const state: DesktopServerState = status?.state ?? "stopped";
 
   const handleStart = async () => {
     const core = getTauriCore();
     if (!core) return;
     try {
-      await core.invoke("start_server");
-    } catch {
-      // Ignore errors
+      const result = await core.invoke("server_start");
+      setStatus(result as ServerStatusDetail);
+      setInvokeError(null);
+    } catch (err) {
+      setInvokeError(errorToMessage(err));
     }
   };
 
@@ -154,17 +172,23 @@ function TauriDebugPanel() {
     const core = getTauriCore();
     if (!core) return;
     try {
-      await core.invoke("stop_server");
-    } catch {
-      // Ignore errors
+      const result = await core.invoke("server_stop");
+      setStatus(result as ServerStatusDetail);
+      setInvokeError(null);
+    } catch (err) {
+      setInvokeError(errorToMessage(err));
     }
   };
 
-  const getStatusColor = (actual: string) => {
-    if (actual === "alive") return "var(--color-success)";
-    if (actual === "dead") return "var(--color-danger)";
-    return "var(--color-warning)";
+  const getStateColor = (value: DesktopServerState) => {
+    if (value === "running") return "var(--color-success)";
+    if (value === "failed") return "var(--color-danger)";
+    if (value === "starting" || value === "stopping") return "var(--color-warning)";
+    return "var(--color-fg-secondary)";
   };
+
+  const startDisabled = state === "starting" || state === "running" || state === "stopping";
+  const stopDisabled = state === "stopped" || state === "stopping" || state === "failed";
 
   return (
     <div className="debug-panel">
@@ -172,10 +196,16 @@ function TauriDebugPanel() {
 
       {status && (
         <div className="debug-panel__status">
-          <div>Desired: {status.desired}</div>
-          <div>Actual: <span style={{ color: getStatusColor(status.actual) }}>{status.actual}</span></div>
+          <div>
+            State: <span style={{ color: getStateColor(state) }}>{state}</span>
+          </div>
           <div>Health: <span style={{ color: status.health_ok ? "var(--color-success)" : "var(--color-danger)" }}>{status.health_ok ? "OK" : "NG"}</span></div>
           <div>PID: {status.pid ?? "-"} (port {status.port})</div>
+          {status.transitioned_at && (
+            <div className="debug-panel__meta">
+              State changed: {new Date(status.transitioned_at).toLocaleTimeString()}
+            </div>
+          )}
           {status.started_at && (
             <div className="debug-panel__meta">
               Started: {new Date(status.started_at).toLocaleTimeString()}
@@ -186,26 +216,18 @@ function TauriDebugPanel() {
               Last seen: {new Date(status.last_seen_at).toLocaleTimeString()}
             </div>
           )}
-          {status.crash_suspected && (
-            <div className="debug-panel__alert debug-panel__alert--crash">Crash suspected</div>
-          )}
-          {status.orphan_suspected && (
-            <div className="debug-panel__alert debug-panel__alert--warning">Orphan: port in use</div>
-          )}
-          {status.actual === "alive" && !status.health_ok && (
-            <div className="debug-panel__alert debug-panel__alert--warning">Health check failed</div>
-          )}
-          {status.diagnostics && (
-            <div className="debug-panel__meta">
-              [{status.diagnostics}]
-            </div>
+          {status.error && (
+            <div className="debug-panel__alert debug-panel__alert--crash">{status.error}</div>
           )}
         </div>
       )}
+      {invokeError && (
+        <div className="debug-panel__alert debug-panel__alert--warning">{invokeError}</div>
+      )}
 
       <div className="debug-panel__actions">
-        <button onClick={handleStart} style={{ padding: "4px 8px" }}>Start</button>
-        <button onClick={handleStop} style={{ padding: "4px 8px" }}>Stop</button>
+        <button onClick={handleStart} disabled={startDisabled} style={{ padding: "4px 8px" }}>Start</button>
+        <button onClick={handleStop} disabled={stopDisabled} style={{ padding: "4px 8px" }}>Stop</button>
       </div>
     </div>
   );

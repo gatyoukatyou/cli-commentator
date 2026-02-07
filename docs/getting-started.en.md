@@ -27,6 +27,46 @@ Expected URLs:
 - Server: `http://localhost:8787/health`
 - Web UI: the URL printed by Vite (typically `http://localhost:5173`)
 
+## Desktop Development (managed)
+
+Use `pnpm dev:desktop:managed` to run Web + Tauri together.
+
+```bash
+pnpm dev:desktop:managed
+```
+
+### Prerequisites
+
+- Rust toolchain installed (`rustup`)
+- Tauri v2 build prerequisites satisfied for your OS ([Tauri Prerequisites](https://v2.tauri.app/start/prerequisites/))
+
+### State transitions (Tauri Debug panel)
+
+Start/stop status is exposed as a single `state` source.
+
+- Start: `stopped -> starting -> running`
+- Stop: `running -> stopping -> stopped`
+- Failure: `failed` (reason is shown in `error`)
+- Recovery: retry from `failed` by pressing `Start`
+
+### Double-click / spam guards
+
+- Start is disabled while `starting` or `running` (prevents duplicate start)
+- Stop is disabled while `stopping` or `stopped` (prevents duplicate stop)
+
+### Reproducing and recovering from failure
+
+Example: if another process already uses port `8787`, the state should move to `failed`.
+
+1. Stop the conflicting process
+2. Press `Start` in the Tauri Debug panel
+3. Confirm state returns to `running`
+
+### Where to read logs
+
+- The terminal running `pnpm dev:desktop:managed`
+- Both Tauri-side and `apps/server` logs are printed there
+
 ## Switch the target CLI
 
 The default target is `bash`. To run another CLI, set `TARGET_CMD`.
