@@ -59,6 +59,12 @@ Start/stop status is exposed as a single `state` source.
 - Use `Enable auto-start` / `Disable auto-start` in the Desktop Server panel.
 - After enabling, the app starts on next OS login (some OS policies may ask for first-time permission).
 
+### Update check (Updater)
+
+- Use `Check updates` in the Desktop Server panel to verify if the current version is up to date.
+- If updater is not configured yet, the panel shows an error explaining `plugins.updater` is missing/incomplete in `tauri.conf.json`.
+- After configuration, the panel reports either `update available (vX.Y.Z)` or `up to date`.
+
 ### Reproducing and recovering from failure
 
 Example: if another process already uses port `8787`, the state should move to `failed`.

@@ -4,11 +4,12 @@
 # Desktop Release Guide (Tauri)
 
 This page is the practical checklist for desktop distribution.  
-Current status: **Auto-start is implemented**, while **updater/signing is in setup phase**.
+Current status: **Auto-start and in-app update checks are implemented**, while **updater endpoints/signing are still in setup phase**.
 
 ## Current baseline
 
 - Auto-start can be enabled/disabled from the Desktop Server panel
+- Updater check can be triggered from the Desktop Server panel (`Check updates`)
 - `desktop_check` CI runs on every PR (`cargo check` + `cargo test`)
 
 ## 1) Generate signing keys (for updater)
@@ -61,7 +62,18 @@ When you turn updater on, set `apps/desktop/src-tauri/tauri.conf.json` like this
 }
 ```
 
-## 4) Minimal release flow
+## 4) Verify updater wiring from Desktop panel
+
+After setting `plugins.updater`, start desktop managed mode and verify:
+
+1. `pnpm dev:desktop:managed`
+2. Open Desktop Server panel and click `Check updates`
+3. Confirm one of:
+   - `Updater: up to date`
+   - `Updater: update available (vX.Y.Z)`
+4. If you still see `Updater: not configured`, re-check `pubkey` and `endpoints` in `tauri.conf.json`
+
+## 5) Minimal release flow
 
 1. Bump version (`tauri.conf.json` and release notes if needed)
 2. `pnpm -C apps/web build`
@@ -69,9 +81,8 @@ When you turn updater on, set `apps/desktop/src-tauri/tauri.conf.json` like this
 4. Publish bundle artifacts and update metadata to distribution host
 5. Verify update checks from an installed app
 
-## 5) Remaining tasks (next sprint)
+## 6) Remaining tasks (next sprint)
 
 - Enable updater in production (endpoint operation + key management policy)
 - Add macOS signing/notarization and Windows code signing in CI
 - Create tag-driven GitHub Actions release workflow
-

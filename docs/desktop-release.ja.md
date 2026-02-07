@@ -4,11 +4,12 @@
 # Desktop配布ガイド（Tauri）
 
 このページは、デスクトップ版の配布導線を整えるための実務チェックリストです。  
-現時点では **Auto-start は実装済み**、**Updater/署名は手順整備フェーズ**です。
+現時点では **Auto-start と更新確認（Updater check）は実装済み**、**Updater配信先/署名は手順整備フェーズ**です。
 
 ## 現在の到達点
 
 - Desktop Server パネルから Auto-start の有効/無効を切替可能
+- Desktop Server パネルから Updater の更新確認（`更新を確認`）が可能
 - `desktop_check` CI（`cargo check` + `cargo test`）を毎PRで実行
 
 ## 1) 署名キーを準備する（Updater用）
@@ -61,7 +62,18 @@ export TAURI_SIGNING_PRIVATE_KEY_PASSWORD="***"
 }
 ```
 
-## 4) 配布手順（最小）
+## 4) DesktopパネルでUpdater動作確認
+
+`plugins.updater` を設定後、以下を確認します。
+
+1. `pnpm dev:desktop:managed`
+2. Desktop Server パネルで `更新を確認` をクリック
+3. 次のいずれかが表示されることを確認
+   - `Updater: 最新`
+   - `Updater: 更新あり (vX.Y.Z)`
+4. `Updater: 未設定` が出る場合は `tauri.conf.json` の `pubkey` / `endpoints` を再確認
+
+## 5) 配布手順（最小）
 
 1. バージョン更新（`tauri.conf.json` + 必要ならリリースノート）
 2. `pnpm -C apps/web build`
@@ -69,9 +81,8 @@ export TAURI_SIGNING_PRIVATE_KEY_PASSWORD="***"
 4. 生成されたバンドルと更新メタデータを配布先へ配置
 5. リリース後、既存アプリで更新チェックを確認
 
-## 5) 残タスク（次スプリント）
+## 6) 残タスク（次スプリント）
 
 - Updaterを本番有効化（エンドポイント運用・鍵管理ポリシー確定）
 - macOS署名/Notarization、Windows署名のCI化
 - リリースワークフロー（タグ起点）をGitHub Actions化
-
