@@ -35,6 +35,12 @@ function loadNodePty(): NodePty {
   if (nodePty) return nodePty;
   if (nodePtyError) throw new Error(nodePtyError);
 
+  if (process.env.CLI_COMMENTATOR_FORCE_NO_PTY === "1") {
+    nodePtyError =
+      "node-pty disabled by CLI_COMMENTATOR_FORCE_NO_PTY. Use INPUT_MODE=file for file monitoring mode.";
+    throw new Error(nodePtyError);
+  }
+
   try {
     const require = createRequire(import.meta.url);
     nodePty = require("node-pty") as NodePty;
