@@ -68,7 +68,8 @@ GitHub Actions では同じ値を Repository Secrets に登録します。
 }
 ```
 
-`pubkey` には実際の公開鍵文字列を設定してください。現状リポジトリ内のプレースホルダー値は本番前に置換が必要です。
+`pubkey` には `tauri signer generate` で生成した公開鍵文字列（base64）を設定します。
+署名鍵をローテーションした場合は `pubkey` も更新し、リリース検証を再実行してください。
 
 ## 4) タグ起点のリリースワークフロー
 
@@ -109,6 +110,5 @@ GitHub Actions では同じ値を Repository Secrets に登録します。
 
 ## 7) 残タスク（次スプリント）
 
-- Updater公開鍵プレースホルダーを実値に差し替え
 - macOS Notarization / Windows署名のCI化
 - 配布対象確定後に macOS 以外のリリースマトリクス拡張
