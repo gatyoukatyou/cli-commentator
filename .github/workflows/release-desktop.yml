@@ -53,6 +53,8 @@ jobs:
         run: pnpm -C apps/web build
 
       - name: Server tests
+        env:
+          CLI_COMMENTATOR_FORCE_NO_PTY: "1"
         run: pnpm -C apps/server test
 
       - name: Server typecheck
