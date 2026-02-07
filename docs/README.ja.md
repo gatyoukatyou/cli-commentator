@@ -15,3 +15,5 @@
 各ドキュメントの先頭に相互リンクの言語切替ボタンを置きます。
 
 - [ロードマップ](ROADMAP.ja.md)
+- [Getting Started](getting-started.ja.md)
+- [Desktop配布ガイド](desktop-release.ja.md)

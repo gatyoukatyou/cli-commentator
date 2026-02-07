@@ -101,13 +101,14 @@ CLI Commentator は「ターミナルの作業ログを見て、別ウィンド�
 - PR #95-96：node-pty失敗時の `ptyUnavailable` 契約固定（再起動経路/統合寄りテスト）
 - PR #97：Tauri managed起動の状態機械化（start/stop冪等、failed可視化）
 - PR #98：Tauri状態機械の契約テスト + desktop CI（cargo check/test）
+- PR #99：Desktop Server運用UI（状態表示/復旧ガイド） + Auto-startトグル
 
 **Now**
 - Phase 4 実行中（Tauri常用化の仕上げ）
 
 **Next**
-- Desktop運用UIの改善（失敗時ガイダンス/復旧導線）
-- 配布導線（署名・アップデート・自動起動）
+- 配布導線（署名・アップデート）
+- リリース自動化（タグ起点の配布ワークフロー）
 
 ---
 

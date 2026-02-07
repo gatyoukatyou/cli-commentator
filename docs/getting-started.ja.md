@@ -54,6 +54,11 @@ pnpm dev:desktop:managed
 - `starting` / `running` の間は Start が無効（多重起動防止）
 - `stopping` / `stopped` の間は Stop が無効（多重停止防止）
 
+### 自動起動（Auto-start）
+
+- Desktop Server パネルの `自動起動を有効化` / `自動起動を無効化` で切り替えできます。
+- 設定後は次回OSログイン時にアプリが自動起動します（OSポリシーにより初回許可が必要な場合があります）。
+
 ### 失敗の再現と復旧
 
 例: `8787` ポートを先に他プロセスで占有すると `failed` に遷移します。

@@ -96,13 +96,14 @@ Build a minimal MVP that reliably works, then expand once value is proven.
 - PR #95-96: lock `ptyUnavailable` contract for node-pty failures (restart path + integration-like test)
 - PR #97: Tauri managed startup lifecycle (idempotent start/stop, failed-state visibility)
 - PR #98: lock Tauri lifecycle contract with tests + desktop CI (cargo check/test)
+- PR #99: Desktop Server operational panel (state/recovery guidance) + auto-start toggle
 
 **Now**
 - Phase 4 in progress (hardening Tauri daily-use path)
 
 **Next**
-- Improve desktop operational UI (failure guidance and recovery path)
-- Distribution path (signing, updates, auto-start)
+- Distribution path (signing and updater enablement)
+- Release automation (tag-driven distribution workflow)
 
 ---
 
