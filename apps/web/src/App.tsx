@@ -44,6 +44,16 @@ type ServerStatusDetail = {
   port: number;
 };
 
+type UpdaterCheckStatus = {
+  configured: boolean;
+  available: boolean;
+  currentVersion: string;
+  version: string | null;
+  date: string | null;
+  body: string | null;
+  error: string | null;
+};
+
 type TauriCore = { invoke: (cmd: string) => Promise<unknown> };
 
 const getTauriCore = (): TauriCore | undefined => {
@@ -134,6 +144,8 @@ function TauriStatusPanel() {
   const [invokeError, setInvokeError] = useState<string | null>(null);
   const [autostartEnabled, setAutostartEnabled] = useState<boolean | null>(null);
   const [autostartLoading, setAutostartLoading] = useState(false);
+  const [updaterStatus, setUpdaterStatus] = useState<UpdaterCheckStatus | null>(null);
+  const [updaterLoading, setUpdaterLoading] = useState(false);
 
   // Polling (1.5 second interval)
   useEffect(() => {
@@ -229,6 +241,21 @@ function TauriStatusPanel() {
     }
   };
 
+  const handleCheckUpdater = async () => {
+    const core = getTauriCore();
+    if (!core) return;
+    setUpdaterLoading(true);
+    try {
+      const result = await core.invoke("updater_check");
+      setUpdaterStatus(result as UpdaterCheckStatus);
+      setInvokeError(null);
+    } catch (err) {
+      setInvokeError(errorToMessage(err));
+    } finally {
+      setUpdaterLoading(false);
+    }
+  };
+
   const getStateColor = (value: DesktopServerState) => {
     if (value === "running") return "var(--color-success)";
     if (value === "failed") return "var(--color-danger)";
@@ -275,6 +302,38 @@ function TauriStatusPanel() {
   const autostartButtonLabel =
     autostartEnabled === null ? "読み込み中..." : autostartEnabled ? "自動起動を無効化" : "自動起動を有効化";
   const autostartButtonDisabled = autostartLoading || autostartEnabled === null;
+  const updaterLabel = (() => {
+    if (updaterLoading) return "確認中";
+    if (!updaterStatus) return "未確認";
+    if (!updaterStatus.configured) return "未設定";
+    if (updaterStatus.available) return `更新あり (v${updaterStatus.version ?? "?"})`;
+    return "最新";
+  })();
+  const updaterNotice = (() => {
+    if (!updaterStatus) return null;
+    if (updaterStatus.error) {
+      return {
+        text: updaterStatus.error,
+        className: "debug-panel__alert--crash",
+      };
+    }
+    if (updaterStatus.available) {
+      const details = [
+        `新しいバージョン v${updaterStatus.version ?? "?"} が利用可能です。`,
+        updaterStatus.date ? `公開日: ${updaterStatus.date}` : "",
+        updaterStatus.body?.trim() ? `内容: ${updaterStatus.body.trim()}` : "",
+      ].filter(Boolean);
+      return {
+        text: details.join("\n"),
+        className: "debug-panel__alert--warning",
+      };
+    }
+    return null;
+  })();
+  const updaterMeta =
+    updaterStatus && updaterStatus.configured && !updaterStatus.available && !updaterStatus.error
+      ? `現在のバージョン v${updaterStatus.currentVersion} は最新です。`
+      : null;
 
   return (
     <div className="debug-panel">
@@ -307,6 +366,10 @@ function TauriStatusPanel() {
             <span className="debug-panel__label">Auto-start</span>
             <span>{autostartLabel}</span>
           </div>
+          <div className="debug-panel__row">
+            <span className="debug-panel__label">Updater</span>
+            <span>{updaterLabel}</span>
+          </div>
           {status.transitioned_at && (
             <div className="debug-panel__meta">
               状態更新: {new Date(status.transitioned_at).toLocaleTimeString()}
@@ -329,6 +392,12 @@ function TauriStatusPanel() {
       )}
       {invokeError && (
         <div className="debug-panel__alert debug-panel__alert--warning">{invokeError}</div>
+      )}
+      {updaterMeta && <div className="debug-panel__meta">{updaterMeta}</div>}
+      {updaterNotice && (
+        <div className={`debug-panel__alert ${updaterNotice.className}`}>
+          <pre style={{ margin: 0, whiteSpace: "pre-wrap", fontFamily: "inherit" }}>{updaterNotice.text}</pre>
+        </div>
       )}
       {failureHints.length > 0 && (
         <ul className="debug-panel__recovery">
@@ -353,6 +422,11 @@ function TauriStatusPanel() {
           disabled={autostartButtonDisabled}
         >
           {autostartLoading ? "更新中..." : autostartButtonLabel}
+        </button>
+      </div>
+      <div className="debug-panel__actions">
+        <button className="debug-panel__btn debug-panel__btn--secondary" onClick={handleCheckUpdater} disabled={updaterLoading}>
+          {updaterLoading ? "確認中..." : "更新を確認"}
         </button>
       </div>
     </div>
