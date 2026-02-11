@@ -1,13 +1,12 @@
 /**
  * File tail input source for external log monitoring.
  *
- * Uses `tail -f` to follow a log file and emit data events.
+ * Watches a file and emits appended content as `data` events.
  * This enables live commentary for logs from external processes
  * that can't be wrapped with PTY.
  *
  * @see Issue #40
  */
-import { spawn, type ChildProcess } from "node:child_process";
 import { EventEmitter } from "node:events";
 import fs from "node:fs";
 
@@ -27,16 +26,18 @@ export interface FileTailEvents {
 }
 
 /**
- * File tail input source using `tail -f`.
+ * File tail input source using fs watch.
  *
  * Emits:
  * - 'data': when new content is appended to the file
- * - 'error': on file access or process errors
- * - 'exit': when the tail process exits
+ * - 'error': on file access or watch errors
+ * - 'exit': when tailing is stopped
  */
 export class FileTail extends EventEmitter {
-  private process: ChildProcess | null = null;
+  private watcher: fs.FSWatcher | null = null;
   private readonly options: Required<FileTailOptions>;
+  private readPosition = 0;
+  private isReading = false;
 
   constructor(options: FileTailOptions) {
     super();
@@ -49,62 +50,122 @@ export class FileTail extends EventEmitter {
 
   /**
    * Start tailing the file.
-   * @throws Error if the file doesn't exist or tail fails to start
+   * @throws Error if the file doesn't exist or watcher fails to start
    */
   start(): void {
-    const { filePath, tailLines, encoding } = this.options;
+    const { filePath } = this.options;
+
+    if (this.watcher) return;
 
     // Validate file exists
     if (!fs.existsSync(filePath)) {
       throw new Error(`File not found: ${filePath}`);
     }
 
-    // Spawn tail -f process
-    // -n: number of lines from the end
-    // -f: follow the file as it grows
-    this.process = spawn("tail", ["-n", String(tailLines), "-f", filePath], {
-      stdio: ["ignore", "pipe", "pipe"],
-    });
+    try {
+      this.emitInitialContent();
+      this.watcher = fs.watch(filePath, (eventType) => {
+        if (eventType === "change") {
+          this.readNewContent();
+        }
+      });
 
-    // Handle stdout (file content)
-    this.process.stdout?.setEncoding(encoding);
-    this.process.stdout?.on("data", (chunk: string) => {
-      this.emit("data", chunk);
-    });
-
-    // Handle stderr (errors)
-    this.process.stderr?.setEncoding(encoding);
-    this.process.stderr?.on("data", (chunk: string) => {
-      this.emit("error", new Error(`tail stderr: ${chunk}`));
-    });
-
-    // Handle process exit
-    this.process.on("exit", (code) => {
-      this.emit("exit", code);
-      this.process = null;
-    });
-
-    // Handle spawn errors
-    this.process.on("error", (err) => {
-      this.emit("error", err);
-    });
+      this.watcher.on("error", (err) => {
+        this.emit("error", err);
+      });
+    } catch (err) {
+      this.emit("error", err as Error);
+      throw err;
+    }
   }
 
   /**
    * Stop tailing the file.
    */
   stop(): void {
-    if (this.process) {
-      this.process.kill("SIGTERM");
-      this.process = null;
+    if (this.watcher) {
+      this.watcher.close();
+      this.watcher = null;
+      this.emit("exit", 0);
     }
   }
 
   /**
-   * Check if the tail process is running.
+   * Check if watcher is running.
    */
   get isRunning(): boolean {
-    return this.process !== null;
+    return this.watcher !== null;
+  }
+
+  private emitInitialContent(): void {
+    const { filePath, tailLines, encoding } = this.options;
+    const content = fs.readFileSync(filePath, { encoding });
+
+    const lines = content.split(/\r?\n/);
+    const trailingNewline = content.endsWith("\n") || content.endsWith("\r\n");
+    if (trailingNewline && lines.length > 0) {
+      lines.pop();
+    }
+
+    if (tailLines > 0 && lines.length > 0) {
+      const lastLines = lines.slice(-tailLines);
+      const chunk = `${lastLines.join("\n")}\n`;
+      this.emit("data", chunk);
+    }
+
+    this.readPosition = Buffer.byteLength(content, encoding);
+  }
+
+  private readNewContent(): void {
+    if (this.isReading) return;
+
+    const { filePath, encoding } = this.options;
+    this.isReading = true;
+
+    fs.stat(filePath, (statErr, stats) => {
+      if (statErr) {
+        this.isReading = false;
+        this.emit("error", statErr);
+        return;
+      }
+
+      // Handle truncation/rotation by resetting position
+      if (stats.size < this.readPosition) {
+        this.readPosition = 0;
+      }
+
+      const start = this.readPosition;
+      const end = stats.size - 1;
+
+      if (end < start) {
+        this.isReading = false;
+        return;
+      }
+
+      let chunk = "";
+      const stream = fs.createReadStream(filePath, {
+        start,
+        end,
+        encoding,
+      });
+
+      stream.on("data", (data: string) => {
+        chunk += data;
+      });
+
+      stream.on("error", (err) => {
+        this.isReading = false;
+        this.emit("error", err);
+      });
+
+      stream.on("end", () => {
+        this.readPosition = stats.size;
+        this.isReading = false;
+        if (chunk.length > 0) {
+          this.emit("data", chunk);
+        }
+      });
+    });
   }
 
   // Type-safe event emitter overrides
