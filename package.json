@@ -8,7 +8,8 @@
     "dev:web": "pnpm -C apps/web dev",
     "dev:desktop": "concurrently -n server,web,tauri \"pnpm -C apps/server dev\" \"pnpm -C apps/web dev\" \"wait-on http://localhost:5173 tcp:localhost:8787 && pnpm -C apps/desktop tauri:dev\"",
     "dev:desktop:managed": "concurrently -n web,tauri \"pnpm -C apps/web dev\" \"wait-on http://localhost:5173 && pnpm -C apps/desktop tauri:dev\"",
-    "smoke:llm": "bash ./scripts/smoke-llm.sh"
+    "smoke:llm": "bash ./scripts/smoke-llm.sh",
+    "verify:updater": "node ./scripts/verify-updater-config.mjs"
   },
   "devDependencies": {
     "concurrently": "^9.0.0",

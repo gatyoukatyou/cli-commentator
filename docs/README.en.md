@@ -15,5 +15,8 @@ This folder will host public documentation in paired Japanese and English files.
 Each document should start with mutual links so readers can switch languages easily.
 
 - [Roadmap](ROADMAP.en.md)
+- [Roadmap Issue Drafts](roadmap-issues.en.md)
 - [Getting Started](getting-started.en.md)
 - [Desktop Release Guide](desktop-release.en.md)
+- [Desktop Release Runbook](release-runbook.en.md)
+- [Certificate & Secrets Operations](certificate-secrets.en.md)

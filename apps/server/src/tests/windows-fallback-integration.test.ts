@@ -249,4 +249,127 @@ describe("windows fallback integration", () => {
       await fs.rm(tmpDir, { recursive: true, force: true });
     }
   }, 30000);
+
+  it("emits ptyUnavailable on startup and restart when file fallback is unavailable", async () => {
+    const port = await getFreePort();
+    const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "cli-commentator-fallback-no-file-it-"));
+    const missingInputFile = path.join(tmpDir, "missing.log");
+    const xdgConfigHome = path.join(tmpDir, "xdg");
+    await fs.mkdir(xdgConfigHome, { recursive: true });
+
+    const child = spawn("node", ["--import", "tsx", "src/index.ts"], {
+      cwd: process.cwd(),
+      env: {
+        ...process.env,
+        CLI_COMMENTATOR_FORCE_NO_PTY: "1",
+        INPUT_MODE: "pty",
+        INPUT_FILE: missingInputFile,
+        CLI_COMMENTATOR_PORT: String(port),
+        XDG_CONFIG_HOME: xdgConfigHome,
+        LLM_PROVIDER: "disabled",
+      },
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+    let spawnError: Error | null = null;
+    child.on("error", (err) => {
+      spawnError = err;
+    });
+
+    const messages: WsMessage[] = [];
+    let ws: WebSocket | null = null;
+
+    try {
+      await waitForHealth(port, child, () => spawnError);
+      ws = new WebSocket(`ws://127.0.0.1:${port}`);
+      ws.on("message", (raw) => {
+        try {
+          messages.push(JSON.parse(raw.toString()) as WsMessage);
+        } catch {
+          // Ignore malformed message
+        }
+      });
+      await new Promise<void>((resolve, reject) => {
+        const timer = setTimeout(() => {
+          ws?.close();
+          reject(new Error("WebSocket connection timeout"));
+        }, 5000);
+        ws?.on("open", () => {
+          clearTimeout(timer);
+          resolve();
+        });
+        ws?.on("error", (err) => {
+          clearTimeout(timer);
+          reject(err);
+        });
+      });
+
+      const startupUnavailable = await waitForMessage(
+        messages,
+        (m) => m.kind === "ptyUnavailable",
+        10000,
+        "Did not receive startup ptyUnavailable message"
+      );
+      expect(String(startupUnavailable.error)).toContain("CLI_COMMENTATOR_FORCE_NO_PTY");
+      expect(String(startupUnavailable.suggestion)).toContain("INPUT_MODE=file");
+
+      const startupPtyError = messages.find((m) => m.kind === "ptyError");
+      expect(startupPtyError).toBeUndefined();
+
+      ws.send(
+        JSON.stringify({
+          kind: "saveProfile",
+          profile: {
+            name: "fallback-no-file-it-profile",
+            cmd: "echo",
+            args: ["hello"],
+            style: "kansai",
+            logSource: "auto",
+          },
+        })
+      );
+
+      const saved = await waitForMessage(
+        messages,
+        (m) => m.kind === "profileSaved",
+        10000,
+        "Did not receive profileSaved message"
+      );
+      const profile = (saved.profile as Record<string, unknown>) ?? null;
+      const profileId = typeof profile?.id === "string" ? profile.id : null;
+      expect(profileId).toBeTruthy();
+
+      const checkpoint = messages.length;
+      ws.send(JSON.stringify({ kind: "setActiveProfile", id: profileId }));
+
+      await waitFor(
+        () => messages.slice(checkpoint).some((m) => m.kind === "ptyUnavailable"),
+        10000,
+        50,
+        "Did not receive ptyUnavailable after setActiveProfile"
+      );
+
+      await waitFor(
+        () => messages.slice(checkpoint).some((m) => m.kind === "ptyRestart"),
+        10000,
+        50,
+        "Did not receive ptyRestart after setActiveProfile"
+      );
+
+      const ptyErrorAfterRestart = messages.slice(checkpoint).find((m) => m.kind === "ptyError");
+      expect(ptyErrorAfterRestart).toBeUndefined();
+
+      const fileTailStartAfterRestart = messages.slice(checkpoint).find((m) => {
+        if (m.kind !== "event") return false;
+        const ev = (m.ev as Record<string, unknown>) ?? null;
+        return typeof ev?.detail === "string" && ev.detail.includes("tail -f");
+      });
+      expect(fileTailStartAfterRestart).toBeUndefined();
+    } finally {
+      if (ws) {
+        ws.close();
+      }
+      await stopChild(child);
+      await fs.rm(tmpDir, { recursive: true, force: true });
+    }
+  }, 30000);
 });

@@ -13,6 +13,11 @@ Current status: **Auto-start and in-app update checks are implemented**, and thi
 - `apps/desktop/src-tauri/tauri.conf.json` includes updater endpoint + artifact generation settings
 - `.github/workflows/release-desktop.yml` provides tag-triggered draft release automation
 - `desktop_check` CI runs on every PR (`cargo check` + `cargo test`)
+- `scripts/verify-updater-config.mjs` validates updater pubkey format and signing-key pairing
+
+Related docs:
+- Detailed operations (including recovery/rollback): `docs/release-runbook.en.md`
+- Certificate/secrets operations: `docs/certificate-secrets.en.md`
 
 ## 1) Generate signing keys (for updater)
 
@@ -47,6 +52,17 @@ For GitHub Actions, store the same values as repository secrets:
 
 - `TAURI_SIGNING_PRIVATE_KEY`
 - `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`
+
+## 2.5) Required secrets for macOS signing/notarization
+
+The `release-desktop` workflow requires these repository secrets:
+
+- `APPLE_CERTIFICATE` (base64 of `.p12`)
+- `APPLE_CERTIFICATE_PASSWORD`
+- `KEYCHAIN_PASSWORD`
+- `APPLE_ID`
+- `APPLE_PASSWORD` (app-specific password)
+- `APPLE_TEAM_ID`
 
 ## 3) Updater settings in `tauri.conf.json` (when enabling)
 
@@ -108,7 +124,16 @@ After setting `plugins.updater`, start desktop managed mode and verify:
 5. Validate draft release assets, then publish
 6. Verify update checks from an installed app
 
+## 6.5) Recommended preflight command
+
+```bash
+pnpm verify:updater
+```
+
+When `TAURI_SIGNING_PRIVATE_KEY` is set, this command runs a signing smoke test and validates key-id consistency against `plugins.updater.pubkey` in `tauri.conf.json`.
+
 ## 7) Remaining tasks (next sprint)
 
-- Add macOS notarization and Windows code signing in CI
+- Harden notarization operations (especially during secret rotation)
+- Add Windows code signing in CI
 - Expand release matrix beyond macOS when distribution targets are finalized
