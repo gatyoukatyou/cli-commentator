@@ -52,7 +52,8 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: node scripts/verify-updater-config.mjs --require-private-key
 
-      - name: Validate Apple signing/notarization secrets
+      - name: Detect Apple signing/notarization mode
+        id: apple_signing
         env:
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
           APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
@@ -70,13 +71,18 @@ jobs:
           done
 
           if [ ${#missing[@]} -gt 0 ]; then
-            echo "::error::Missing required release secrets: ${missing[*]}"
-            exit 1
+            echo "::warning::Apple signing/notarization disabled; missing secrets: ${missing[*]}"
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "missing=${missing[*]}" >> "$GITHUB_OUTPUT"
+            exit 0
           fi
 
           echo "::notice::All required Apple signing/notarization secrets are present."
+          echo "enabled=true" >> "$GITHUB_OUTPUT"
+          echo "missing=" >> "$GITHUB_OUTPUT"
 
       - name: Configure macOS keychain for code signing
+        if: ${{ steps.apple_signing.outputs.enabled == 'true' }}
         env:
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
           APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
@@ -98,6 +104,7 @@ jobs:
           rm -f "$CERT_PATH"
 
       - name: Detect code signing identity
+        if: ${{ steps.apple_signing.outputs.enabled == 'true' }}
         run: |
           set -euo pipefail
           KEYCHAIN_PATH="$RUNNER_TEMP/build.keychain-db"
@@ -117,6 +124,7 @@ jobs:
           echo "::notice::Detected code signing identity for build."
 
       - name: Log notarization configuration
+        if: ${{ steps.apple_signing.outputs.enabled == 'true' }}
         env:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
@@ -124,6 +132,13 @@ jobs:
           set -euo pipefail
           APPLE_ID_DOMAIN="${APPLE_ID#*@}"
           echo "::notice::Notarization credentials configured (team=$APPLE_TEAM_ID, account-domain=$APPLE_ID_DOMAIN)."
+
+      - name: Log unsigned fallback mode
+        if: ${{ steps.apple_signing.outputs.enabled != 'true' }}
+        run: |
+          set -euo pipefail
+          echo "::warning::Building unsigned artifacts for internal testing (Developer ID / notarization not configured)."
+          echo "::warning::Missing secrets: ${{ steps.apple_signing.outputs.missing }}"
 
       - name: Web lint
         run: pnpm -C apps/web lint
@@ -139,7 +154,8 @@ jobs:
       - name: Server typecheck
         run: pnpm -C apps/server exec tsc --noEmit
 
-      - name: Build and draft release
+      - name: Build and draft release (signed + notarized)
+        if: ${{ steps.apple_signing.outputs.enabled == 'true' }}
         uses: tauri-apps/tauri-action@v0.6.1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -156,4 +172,20 @@ jobs:
           releaseBody: See the assets to download and install this version.
           releaseDraft: true
           prerelease: false
+          args: ${{ matrix.args }}
+
+      - name: Build and draft release (unsigned internal)
+        if: ${{ steps.apple_signing.outputs.enabled != 'true' }}
+        uses: tauri-apps/tauri-action@v0.6.1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        with:
+          projectPath: apps/desktop
+          tagName: ${{ github.ref_name }}
+          releaseName: CLI Commentator v__VERSION__
+          releaseBody: Unsigned internal test build. Apple Developer ID signing/notarization is not configured.
+          releaseDraft: true
+          prerelease: true
           args: ${{ matrix.args }}

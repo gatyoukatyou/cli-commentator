@@ -101,13 +101,16 @@ Build a minimal MVP that reliably works, then expand once value is proven.
 - PR #101: updater check command + desktop panel status/action
 - PR #102: updater config baseline + tag-based desktop release workflow
 - Added 3AI operations foundation (`AGENTS.md` / `GEMINI.md` / `/wrapup` session hook)
+- 2026-02-13: ran `release-desktop` dry-run with `v0.0.0-smoke.5`; updater key-pair validation passed and Apple-secret gate was identified
 
 **Now**
-- Finalizing Phase 4 (real updater public key, signed draft release operation, release runbook)
-- Run tag-based release dry-runs and document failure recovery steps
-- Inventory prerequisites for notarization/code-signing (certificates, secrets, permissions)
+- Recorded 2026-02-13 `release-desktop` dry-run result (Run URL: `https://github.com/gatyoukatyou/cli-commentator/actions/runs/21986062140`)
+- `Verify updater key configuration` passed on both arm64/x64 (key id matched: `0EDB9F95DB53F9FA`)
+- Prioritize Apple signing/notarization secret setup after failure at `Validate Apple signing/notarization secrets`
 
 **Next**
+- Register and validate `APPLE_CERTIFICATE` / `APPLE_CERTIFICATE_PASSWORD` / `KEYCHAIN_PASSWORD` / `APPLE_ID` / `APPLE_PASSWORD` / `APPLE_TEAM_ID`
+- Re-run `release-desktop` with a new smoke tag and confirm Draft Release creation with complete artifacts
 - Move notarization/code-signing into actual production operation (macOS first)
 - Add clean-environment distribution smoke tests
 - Improve observability and recovery flows for failure cases

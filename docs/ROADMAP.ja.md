@@ -106,13 +106,16 @@ CLI Commentator は「ターミナルの作業ログを見て、別ウィンド�
 - PR #101：Updater確認コマンド + Desktopパネル表示/操作
 - PR #102：Updater設定の土台 + タグ起点desktopリリースワークフロー
 - 3AI運用基盤（`AGENTS.md` / `GEMINI.md` / `/wrapup` 運用フック）を追加
+- 2026-02-13: `v0.0.0-smoke.5` で `release-desktop` をドライランし、Updater鍵ペア検証成功を確認（Apple Secrets不足を検出）
 
 **Now**
-- Phase 4 仕上げ（Updater公開鍵の実値化、署名付きDraft Release運用、Runbook固定）
-- タグ起点リリースのドライランを回し、失敗時の復旧手順を明文化
-- Notarization / コード署名の前提（証明書・Secrets・権限）を棚卸し
+- 2026-02-13 実行の `release-desktop` ドライラン結果を反映（Run URL: `https://github.com/gatyoukatyou/cli-commentator/actions/runs/21986062140`）
+- `Verify updater key configuration` は arm64/x64 とも成功（鍵ID `0EDB9F95DB53F9FA` 一致）
+- `Validate Apple signing/notarization secrets` で停止したため、Apple Secretsの整備を最優先で進める
 
 **Next**
+- `APPLE_CERTIFICATE` / `APPLE_CERTIFICATE_PASSWORD` / `KEYCHAIN_PASSWORD` / `APPLE_ID` / `APPLE_PASSWORD` / `APPLE_TEAM_ID` を登録・検証
+- 新しい smoke タグで `release-desktop` を再実行し、Draft Release 作成と成果物整合を確認
 - Notarization / コード署名の実運用化（まず macOS）
 - クリーン環境での配布物スモークテスト整備
 - 障害時の可観測性と復旧導線を強化

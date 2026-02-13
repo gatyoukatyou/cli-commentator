@@ -10,15 +10,36 @@ Target workflow: `.github/workflows/release-desktop.yml`.
 
 - Repository: `gatyoukatyou/cli-commentator`
 - Intended branch changes are already pushed
-- Required repository secrets:
+- Required secrets (always):
   - `TAURI_SIGNING_PRIVATE_KEY`
   - `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`
+- Optional secrets (required only for Apple signing/notarization mode):
   - `APPLE_CERTIFICATE`
   - `APPLE_CERTIFICATE_PASSWORD`
   - `KEYCHAIN_PASSWORD`
   - `APPLE_ID`
   - `APPLE_PASSWORD`
   - `APPLE_TEAM_ID`
+
+### 0-1. Execution modes
+
+- `Apple secrets present`
+  - Runs code signing + notarization
+  - Produces release-candidate artifacts
+- `Apple secrets missing`
+  - Workflow continues in unsigned internal mode
+  - Draft Release is generated for internal testing only (not for production distribution)
+
+## 0.5) Latest Dry-Run Record (2026-02-13)
+
+- Tag: `v0.0.0-smoke.5`
+- Workflow run: `https://github.com/gatyoukatyou/cli-commentator/actions/runs/21986062140`
+- Outcome:
+  - `Verify updater key configuration` passed on both arm64/x64 jobs
+  - `plugins.updater.pubkey` key id matched signing private key id: `0EDB9F95DB53F9FA`
+  - At that time, run stopped at `Validate Apple signing/notarization secrets`
+  - Missing secrets: `APPLE_CERTIFICATE`, `APPLE_CERTIFICATE_PASSWORD`, `KEYCHAIN_PASSWORD`, `APPLE_ID`, `APPLE_PASSWORD`, `APPLE_TEAM_ID`
+  - As of 2026-02-13 workflow update, missing Apple secrets trigger unsigned internal fallback instead of hard stop
 
 ## 1) Pre-release checks (required)
 
@@ -45,7 +66,9 @@ CLI_COMMENTATOR_FORCE_NO_PTY=1 pnpm -C apps/server test
    - `git tag -a vX.Y.Z -m "vX.Y.Z"`
    - `git push origin vX.Y.Z`
 4. Confirm `release-desktop` workflow passes
-5. Validate Draft Release assets (signed updater artifacts)
+5. Validate Draft Release assets
+   - signed mode: signed/notarized artifacts
+   - unsigned mode: internal-test artifacts (Gatekeeper warning expected)
 6. Publish draft when validation is complete
 
 ## 3) Failure recovery playbook
@@ -61,7 +84,19 @@ Actions:
 3. Reproduce locally with `pnpm verify:updater`
 4. Fix, then re-run with a corrected tag
 
-### Case B: `tauri-action` build/signing fails
+### Case B: Apple secrets missing, workflow falls back to unsigned internal mode
+
+Symptoms:
+- Log shows `Apple signing/notarization disabled`
+- Workflow continues with `Build and draft release (unsigned internal)`
+
+Actions:
+1. For production-ready distribution, set `APPLE_CERTIFICATE` / `APPLE_CERTIFICATE_PASSWORD` / `KEYCHAIN_PASSWORD`
+2. Set `APPLE_ID` / `APPLE_PASSWORD` / `APPLE_TEAM_ID`
+3. Re-run with a new tag and confirm signed mode
+4. If budget is not available yet, continue using unsigned mode for internal validation
+
+### Case C: `tauri-action` build/signing fails
 
 Symptoms:
 - `Build and draft release` step fails
@@ -75,7 +110,7 @@ Actions:
    - `git push origin :refs/tags/vX.Y.Z`
    - Create/push tag again
 
-### Case C: Draft Release missing artifacts
+### Case D: Draft Release missing artifacts
 
 Symptoms:
 - Missing `latest.json` or expected platform artifacts
@@ -85,7 +120,7 @@ Actions:
 2. Fix and re-run from corrected tag
 3. Delete incomplete draft and regenerate
 
-### Case D: notarization failure
+### Case E: notarization failure
 
 Symptoms:
 - Build finishes but notarization step fails

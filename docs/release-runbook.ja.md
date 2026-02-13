@@ -10,15 +10,36 @@
 
 - リポジトリ: `gatyoukatyou/cli-commentator`
 - branch の変更は push 済み
-- 次の Secrets が設定済み
+- 必須 Secrets（常に必要）
   - `TAURI_SIGNING_PRIVATE_KEY`
   - `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`
+- Apple署名/Notarizationを有効化する場合に必要な Secrets（任意）
   - `APPLE_CERTIFICATE`
   - `APPLE_CERTIFICATE_PASSWORD`
   - `KEYCHAIN_PASSWORD`
   - `APPLE_ID`
   - `APPLE_PASSWORD`
   - `APPLE_TEAM_ID`
+
+### 0-1. 実行モード
+
+- `Apple secrets あり`
+  - 従来どおり署名 + notarization を実施
+  - 正式配布候補の成果物を生成
+- `Apple secrets なし`
+  - workflow は unsigned internal モードで継続
+  - Draft Release は作成されるが、内部検証用途（正式配布には使わない）
+
+## 0.5) 最新ドライラン結果（2026-02-13）
+
+- 実行タグ: `v0.0.0-smoke.5`
+- workflow run: `https://github.com/gatyoukatyou/cli-commentator/actions/runs/21986062140`
+- 結果:
+  - `Verify updater key configuration` は arm64/x64 とも成功
+  - `plugins.updater.pubkey` の key id と署名秘密鍵の key id が `0EDB9F95DB53F9FA` で一致
+  - 当時は `Validate Apple signing/notarization secrets` で停止
+  - 欠落Secrets: `APPLE_CERTIFICATE`, `APPLE_CERTIFICATE_PASSWORD`, `KEYCHAIN_PASSWORD`, `APPLE_ID`, `APPLE_PASSWORD`, `APPLE_TEAM_ID`
+  - 2026-02-13 更新後のworkflowでは、欠落時は unsigned internal モードで継続する
 
 ## 1) リリース前チェック（必須）
 
@@ -46,7 +67,9 @@ CLI_COMMENTATOR_FORCE_NO_PTY=1 pnpm -C apps/server test
    - `git tag -a vX.Y.Z -m "vX.Y.Z"`
    - `git push origin vX.Y.Z`
 4. Actions の `release-desktop` 実行を確認
-5. Draft Release の成果物（署名付きUpdater artifacts）を確認
+5. Draft Release の成果物を確認
+   - signedモード: 署名/notarization済み成果物
+   - unsignedモード: 内部検証用成果物（Gatekeeper警告あり）
 6. 問題なければ Draft を Publish
 
 ## 3) 障害時の復旧手順
@@ -62,7 +85,19 @@ CLI_COMMENTATOR_FORCE_NO_PTY=1 pnpm -C apps/server test
 3. ローカルで `pnpm verify:updater` を実行して再現確認
 4. 修正後、タグを切り直して再実行
 
-### ケースB: `tauri-action` で署名/ビルド失敗
+### ケースB: Apple secrets 不足で unsigned internal モードへフォールバック
+
+症状:
+- ログに `Apple signing/notarization disabled` が出る
+- workflow は継続し、`Build and draft release (unsigned internal)` が実行される
+
+対応:
+1. 正式配布が必要なら `APPLE_CERTIFICATE` / `APPLE_CERTIFICATE_PASSWORD` / `KEYCHAIN_PASSWORD` を登録
+2. `APPLE_ID` / `APPLE_PASSWORD` / `APPLE_TEAM_ID` を登録
+3. Secrets を追加後、新しいタグで signedモード実行を確認
+4. 予算都合で未設定の場合は内部検証用途として運用継続
+
+### ケースC: `tauri-action` で署名/ビルド失敗
 
 症状:
 - `Build and draft release` ステップ失敗
@@ -76,7 +111,7 @@ CLI_COMMENTATOR_FORCE_NO_PTY=1 pnpm -C apps/server test
    - `git push origin :refs/tags/vX.Y.Z`
    - 修正後に再度タグ作成
 
-### ケースC: Draft Release に成果物が不足
+### ケースD: Draft Release に成果物が不足
 
 症状:
 - `latest.json` やプラットフォーム成果物が不足
@@ -86,7 +121,7 @@ CLI_COMMENTATOR_FORCE_NO_PTY=1 pnpm -C apps/server test
 2. 失敗runを修正後、タグ再実行
 3. 不完全Draftは削除して作り直す
 
-### ケースD: notarization失敗
+### ケースE: notarization失敗
 
 症状:
 - ビルド後にnotary関連エラーで失敗
