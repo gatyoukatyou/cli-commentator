@@ -168,7 +168,7 @@ jobs:
         with:
           projectPath: apps/desktop
           tagName: ${{ github.ref_name }}
-          releaseName: CLI Commentator v__VERSION__
+          releaseName: CLI Commentator ${{ github.ref_name }}
           releaseBody: See the assets to download and install this version.
           releaseDraft: true
           prerelease: false
@@ -184,8 +184,8 @@ jobs:
         with:
           projectPath: apps/desktop
           tagName: ${{ github.ref_name }}
-          releaseName: CLI Commentator v__VERSION__
-          releaseBody: Unsigned internal test build. Apple Developer ID signing/notarization is not configured.
+          releaseName: CLI Commentator ${{ github.ref_name }} (unsigned internal)
+          releaseBody: Unsigned internal test build from ${{ github.ref_name }}. Apple Developer ID signing/notarization is not configured.
           releaseDraft: true
           prerelease: true
           args: ${{ matrix.args }}
