@@ -28,7 +28,8 @@
   - 正式配布候補の成果物を生成
 - `Apple secrets なし`
   - workflow は unsigned internal モードで継続
-  - Draft Release は作成されるが、内部検証用途（正式配布には使わない）
+  - `v0.0.0-smoke.*` タグのみ Draft Release を作成（内部検証用途）
+  - 通常の `vX.Y.Z` タグではエラー終了し、署名モードを強制
 
 ## 0.5) 最新ドライラン結果（2026-02-13）
 
@@ -96,6 +97,7 @@ CLI_COMMENTATOR_FORCE_NO_PTY=1 pnpm -C apps/server test
 2. `APPLE_ID` / `APPLE_PASSWORD` / `APPLE_TEAM_ID` を登録
 3. Secrets を追加後、新しいタグで signedモード実行を確認
 4. 予算都合で未設定の場合は内部検証用途として運用継続
+   - unsigned 実行は `v0.0.0-smoke.*` タグでのみ可能
 
 ### ケースC: `tauri-action` で署名/ビルド失敗
 
