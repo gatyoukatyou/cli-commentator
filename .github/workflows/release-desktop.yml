@@ -140,6 +140,14 @@ jobs:
           echo "::warning::Building unsigned artifacts for internal testing (Developer ID / notarization not configured)."
           echo "::warning::Missing secrets: ${{ steps.apple_signing.outputs.missing }}"
 
+      - name: Enforce signed mode for non-smoke tags
+        if: ${{ steps.apple_signing.outputs.enabled != 'true' && startsWith(github.ref_name, 'v') && !startsWith(github.ref_name, 'v0.0.0-smoke.') }}
+        run: |
+          set -euo pipefail
+          echo "::error::Apple signing/notarization secrets are required for non-smoke release tags: ${{ github.ref_name }}"
+          echo "::error::Either configure Apple secrets or use a smoke tag (v0.0.0-smoke.*) for unsigned internal validation."
+          exit 1
+
       - name: Web lint
         run: pnpm -C apps/web lint
 
@@ -175,7 +183,7 @@ jobs:
           args: ${{ matrix.args }}
 
       - name: Build and draft release (unsigned internal)
-        if: ${{ steps.apple_signing.outputs.enabled != 'true' }}
+        if: ${{ steps.apple_signing.outputs.enabled != 'true' && startsWith(github.ref_name, 'v0.0.0-smoke.') }}
         uses: tauri-apps/tauri-action@v0.6.1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

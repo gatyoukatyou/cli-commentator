@@ -28,7 +28,8 @@ Target workflow: `.github/workflows/release-desktop.yml`.
   - Produces release-candidate artifacts
 - `Apple secrets missing`
   - Workflow continues in unsigned internal mode
-  - Draft Release is generated for internal testing only (not for production distribution)
+  - Draft Release is generated only for `v0.0.0-smoke.*` tags (internal testing only)
+  - Normal `vX.Y.Z` tags fail fast and require signed mode
 
 ## 0.5) Latest Dry-Run Record (2026-02-13)
 
@@ -95,6 +96,7 @@ Actions:
 2. Set `APPLE_ID` / `APPLE_PASSWORD` / `APPLE_TEAM_ID`
 3. Re-run with a new tag and confirm signed mode
 4. If budget is not available yet, continue using unsigned mode for internal validation
+   - unsigned mode is allowed only with `v0.0.0-smoke.*` tags
 
 ### Case C: `tauri-action` build/signing fails
 
