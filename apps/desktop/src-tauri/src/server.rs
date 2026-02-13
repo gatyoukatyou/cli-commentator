@@ -133,13 +133,33 @@ fn now_ms() -> u64 {
         .unwrap_or(0)
 }
 
+fn format_failure(
+    category: &'static str,
+    summary: &'static str,
+    context: &[(&'static str, String)],
+) -> String {
+    let mut message = format!("[{}] {}", category, summary);
+    for (key, value) in context {
+        if !value.is_empty() {
+            message.push_str(&format!(" | {}={}", key, value));
+        }
+    }
+    message
+}
+
 /// Get project root from CARGO_MANIFEST_DIR
 /// apps/desktop/src-tauri -> cli-commentator (3 levels up)
 fn get_project_root() -> Result<PathBuf, String> {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("../../..")
         .canonicalize()
-        .map_err(|e| format!("Failed to get project root: {}", e))
+        .map_err(|e| {
+            format_failure(
+                "project_root",
+                "Failed to get project root",
+                &[("error", e.to_string())],
+            )
+        })
 }
 
 fn spawn_server_process(port: u16) -> Result<Box<dyn ChildWrapper>, String> {
@@ -161,7 +181,13 @@ fn spawn_server_process(port: u16) -> Result<Box<dyn ChildWrapper>, String> {
 
     command
         .spawn()
-        .map_err(|e| format!("Failed to start server: {}", e))
+        .map_err(|e| {
+            format_failure(
+                "spawn",
+                "Failed to start server",
+                &[("error", e.to_string()), ("port", port.to_string())],
+            )
+        })
 }
 
 fn lifecycle_state(lifecycle: &ServerLifecycle) -> ServerLifecycleState {
@@ -197,12 +223,78 @@ fn status_from_runtime(rt: &ServerRuntime, health_ok: bool, port: u16) -> Server
     }
 }
 
-fn mark_failed(rt: &mut ServerRuntime, error: String) {
-    rt.process = None;
-    rt.lifecycle = ServerLifecycle::Failed {
-        error,
-        at: now_ms(),
+#[derive(serde::Serialize)]
+struct LifecycleEventLog {
+    ts: u64,
+    trigger: &'static str,
+    from: ServerLifecycleState,
+    to: ServerLifecycleState,
+    operation_id: u64,
+    pid: Option<u32>,
+    port: Option<u16>,
+    detail: Option<String>,
+}
+
+fn lifecycle_pid(lifecycle: &ServerLifecycle) -> Option<u32> {
+    match lifecycle {
+        ServerLifecycle::Running { pid, .. } => Some(*pid),
+        _ => None,
+    }
+}
+
+fn emit_lifecycle_event(
+    trigger: &'static str,
+    from: &ServerLifecycle,
+    to: &ServerLifecycle,
+    operation_id: u64,
+    port: Option<u16>,
+    detail: Option<String>,
+) {
+    let payload = LifecycleEventLog {
+        ts: now_ms(),
+        trigger,
+        from: lifecycle_state(from),
+        to: lifecycle_state(to),
+        operation_id,
+        pid: lifecycle_pid(to).or_else(|| lifecycle_pid(from)),
+        port,
+        detail,
     };
+
+    match serde_json::to_string(&payload) {
+        Ok(json) => eprintln!("[desktop/server-event] {}", json),
+        Err(error) => eprintln!(
+            "[desktop/server-event] {{\"trigger\":\"{}\",\"error\":\"serialize_failed:{}\"}}",
+            trigger, error
+        ),
+    }
+}
+
+fn set_lifecycle(
+    rt: &mut ServerRuntime,
+    next: ServerLifecycle,
+    trigger: &'static str,
+    port: Option<u16>,
+    detail: Option<String>,
+) {
+    let previous = rt.lifecycle.clone();
+    rt.lifecycle = next;
+    emit_lifecycle_event(trigger, &previous, &rt.lifecycle, rt.operation_id, port, detail);
+}
+
+fn mark_failed(rt: &mut ServerRuntime, error: String, trigger: &'static str, port: Option<u16>) {
+    eprintln!("[desktop/server] lifecycle=failed {}", error);
+    rt.process = None;
+    set_lifecycle(
+        rt,
+        ServerLifecycle::Failed {
+            error: error.clone(),
+            at: now_ms(),
+        },
+        trigger,
+        port,
+        Some(error),
+    );
     rt.last_seen_at = None;
 }
 
@@ -214,7 +306,13 @@ fn refresh_runtime(rt: &mut ServerRuntime, port: u16) {
     let Some(child) = rt.process.as_mut() else {
         mark_failed(
             rt,
-            "Server process handle is missing while running".to_string(),
+            format_failure(
+                "missing_process_handle",
+                "Server process handle is missing while running",
+                &[("port", port.to_string())],
+            ),
+            "refresh_runtime_missing_handle",
+            Some(port),
         );
         return;
     };
@@ -222,18 +320,38 @@ fn refresh_runtime(rt: &mut ServerRuntime, port: u16) {
     match child.try_wait() {
         Ok(Some(status)) => {
             rt.last_exit = status.code();
-            let mut reason = match status.code() {
-                Some(code) => format!("Server exited unexpectedly with code {}", code),
-                None => "Server exited unexpectedly".to_string(),
-            };
-            if check_port_in_use(port) {
-                reason.push_str(&format!("; port {} is already in use", port));
-            }
-            mark_failed(rt, reason);
+            let exit_code = status
+                .code()
+                .map(|code| code.to_string())
+                .unwrap_or_else(|| "signal_or_unknown".to_string());
+            let port_in_use = check_port_in_use(port);
+            mark_failed(
+                rt,
+                format_failure(
+                    "unexpected_exit",
+                    "Server exited unexpectedly",
+                    &[
+                        ("exit_code", exit_code),
+                        ("port", port.to_string()),
+                        ("port_in_use", port_in_use.to_string()),
+                    ],
+                ),
+                "refresh_runtime_unexpected_exit",
+                Some(port),
+            );
         }
         Ok(None) => {}
         Err(err) => {
-            mark_failed(rt, format!("Failed to read server process state: {}", err));
+            mark_failed(
+                rt,
+                format_failure(
+                    "process_state",
+                    "Failed to read server process state",
+                    &[("error", err.to_string())],
+                ),
+                "refresh_runtime_process_state_error",
+                Some(port),
+            );
         }
     }
 }
@@ -275,7 +393,13 @@ fn start_in_background(
                 }
                 rt.process = Some(child);
                 rt.last_exit = None;
-                rt.lifecycle = ServerLifecycle::Running { pid, started_at };
+                set_lifecycle(
+                    &mut rt,
+                    ServerLifecycle::Running { pid, started_at },
+                    "spawn_server_success",
+                    Some(port),
+                    Some(format!("pid={}", pid)),
+                );
             }
             Err(error) => {
                 let mut rt = runtime.lock().unwrap();
@@ -284,7 +408,7 @@ fn start_in_background(
                 {
                     return;
                 }
-                mark_failed(&mut rt, error);
+                mark_failed(&mut rt, error, "spawn_server_failed", Some(port));
             }
         }
     });
@@ -315,12 +439,20 @@ fn stop_in_background(
         rt.last_exit = exit_code;
         rt.last_seen_at = None;
         if let Some(error) = stop_error {
-            rt.lifecycle = ServerLifecycle::Failed {
-                error,
-                at: now_ms(),
-            };
+            mark_failed(&mut rt, error, "stop_in_background_failed", None);
         } else {
-            rt.lifecycle = ServerLifecycle::Stopped;
+            set_lifecycle(
+                &mut rt,
+                ServerLifecycle::Stopped,
+                "stop_in_background_success",
+                None,
+                Some(format!(
+                    "exit_code={}",
+                    exit_code
+                        .map(|code| code.to_string())
+                        .unwrap_or_else(|| "none".to_string())
+                )),
+            );
         }
     });
 }
@@ -332,14 +464,22 @@ fn stop_child_blocking(mut child: Box<dyn ChildWrapper>) -> (Option<i32>, Option
             if let Err(err) = child.kill() {
                 return (
                     None,
-                    Some(format!("Failed to stop server process: {}", err)),
+                    Some(format_failure(
+                        "stop_process",
+                        "Failed to stop server process",
+                        &[("error", err.to_string())],
+                    )),
                 );
             }
             match child.wait() {
                 Ok(status) => (status.code(), None),
                 Err(err) => (
                     None,
-                    Some(format!("Failed to wait for server shutdown: {}", err)),
+                    Some(format_failure(
+                        "wait_shutdown",
+                        "Failed to wait for server shutdown",
+                        &[("error", err.to_string())],
+                    )),
                 ),
             }
         }
@@ -348,9 +488,10 @@ fn stop_child_blocking(mut child: Box<dyn ChildWrapper>) -> (Option<i32>, Option
             let _ = child.wait();
             (
                 None,
-                Some(format!(
-                    "Failed to inspect server process before stop: {}",
-                    err
+                Some(format_failure(
+                    "inspect_before_stop",
+                    "Failed to inspect server process before stop",
+                    &[("error", err.to_string())],
                 )),
             )
         }
@@ -380,7 +521,13 @@ fn begin_start_transition(rt: &mut ServerRuntime, port: u16) -> StartAction {
     let started_at = now_ms();
     rt.operation_id += 1;
     let operation_id = rt.operation_id;
-    rt.lifecycle = ServerLifecycle::Starting { started_at };
+    set_lifecycle(
+        rt,
+        ServerLifecycle::Starting { started_at },
+        "begin_start_transition",
+        Some(port),
+        None,
+    );
     rt.last_seen_at = None;
     StartAction::Start {
         operation_id,
@@ -411,9 +558,15 @@ fn begin_stop_transition(rt: &mut ServerRuntime, port: u16) -> StopAction {
 
     rt.operation_id += 1;
     let operation_id = rt.operation_id;
-    rt.lifecycle = ServerLifecycle::Stopping {
-        started_at: now_ms(),
-    };
+    set_lifecycle(
+        rt,
+        ServerLifecycle::Stopping {
+            started_at: now_ms(),
+        },
+        "begin_stop_transition",
+        Some(port),
+        None,
+    );
     rt.last_seen_at = None;
     let child = rt.process.take();
     StopAction::Stop {
@@ -469,25 +622,35 @@ pub fn server_stop(state: State<'_, ServerState>) -> Result<ServerStatus, String
 }
 
 pub fn server_stop_for_shutdown(state: State<'_, ServerState>) -> Result<(), String> {
+    let port = get_server_port();
     let mut rt = state.runtime.lock().map_err(|e| e.to_string())?;
     rt.operation_id += 1;
     rt.last_seen_at = None;
-    rt.lifecycle = ServerLifecycle::Stopping {
-        started_at: now_ms(),
-    };
+    set_lifecycle(
+        &mut rt,
+        ServerLifecycle::Stopping {
+            started_at: now_ms(),
+        },
+        "server_stop_for_shutdown_begin",
+        Some(port),
+        None,
+    );
     if let Some(running_child) = rt.process.take() {
         let (exit_code, stop_error) = stop_child_blocking(running_child);
         rt.last_exit = exit_code;
         if let Some(error) = stop_error {
-            rt.lifecycle = ServerLifecycle::Failed {
-                error: error.clone(),
-                at: now_ms(),
-            };
+            mark_failed(&mut rt, error.clone(), "server_stop_for_shutdown_failed", Some(port));
             return Err(error);
         }
     }
     rt.process = None;
-    rt.lifecycle = ServerLifecycle::Stopped;
+    set_lifecycle(
+        &mut rt,
+        ServerLifecycle::Stopped,
+        "server_stop_for_shutdown_success",
+        Some(port),
+        None,
+    );
     rt.last_seen_at = None;
     Ok(())
 }
@@ -607,6 +770,21 @@ mod tests {
         }
     }
 
+    fn runtime_with_exited_child() -> ServerRuntime {
+        let mut child = MockChild::new(5678);
+        child.exited = true;
+        ServerRuntime {
+            process: Some(Box::new(child)),
+            lifecycle: ServerLifecycle::Running {
+                pid: 5678,
+                started_at: now_ms(),
+            },
+            operation_id: 0,
+            last_exit: None,
+            last_seen_at: None,
+        }
+    }
+
     #[test]
     fn start_transition_is_idempotent_while_starting() {
         let port = 8787;
@@ -705,5 +883,19 @@ mod tests {
             .as_deref()
             .unwrap_or("")
             .contains("handle is missing"));
+    }
+
+    #[test]
+    fn unexpected_exit_error_is_categorized_with_context() {
+        let port = 8787;
+        let mut rt = runtime_with_exited_child();
+
+        let status = build_status(&mut rt, port);
+        assert_eq!(status.state, ServerLifecycleState::Failed);
+        let error = status.error.unwrap_or_default();
+        assert!(error.contains("[unexpected_exit]"));
+        assert!(error.contains("exit_code="));
+        assert!(error.contains("port="));
+        assert!(error.contains("port_in_use="));
     }
 }

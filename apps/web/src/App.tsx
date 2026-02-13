@@ -14,6 +14,7 @@ import {
   DEFAULT_TTS_SETTINGS,
   type TTSSettings,
 } from "./lib/tts";
+import { getDesktopFailureGuidance, type DesktopServerState } from "./lib/recovery";
 import type {
   Style,
   SourceState,
@@ -30,8 +31,6 @@ type LegacyHello = { type: "hello"; style: Style };
 type PayloadMessage = { type?: string; payload?: PtyUnavailablePayload | Record<string, unknown> };
 
 type ConnectionStatus = "connecting" | "connected" | "disconnected" | "reconnecting";
-
-type DesktopServerState = "stopped" | "starting" | "running" | "stopping" | "failed";
 
 type ServerStatusDetail = {
   state: DesktopServerState;
@@ -271,29 +270,7 @@ function TauriStatusPanel() {
     return "サーバーは停止しています。Start で起動できます。";
   })();
 
-  const failureHints = (() => {
-    const source = `${status?.error ?? ""} ${invokeError ?? ""}`.toLowerCase();
-    if (state !== "failed" && !invokeError) return [] as string[];
-    if (source.includes("port") && (source.includes("in use") || source.includes("already"))) {
-      return [
-        "ポート 8787 を利用中のプロセスを停止してください。",
-        "競合解消後に Start を押して再起動してください。",
-      ];
-    }
-    if (source.includes("failed to get project root")) {
-      return [
-        "アプリの起動ディレクトリを確認してください。",
-        "リポジトリのルートから dev:desktop:managed を実行してください。",
-      ];
-    }
-    if (source.includes("failed to start server") || source.includes("pnpm")) {
-      return [
-        "依存関係が壊れていないか確認し、必要なら pnpm install を再実行してください。",
-        "その後 Start を押して再試行してください。",
-      ];
-    }
-    return ["エラーメッセージを確認して原因を解消し、Start で再試行してください。"];
-  })();
+  const failureGuidance = getDesktopFailureGuidance(state, status?.error ?? null, invokeError);
 
   const startDisabled = state === "starting" || state === "running" || state === "stopping";
   const stopDisabled = state === "stopped" || state === "stopping" || state === "failed";
@@ -399,12 +376,15 @@ function TauriStatusPanel() {
           <pre style={{ margin: 0, whiteSpace: "pre-wrap", fontFamily: "inherit" }}>{updaterNotice.text}</pre>
         </div>
       )}
-      {failureHints.length > 0 && (
-        <ul className="debug-panel__recovery">
-          {failureHints.map((hint) => (
-            <li key={hint}>{hint}</li>
-          ))}
-        </ul>
+      {failureGuidance && (
+        <>
+          <div className="debug-panel__meta">想定原因: {failureGuidance.category}</div>
+          <ul className="debug-panel__recovery">
+            {failureGuidance.hints.map((hint) => (
+              <li key={hint}>{hint}</li>
+            ))}
+          </ul>
+        </>
       )}
 
       <div className="debug-panel__actions">

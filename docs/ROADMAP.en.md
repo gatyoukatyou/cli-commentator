@@ -79,7 +79,7 @@ Build a minimal MVP that reliably works, then expand once value is proven.
 
 ---
 
-## Current status (as of 2026-02-07)
+## Current status (as of 2026-02-12)
 **Done**
 - PR #1: detect boundary tests (mixed => generic, 50-line limit, exported constants)
 - PR #2: add roadmap docs (JA/EN + links from docs/README)
@@ -100,13 +100,105 @@ Build a minimal MVP that reliably works, then expand once value is proven.
 - PR #100: desktop distribution foundation (autostart controls + release checklist docs)
 - PR #101: updater check command + desktop panel status/action
 - PR #102: updater config baseline + tag-based desktop release workflow
+- Added 3AI operations foundation (`AGENTS.md` / `GEMINI.md` / `/wrapup` session hook)
+- 2026-02-13: ran `release-desktop` dry-run with `v0.0.0-smoke.5`; updater key-pair validation passed and Apple-secret gate was identified
 
 **Now**
-- Phase 4 in progress (updater production config foundation + tag-based release automation)
+- Recorded 2026-02-13 `release-desktop` dry-run result (Run URL: `https://github.com/gatyoukatyou/cli-commentator/actions/runs/21986062140`)
+- `Verify updater key configuration` passed on both arm64/x64 (key id matched: `0EDB9F95DB53F9FA`)
+- Prioritize Apple signing/notarization secret setup after failure at `Validate Apple signing/notarization secrets`
 
 **Next**
-- Replace updater public key placeholder and run signed draft release from a real tag
-- Expand release pipeline (notarization/code-signing and additional target platforms)
+- Register and validate `APPLE_CERTIFICATE` / `APPLE_CERTIFICATE_PASSWORD` / `KEYCHAIN_PASSWORD` / `APPLE_ID` / `APPLE_PASSWORD` / `APPLE_TEAM_ID`
+- Re-run `release-desktop` with a new smoke tag and confirm Draft Release creation with complete artifacts
+- Move notarization/code-signing into actual production operation (macOS first)
+- Add clean-environment distribution smoke tests
+- Improve observability and recovery flows for failure cases
+- Shift into commentary quality iteration (mis-detection reduction and beginner-friendly output)
+
+---
+
+## Biweekly Sprint Plan (Issue Breakdown Draft)
+
+### Sprint 14 (2026-02-12 to 2026-02-25): Updater productionization
+**Issue drafts**
+- `release: replace updater public key placeholder and add verification flow`
+- `ci: generate signed draft release from tag trigger`
+- `docs: release runbook v1 with recovery/rollback steps`
+
+**Definition of done**
+- Update flow is reproducible from a real tag
+- Recovery steps are documented for failed release attempts
+
+### Sprint 15 (2026-02-26 to 2026-03-11): Notarization/signing baseline
+**Issue drafts**
+- `desktop: integrate macOS code-signing into CI workflow`
+- `desktop: automate notarization submit/staple`
+- `docs: define certificate/secrets operations guide`
+
+**Definition of done**
+- Signed artifacts are generated continuously
+- Certificate rotation/maintenance procedure is documented
+
+### Sprint 16 (2026-03-12 to 2026-03-25): Distribution reliability & startup recovery
+**Issue drafts**
+- `qa: add clean-environment smoke tests for desktop artifacts`
+- `desktop: improve startup failure recovery guidance in panel UI`
+- `server: strengthen startup-failure classification logs`
+
+**Definition of done**
+- Clean environment can complete install -> launch -> commentary start
+- Major startup failures can be triaged quickly
+
+### Sprint 17 (2026-03-26 to 2026-04-08): Observability & fallback hardening
+**Issue drafts**
+- `server: add structured state-transition logging`
+- `test: extend node-pty unavailable fallback E2E coverage`
+- `ci: add regression job for failure scenarios`
+
+**Definition of done**
+- Failures can be traced with timeline-level evidence
+- Fallback behavior is protected against regressions
+
+### Sprint 18 (2026-04-09 to 2026-04-22): Commentary quality iteration 1
+**Issue drafts**
+- `rulesets: add mis-detection cases and tune detect thresholds`
+- `styles: improve one-line beginner explanation templates`
+- `test: expand commentary quality fixtures and snapshots`
+
+**Definition of done**
+- Mis-detection rate improves on representative scenarios
+- Commentary readability metrics improve
+
+### Sprint 19 (2026-04-23 to 2026-05-06): Commentary quality iteration 2 / UX
+**Issue drafts**
+- `web: improve glossary-note presentation for readability`
+- `web: add minimal filter/search for commentary logs`
+- `tts: tune voice setting presets`
+
+**Definition of done**
+- Beginner users can follow commentary more easily
+- Long-session readability is improved
+
+### Sprint 20 (2026-05-07 to 2026-05-20): Operations automation
+**Issue drafts**
+- `ci: add docs-vs-implementation drift checks`
+- `docs: standardize ROADMAP/LLM_ADAPTER update workflow`
+- `ai: add checklist templates for session logs and education reports`
+
+**Definition of done**
+- Major doc staleness is detected during PR validation
+- AI handoff/reporting misses are reduced
+
+### Sprint 21 (2026-05-21 to 2026-06-03): v0.2.0 release readiness
+**Issue drafts**
+- `release: create and run v0.2.0 RC checklist`
+- `qa: establish cross-platform smoke test matrix`
+- `docs: finalize getting-started and distribution path updates`
+
+**Definition of done**
+- Clear go/no-go criteria exist for v0.2.0 RC
+- Distribution -> first launch user path is clear and validated
 
 ---
 

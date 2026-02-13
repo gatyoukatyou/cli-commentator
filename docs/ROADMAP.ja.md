@@ -84,7 +84,7 @@ CLI Commentator は「ターミナルの作業ログを見て、別ウィンド�
 
 ---
 
-## 現在地（2026-02-07 時点）
+## 現在地（2026-02-12 時点）
 **Done**
 - PR #1：detect 境界テスト（混在→generic、50行制限、重要定数export）
 - PR #2：ロードマップ docs 追加（日英＋docs/READMEからリンク）
@@ -105,13 +105,105 @@ CLI Commentator は「ターミナルの作業ログを見て、別ウィンド�
 - PR #100：Desktop配布基盤（Auto-start制御 + 配布チェックリストdocs）
 - PR #101：Updater確認コマンド + Desktopパネル表示/操作
 - PR #102：Updater設定の土台 + タグ起点desktopリリースワークフロー
+- 3AI運用基盤（`AGENTS.md` / `GEMINI.md` / `/wrapup` 運用フック）を追加
+- 2026-02-13: `v0.0.0-smoke.5` で `release-desktop` をドライランし、Updater鍵ペア検証成功を確認（Apple Secrets不足を検出）
 
 **Now**
-- Phase 4 実行中（Updater本番設定の土台 + タグ起点リリース自動化）
+- 2026-02-13 実行の `release-desktop` ドライラン結果を反映（Run URL: `https://github.com/gatyoukatyou/cli-commentator/actions/runs/21986062140`）
+- `Verify updater key configuration` は arm64/x64 とも成功（鍵ID `0EDB9F95DB53F9FA` 一致）
+- `Validate Apple signing/notarization secrets` で停止したため、Apple Secretsの整備を最優先で進める
 
 **Next**
-- Updater公開鍵プレースホルダーの実値化と署名付きDraft Releaseの実運用
-- Notarization/コード署名と配布対象プラットフォーム拡張
+- `APPLE_CERTIFICATE` / `APPLE_CERTIFICATE_PASSWORD` / `KEYCHAIN_PASSWORD` / `APPLE_ID` / `APPLE_PASSWORD` / `APPLE_TEAM_ID` を登録・検証
+- 新しい smoke タグで `release-desktop` を再実行し、Draft Release 作成と成果物整合を確認
+- Notarization / コード署名の実運用化（まず macOS）
+- クリーン環境での配布物スモークテスト整備
+- 障害時の可観測性と復旧導線を強化
+- 実況品質（誤検知率・初心者向け説明）の改善サイクルへ移行
+
+---
+
+## 2週間スプリント計画（Issue分解案）
+
+### Sprint 14（2026-02-12 〜 2026-02-25）: Updater本番化
+**Issue案**
+- `release: updater公開鍵を実値へ更新し検証フローを追加`
+- `ci: タグ起点で署名付きDraft Releaseを自動生成`
+- `docs: リリースRunbook v1（復旧/ロールバック手順を含む）`
+
+**完了条件**
+- 実タグで更新確認まで再現できる
+- 失敗時の復旧手順がドキュメント化されている
+
+### Sprint 15（2026-02-26 〜 2026-03-11）: Notarization/署名の土台
+**Issue案**
+- `desktop: macOSコード署名をCIフローへ統合`
+- `desktop: notarization submit/staple を自動化`
+- `docs: 証明書・Secrets運用ガイドを整備`
+
+**完了条件**
+- 署名付き成果物を継続的に生成できる
+- 証明書更新時の運用手順が確立されている
+
+### Sprint 16（2026-03-12 〜 2026-03-25）: 配布信頼性と起動復旧
+**Issue案**
+- `qa: クリーン環境向け配布物スモークテストを追加`
+- `desktop: 起動失敗時の復旧ガイドUIを改善`
+- `server: 起動失敗の原因分類ログを強化`
+
+**完了条件**
+- クリーン環境で「インストール→起動→実況開始」が通る
+- 主要な起動失敗パターンの一次切り分けが可能
+
+### Sprint 17（2026-03-26 〜 2026-04-08）: 可観測性とフォールバック強化
+**Issue案**
+- `server: 状態遷移ログを構造化して収集可能にする`
+- `test: node-pty unavailable のフォールバックE2Eを拡充`
+- `ci: 障害シナリオの回帰テストジョブを追加`
+
+**完了条件**
+- 障害時に時系列で原因追跡できる
+- フォールバック挙動が回帰で壊れにくい状態になる
+
+### Sprint 18（2026-04-09 〜 2026-04-22）: 実況品質改善 1
+**Issue案**
+- `rulesets: detect誤判定ケースを追加し閾値を調整`
+- `styles: 初心者向け1行説明テンプレートを改善`
+- `test: 実況品質fixtureとsnapshotを拡充`
+
+**完了条件**
+- 代表シナリオで誤判定率が現状より低下
+- 実況文の可読性評価が改善
+
+### Sprint 19（2026-04-23 〜 2026-05-06）: 実況品質改善 2 / UX
+**Issue案**
+- `web: 用語注釈の見せ方を改善（読みやすさ優先）`
+- `web: 実況ログの最低限フィルタ/検索を追加`
+- `tts: 読み上げ設定プリセットを調整`
+
+**完了条件**
+- 初心者が実況を追いやすいUIになっている
+- 長時間利用時の閲覧性が改善
+
+### Sprint 20（2026-05-07 〜 2026-05-20）: 運用自動化
+**Issue案**
+- `ci: ドキュメントと実装の乖離チェックを追加`
+- `docs: ROADMAP/LLM_ADAPTER更新フローを固定`
+- `ai: セッション記録・教育レポートのチェックリストを整備`
+
+**完了条件**
+- 主要ドキュメントの鮮度低下をPR段階で検知できる
+- AI運用の引き継ぎ漏れが減る
+
+### Sprint 21（2026-05-21 〜 2026-06-03）: v0.2.0 リリース準備
+**Issue案**
+- `release: v0.2.0 RCチェックリストを作成/運用`
+- `qa: cross-platform smoke matrix を確立`
+- `docs: getting-started と配布導線の最終更新`
+
+**完了条件**
+- v0.2.0 のRC判断材料が揃う
+- 配布〜初回起動のユーザー導線が明確
 
 ---
 

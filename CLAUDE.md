@@ -305,3 +305,11 @@ pnpm dev:desktop:managed
 - pnpm workspace では依存更新PRに `pnpm-lock.yaml` が必ず含まれること（無いと lockfile mismatch で CI が落ちやすい）
 - Dependabot PR が DIRTY/CONFLICTING のまま `@dependabot rebase` が効かない場合は `@dependabot recreate` が有効なことがある
 - このリポは merge commit 禁止 → **squash merge** を標準とする
+
+## Session Exit Rule
+
+**セッション終了前に必ず `/wrapup` を実行すること。**
+
+- ユーザーが「終了」「おしまい」「ありがとう」等でセッション終了の意図を示した場合、まず `/wrapup` を実行してからセッションを終了する
+- `/wrapup` を実行せずにセッションを終了してはならない
+- SessionEnd hook が `/wrapup` 未実行を検出した場合、警告が表示される

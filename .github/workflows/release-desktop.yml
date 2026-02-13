@@ -44,7 +44,101 @@ jobs:
           targets: aarch64-apple-darwin,x86_64-apple-darwin
 
       - name: Install dependencies
-        run: pnpm install
+        run: pnpm install --frozen-lockfile
+
+      - name: Verify updater key configuration
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: node scripts/verify-updater-config.mjs --require-private-key
+
+      - name: Detect Apple signing/notarization mode
+        id: apple_signing
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          set -euo pipefail
+          missing=()
+          for key in APPLE_CERTIFICATE APPLE_CERTIFICATE_PASSWORD KEYCHAIN_PASSWORD APPLE_ID APPLE_PASSWORD APPLE_TEAM_ID; do
+            if [ -z "${!key:-}" ]; then
+              missing+=("$key")
+            fi
+          done
+
+          if [ ${#missing[@]} -gt 0 ]; then
+            echo "::warning::Apple signing/notarization disabled; missing secrets: ${missing[*]}"
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "missing=${missing[*]}" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "::notice::All required Apple signing/notarization secrets are present."
+          echo "enabled=true" >> "$GITHUB_OUTPUT"
+          echo "missing=" >> "$GITHUB_OUTPUT"
+
+      - name: Configure macOS keychain for code signing
+        if: ${{ steps.apple_signing.outputs.enabled == 'true' }}
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+        run: |
+          set -euo pipefail
+          CERT_PATH="$RUNNER_TEMP/apple-certificate.p12"
+          KEYCHAIN_PATH="$RUNNER_TEMP/build.keychain-db"
+
+          echo -n "$APPLE_CERTIFICATE" | base64 --decode > "$CERT_PATH"
+
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security default-keychain -s "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security import "$CERT_PATH" -k "$KEYCHAIN_PATH" -P "$APPLE_CERTIFICATE_PASSWORD" -A -t cert -f pkcs12
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+
+          rm -f "$CERT_PATH"
+
+      - name: Detect code signing identity
+        if: ${{ steps.apple_signing.outputs.enabled == 'true' }}
+        run: |
+          set -euo pipefail
+          KEYCHAIN_PATH="$RUNNER_TEMP/build.keychain-db"
+          security find-identity -v -p codesigning "$KEYCHAIN_PATH" | tee "$RUNNER_TEMP/codesign-identities.txt"
+
+          IDENTITY="$(awk -F '"' '/Developer ID Application/ { print $2; exit }' "$RUNNER_TEMP/codesign-identities.txt")"
+          if [ -z "$IDENTITY" ]; then
+            IDENTITY="$(awk -F '"' '/"/ { print $2; exit }' "$RUNNER_TEMP/codesign-identities.txt")"
+          fi
+
+          if [ -z "$IDENTITY" ]; then
+            echo "::error::No usable code signing identity found in imported certificate."
+            exit 1
+          fi
+
+          echo "APPLE_SIGNING_IDENTITY=$IDENTITY" >> "$GITHUB_ENV"
+          echo "::notice::Detected code signing identity for build."
+
+      - name: Log notarization configuration
+        if: ${{ steps.apple_signing.outputs.enabled == 'true' }}
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          set -euo pipefail
+          APPLE_ID_DOMAIN="${APPLE_ID#*@}"
+          echo "::notice::Notarization credentials configured (team=$APPLE_TEAM_ID, account-domain=$APPLE_ID_DOMAIN)."
+
+      - name: Log unsigned fallback mode
+        if: ${{ steps.apple_signing.outputs.enabled != 'true' }}
+        run: |
+          set -euo pipefail
+          echo "::warning::Building unsigned artifacts for internal testing (Developer ID / notarization not configured)."
+          echo "::warning::Missing secrets: ${{ steps.apple_signing.outputs.missing }}"
 
       - name: Web lint
         run: pnpm -C apps/web lint
@@ -60,7 +154,28 @@ jobs:
       - name: Server typecheck
         run: pnpm -C apps/server exec tsc --noEmit
 
-      - name: Build and draft release
+      - name: Build and draft release (signed + notarized)
+        if: ${{ steps.apple_signing.outputs.enabled == 'true' }}
+        uses: tauri-apps/tauri-action@v0.6.1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ env.APPLE_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        with:
+          projectPath: apps/desktop
+          tagName: ${{ github.ref_name }}
+          releaseName: CLI Commentator ${{ github.ref_name }}
+          releaseBody: See the assets to download and install this version.
+          releaseDraft: true
+          prerelease: false
+          args: ${{ matrix.args }}
+
+      - name: Build and draft release (unsigned internal)
+        if: ${{ steps.apple_signing.outputs.enabled != 'true' }}
         uses: tauri-apps/tauri-action@v0.6.1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -69,8 +184,8 @@ jobs:
         with:
           projectPath: apps/desktop
           tagName: ${{ github.ref_name }}
-          releaseName: CLI Commentator v__VERSION__
-          releaseBody: See the assets to download and install this version.
+          releaseName: CLI Commentator ${{ github.ref_name }} (unsigned internal)
+          releaseBody: Unsigned internal test build from ${{ github.ref_name }}. Apple Developer ID signing/notarization is not configured.
           releaseDraft: true
-          prerelease: false
+          prerelease: true
           args: ${{ matrix.args }}

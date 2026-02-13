@@ -13,6 +13,11 @@
 - `apps/desktop/src-tauri/tauri.conf.json` に Updater endpoint / artifact 生成設定を追加済み
 - `.github/workflows/release-desktop.yml` でタグ起点の Draft Release 自動化を用意
 - `desktop_check` CI（`cargo check` + `cargo test`）を毎PRで実行
+- `scripts/verify-updater-config.mjs` で Updater公開鍵と署名鍵の整合チェックを追加
+
+関連ドキュメント:
+- 詳細運用手順（復旧/ロールバック含む）: `docs/release-runbook.ja.md`
+- 証明書/Secrets運用: `docs/certificate-secrets.ja.md`
 
 ## 1) 署名キーを準備する（Updater用）
 
@@ -47,6 +52,17 @@ GitHub Actions では同じ値を Repository Secrets に登録します。
 
 - `TAURI_SIGNING_PRIVATE_KEY`
 - `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`
+
+## 2.5) macOS署名・Notarization用Secrets
+
+`release-desktop` ワークフローでは、以下のSecretsを必須にしています。
+
+- `APPLE_CERTIFICATE`（`.p12` をbase64化した値）
+- `APPLE_CERTIFICATE_PASSWORD`
+- `KEYCHAIN_PASSWORD`
+- `APPLE_ID`
+- `APPLE_PASSWORD`（app-specific password）
+- `APPLE_TEAM_ID`
 
 ## 3) `tauri.conf.json` のUpdater設定（有効化時）
 
@@ -108,7 +124,16 @@ GitHub Actions では同じ値を Repository Secrets に登録します。
 5. Draft Release の成果物を確認して Publish
 6. リリース後、既存アプリで更新チェックを確認
 
+## 6.5) 事前検証コマンド（推奨）
+
+```bash
+pnpm verify:updater
+```
+
+`TAURI_SIGNING_PRIVATE_KEY` が設定済みの場合は、署名スモークを実行し、`tauri.conf.json` の `plugins.updater.pubkey` と鍵IDが一致することを検証します。
+
 ## 7) 残タスク（次スプリント）
 
-- macOS Notarization / Windows署名のCI化
+- macOS Notarizationの運用検証（Secretsローテーション時の手順最適化）
+- Windows署名のCI化
 - 配布対象確定後に macOS 以外のリリースマトリクス拡張
