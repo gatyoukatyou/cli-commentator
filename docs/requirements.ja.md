@@ -3,12 +3,15 @@
 
 # 要件（Must / Should / Could）
 
-このプロジェクトは「対象CLIをPTYで包んで起動し、別ウィンドウで実況（解説）を流す」ためのMVPから始める。
+このプロジェクトは「対象CLIをPTYで包んで起動し、別ウィンドウで実況（解説）を流す」MVPから始まり、現在は Tauri Desktop 運用導線も含む。
 
 ## Must（MVPで絶対）
 
 - **PTYラッパー起動（macOS/Windows）**
   - 本アプリが対象CLIを“包んで起動”し、入出力を取得できる
+- **入力モードとフォールバック**
+  - 既定は `INPUT_MODE=pty`、`INPUT_MODE=file` で外部ログ監視に対応
+  - PTY初期化失敗時は `ptyUnavailable` を通知し、`INPUT_FILE` が有効なら file 監視へフォールバックできる
 - **実況の自動生成（ルールベースでOK）**
   - 生ログをそのまま投げず、まず **イベント化**（read/search/test/error/git/github など）
   - **更新頻度：イベント発生時 + 最大2秒に1回（連打抑制）**
@@ -40,4 +43,4 @@
 ## 非機能（MVP基準）
 
 - セキュリティ：マスク処理は“誤爆しても良いが漏れに強い”寄せ（allowlist化はShould）
-- プラットフォーム：MVPはローカルWebで検証 → 手応えがあればTauri化
+- プラットフォーム：ローカルWeb と Tauri Desktop の両運用を維持し、手順を常に同期する

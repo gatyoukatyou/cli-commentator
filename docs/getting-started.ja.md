@@ -1,14 +1,19 @@
 <a href="getting-started.ja.md"><kbd>日本語</kbd></a>
 <a href="getting-started.en.md"><kbd>English</kbd></a>
 
-# Getting Started（MVP）
+# Getting Started
 
-このMVPは「PTYでCLIを起動 → イベント化 → 実況をWeb UIで表示」の最小構成です。
+CLI Commentator は CLI 出力（PTY またはログファイル tail）を取り込み、イベント化して Web UI に実況を流します。
 
 ## 前提
 
-- Node.js がインストール済み
-- pnpm が使える（`corepack enable` で有効化できます）
+- Node.js（推奨: 20+）
+- pnpm（必要なら `corepack enable`）
+- Desktop 開発時のみ:
+  - Rust ツールチェーン（`rustup`）
+  - Tauri v2 前提: <https://v2.tauri.app/start/prerequisites/>
+
+現状メモ: Node/pnpm なしで動く Desktop sidecar 同梱は Sprint 28 で対応中です。現時点の開発フローはローカル Node/pnpm が必要です。
 
 ## セットアップ
 
@@ -16,224 +21,136 @@
 pnpm install
 ```
 
-## 開発起動
+## Web モードで起動（server + web）
 
 ```bash
 pnpm dev
 ```
 
-起動後の目安：
+起動URLの目安:
 
-- Server: `http://localhost:8787/health`
-- Web UI: Vite が表示するURL（通常 `http://localhost:5173`）
+- Server health: `http://localhost:8787/healthz`（`/health` も互換で利用可能）
+- Web UI: Vite が表示する URL（通常 `http://localhost:5173`）
 
-## デスクトップ開発（managed）
-
-`pnpm dev:desktop:managed` で Web と Tauri を同時に起動できます。
+## Desktop managed モードで起動（Tauri + web）
 
 ```bash
 pnpm dev:desktop:managed
 ```
 
-### 前提
+Desktop Server パネルで server の状態を操作します（`Start` / `Stop`、`stopped` / `starting` / `running` / `stopping` / `failed`）。
 
-- Rust ツールチェーン（`rustup`）が導入済み
-- Tauri v2 のビルド前提を満たしていること（OS別の詳細は [Tauri Prerequisites](https://v2.tauri.app/start/prerequisites/)）
+`failed` になった場合は、パネルの復旧ガイダンスと同じターミナルのログを確認してください。
 
-### 状態遷移（Desktop Server パネル）
+## 入力モード
 
-起動/停止は `state` を単一ソースとして表示します。
+### 1) PTY モード（デフォルト）
 
-- 起動: `stopped -> starting -> running`
-- 停止: `running -> stopping -> stopped`
-- 失敗: `failed`（理由は `error` に表示）
-- 復旧: `failed` から `Start` で再試行
+- `INPUT_MODE` 未設定時の既定値です。
+- `TARGET_CMD`, `TARGET_ARGS`, `TARGET_ARGS_JSON`, `TARGET_CWD` で対象 CLI を切り替えます。
 
-### 連打ガード
+例:
 
-- `starting` / `running` の間は Start が無効（多重起動防止）
-- `stopping` / `stopped` の間は Stop が無効（多重停止防止）
+```bash
+TARGET_CMD=git TARGET_ARGS="status -sb" pnpm dev:server
+```
 
-### 自動起動（Auto-start）
+```bash
+TARGET_CMD=node TARGET_ARGS_JSON='["-v"]' pnpm dev:server
+```
 
-- Desktop Server パネルの `自動起動を有効化` / `自動起動を無効化` で切り替えできます。
-- 設定後は次回OSログイン時にアプリが自動起動します（OSポリシーにより初回許可が必要な場合があります）。
+### 2) file モード（明示指定）
 
-### 更新確認（Updater）
-
-- Desktop Server パネルの `更新を確認` で、現在バージョンが最新かを確認できます。
-- Updater が未設定の場合は、パネル内に `tauri.conf.json` の `plugins.updater` 設定不足エラーが表示されます。
-- 設定後は「更新あり（vX.Y.Z）」または「最新」が表示されます。
-
-### 失敗の再現と復旧
-
-例: `8787` ポートを先に他プロセスで占有すると `failed` に遷移します。
-
-1. 競合プロセスを停止
-2. Desktop Server パネルで `Start` を押して再試行
-3. `running` に戻ることを確認
-
-### ログの確認場所
-
-- `pnpm dev:desktop:managed` を実行しているターミナル
-- ここに Tauri 側と `apps/server` 側のログが出力されます
-
-## 対象CLIの差し替え
-
-デフォルトは `bash` をPTYで起動します。別のCLIに変える場合は `TARGET_CMD` を指定します。
+PTY が使えない環境や、外部ログ監視で使います。
 
 macOS/Linux:
 
 ```bash
-TARGET_CMD=your-cli pnpm -C apps/server dev
+INPUT_MODE=file INPUT_FILE=/path/to/app.log pnpm dev:server
+pnpm dev:web
 ```
 
-Windows（PowerShell）:
+Windows PowerShell:
 
 ```powershell
-$env:TARGET_CMD="your-cli"; pnpm -C apps/server dev
+$env:INPUT_MODE="file"; $env:INPUT_FILE="C:\\logs\\app.log"; pnpm dev:server
+pnpm dev:web
 ```
 
-Windows（cmd.exe）:
+### 3) 自動フォールバック（`pty` -> `file`）
 
-```cmd
-set TARGET_CMD=your-cli && pnpm -C apps/server dev
-```
+`INPUT_MODE=pty` で PTY 初期化に失敗した場合:
 
-引数を渡す場合は `TARGET_ARGS` を空白区切りで指定します。
+- `INPUT_FILE` が既存ファイルなら file 監視へ自動切替します。
+- UI には `ptyUnavailable` 通知と復旧ヒントが表示されます。
+- `INPUT_FILE` が未設定/不正でも server は継続し、`ptyUnavailable` のガイダンスを表示します。
 
-```bash
-TARGET_CMD=git TARGET_ARGS="status -sb" pnpm -C apps/server dev
-```
+## 環境変数（server）
 
-## ログソースの指定（LOG_SOURCE）
+`apps/server/.env.example` を参照してください。
 
-`apps/server/.env` に `LOG_SOURCE` を指定すると、ログ解析ルールセットを選択できます。
+主要キー:
 
-- `auto`（デフォルト）: 行の特徴から自動判定し、該当がなければ `generic` を使う
-- `claude` / `codex` / `generic`: 明示指定
+- `CLI_COMMENTATOR_PORT`（推奨、既定: `8787`）
+- `PORT`（後方互換のフォールバック）
+- `INPUT_MODE`（`pty` or `file`）
+- `INPUT_FILE`（`INPUT_MODE=file` で必須）
+- `TARGET_CMD`, `TARGET_ARGS`, `TARGET_ARGS_JSON`, `TARGET_CWD`
+- `LOG_SOURCE`（`auto|claude|codex|generic`）
 
-## 口調プリセット
+Web 側（server port と合わせる）:
 
-Web UIのプルダウンから切り替えできます（標準 / 関西弁 / ずんだもん風）。
+- `apps/web/.env.development` -> `VITE_WS_PORT`
 
-## UI同期の確認（2タブ）
+## Windows 注意点
 
-1. ブラウザで2タブ開く（A/B）。
-2. タブAで `standard → kansai → zundamon` と切り替える。
-3. タブBの口調表示が即時に追随する。
-4. 直後の実況（commentary）が新しい口調で表示される。
+- `node-pty` は Visual C++ Build Tools が必要な場合があります。
+- ビルド/読み込みに失敗する場合は `INPUT_MODE=file` を利用してください。
+- ConPTY 起因のハングがある場合は以下で無効化を試してください。
 
-<a name="troubleshooting"></a>
-## トラブルシューティング
-
-### Error: posix_spawnp failed
-
-`node-pty` の `spawn-helper` に実行権限が付いていない場合があります（pnpm 配下で起きやすい報告あり）。
-
-```bash
-find node_modules/.pnpm -path '*node-pty*' -name spawn-helper -print -exec ls -l {} \;
-```
-
-実行権限が付いていない場合は付与してください。
-
-```bash
-chmod 755 <path-to-spawn-helper>
-```
-
-`node_modules` は再インストールで戻る可能性があるため、再発時は同じ手順で対応してください。
-
-## Windows 向け注意事項
-
-### 必要条件
-
-- Windows 10 1809+ (ConPTY対応)
-- Node.js 20+
-- Visual C++ Build Tools (node-pty ビルド用)
-
-### デフォルトシェル
-
-プロファイル無しで起動した場合、Windowsでは `powershell.exe` がデフォルトになります（Unix系は `bash`）。
-
-### 引数にスペースを含む場合
-
-`TARGET_ARGS_JSON` を使用（JSON配列形式）:
-
-**PowerShell:**
-
-```powershell
-$env:TARGET_ARGS_JSON='["-NoProfile","-Command","echo hello world"]'; pnpm dev:server
-```
-
-**cmd.exe:**
-
-```cmd
-set TARGET_ARGS_JSON=["-NoProfile","-Command","echo hello world"] && pnpm dev:server
-```
-
-### ConPTY ハング対策
-
-デバッガ使用時などでハングする場合:
-
-**PowerShell:**
+PowerShell:
 
 ```powershell
 $env:PTY_USE_CONPTY='0'; pnpm dev:server
 ```
 
-**cmd.exe:**
+cmd.exe:
 
 ```cmd
 set PTY_USE_CONPTY=0 && pnpm dev:server
 ```
 
-### Windows トラブルシューティング
+## トラブルシューティング
 
-#### node-pty がビルドに失敗する
+### ポート競合（`8787` が使用中）
 
-node-pty のビルドには Visual C++ Build Tools が必要ですが、
-ビルドできない環境でも **file モード** で cli-commentator を使用できます。
+現状挙動:
 
-`INPUT_MODE=pty` のままでも `INPUT_FILE` が設定されていれば、
-node-pty 初期化失敗時に file 監視モードへ自動フォールバックします。
+- server が起動失敗する場合があります。
+- Desktop パネルは `failed` に遷移することがあります。
 
-**file モードで起動する例:**
+回避策:
 
 ```bash
-# 監視したいログファイルを指定
-INPUT_MODE=file INPUT_FILE=/path/to/your-app.log pnpm dev:server
-
-# 別ターミナルで Web UI を起動
-pnpm dev:web
+CLI_COMMENTATOR_PORT=8788 VITE_WS_PORT=8788 pnpm dev
 ```
 
-**根本解決したい場合:**
+Desktop managed の回避策:
 
-Visual C++ Build Tools をインストールしてください。
-
-**推奨:** Visual Studio Installer で「C++ によるデスクトップ開発」ワークロードをインストール
-
-```
-1. Visual Studio Installer を起動
-2. 「変更」→「ワークロード」タブ
-3. 「C++ によるデスクトップ開発」にチェック → インストール
+```bash
+CLI_COMMENTATOR_PORT=8788 VITE_WS_PORT=8788 pnpm dev:desktop:managed
 ```
 
-または [Visual Studio Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/) を直接インストール:
+### `Error: posix_spawnp failed`
 
-1. 「C++ によるデスクトップ開発」ワークロードを選択
-2. Node.js を再インストール（または `npm config set msvs_version 2022`）
-3. `pnpm install` を再実行
+`node-pty` の `spawn-helper` に実行権限が付いていない可能性があります。
 
-> **注:** `npm install --global windows-build-tools` は環境によっては途中で止まる報告があるため非推奨。
-
-#### デバッガ使用時にハングする
-
-`PTY_USE_CONPTY=0` を設定するか、`--inspect` フラグを外してください。
-自動検知により、`--inspect` / `--inspect-brk` が検出された場合は ConPTY が自動で無効化されます。
+```bash
+find node_modules/.pnpm -path '*node-pty*' -name spawn-helper -print -exec ls -l {} \;
+chmod 755 <path-to-spawn-helper>
+```
 
 ## 備考
 
-- 実況テキストは **イベント時 + 最大2秒に1回** で送信されます
-- マスク処理は最低限のルールです（強化はShould）
-- 手動停止時に `exit code 143` が出ることがあります（SIGTERMのため正常な挙動）
+- 実況はイベント時に生成され、最大 2 秒に 1 回のレート制御があります。
+- UI に送る raw ログは先にマスク処理されます。

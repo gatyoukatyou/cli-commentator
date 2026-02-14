@@ -1,14 +1,19 @@
 <a href="getting-started.ja.md"><kbd>日本語</kbd></a>
 <a href="getting-started.en.md"><kbd>English</kbd></a>
 
-# Getting Started (MVP)
+# Getting Started
 
-This MVP runs a target CLI under a PTY, turns logs into events, and streams commentary to a web UI.
+CLI Commentator captures CLI output (PTY or file tail), extracts events, and streams commentary to the Web UI.
 
 ## Prerequisites
 
-- Node.js installed
-- pnpm available (enable with `corepack enable` if needed)
+- Node.js (recommended: 20+)
+- pnpm (enable via `corepack enable` if needed)
+- Desktop development only:
+  - Rust toolchain (`rustup`)
+  - Tauri v2 prerequisites: <https://v2.tauri.app/start/prerequisites/>
+
+Current note: Desktop sidecar packaging (Node/pnpm-free runtime) is in progress in Sprint 28. For now, development flow still uses local Node/pnpm.
 
 ## Setup
 
@@ -16,7 +21,7 @@ This MVP runs a target CLI under a PTY, turns logs into events, and streams comm
 pnpm install
 ```
 
-## Development
+## Run in Web Mode (server + web)
 
 ```bash
 pnpm dev
@@ -24,138 +29,128 @@ pnpm dev
 
 Expected URLs:
 
-- Server: `http://localhost:8787/health`
-- Web UI: the URL printed by Vite (typically `http://localhost:5173`)
+- Server health: `http://localhost:8787/healthz` (`/health` is also supported)
+- Web UI: Vite URL (usually `http://localhost:5173`)
 
-## Desktop Development (managed)
-
-Use `pnpm dev:desktop:managed` to run Web + Tauri together.
+## Run in Desktop Managed Mode (Tauri + web)
 
 ```bash
 pnpm dev:desktop:managed
 ```
 
-### Prerequisites
+The Desktop Server panel controls server lifecycle (`Start` / `Stop`) and shows status (`stopped` / `starting` / `running` / `stopping` / `failed`).
 
-- Rust toolchain installed (`rustup`)
-- Tauri v2 build prerequisites satisfied for your OS ([Tauri Prerequisites](https://v2.tauri.app/start/prerequisites/))
+If status becomes `failed`, use the guidance shown in the panel and check logs from the same terminal.
 
-### State transitions (Desktop Server panel)
+## Input Modes
 
-Start/stop status is exposed as a single `state` source.
+### 1) PTY mode (default)
 
-- Start: `stopped -> starting -> running`
-- Stop: `running -> stopping -> stopped`
-- Failure: `failed` (reason is shown in `error`)
-- Recovery: retry from `failed` by pressing `Start`
+- Default when `INPUT_MODE` is unset.
+- Starts a target shell/command (`TARGET_CMD`, `TARGET_ARGS`, `TARGET_ARGS_JSON`, `TARGET_CWD`).
 
-### Double-click / spam guards
+Examples:
 
-- Start is disabled while `starting` or `running` (prevents duplicate start)
-- Stop is disabled while `stopping` or `stopped` (prevents duplicate stop)
+```bash
+TARGET_CMD=git TARGET_ARGS="status -sb" pnpm dev:server
+```
 
-### Auto-start
+```bash
+TARGET_CMD=node TARGET_ARGS_JSON='["-v"]' pnpm dev:server
+```
 
-- Use `Enable auto-start` / `Disable auto-start` in the Desktop Server panel.
-- After enabling, the app starts on next OS login (some OS policies may ask for first-time permission).
+### 2) File mode (explicit)
 
-### Update check (Updater)
-
-- Use `Check updates` in the Desktop Server panel to verify if the current version is up to date.
-- If updater is not configured yet, the panel shows an error explaining `plugins.updater` is missing/incomplete in `tauri.conf.json`.
-- After configuration, the panel reports either `update available (vX.Y.Z)` or `up to date`.
-
-### Reproducing and recovering from failure
-
-Example: if another process already uses port `8787`, the state should move to `failed`.
-
-1. Stop the conflicting process
-2. Press `Start` in the Desktop Server panel
-3. Confirm state returns to `running`
-
-### Where to read logs
-
-- The terminal running `pnpm dev:desktop:managed`
-- Both Tauri-side and `apps/server` logs are printed there
-
-## Switch the target CLI
-
-The default target is `bash`. To run another CLI, set `TARGET_CMD`.
+Use this when PTY is unavailable or when monitoring external logs.
 
 macOS/Linux:
 
 ```bash
-TARGET_CMD=your-cli pnpm -C apps/server dev
+INPUT_MODE=file INPUT_FILE=/path/to/app.log pnpm dev:server
+pnpm dev:web
 ```
 
-Windows (PowerShell):
+Windows PowerShell:
 
 ```powershell
-$env:TARGET_CMD="your-cli"; pnpm -C apps/server dev
+$env:INPUT_MODE="file"; $env:INPUT_FILE="C:\\logs\\app.log"; pnpm dev:server
+pnpm dev:web
 ```
 
-Windows (cmd.exe):
+### 3) Automatic fallback (`pty` -> `file`)
+
+When `INPUT_MODE=pty` and PTY startup fails:
+
+- If `INPUT_FILE` points to an existing file, server automatically switches to file monitoring.
+- UI receives a `ptyUnavailable` notice with recovery guidance.
+- If `INPUT_FILE` is missing/unreadable, server keeps running without PTY and still shows `ptyUnavailable` guidance.
+
+## Environment Variables (server)
+
+See `apps/server/.env.example`.
+
+Main keys:
+
+- `CLI_COMMENTATOR_PORT` (preferred; default: `8787`)
+- `PORT` (legacy fallback)
+- `INPUT_MODE` (`pty` or `file`)
+- `INPUT_FILE` (required for `INPUT_MODE=file`)
+- `TARGET_CMD`, `TARGET_ARGS`, `TARGET_ARGS_JSON`, `TARGET_CWD`
+- `LOG_SOURCE` (`auto|claude|codex|generic`)
+
+Web dev key (must match server port):
+
+- `apps/web/.env.development` -> `VITE_WS_PORT`
+
+## Windows Notes
+
+- `node-pty` may require Visual C++ Build Tools.
+- If build/load fails, use file mode (`INPUT_MODE=file`).
+- For ConPTY-related hangs, try:
+
+PowerShell:
+
+```powershell
+$env:PTY_USE_CONPTY='0'; pnpm dev:server
+```
+
+cmd.exe:
 
 ```cmd
-set TARGET_CMD=your-cli && pnpm -C apps/server dev
+set PTY_USE_CONPTY=0 && pnpm dev:server
 ```
 
-To pass arguments, set `TARGET_ARGS` with space-separated values.
-
-```bash
-TARGET_CMD=git TARGET_ARGS="status -sb" pnpm -C apps/server dev
-```
-
-## Log source selection (LOG_SOURCE)
-
-Set `LOG_SOURCE` in `apps/server/.env` to choose a ruleset.
-
-- `auto` (default): detect from line patterns, fallback to `generic`
-- `claude` / `codex` / `generic`: explicit selection
-
-## Tone presets
-
-Use the web UI dropdown to switch between Standard / Kansai / Zundamon (text).
-
-## UI sync check (two tabs)
-
-1. Open two browser tabs (A/B).
-2. In tab A, switch `standard → kansai → zundamon`.
-3. Tab B should update its displayed style immediately.
-4. Subsequent commentary should follow the new style.
-
-<a name="troubleshooting"></a>
 ## Troubleshooting
 
-### Error: posix_spawnp failed
+### Port conflict (`8787` already in use)
 
-The `node-pty` `spawn-helper` binary may lack execute permissions (commonly reported under pnpm layouts).
+Current behavior:
+
+- Server may fail to start.
+- Desktop panel can move to `failed`.
+
+Workaround:
+
+```bash
+CLI_COMMENTATOR_PORT=8788 VITE_WS_PORT=8788 pnpm dev
+```
+
+Desktop managed workaround:
+
+```bash
+CLI_COMMENTATOR_PORT=8788 VITE_WS_PORT=8788 pnpm dev:desktop:managed
+```
+
+### `Error: posix_spawnp failed`
+
+`node-pty` `spawn-helper` may not be executable.
 
 ```bash
 find node_modules/.pnpm -path '*node-pty*' -name spawn-helper -print -exec ls -l {} \;
-```
-
-If it is not executable, add permissions:
-
-```bash
 chmod 755 <path-to-spawn-helper>
-```
-
-`node_modules` can be regenerated on reinstall, so repeat this if the issue returns.
-
-### node-pty build failure on Windows
-
-`node-pty` requires Visual C++ Build Tools. If build fails, you can still run in file monitoring mode.
-
-If `INPUT_MODE=pty` and `INPUT_FILE` is already set, the server automatically falls back to file monitoring when PTY initialization fails.
-
-```bash
-# Explicit file mode
-INPUT_MODE=file INPUT_FILE=/path/to/your-app.log pnpm dev:server
 ```
 
 ## Notes
 
-- Commentary is emitted **on events + at most once per 2 seconds**
-- Redaction is minimal in the MVP (hardening is a Should)
-- You may see `exit code 143` when you stop the process manually (SIGTERM)
+- Commentary is emitted on events, with max rate of once per 2 seconds.
+- Raw logs sent to UI are redacted first.

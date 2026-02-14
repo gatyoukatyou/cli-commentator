@@ -3,12 +3,15 @@
 
 # Requirements (Must / Should / Could)
 
-This project starts from an MVP: "wrap a target CLI with a PTY and stream beginner-friendly commentary in a separate window."
+This project started from the MVP, "wrap a target CLI with a PTY and stream beginner-friendly commentary in a separate window," and now also includes a Tauri desktop operation path.
 
 ## Must (MVP)
 
 - **PTY wrapper launch (macOS/Windows)**
   - The app spawns the target CLI under a PTY and captures I/O
+- **Input modes and graceful fallback**
+  - `INPUT_MODE=pty` is default, `INPUT_MODE=file` supports external log monitoring
+  - On PTY init failure, notify with `ptyUnavailable` and continue with file fallback when `INPUT_FILE` is configured
 - **Auto commentary (rule-based is fine)**
   - Convert raw logs into **events** first (read/search/test/error/git/github, etc.)
   - **Rate limit:** on event + at most once every 2 seconds
@@ -40,4 +43,4 @@ This project starts from an MVP: "wrap a target CLI with a PTY and stream beginn
 ## Non-functional (MVP baseline)
 
 - Security: prefer “no leaks” even if over-masking; allowlist is a Should
-- Platform: validate as local web first → Tauri later
+- Platform: keep both local web and Tauri desktop paths documented and runnable
