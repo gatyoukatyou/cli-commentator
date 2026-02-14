@@ -2,3 +2,4 @@
 # Only committed education reports go in docs/ai/reports/
 *
 !.gitignore
+!DAILY_CHECKLIST_TEMPLATE.md
