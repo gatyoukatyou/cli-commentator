@@ -1,2 +1,5 @@
 node_modules/
 src-tauri/target/
+src-tauri/bin/
+src-tauri/resources/server/
+src-tauri/resources/sidecar-manifest.json
