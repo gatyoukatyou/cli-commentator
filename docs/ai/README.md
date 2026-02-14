@@ -20,6 +20,7 @@ docs/ai/
 - **Claude Code**: `/wrapup` コマンドまたは SessionEnd hook で自動エクスポート
 - **Codex**: 手動または `$dev-edu-report` skill 実行時に参照
 - **Gemini CLI**: 手動エクスポート
+- **日次テンプレート**: `docs/ai/sessions/DAILY_CHECKLIST_TEMPLATE.md` をコピーして日次メモとして利用
 
 ## Reports (committed)
 
