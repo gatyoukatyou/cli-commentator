@@ -9,7 +9,8 @@
     "dev:desktop": "concurrently -n server,web,tauri \"pnpm -C apps/server dev\" \"pnpm -C apps/web dev\" \"wait-on http://localhost:5173 tcp:localhost:8787 && pnpm -C apps/desktop tauri:dev\"",
     "dev:desktop:managed": "concurrently -n web,tauri \"pnpm -C apps/web dev\" \"wait-on http://localhost:5173 && pnpm -C apps/desktop tauri:dev\"",
     "build:server": "pnpm -C apps/server build",
-    "build:sidecar": "node ./scripts/build-sidecar.mjs",
+    "prepare:desktop-sidecar": "node ./scripts/prepare-desktop-sidecar.mjs",
+    "build:sidecar": "pnpm prepare:desktop-sidecar",
     "smoke:llm": "bash ./scripts/smoke-llm.sh",
     "verify:updater": "node ./scripts/verify-updater-config.mjs"
   },

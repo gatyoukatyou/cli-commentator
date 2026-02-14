@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { spawnSync } from "node:child_process";
+import { execSync, spawnSync } from "node:child_process";
 import {
   chmodSync,
   copyFileSync,
@@ -25,10 +25,7 @@ const serverDistDir = path.join(serverDir, "dist");
 const tauriDir = path.join(repoRoot, "apps", "desktop", "src-tauri");
 const resourcesDir = path.join(tauriDir, "resources");
 const bundledServerDir = path.join(resourcesDir, "server");
-const platformDirName = `${process.platform}-${process.arch}`;
-const bundledNodeDir = path.join(tauriDir, "bin", platformDirName);
-const nodeBinaryName = process.platform === "win32" ? "node.exe" : "node";
-const bundledNodePath = path.join(bundledNodeDir, nodeBinaryName);
+const binariesDir = path.join(tauriDir, "binaries");
 const stageDir = mkdtempSync(path.join(os.tmpdir(), "cli-commentator-sidecar-"));
 const tempStoreDir = mkdtempSync(path.join(os.tmpdir(), "cli-commentator-pnpm-store-"));
 
@@ -53,12 +50,38 @@ function readPackageVersion(packageJsonPath) {
   return String(parsed.version ?? "0.0.0");
 }
 
+function getRustHostTriple() {
+  try {
+    return execSync("rustc --print host-tuple", { encoding: "utf8" }).trim();
+  } catch {
+    const verbose = execSync("rustc -Vv", { encoding: "utf8" });
+    const hostLine = verbose
+      .split(/\r?\n/)
+      .find((line) => line.startsWith("host:"));
+    if (!hostLine) {
+      throw new Error("Failed to determine rustc host triple");
+    }
+    return hostLine.replace("host:", "").trim();
+  }
+}
+
+function sidecarNodeFilename(targetTriple) {
+  return targetTriple.includes("windows")
+    ? `node-${targetTriple}.exe`
+    : `node-${targetTriple}`;
+}
+
 if (!existsSync(workspaceFile)) {
   throw new Error("pnpm-workspace.yaml not found. Run this script from the repository.");
 }
 
+const targetTriple = getRustHostTriple();
+const sidecarNodeName = sidecarNodeFilename(targetTriple);
+const sidecarNodePath = path.join(binariesDir, sidecarNodeName);
+
 try {
   console.log("[sidecar] Building server dist...");
+  rmSync(serverDistDir, { recursive: true, force: true });
   run("pnpm", ["-C", "apps/server", "build"]);
 
   if (!existsSync(serverDistDir)) {
@@ -86,7 +109,7 @@ try {
   // Always overwrite dist from local build so the entrypoint is deterministic.
   cpSync(serverDistDir, path.join(bundledServerDir, "dist"), { recursive: true, force: true });
 
-  // Keep sidecar payload small and focused on runtime artifacts.
+  // Keep sidecar payload focused on runtime artifacts.
   rmSync(path.join(bundledServerDir, "src"), { recursive: true, force: true });
   rmSync(path.join(bundledServerDir, "test"), { recursive: true, force: true });
   rmSync(path.join(bundledServerDir, "tsconfig.json"), { recursive: true, force: true });
@@ -98,26 +121,27 @@ try {
 
   console.log("[sidecar] Copying node runtime...");
   const nodeSource = realpathSync(process.execPath);
-  mkdirSync(bundledNodeDir, { recursive: true });
-  copyFileSync(nodeSource, bundledNodePath);
-  if (process.platform !== "win32") {
-    chmodSync(bundledNodePath, 0o755);
+  mkdirSync(binariesDir, { recursive: true });
+  rmSync(sidecarNodePath, { force: true });
+  copyFileSync(nodeSource, sidecarNodePath);
+  if (!targetTriple.includes("windows")) {
+    chmodSync(sidecarNodePath, 0o755);
   }
 
   const manifestPath = path.join(resourcesDir, "sidecar-manifest.json");
   const manifest = {
     generatedAt: new Date().toISOString(),
-    platform: process.platform,
-    arch: process.arch,
+    targetTriple,
     nodeVersion: process.version,
     serverVersion: readPackageVersion(path.join(serverDir, "package.json")),
-    nodeBinary: toPosix(path.relative(tauriDir, bundledNodePath)),
+    nodeBinary: toPosix(path.relative(tauriDir, sidecarNodePath)),
     serverRoot: toPosix(path.relative(tauriDir, bundledServerDir)),
     serverEntry: toPosix(path.join(path.relative(tauriDir, bundledServerDir), "dist", "index.js")),
   };
   writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`, "utf8");
 
   console.log("[sidecar] Done.");
+  console.log(`- target triple: ${targetTriple}`);
   console.log(`- node: ${manifest.nodeBinary}`);
   console.log(`- server root: ${manifest.serverRoot}`);
   console.log(`- server entry: ${manifest.serverEntry}`);
