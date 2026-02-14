@@ -39,6 +39,12 @@ Note: Closing keywords only work for PRs targeting the default branch (main).
 - [ ] CLAUDE.md updated if env vars or config changed
 - [ ] Inline comments added for non-obvious logic
 
+### Desktop / Tauri (Sprint 28+)
+- [ ] Desktop can start the server without requiring Node/pnpm on the target machine (bundled sidecar)
+- [ ] Port collision handled (when 8787 is already in use, Desktop auto-falls back and still works)
+- [ ] Desktop build passes (`pnpm -C apps/desktop tauri:build`)
+- [ ] Bundled artifacts verified (sidecar node + server entry/resources included in the final bundle)
+
 ## Test Plan
 
 <!-- How can reviewers verify this change? -->

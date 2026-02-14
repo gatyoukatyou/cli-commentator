@@ -71,15 +71,19 @@ Build a minimal MVP that reliably works, then expand once value is proven.
 
 ---
 
-### Phase 4: Distribution & always-on (Tauri, etc.)
+### Phase 4: Distribution & always-on (Tauri, etc.) [In progress]
 - Desktop packaging, auto-launch, updates
 - OS integration, signing, distribution
 - Text-to-Speech (TTS)
 - External monitoring mode (tmux / log file tail)
 
+**In progress**
+- Tauri managed lifecycle (start/stop/status/recovery) is already in operation
+- Sprint 28 execution started with parent/child issues #141-#146 (docs sync, sidecar packaging path, port-collision handling, CI guard)
+
 ---
 
-## Current status (as of 2026-02-12)
+## Current status (as of 2026-02-14)
 **Done**
 - PR #1: detect boundary tests (mixed => generic, 50-line limit, exported constants)
 - PR #2: add roadmap docs (JA/EN + links from docs/README)
@@ -102,19 +106,18 @@ Build a minimal MVP that reliably works, then expand once value is proven.
 - PR #102: updater config baseline + tag-based desktop release workflow
 - Added 3AI operations foundation (`AGENTS.md` / `GEMINI.md` / `/wrapup` session hook)
 - 2026-02-13: ran `release-desktop` dry-run with `v0.0.0-smoke.5`; updater key-pair validation passed and Apple-secret gate was identified
+- 2026-02-14: created Sprint 28 tracking issues (#141 parent, #142-#146 children) for docs sync + desktop sidecar distribution path
 
 **Now**
-- Recorded 2026-02-13 `release-desktop` dry-run result (Run URL: `https://github.com/gatyoukatyou/cli-commentator/actions/runs/21986062140`)
-- `Verify updater key configuration` passed on both arm64/x64 (key id matched: `0EDB9F95DB53F9FA`)
-- Prioritize Apple signing/notarization secret setup after failure at `Validate Apple signing/notarization secrets`
+- Execute Sprint 28 in dependency order (`28-01` -> `28-02` -> `28-03` -> `28-04` -> `28-05`)
+- Start with docs sync (#142): Desktop operation, input modes (`pty|file`), Windows constraints, and `.env.example` alignment
+- Keep release-desktop dry-run findings visible while implementation shifts to sidecar packaging foundation
 
 **Next**
-- Register and validate `APPLE_CERTIFICATE` / `APPLE_CERTIFICATE_PASSWORD` / `KEYCHAIN_PASSWORD` / `APPLE_ID` / `APPLE_PASSWORD` / `APPLE_TEAM_ID`
-- Re-run `release-desktop` with a new smoke tag and confirm Draft Release creation with complete artifacts
-- Move notarization/code-signing into actual production operation (macOS first)
-- Add clean-environment distribution smoke tests
-- Improve observability and recovery flows for failure cases
-- Shift into commentary quality iteration (mis-detection reduction and beginner-friendly output)
+- #143: finalize bundled server artifact generation (build + placement)
+- #144: switch Tauri server startup to bundled artifacts (remove dev-time `pnpm` dependency from runtime path)
+- #145: implement port collision fallback and make UI/WS follow actual port
+- #146: add minimum CI guard for desktop build + bundled artifact presence
 
 ---
 

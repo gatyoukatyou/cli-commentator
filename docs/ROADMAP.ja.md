@@ -76,15 +76,19 @@ CLI Commentator は「ターミナルの作業ログを見て、別ウィンド�
 
 ---
 
-### Phase 4：配布・常用（Tauri化など）
+### Phase 4：配布・常用（Tauri化など）[進行中]
 - デスクトップ化（常駐/自動起動/アップデート）
 - OS統合・署名・配布導線
 - 音声読み上げ（TTS）
 - 外部監視モード（tmux / ログファイル tail）
 
+**進行中**
+- Tauri managed の起動ライフサイクル（start/stop/status/recovery）は運用中
+- Sprint 28 の実行を開始（親子Issue #141-#146: docs同期、sidecar同梱方針、ポート衝突回避、CIガード）
+
 ---
 
-## 現在地（2026-02-12 時点）
+## 現在地（2026-02-14 時点）
 **Done**
 - PR #1：detect 境界テスト（混在→generic、50行制限、重要定数export）
 - PR #2：ロードマップ docs 追加（日英＋docs/READMEからリンク）
@@ -107,19 +111,18 @@ CLI Commentator は「ターミナルの作業ログを見て、別ウィンド�
 - PR #102：Updater設定の土台 + タグ起点desktopリリースワークフロー
 - 3AI運用基盤（`AGENTS.md` / `GEMINI.md` / `/wrapup` 運用フック）を追加
 - 2026-02-13: `v0.0.0-smoke.5` で `release-desktop` をドライランし、Updater鍵ペア検証成功を確認（Apple Secrets不足を検出）
+- 2026-02-14: Sprint 28 の管理Issueを作成（親 #141、子 #142-#146）
 
 **Now**
-- 2026-02-13 実行の `release-desktop` ドライラン結果を反映（Run URL: `https://github.com/gatyoukatyou/cli-commentator/actions/runs/21986062140`）
-- `Verify updater key configuration` は arm64/x64 とも成功（鍵ID `0EDB9F95DB53F9FA` 一致）
-- `Validate Apple signing/notarization secrets` で停止したため、Apple Secretsの整備を最優先で進める
+- Sprint 28 を依存順で実行（`28-01` -> `28-02` -> `28-03` -> `28-04` -> `28-05`）
+- まず #142（docs同期）を実施し、Desktop運用・入力モード（`pty|file`）・Windows制約・`.env.example` を揃える
+- sidecar同梱実装に入る前提として、`release-desktop` ドライラン結果は参照可能な状態で維持
 
 **Next**
-- `APPLE_CERTIFICATE` / `APPLE_CERTIFICATE_PASSWORD` / `KEYCHAIN_PASSWORD` / `APPLE_ID` / `APPLE_PASSWORD` / `APPLE_TEAM_ID` を登録・検証
-- 新しい smoke タグで `release-desktop` を再実行し、Draft Release 作成と成果物整合を確認
-- Notarization / コード署名の実運用化（まず macOS）
-- クリーン環境での配布物スモークテスト整備
-- 障害時の可観測性と復旧導線を強化
-- 実況品質（誤検知率・初心者向け説明）の改善サイクルへ移行
+- #143: 同梱server成果物の生成手順を確定（build + 配置）
+- #144: Tauri 起動を同梱物実行へ切替（runtimeから dev-time `pnpm` 依存を外す）
+- #145: ポート衝突の自動退避と UI/WS の追従を実装
+- #146: Desktop build + 同梱物存在チェックの最小CIガードを追加
 
 ---
 
