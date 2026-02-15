@@ -1,0 +1,51 @@
+[
+  {
+    "id": "search-rg-pnpm",
+    "intent": "検索系の実況で rg/pnpm 注釈を維持する",
+    "event": {
+      "ts": 1735689600000,
+      "type": "search",
+      "summary": "該当箇所を検索している",
+      "detail": "rg -n \"TODO\" src && pnpm -C apps/server test"
+    }
+  },
+  {
+    "id": "write-node-pty-websocket",
+    "intent": "更新系の実況で pty/websocket 注釈を維持する",
+    "event": {
+      "ts": 1735689600000,
+      "type": "write",
+      "summary": "再接続処理を更新している",
+      "detail": "Update apps/server/src/index.ts for node-pty websocket reconnect"
+    }
+  },
+  {
+    "id": "github-gh-git",
+    "intent": "GitHub運用の実況で gh/git 注釈を維持する",
+    "event": {
+      "ts": 1735689600000,
+      "type": "github",
+      "summary": "PRの状態を確認している",
+      "detail": "gh pr checks 159 --watch --interval 15 && git status -sb"
+    }
+  },
+  {
+    "id": "error-tsc",
+    "intent": "失敗系の実況で tsc/typecheck 注釈を維持する",
+    "event": {
+      "ts": 1735689600000,
+      "type": "error",
+      "summary": "型チェックに失敗している",
+      "detail": "error TS2322 in src/index.ts during tsc -p tsconfig.json"
+    }
+  },
+  {
+    "id": "done-no-detail",
+    "intent": "詳細なし完了時でも口調差分を維持する",
+    "event": {
+      "ts": 1735689600000,
+      "type": "done",
+      "summary": "作業完了"
+    }
+  }
+]

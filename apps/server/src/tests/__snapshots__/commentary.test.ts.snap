@@ -1,18 +1,96 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`commentary > renders styles consistently 1`] = `
+exports[`commentary quality fixtures > renders styles consistently 1`] = `
 [
   {
-    "style": "standard",
-    "text": "原因になりそうな箇所を検索しています。 1行メモ: 手がかりを探して調査範囲を絞っています。 （rg= ripgrep（高速grep） / 依存関係の操作（パッケージ管理））",
+    "id": "search-rg-pnpm",
+    "intent": "検索系の実況で rg/pnpm 注釈を維持する",
+    "outputs": [
+      {
+        "style": "standard",
+        "text": "原因になりそうな箇所を検索しています。 1行メモ: 手がかりを探して調査範囲を絞っています。 （rg= ripgrep（高速grep） / 依存関係の操作（パッケージ管理））",
+      },
+      {
+        "style": "kansai",
+        "text": "原因っぽいとこ探してるで。 1行メモ: 手がかり探して調査範囲しぼってるで。 （rg= ripgrep（高速grep） / 依存関係の操作（パッケージ管理））",
+      },
+      {
+        "style": "zundamon",
+        "text": "原因になりそうな所を探してるのだ。 1行メモ: 手がかりを探して調査範囲をしぼってるのだ。 （rg= ripgrep（高速grep） / 依存関係の操作（パッケージ管理））",
+      },
+    ],
   },
   {
-    "style": "kansai",
-    "text": "原因っぽいとこ探してるで。 1行メモ: 手がかり探して調査範囲しぼってるで。 （rg= ripgrep（高速grep） / 依存関係の操作（パッケージ管理））",
+    "id": "write-node-pty-websocket",
+    "intent": "更新系の実況で pty/websocket 注釈を維持する",
+    "outputs": [
+      {
+        "style": "standard",
+        "text": "ファイルを書き換えて修正を反映しています。 1行メモ: 問題を直すために内容を更新しています。 （pty=擬似端末（CLIを包んで実行） / WebSocket=双方向通信）",
+      },
+      {
+        "style": "kansai",
+        "text": "ファイル書き換えて修正反映してるで。 1行メモ: 問題直すために中身を更新してるで。 （pty=擬似端末（CLIを包んで実行） / WebSocket=双方向通信）",
+      },
+      {
+        "style": "zundamon",
+        "text": "修正を反映して書き換えてるのだ。 1行メモ: 問題を直すために中身を更新してるのだ。 （pty=擬似端末（CLIを包んで実行） / WebSocket=双方向通信）",
+      },
+    ],
   },
   {
-    "style": "zundamon",
-    "text": "原因になりそうな所を探してるのだ。 1行メモ: 手がかりを探して調査範囲をしぼってるのだ。 （rg= ripgrep（高速grep） / 依存関係の操作（パッケージ管理））",
+    "id": "github-gh-git",
+    "intent": "GitHub運用の実況で gh/git 注釈を維持する",
+    "outputs": [
+      {
+        "style": "standard",
+        "text": "GitHub上のIssue/PRを操作しています。 1行メモ: Issue/PRで作業状況を同期しています。 （gh=GitHub CLI / git=履歴管理）",
+      },
+      {
+        "style": "kansai",
+        "text": "GitHubのIssue/PR触ってるで。 1行メモ: Issue/PRで作業状況を同期してるで。 （gh=GitHub CLI / git=履歴管理）",
+      },
+      {
+        "style": "zundamon",
+        "text": "GitHubのIssue/PRを操作してるのだ。 1行メモ: Issue/PRで作業状況を同期してるのだ。 （gh=GitHub CLI / git=履歴管理）",
+      },
+    ],
+  },
+  {
+    "id": "error-tsc",
+    "intent": "失敗系の実況で tsc/typecheck 注釈を維持する",
+    "outputs": [
+      {
+        "style": "standard",
+        "text": "エラーが出ています。原因特定→修正の流れになりそうです。 1行メモ: 失敗ログを手がかりに修正方針を決めます。 （tsc/typecheck=型チェック（TypeScript））",
+      },
+      {
+        "style": "kansai",
+        "text": "エラーや。原因特定して直す流れやな。 1行メモ: 失敗ログを手がかりに直し方を決めるで。 （tsc/typecheck=型チェック（TypeScript））",
+      },
+      {
+        "style": "zundamon",
+        "text": "エラーなのだ…原因を見つけて直すのだ。 1行メモ: 失敗ログを手がかりに直し方を決めるのだ。 （tsc/typecheck=型チェック（TypeScript））",
+      },
+    ],
+  },
+  {
+    "id": "done-no-detail",
+    "intent": "詳細なし完了時でも口調差分を維持する",
+    "outputs": [
+      {
+        "style": "standard",
+        "text": "いったん区切りです。おつかれさまでした。 1行メモ: 作業がひと区切りで、結果を確認しています。",
+      },
+      {
+        "style": "kansai",
+        "text": "ひとまず区切りや。おつかれさん。 1行メモ: ひと区切りついたから結果を確認してるで。",
+      },
+      {
+        "style": "zundamon",
+        "text": "いったん区切りなのだ。おつかれさまなのだ。 1行メモ: ひと区切りついたので結果を確認してるのだ。",
+      },
+    ],
   },
 ]
 `;
