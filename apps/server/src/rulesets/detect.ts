@@ -8,13 +8,15 @@ type DetectorOptions = {
 };
 
 export const MAX_DETECT_LINES = 50;
-export const MIN_DELTA = 3;
+export const MIN_DELTA = 4;
+const STRONG_SCORE = 4;
+const MEDIUM_SCORE = 2;
+const WEAK_SCORE = 1;
 
 const CLAUDE_STRONG = [
-  /^(⏺|•)\s*(Read|Bash|Glob|Grep|Update|Write|Edit)\(/,
-  /⎿/
+  /^(⏺|•)\s*(Read|Bash|Glob|Grep|Update|Write|Edit)\(/
 ];
-const CLAUDE_MEDIUM = [/AskUserQuestion/i, /read[-\s]?only/i];
+const CLAUDE_MEDIUM = [/AskUserQuestion/i, /read[-\s]?only/i, /⎿/];
 
 const CODEX_STRONG = [
   /would you like to run the following command\?/i,
@@ -29,20 +31,20 @@ function scoreLine(line: string): Scores {
   let codex = 0;
 
   for (const re of CLAUDE_STRONG) {
-    if (re.test(line)) claude += 3;
+    if (re.test(line)) claude += STRONG_SCORE;
   }
   for (const re of CLAUDE_MEDIUM) {
-    if (re.test(line)) claude += 2;
+    if (re.test(line)) claude += MEDIUM_SCORE;
   }
 
   for (const re of CODEX_STRONG) {
-    if (re.test(line)) codex += 3;
+    if (re.test(line)) codex += STRONG_SCORE;
   }
   for (const re of CODEX_MEDIUM) {
-    if (re.test(line)) codex += 2;
+    if (re.test(line)) codex += MEDIUM_SCORE;
   }
   for (const re of CODEX_WEAK) {
-    if (re.test(line)) codex += 1;
+    if (re.test(line)) codex += WEAK_SCORE;
   }
 
   return { claude, codex };

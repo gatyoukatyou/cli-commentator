@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { MAX_DETECT_LINES, createAutoDetector, detectSourceFromText } from "../rulesets/detect.js";
+import { MAX_DETECT_LINES, MIN_DELTA, createAutoDetector, detectSourceFromText } from "../rulesets/detect.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -17,7 +17,9 @@ const cases = [
   { name: "lock-does-not-flip-after-initial-detect.log", expected: "claude" },
   { name: "mixed-claude-codex-noise.log", expected: "generic" },
   { name: "mixed-claude-codex-strong.log", expected: "generic" },
-  { name: "ignore-strong-signal-after-50-lines.log", expected: "generic" }
+  { name: "ignore-strong-signal-after-50-lines.log", expected: "generic" },
+  { name: "codex-keyword-exit-noise.log", expected: "generic" },
+  { name: "claude-tail-symbol-noise.log", expected: "generic" }
 ] as const;
 
 describe("ruleset auto detect", () => {
@@ -55,7 +57,8 @@ describe("ruleset auto detect", () => {
     expect(detector.get()).toBe("claude");
   });
 
-  it("exports MAX_DETECT_LINES", () => {
+  it("exports detect constants", () => {
     expect(MAX_DETECT_LINES).toBe(50);
+    expect(MIN_DELTA).toBe(4);
   });
 });
