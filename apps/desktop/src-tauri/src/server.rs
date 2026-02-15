@@ -1,5 +1,6 @@
 use process_wrap::std::*;
 use std::env;
+use std::fs;
 use std::io::{Read as IoRead, Write as IoWrite};
 use std::net::TcpStream;
 use std::path::PathBuf;
@@ -7,7 +8,8 @@ use std::process::Stdio;
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
-use tauri::State;
+use tauri::path::BaseDirectory;
+use tauri::{Manager, State};
 
 #[cfg(unix)]
 use process_wrap::std::ProcessGroup;
@@ -17,6 +19,20 @@ use process_wrap::std::JobObject;
 
 const DEFAULT_PORT: u16 = 8787;
 const HEALTH_CHECK_TIMEOUT_MS: u64 = 500;
+
+#[derive(Debug, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct SidecarManifest {
+    node_binary: String,
+    server_entry: String,
+    server_root: String,
+}
+
+struct SidecarRuntimePaths {
+    node_binary_path: PathBuf,
+    server_entry_path: PathBuf,
+    server_working_dir: PathBuf,
+}
 
 #[derive(Debug, Clone, Copy, serde::Serialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
@@ -147,27 +163,153 @@ fn format_failure(
     message
 }
 
-/// Get project root from CARGO_MANIFEST_DIR
-/// apps/desktop/src-tauri -> cli-commentator (3 levels up)
-fn get_project_root() -> Result<PathBuf, String> {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("../../..")
-        .canonicalize()
-        .map_err(|e| {
-            format_failure(
-                "project_root",
-                "Failed to get project root",
-                &[("error", e.to_string())],
-            )
-        })
+fn sidecar_root_from_manifest(manifest_path: &PathBuf) -> Result<PathBuf, String> {
+    let manifest_dir = manifest_path.parent().ok_or_else(|| {
+        format_failure(
+            "sidecar_manifest_parent",
+            "Failed to resolve sidecar manifest parent directory",
+            &[("manifest", manifest_path.display().to_string())],
+        )
+    })?;
+
+    let root = match manifest_dir.file_name().and_then(|name| name.to_str()) {
+        Some("resources") => manifest_dir.parent().unwrap_or(manifest_dir).to_path_buf(),
+        _ => manifest_dir.to_path_buf(),
+    };
+
+    Ok(root)
 }
 
-fn spawn_server_process(port: u16) -> Result<Box<dyn ChildWrapper>, String> {
-    let project_root = get_project_root()?;
+fn resolve_sidecar_runtime_paths(app: &tauri::AppHandle) -> Result<SidecarRuntimePaths, String> {
+    let mut manifest_candidates = Vec::new();
+    if let Ok(path) = app
+        .path()
+        .resolve("resources/sidecar-manifest.json", BaseDirectory::Resource)
+    {
+        manifest_candidates.push(path);
+    }
+    if let Ok(path) = app
+        .path()
+        .resolve("sidecar-manifest.json", BaseDirectory::Resource)
+    {
+        if !manifest_candidates
+            .iter()
+            .any(|candidate| candidate == &path)
+        {
+            manifest_candidates.push(path);
+        }
+    }
 
-    let mut command = CommandWrap::with_new("pnpm", |cmd| {
-        cmd.args(["-C", "apps/server", "dev"])
-            .current_dir(&project_root)
+    let dev_manifest = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("resources")
+        .join("sidecar-manifest.json");
+    if !manifest_candidates
+        .iter()
+        .any(|candidate| candidate == &dev_manifest)
+    {
+        manifest_candidates.push(dev_manifest);
+    }
+
+    let manifest_path = manifest_candidates
+        .iter()
+        .find(|path| path.exists())
+        .cloned()
+        .ok_or_else(|| {
+            format_failure(
+                "sidecar_manifest_missing",
+                "No sidecar manifest was found",
+                &[(
+                    "candidates",
+                    manifest_candidates
+                        .iter()
+                        .map(|path| path.display().to_string())
+                        .collect::<Vec<_>>()
+                        .join(","),
+                )],
+            )
+        })?;
+
+    let raw_manifest = fs::read_to_string(&manifest_path).map_err(|error| {
+        format_failure(
+            "sidecar_manifest_read",
+            "Failed to read sidecar manifest",
+            &[
+                ("manifest", manifest_path.display().to_string()),
+                ("error", error.to_string()),
+            ],
+        )
+    })?;
+
+    let manifest: SidecarManifest = serde_json::from_str(&raw_manifest).map_err(|error| {
+        format_failure(
+            "sidecar_manifest_parse",
+            "Failed to parse sidecar manifest",
+            &[
+                ("manifest", manifest_path.display().to_string()),
+                ("error", error.to_string()),
+            ],
+        )
+    })?;
+
+    let sidecar_root = sidecar_root_from_manifest(&manifest_path)?;
+    let node_binary_path = sidecar_root.join(&manifest.node_binary);
+    if !node_binary_path.exists() {
+        return Err(format_failure(
+            "sidecar_node_missing",
+            "Bundled node binary is missing",
+            &[
+                ("manifest", manifest_path.display().to_string()),
+                ("node_binary", node_binary_path.display().to_string()),
+            ],
+        ));
+    }
+
+    let server_entry_path = sidecar_root.join(&manifest.server_entry);
+    if !server_entry_path.exists() {
+        return Err(format_failure(
+            "sidecar_server_entry_missing",
+            "Bundled server entry is missing",
+            &[
+                ("manifest", manifest_path.display().to_string()),
+                ("server_entry", server_entry_path.display().to_string()),
+            ],
+        ));
+    }
+
+    let server_working_dir = sidecar_root.join(&manifest.server_root);
+    if !server_working_dir.exists() {
+        return Err(format_failure(
+            "sidecar_server_root_missing",
+            "Bundled server root is missing",
+            &[
+                ("manifest", manifest_path.display().to_string()),
+                ("server_root", server_working_dir.display().to_string()),
+            ],
+        ));
+    }
+
+    Ok(SidecarRuntimePaths {
+        node_binary_path,
+        server_entry_path,
+        server_working_dir,
+    })
+}
+
+fn spawn_server_process(
+    app: &tauri::AppHandle,
+    port: u16,
+) -> Result<Box<dyn ChildWrapper>, String> {
+    let sidecar_paths = resolve_sidecar_runtime_paths(app)?;
+    let node_binary = sidecar_paths.node_binary_path;
+    let server_entry = sidecar_paths.server_entry_path;
+    let server_working_dir = sidecar_paths.server_working_dir;
+    let node_for_error = node_binary.display().to_string();
+    let entry_for_error = server_entry.display().to_string();
+    let cwd_for_error = server_working_dir.display().to_string();
+
+    let mut command = CommandWrap::with_new(&node_binary, |cmd| {
+        cmd.arg(&server_entry)
+            .current_dir(&server_working_dir)
             .env("CLI_COMMENTATOR_PORT", port.to_string())
             .stdout(Stdio::inherit())
             .stderr(Stdio::inherit());
@@ -179,15 +321,19 @@ fn spawn_server_process(port: u16) -> Result<Box<dyn ChildWrapper>, String> {
     #[cfg(windows)]
     command.wrap(JobObject);
 
-    command
-        .spawn()
-        .map_err(|e| {
-            format_failure(
-                "spawn",
-                "Failed to start server",
-                &[("error", e.to_string()), ("port", port.to_string())],
-            )
-        })
+    command.spawn().map_err(|e| {
+        format_failure(
+            "spawn",
+            "Failed to start server",
+            &[
+                ("error", e.to_string()),
+                ("port", port.to_string()),
+                ("node", node_for_error),
+                ("entry", entry_for_error),
+                ("cwd", cwd_for_error),
+            ],
+        )
+    })
 }
 
 fn lifecycle_state(lifecycle: &ServerLifecycle) -> ServerLifecycleState {
@@ -279,7 +425,14 @@ fn set_lifecycle(
 ) {
     let previous = rt.lifecycle.clone();
     rt.lifecycle = next;
-    emit_lifecycle_event(trigger, &previous, &rt.lifecycle, rt.operation_id, port, detail);
+    emit_lifecycle_event(
+        trigger,
+        &previous,
+        &rt.lifecycle,
+        rt.operation_id,
+        port,
+        detail,
+    );
 }
 
 fn mark_failed(rt: &mut ServerRuntime, error: String, trigger: &'static str, port: Option<u16>) {
@@ -374,12 +527,13 @@ fn build_status(rt: &mut ServerRuntime, port: u16) -> ServerStatus {
 
 fn start_in_background(
     runtime: Arc<Mutex<ServerRuntime>>,
+    app: tauri::AppHandle,
     operation_id: u64,
     started_at: u64,
     port: u16,
 ) {
     thread::spawn(move || {
-        let spawned = spawn_server_process(port);
+        let spawned = spawn_server_process(&app, port);
         match spawned {
             Ok(mut child) => {
                 let pid = child.id();
@@ -584,7 +738,10 @@ pub fn server_status(state: State<'_, ServerState>) -> Result<ServerStatus, Stri
 }
 
 #[tauri::command]
-pub fn server_start(state: State<'_, ServerState>) -> Result<ServerStatus, String> {
+pub fn server_start(
+    app: tauri::AppHandle,
+    state: State<'_, ServerState>,
+) -> Result<ServerStatus, String> {
     let port = get_server_port();
     let runtime_arc = Arc::clone(&state.runtime);
     let mut rt = state.runtime.lock().map_err(|e| e.to_string())?;
@@ -596,7 +753,7 @@ pub fn server_start(state: State<'_, ServerState>) -> Result<ServerStatus, Strin
             status,
         } => {
             drop(rt);
-            start_in_background(runtime_arc, operation_id, started_at, port);
+            start_in_background(runtime_arc, app, operation_id, started_at, port);
             Ok(status)
         }
     }
@@ -639,7 +796,12 @@ pub fn server_stop_for_shutdown(state: State<'_, ServerState>) -> Result<(), Str
         let (exit_code, stop_error) = stop_child_blocking(running_child);
         rt.last_exit = exit_code;
         if let Some(error) = stop_error {
-            mark_failed(&mut rt, error.clone(), "server_stop_for_shutdown_failed", Some(port));
+            mark_failed(
+                &mut rt,
+                error.clone(),
+                "server_stop_for_shutdown_failed",
+                Some(port),
+            );
             return Err(error);
         }
     }
