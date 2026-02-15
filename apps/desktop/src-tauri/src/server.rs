@@ -19,6 +19,7 @@ use process_wrap::std::JobObject;
 
 const DEFAULT_PORT: u16 = 8787;
 const HEALTH_CHECK_TIMEOUT_MS: u64 = 500;
+const PORT_SCAN_ATTEMPTS: u16 = 64;
 
 #[derive(Debug, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -68,6 +69,7 @@ enum ServerLifecycle {
 struct ServerRuntime {
     process: Option<Box<dyn ChildWrapper>>,
     lifecycle: ServerLifecycle,
+    selected_port: u16,
     operation_id: u64,
     last_exit: Option<i32>,
     last_seen_at: Option<u64>,
@@ -79,10 +81,12 @@ pub struct ServerState {
 
 impl ServerState {
     pub fn new() -> Self {
+        let configured_port = get_configured_server_port();
         Self {
             runtime: Arc::new(Mutex::new(ServerRuntime {
                 process: None,
                 lifecycle: ServerLifecycle::Stopped,
+                selected_port: configured_port,
                 operation_id: 0,
                 last_exit: None,
                 last_seen_at: None,
@@ -91,13 +95,39 @@ impl ServerState {
     }
 }
 
-/// Get server port from CLI_COMMENTATOR_PORT or PORT env var, fallback to 8787
-fn get_server_port() -> u16 {
+/// Read preferred server port from env (fallback: 8787)
+fn get_configured_server_port() -> u16 {
     env::var("CLI_COMMENTATOR_PORT")
         .or_else(|_| env::var("PORT"))
         .ok()
         .and_then(|s| s.parse().ok())
         .unwrap_or(DEFAULT_PORT)
+}
+
+fn choose_available_port(preferred_port: u16) -> Result<u16, String> {
+    if !check_port_in_use(preferred_port) {
+        return Ok(preferred_port);
+    }
+
+    for step in 1..=PORT_SCAN_ATTEMPTS {
+        let candidate_port = preferred_port as u32 + step as u32;
+        if candidate_port > u16::MAX as u32 {
+            break;
+        }
+        let candidate_port = candidate_port as u16;
+        if !check_port_in_use(candidate_port) {
+            return Ok(candidate_port);
+        }
+    }
+
+    Err(format_failure(
+        "port_resolve",
+        "No available server port was found",
+        &[
+            ("preferred", preferred_port.to_string()),
+            ("attempts", PORT_SCAN_ATTEMPTS.to_string()),
+        ],
+    ))
 }
 
 /// Check if the server port is in use
@@ -655,14 +685,16 @@ fn stop_child_blocking(mut child: Box<dyn ChildWrapper>) -> (Option<i32>, Option
 enum StartAction {
     Noop(ServerStatus),
     Start {
+        port: u16,
         operation_id: u64,
         started_at: u64,
         status: ServerStatus,
     },
 }
 
-fn begin_start_transition(rt: &mut ServerRuntime, port: u16) -> StartAction {
-    let current = build_status(rt, port);
+fn begin_start_transition(rt: &mut ServerRuntime) -> StartAction {
+    let current_port = rt.selected_port;
+    let current = build_status(rt, current_port);
     if matches!(
         current.state,
         ServerLifecycleState::Starting
@@ -672,6 +704,20 @@ fn begin_start_transition(rt: &mut ServerRuntime, port: u16) -> StartAction {
         return StartAction::Noop(current);
     }
 
+    let selected_port = match choose_available_port(current_port) {
+        Ok(port) => port,
+        Err(error) => {
+            mark_failed(
+                rt,
+                error,
+                "begin_start_transition_port_resolve_failed",
+                Some(current_port),
+            );
+            return StartAction::Noop(status_from_runtime(rt, false, current_port));
+        }
+    };
+
+    rt.selected_port = selected_port;
     let started_at = now_ms();
     rt.operation_id += 1;
     let operation_id = rt.operation_id;
@@ -679,14 +725,15 @@ fn begin_start_transition(rt: &mut ServerRuntime, port: u16) -> StartAction {
         rt,
         ServerLifecycle::Starting { started_at },
         "begin_start_transition",
-        Some(port),
+        Some(selected_port),
         None,
     );
     rt.last_seen_at = None;
     StartAction::Start {
+        port: selected_port,
         operation_id,
         started_at,
-        status: status_from_runtime(rt, false, port),
+        status: status_from_runtime(rt, false, selected_port),
     }
 }
 
@@ -699,7 +746,8 @@ enum StopAction {
     },
 }
 
-fn begin_stop_transition(rt: &mut ServerRuntime, port: u16) -> StopAction {
+fn begin_stop_transition(rt: &mut ServerRuntime) -> StopAction {
+    let port = rt.selected_port;
     let current = build_status(rt, port);
     if matches!(
         current.state,
@@ -732,8 +780,8 @@ fn begin_stop_transition(rt: &mut ServerRuntime, port: u16) -> StopAction {
 
 #[tauri::command]
 pub fn server_status(state: State<'_, ServerState>) -> Result<ServerStatus, String> {
-    let port = get_server_port();
     let mut rt = state.runtime.lock().map_err(|e| e.to_string())?;
+    let port = rt.selected_port;
     Ok(build_status(&mut rt, port))
 }
 
@@ -742,12 +790,12 @@ pub fn server_start(
     app: tauri::AppHandle,
     state: State<'_, ServerState>,
 ) -> Result<ServerStatus, String> {
-    let port = get_server_port();
     let runtime_arc = Arc::clone(&state.runtime);
     let mut rt = state.runtime.lock().map_err(|e| e.to_string())?;
-    match begin_start_transition(&mut rt, port) {
+    match begin_start_transition(&mut rt) {
         StartAction::Noop(status) => Ok(status),
         StartAction::Start {
+            port,
             operation_id,
             started_at,
             status,
@@ -761,10 +809,9 @@ pub fn server_start(
 
 #[tauri::command]
 pub fn server_stop(state: State<'_, ServerState>) -> Result<ServerStatus, String> {
-    let port = get_server_port();
     let runtime_arc = Arc::clone(&state.runtime);
     let mut rt = state.runtime.lock().map_err(|e| e.to_string())?;
-    match begin_stop_transition(&mut rt, port) {
+    match begin_stop_transition(&mut rt) {
         StopAction::Noop(status) => Ok(status),
         StopAction::Stop {
             operation_id,
@@ -779,8 +826,8 @@ pub fn server_stop(state: State<'_, ServerState>) -> Result<ServerStatus, String
 }
 
 pub fn server_stop_for_shutdown(state: State<'_, ServerState>) -> Result<(), String> {
-    let port = get_server_port();
     let mut rt = state.runtime.lock().map_err(|e| e.to_string())?;
+    let port = rt.selected_port;
     rt.operation_id += 1;
     rt.last_seen_at = None;
     set_lifecycle(
@@ -821,6 +868,7 @@ pub fn server_stop_for_shutdown(state: State<'_, ServerState>) -> Result<(), Str
 mod tests {
     use super::*;
     use std::io::Result as IoResult;
+    use std::net::TcpListener;
     use std::process::{ChildStderr, ChildStdin, ChildStdout, ExitStatus};
 
     #[derive(Debug)]
@@ -913,6 +961,7 @@ mod tests {
         ServerRuntime {
             process: None,
             lifecycle,
+            selected_port: DEFAULT_PORT,
             operation_id: 0,
             last_exit: None,
             last_seen_at: None,
@@ -926,6 +975,7 @@ mod tests {
                 pid: 1234,
                 started_at: now_ms(),
             },
+            selected_port: DEFAULT_PORT,
             operation_id: 0,
             last_exit: None,
             last_seen_at: None,
@@ -941,6 +991,7 @@ mod tests {
                 pid: 5678,
                 started_at: now_ms(),
             },
+            selected_port: DEFAULT_PORT,
             operation_id: 0,
             last_exit: None,
             last_seen_at: None,
@@ -949,9 +1000,8 @@ mod tests {
 
     #[test]
     fn start_transition_is_idempotent_while_starting() {
-        let port = 8787;
         let mut rt = runtime_with(ServerLifecycle::Stopped);
-        let first = begin_start_transition(&mut rt, port);
+        let first = begin_start_transition(&mut rt);
         match first {
             StartAction::Start { status, .. } => {
                 assert_eq!(status.state, ServerLifecycleState::Starting);
@@ -959,7 +1009,7 @@ mod tests {
             StartAction::Noop(_) => panic!("first start should transition to starting"),
         }
 
-        let second = begin_start_transition(&mut rt, port);
+        let second = begin_start_transition(&mut rt);
         match second {
             StartAction::Noop(status) => {
                 assert_eq!(status.state, ServerLifecycleState::Starting);
@@ -970,13 +1020,12 @@ mod tests {
 
     #[test]
     fn failed_state_can_retry_start() {
-        let port = 8787;
         let mut rt = runtime_with(ServerLifecycle::Failed {
             error: "spawn failed".to_string(),
             at: now_ms(),
         });
 
-        let next = begin_start_transition(&mut rt, port);
+        let next = begin_start_transition(&mut rt);
         match next {
             StartAction::Start { status, .. } => {
                 assert_eq!(status.state, ServerLifecycleState::Starting);
@@ -987,10 +1036,27 @@ mod tests {
     }
 
     #[test]
+    fn start_transition_falls_back_to_next_available_port() {
+        let listener = TcpListener::bind(("127.0.0.1", 0)).expect("bind test listener");
+        let occupied_port = listener.local_addr().expect("read listener addr").port();
+        let mut rt = runtime_with(ServerLifecycle::Stopped);
+        rt.selected_port = occupied_port;
+
+        let next = begin_start_transition(&mut rt);
+        match next {
+            StartAction::Start { port, status, .. } => {
+                assert_ne!(port, occupied_port);
+                assert_eq!(rt.selected_port, port);
+                assert_eq!(status.port, port);
+            }
+            StartAction::Noop(_) => panic!("start should fallback to an available port"),
+        }
+    }
+
+    #[test]
     fn stop_transition_is_idempotent_outside_running() {
-        let port = 8787;
         let mut stopped = runtime_with(ServerLifecycle::Stopped);
-        let noop = begin_stop_transition(&mut stopped, port);
+        let noop = begin_stop_transition(&mut stopped);
         match noop {
             StopAction::Noop(status) => assert_eq!(status.state, ServerLifecycleState::Stopped),
             StopAction::Stop { .. } => panic!("stopped should remain noop"),
@@ -1000,7 +1066,7 @@ mod tests {
             error: "boom".to_string(),
             at: now_ms(),
         });
-        let noop_failed = begin_stop_transition(&mut failed, port);
+        let noop_failed = begin_stop_transition(&mut failed);
         match noop_failed {
             StopAction::Noop(status) => assert_eq!(status.state, ServerLifecycleState::Failed),
             StopAction::Stop { .. } => panic!("failed should remain noop"),
@@ -1009,10 +1075,9 @@ mod tests {
 
     #[test]
     fn stop_transition_moves_running_to_stopping_once() {
-        let port = 8787;
         let mut rt = runtime_with_running_child();
 
-        let first = begin_stop_transition(&mut rt, port);
+        let first = begin_stop_transition(&mut rt);
         match first {
             StopAction::Stop { status, child, .. } => {
                 assert_eq!(status.state, ServerLifecycleState::Stopping);
@@ -1021,7 +1086,7 @@ mod tests {
             StopAction::Noop(_) => panic!("running should transition to stopping"),
         }
 
-        let second = begin_stop_transition(&mut rt, port);
+        let second = begin_stop_transition(&mut rt);
         match second {
             StopAction::Noop(status) => {
                 assert_eq!(status.state, ServerLifecycleState::Stopping);

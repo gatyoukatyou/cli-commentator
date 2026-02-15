@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import "./App.css";
 import { ProfileSelector } from "./components/ProfileSelector";
 import { ProfileEditor } from "./components/ProfileEditor";
@@ -136,8 +136,12 @@ function stubProfileFromSummary(summary: ProfileSummary): Profile {
   };
 }
 
+type TauriStatusPanelProps = {
+  onStatusChange?: (status: ServerStatusDetail | null) => void;
+};
+
 // Desktop server control panel (shown only in Tauri runtime)
-function TauriStatusPanel() {
+function TauriStatusPanel({ onStatusChange }: TauriStatusPanelProps) {
   const isTauri = Boolean(getTauriCore());
   const [status, setStatus] = useState<ServerStatusDetail | null>(null);
   const [invokeError, setInvokeError] = useState<string | null>(null);
@@ -148,7 +152,10 @@ function TauriStatusPanel() {
 
   // Polling (1.5 second interval)
   useEffect(() => {
-    if (!isTauri) return;
+    if (!isTauri) {
+      onStatusChange?.(null);
+      return;
+    }
     let cancelled = false;
 
     const poll = async () => {
@@ -157,7 +164,9 @@ function TauriStatusPanel() {
       try {
         const result = await core.invoke("server_status");
         if (cancelled) return;
-        setStatus(result as ServerStatusDetail);
+        const nextStatus = result as ServerStatusDetail;
+        setStatus(nextStatus);
+        onStatusChange?.(nextStatus);
         setInvokeError(null);
       } catch (err) {
         if (cancelled) return;
@@ -171,7 +180,7 @@ function TauriStatusPanel() {
       cancelled = true;
       clearInterval(interval);
     };
-  }, [isTauri]);
+  }, [isTauri, onStatusChange]);
 
   useEffect(() => {
     if (!isTauri) return;
@@ -205,7 +214,9 @@ function TauriStatusPanel() {
     if (!core) return;
     try {
       const result = await core.invoke("server_start");
-      setStatus(result as ServerStatusDetail);
+      const nextStatus = result as ServerStatusDetail;
+      setStatus(nextStatus);
+      onStatusChange?.(nextStatus);
       setInvokeError(null);
     } catch (err) {
       setInvokeError(errorToMessage(err));
@@ -217,7 +228,9 @@ function TauriStatusPanel() {
     if (!core) return;
     try {
       const result = await core.invoke("server_stop");
-      setStatus(result as ServerStatusDetail);
+      const nextStatus = result as ServerStatusDetail;
+      setStatus(nextStatus);
+      onStatusChange?.(nextStatus);
       setInvokeError(null);
     } catch (err) {
       setInvokeError(errorToMessage(err));
@@ -414,10 +427,12 @@ function TauriStatusPanel() {
 }
 
 export default function App() {
+  const isTauriRuntime = Boolean(getTauriCore());
   const [items, setItems] = useState<Array<{ ts: number; text: string }>>([]);
   const [style, setStyle] = useState<Style>("kansai");
   const [source, setSource] = useState<SourceState>({ mode: "auto", detected: null });
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>("connecting");
+  const [tauriServerPort, setTauriServerPort] = useState<number | null>(null);
   const [skin, setSkin] = useState<Skin>(() => {
     const saved = localStorage.getItem("cli-commentator-skin");
     return (saved as Skin) || "standard";
@@ -454,10 +469,19 @@ export default function App() {
   const ttsEnabledRef = useRef(ttsEnabled);
   const ttsSettingsRef = useRef(ttsSettings);
 
-  const wsUrl = useMemo(() => {
-    const port = import.meta.env.VITE_WS_PORT ?? "8787";
-    return `ws://localhost:${port}`;
+  const defaultWsPort = useMemo(() => {
+    const parsed = Number(import.meta.env.VITE_WS_PORT ?? "8787");
+    return Number.isInteger(parsed) && parsed > 0 && parsed <= 65535 ? parsed : 8787;
   }, []);
+
+  const handleDesktopStatusChange = useCallback((status: ServerStatusDetail | null) => {
+    setTauriServerPort(status?.port ?? null);
+  }, []);
+
+  const wsUrl = useMemo(() => {
+    const port = isTauriRuntime ? tauriServerPort ?? defaultWsPort : defaultWsPort;
+    return `ws://localhost:${port}`;
+  }, [defaultWsPort, isTauriRuntime, tauriServerPort]);
 
   // Apply skin to document
   useEffect(() => {
@@ -829,7 +853,7 @@ export default function App() {
 
   return (
     <div style={{ maxWidth: 900, margin: "0 auto", padding: "var(--space-4)" }}>
-      <TauriStatusPanel />
+      <TauriStatusPanel onStatusChange={handleDesktopStatusChange} />
       {hasNotices && (
         <div className="notices">
           {ptyUnavailable && (

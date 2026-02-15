@@ -24,8 +24,24 @@ function isProjectRootError(source: string): boolean {
   return hasCategory(source, "project_root") || source.includes("failed to get project root") || source.includes("canonicalize");
 }
 
-function isPnpmError(source: string): boolean {
-  return hasCategory(source, "spawn") || source.includes("pnpm") || source.includes("failed to start server");
+function isPortResolveError(source: string): boolean {
+  return hasCategory(source, "port_resolve") || source.includes("no available server port was found");
+}
+
+function isSidecarRuntimeError(source: string): boolean {
+  return (
+    hasCategory(source, "spawn") ||
+    hasCategory(source, "sidecar_manifest_missing") ||
+    hasCategory(source, "sidecar_manifest_read") ||
+    hasCategory(source, "sidecar_manifest_parse") ||
+    hasCategory(source, "sidecar_node_missing") ||
+    hasCategory(source, "sidecar_server_entry_missing") ||
+    hasCategory(source, "sidecar_server_root_missing") ||
+    source.includes("sidecar manifest") ||
+    source.includes("bundled node binary") ||
+    source.includes("bundled server entry") ||
+    source.includes("bundled server root")
+  );
 }
 
 function isPermissionError(source: string): boolean {
@@ -54,13 +70,13 @@ export function getDesktopFailureGuidance(
 
   const source = normalize(`${statusError ?? ""} ${invokeError ?? ""}`);
 
-  if (isPortConflict(source)) {
+  if (isPortConflict(source) || isPortResolveError(source)) {
     return {
-      category: "ポート競合",
+      category: "ポート解決エラー",
       hints: [
-        "ポート 8787 を利用中のプロセスを停止してください。",
-        "必要に応じて `lsof -i :8787` で使用中プロセスを確認してください。",
-        "競合解消後に Start を押して再起動してください。",
+        "Desktop は既定 8787 から、使用中なら 8788 以降へ自動退避します。",
+        "多数のポートが占有されていないか確認してください（必要に応じて `lsof -i :8787-:8850`）。",
+        "必要なら `CLI_COMMENTATOR_PORT` で開始ポートを指定して Start を再試行してください。",
       ],
     };
   }
@@ -85,12 +101,12 @@ export function getDesktopFailureGuidance(
     };
   }
 
-  if (isPnpmError(source)) {
+  if (isSidecarRuntimeError(source)) {
     return {
-      category: "依存関係/実行コマンドエラー",
+      category: "同梱ランタイムエラー",
       hints: [
-        "`pnpm install` を再実行し、依存関係の欠落がないか確認してください。",
-        "`pnpm -C apps/server dev` を単体実行し、エラー詳細を確認してください。",
+        "Desktop 同梱物（`resources/server` / `sidecar-manifest.json` / `binaries/node-*`）の存在を確認してください。",
+        "開発環境では `pnpm prepare:desktop-sidecar` を再実行して同梱物を作り直してください。",
         "修正後に Start を押して再試行してください。",
       ],
     };
@@ -101,7 +117,7 @@ export function getDesktopFailureGuidance(
       category: "サーバープロセス異常終了",
       hints: [
         "サーバープロセスが起動後すぐに終了しています。",
-        "`pnpm -C apps/server dev` を単体で実行し、終了原因を確認してください。",
+        "同梱 server entry（`resources/server/dist/index.js`）の実行ログを確認してください。",
         "原因解消後に Retry Start を実行してください。",
       ],
     };
