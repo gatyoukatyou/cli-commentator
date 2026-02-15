@@ -44,15 +44,56 @@ describe("getDesktopFailureGuidance", () => {
     expect(result?.hints.join(" ")).toContain("prepare:desktop-sidecar");
   });
 
+  it("classifies sidecar manifest parent errors", () => {
+    const result = getDesktopFailureGuidance(
+      "failed",
+      "[sidecar_manifest_parent] Failed to resolve sidecar manifest parent directory",
+      null
+    );
+    expect(result?.category).toBe("同梱ランタイムエラー");
+    expect(result?.hints[0]).toContain("Contents/Resources");
+  });
+
   it("classifies permission errors", () => {
     const result = getDesktopFailureGuidance("failed", "Failed to start server: permission denied", null);
     expect(result?.category).toBe("権限エラー");
+  });
+
+  it("classifies stop flow errors", () => {
+    const result = getDesktopFailureGuidance(
+      "failed",
+      "[wait_shutdown] Failed to wait for server shutdown | error=timeout",
+      null
+    );
+    expect(result?.category).toBe("停止処理エラー");
+    expect(result?.hints.join(" ")).toContain("desktop/server-event");
   });
 
   it("classifies unexpected exit errors", () => {
     const result = getDesktopFailureGuidance("failed", "Server exited unexpectedly with code 1", null);
     expect(result?.category).toBe("サーバープロセス異常終了");
     expect(result?.hints.join(" ")).toContain("resources/server/dist/index.js");
+  });
+
+  it("adds structured port diagnostics when available", () => {
+    const result = getDesktopFailureGuidance(
+      "failed",
+      "[port_resolve] No available server port was found | preferred=8787 | attempts=64",
+      null
+    );
+    expect(result?.category).toBe("ポート解決エラー");
+    expect(result?.hints.join(" ")).toContain("preferred=8787");
+    expect(result?.hints.join(" ")).toContain("attempts=64");
+  });
+
+  it("adds exit code diagnostics for structured unexpected exit", () => {
+    const result = getDesktopFailureGuidance(
+      "failed",
+      "[unexpected_exit] Server exited unexpectedly | exit_code=signal_or_unknown | port=8787 | port_in_use=false",
+      null
+    );
+    expect(result?.category).toBe("サーバープロセス異常終了");
+    expect(result?.hints.join(" ")).toContain("exit_code=signal_or_unknown");
   });
 
   it("falls back to generic guidance for unknown errors", () => {
