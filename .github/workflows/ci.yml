@@ -220,6 +220,9 @@ jobs:
           fi
           find "${bundle_dir}" -name "*.app"
 
+      - name: Desktop distribution runtime smoke
+        run: pnpm smoke:desktop-distribution
+
   test_windows:
     runs-on: windows-latest
 

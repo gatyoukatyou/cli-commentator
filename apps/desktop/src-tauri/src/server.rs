@@ -210,6 +210,48 @@ fn sidecar_root_from_manifest(manifest_path: &PathBuf) -> Result<PathBuf, String
     Ok(root)
 }
 
+fn push_unique_path(candidates: &mut Vec<PathBuf>, candidate: PathBuf) {
+    if !candidates.iter().any(|path| path == &candidate) {
+        candidates.push(candidate);
+    }
+}
+
+fn stringify_paths(paths: &[PathBuf]) -> String {
+    paths
+        .iter()
+        .map(|path| path.display().to_string())
+        .collect::<Vec<_>>()
+        .join(",")
+}
+
+fn resolve_node_binary_path(
+    sidecar_root: &PathBuf,
+    manifest_node_binary: &str,
+    executable_dir: Option<&PathBuf>,
+) -> Result<PathBuf, Vec<PathBuf>> {
+    let mut candidates = Vec::new();
+    push_unique_path(
+        &mut candidates,
+        sidecar_root.join(manifest_node_binary),
+    );
+
+    if let Some(exe_dir) = executable_dir {
+        if let Some(name) = PathBuf::from(manifest_node_binary).file_name() {
+            push_unique_path(&mut candidates, exe_dir.join(name));
+        }
+        #[cfg(windows)]
+        push_unique_path(&mut candidates, exe_dir.join("node.exe"));
+        #[cfg(not(windows))]
+        push_unique_path(&mut candidates, exe_dir.join("node"));
+    }
+
+    candidates
+        .iter()
+        .find(|path| path.is_file())
+        .cloned()
+        .ok_or(candidates)
+}
+
 fn resolve_sidecar_runtime_paths(app: &tauri::AppHandle) -> Result<SidecarRuntimePaths, String> {
     let mut manifest_candidates = Vec::new();
     if let Ok(path) = app
@@ -282,7 +324,29 @@ fn resolve_sidecar_runtime_paths(app: &tauri::AppHandle) -> Result<SidecarRuntim
     })?;
 
     let sidecar_root = sidecar_root_from_manifest(&manifest_path)?;
-    let node_binary_path = sidecar_root.join(&manifest.node_binary);
+    let executable_dir = env::current_exe()
+        .ok()
+        .and_then(|path| path.parent().map(|parent| parent.to_path_buf()));
+    let node_binary_path = match resolve_node_binary_path(
+        &sidecar_root,
+        &manifest.node_binary,
+        executable_dir.as_ref(),
+    ) {
+        Ok(path) => path,
+        Err(candidates) => {
+            let expected = sidecar_root.join(&manifest.node_binary);
+            let candidates_text = stringify_paths(&candidates);
+            return Err(format_failure(
+                "sidecar_node_missing",
+                "Bundled node binary is missing",
+                &[
+                    ("manifest", manifest_path.display().to_string()),
+                    ("node_binary", expected.display().to_string()),
+                    ("candidates", candidates_text),
+                ],
+            ));
+        }
+    };
     if !node_binary_path.exists() {
         return Err(format_failure(
             "sidecar_node_missing",
@@ -867,8 +931,10 @@ pub fn server_stop_for_shutdown(state: State<'_, ServerState>) -> Result<(), Str
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::fs;
     use std::io::Result as IoResult;
     use std::net::TcpListener;
+    use std::path::Path;
     use std::process::{ChildStderr, ChildStdin, ChildStdout, ExitStatus};
 
     #[derive(Debug)]
@@ -1124,5 +1190,54 @@ mod tests {
         assert!(error.contains("exit_code="));
         assert!(error.contains("port="));
         assert!(error.contains("port_in_use="));
+    }
+
+    fn unique_temp_path(name: &str) -> PathBuf {
+        let pid = std::process::id();
+        let nanos = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map(|d| d.as_nanos())
+            .unwrap_or(0);
+        std::env::temp_dir().join(format!("cli-commentator-{name}-{pid}-{nanos}"))
+    }
+
+    fn touch_file(path: &Path) {
+        if let Some(parent) = path.parent() {
+            fs::create_dir_all(parent).expect("create parent directories");
+        }
+        fs::write(path, b"test").expect("write file");
+    }
+
+    #[test]
+    fn resolve_node_binary_path_prefers_manifest_relative_path() {
+        let root = unique_temp_path("node-manifest");
+        let sidecar_root = root.join("Contents").join("Resources");
+        let exe_dir = root.join("Contents").join("MacOS");
+        let manifest_node = "binaries/node-x86_64-apple-darwin";
+        let manifest_node_path = sidecar_root.join(manifest_node);
+        touch_file(&manifest_node_path);
+        touch_file(&exe_dir.join("node"));
+
+        let resolved = resolve_node_binary_path(&sidecar_root, manifest_node, Some(&exe_dir))
+            .expect("resolve node binary");
+        assert_eq!(resolved, manifest_node_path);
+
+        fs::remove_dir_all(root).ok();
+    }
+
+    #[test]
+    fn resolve_node_binary_path_falls_back_to_executable_node() {
+        let root = unique_temp_path("node-fallback");
+        let sidecar_root = root.join("Contents").join("Resources");
+        let exe_dir = root.join("Contents").join("MacOS");
+        let manifest_node = "binaries/node-x86_64-apple-darwin";
+        let fallback_node = exe_dir.join("node");
+        touch_file(&fallback_node);
+
+        let resolved = resolve_node_binary_path(&sidecar_root, manifest_node, Some(&exe_dir))
+            .expect("resolve node binary");
+        assert_eq!(resolved, fallback_node);
+
+        fs::remove_dir_all(root).ok();
     }
 }

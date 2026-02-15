@@ -12,6 +12,7 @@
     "prepare:desktop-sidecar": "node ./scripts/prepare-desktop-sidecar.mjs",
     "build:sidecar": "pnpm prepare:desktop-sidecar",
     "check:doc-sync": "node ./scripts/check-doc-sync.mjs",
+    "smoke:desktop-distribution": "node ./scripts/desktop-distribution-smoke.mjs",
     "smoke:llm": "bash ./scripts/smoke-llm.sh",
     "verify:updater": "node ./scripts/verify-updater-config.mjs"
   },

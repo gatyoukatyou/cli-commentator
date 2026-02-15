@@ -45,6 +45,7 @@
 
 - PR単位:
   - `test`, `test_windows`, `desktop_check`, `desktop_distribution_smoke` をCIで確認
+  - `desktop_distribution_smoke` では `pnpm smoke:desktop-distribution` を実行し、配布 `.app` から sidecar server を起動して `/healthz` と WebSocket `commentary` を検証
 - タグ/RC単位:
   - `release-desktop` 実行結果を `docs/release-runbook.*` と RC記録へ反映
 - 補足:
