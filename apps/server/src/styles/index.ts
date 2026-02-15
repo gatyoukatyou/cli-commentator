@@ -60,8 +60,70 @@ function annotate(detail?: string): string {
   return hits.length ? `（${Array.from(new Set(hits)).join(" / ")}）` : "";
 }
 
+type BeginnerLineTable = Record<Event["type"], string> & { default: string };
+
+const BEGINNER_STANDARD: BeginnerLineTable = {
+  read: "1行メモ: 現状を把握して次の修正方針を決めています。",
+  write: "1行メモ: 問題を直すために内容を更新しています。",
+  search: "1行メモ: 手がかりを探して調査範囲を絞っています。",
+  test: "1行メモ: 変更で壊れていないか確認しています。",
+  build: "1行メモ: 実行・配布できる形にまとめています。",
+  lint: "1行メモ: 読みやすさと品質ルールを確認しています。",
+  server: "1行メモ: 動作確認のため実行環境を立ち上げています。",
+  git: "1行メモ: 変更履歴を整理して戻せる状態にしています。",
+  github: "1行メモ: Issue/PRで作業状況を同期しています。",
+  install: "1行メモ: 必要なツールや依存を揃えています。",
+  error: "1行メモ: 失敗ログを手がかりに修正方針を決めます。",
+  start: "1行メモ: これから作業の流れを順に追います。",
+  done: "1行メモ: 作業がひと区切りで、結果を確認しています。",
+  default: "1行メモ: 状況を見ながら次の手を選んでいます。",
+};
+
+const BEGINNER_KANSAI: BeginnerLineTable = {
+  read: "1行メモ: 今の状況つかんで次の手を決めてるとこや。",
+  write: "1行メモ: 問題直すために中身を更新してるで。",
+  search: "1行メモ: 手がかり探して調査範囲しぼってるで。",
+  test: "1行メモ: 変更で壊れてへんか確認してるで。",
+  build: "1行メモ: 実行・配布できる形にまとめてるで。",
+  lint: "1行メモ: 読みやすさと品質ルールを確認してるで。",
+  server: "1行メモ: 動作確認のため実行環境を立ち上げてるで。",
+  git: "1行メモ: 変更履歴を整理して戻せる状態にしてるで。",
+  github: "1行メモ: Issue/PRで作業状況を同期してるで。",
+  install: "1行メモ: 必要なツールや依存をそろえてるで。",
+  error: "1行メモ: 失敗ログを手がかりに直し方を決めるで。",
+  start: "1行メモ: これから作業の流れを順に追うで。",
+  done: "1行メモ: ひと区切りついたから結果を確認してるで。",
+  default: "1行メモ: 状況見ながら次の手を選んでるで。",
+};
+
+const BEGINNER_ZUNDAMON: BeginnerLineTable = {
+  read: "1行メモ: 今の状況をつかんで次の手を決めてるのだ。",
+  write: "1行メモ: 問題を直すために中身を更新してるのだ。",
+  search: "1行メモ: 手がかりを探して調査範囲をしぼってるのだ。",
+  test: "1行メモ: 変更で壊れてないか確認してるのだ。",
+  build: "1行メモ: 実行・配布できる形にまとめてるのだ。",
+  lint: "1行メモ: 読みやすさと品質ルールを確認してるのだ。",
+  server: "1行メモ: 動作確認のため実行環境を立ち上げてるのだ。",
+  git: "1行メモ: 変更履歴を整理して戻せる状態にしてるのだ。",
+  github: "1行メモ: Issue/PRで作業状況を同期してるのだ。",
+  install: "1行メモ: 必要なツールや依存をそろえてるのだ。",
+  error: "1行メモ: 失敗ログを手がかりに直し方を決めるのだ。",
+  start: "1行メモ: これから作業の流れを順に追うのだ。",
+  done: "1行メモ: ひと区切りついたので結果を確認してるのだ。",
+  default: "1行メモ: 状況を見ながら次の手を選んでるのだ。",
+};
+
+function beginnerOneLine(ev: Event, style: Style): string {
+  const table =
+    style === "kansai" ? BEGINNER_KANSAI :
+    style === "zundamon" ? BEGINNER_ZUNDAMON :
+    BEGINNER_STANDARD;
+
+  return table[ev.type] ?? table.default;
+}
+
 function commentByRules(ev: Event, style: Style): string {
-  const beginner = "初心者向け1行解説つき。";
+  const beginner = beginnerOneLine(ev, style);
   const note = annotate(ev.detail);
 
   const core =

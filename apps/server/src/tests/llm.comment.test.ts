@@ -44,7 +44,7 @@ describe("comment() with LLM_PROVIDER=mock", () => {
     const out = await comment(ev, "standard");
     // ルール実況は [mock- を含まない
     expect(out).not.toContain("[mock-");
-    // ルール実況の特徴的なフレーズを含む
-    expect(out).toContain("初心者向け");
+    // ルール実況の1行補足テンプレートを含む
+    expect(out).toContain("1行メモ");
   });
 });
