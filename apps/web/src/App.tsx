@@ -27,6 +27,7 @@ import {
   type CommentaryItem,
   type LogEventTypeFilter,
 } from "./lib/log-filter";
+import { splitGlossaryNote } from "./lib/glossary-note";
 import type {
   Style,
   SourceState,
@@ -1175,15 +1176,29 @@ export default function App() {
         {filteredItems.length === 0 ? (
           <div className="log-empty">条件に一致するログはありません。</div>
         ) : (
-          filteredItems.map((it, idx) => (
-            <div key={`${it.ts}-${idx}-${it.eventType}`} className="log-item">
-              <div className="log-item__header">
-                <div className="log-item__time">{new Date(it.ts).toLocaleTimeString()}</div>
-                <div className="log-item__type">{EVENT_TYPE_LABELS[it.eventType]}</div>
+          filteredItems.map((it, idx) => {
+            const parts = splitGlossaryNote(it.text);
+            const notes = parts.noteText?.split(" / ").map((entry) => entry.trim()).filter(Boolean) ?? [];
+
+            return (
+              <div key={`${it.ts}-${idx}-${it.eventType}`} className="log-item">
+                <div className="log-item__header">
+                  <div className="log-item__time">{new Date(it.ts).toLocaleTimeString()}</div>
+                  <div className="log-item__type">{EVENT_TYPE_LABELS[it.eventType]}</div>
+                </div>
+                <div className="log-item__text">{parts.mainText}</div>
+                {notes.length > 0 && (
+                  <div className="log-item__note" aria-label="用語注釈">
+                    {notes.map((note) => (
+                      <span key={note} className="log-item__note-chip">
+                        {note}
+                      </span>
+                    ))}
+                  </div>
+                )}
               </div>
-              <div className="log-item__text">{it.text}</div>
-            </div>
-          ))
+            );
+          })
         )}
       </div>
 
