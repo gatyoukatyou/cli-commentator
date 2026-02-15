@@ -45,7 +45,7 @@ This document defines minimum cross-platform quality gates for distribution and 
 
 - Per PR:
   - validate `test`, `test_windows`, `desktop_check`, and `desktop_distribution_smoke`
-  - `desktop_distribution_smoke` runs `pnpm smoke:desktop-distribution` to boot the bundled sidecar server from the built `.app` and verify `/healthz` plus WebSocket `commentary`
+  - `desktop_distribution_smoke` runs `pnpm smoke:desktop-distribution` to boot the bundled sidecar server from the built `.app` and verify `/healthz` plus `comment_ok` logs
 - Per tag/RC:
   - reflect `release-desktop` outcomes in `docs/release-runbook.*` and RC records
 - Note:

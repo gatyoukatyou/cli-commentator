@@ -116,78 +116,15 @@ async function waitForHealth(port, timeoutMs) {
   throw new Error(`Health check timed out: ${healthUrl}`);
 }
 
-function decodeWsMessage(data) {
-  if (typeof data === "string") return data;
-  if (data instanceof ArrayBuffer) return Buffer.from(data).toString("utf8");
-  if (ArrayBuffer.isView(data)) return Buffer.from(data.buffer, data.byteOffset, data.byteLength).toString("utf8");
-  return "";
-}
-
-async function getWebSocketConstructor() {
-  if (typeof WebSocket === "function") {
-    return WebSocket;
+async function waitForCommentOk(readLog, timeoutMs) {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    if (/\bcomment_ok\b/.test(readLog())) {
+      return;
+    }
+    await delay(200);
   }
-
-  const wsModule = await import("ws");
-  const WebSocketCtor = wsModule.WebSocket ?? wsModule.default;
-  if (typeof WebSocketCtor !== "function") {
-    throw new Error("WebSocket implementation is unavailable");
-  }
-  return WebSocketCtor;
-}
-
-async function waitForCommentary(port, timeoutMs) {
-  const WebSocketCtor = await getWebSocketConstructor();
-
-  return await new Promise((resolve, reject) => {
-    const ws = new WebSocketCtor(`ws://127.0.0.1:${port}`);
-    const addListener = (event, handler) => {
-      if (typeof ws.addEventListener === "function") {
-        ws.addEventListener(event, handler);
-        return;
-      }
-      if (typeof ws.on === "function") {
-        if (event === "message") {
-          ws.on("message", (data) => handler({ data }));
-        } else if (event === "error") {
-          ws.on("error", (error) => handler(error));
-        } else {
-          ws.on(event, handler);
-        }
-      }
-    };
-    const timeout = setTimeout(() => {
-      try {
-        ws.close();
-      } catch {}
-      reject(new Error("Timed out waiting for commentary event over WebSocket"));
-    }, timeoutMs);
-
-    addListener("error", (event) => {
-      clearTimeout(timeout);
-      const errorText =
-        event instanceof Error
-          ? event.message
-          : String(event?.type ?? event?.message ?? "unknown");
-      reject(new Error(`WebSocket error: ${errorText}`));
-    });
-
-    addListener("message", (event) => {
-      const payloadData = event?.data ?? event;
-      const text = decodeWsMessage(payloadData);
-      if (!text) return;
-      try {
-        const payload = JSON.parse(text);
-        if (payload?.kind === "commentary" && typeof payload?.text === "string" && payload.text.trim()) {
-          clearTimeout(timeout);
-          try {
-            ws.close();
-          } catch {}
-          resolve(payload.text.trim());
-        }
-      } catch {}
-    });
-  });
+  throw new Error("Timed out waiting for `comment_ok` log from bundled server");
 }
 
 async function stopChild(child) {
@@ -263,7 +200,8 @@ async function main() {
         ...process.env,
         HOME: homeDir,
         CLI_COMMENTATOR_PORT: String(smokePort),
-        LLM_PROVIDER: "disabled",
+        LLM_PROVIDER: "mock",
+        DEBUG: "1",
         STYLE: "standard",
         INPUT_MODE: "file",
         INPUT_FILE: smokeInputFile,
@@ -288,11 +226,10 @@ async function main() {
     await waitForHealth(smokePort, 20000);
     log(`Health check passed on port ${smokePort}`);
 
-    const commentaryPromise = waitForCommentary(smokePort, 20000);
     await delay(400);
     appendFileSync(smokeInputFile, "gh pr checks --watch\n");
-    const commentary = await commentaryPromise;
-    log(`Received commentary event: ${commentary}`);
+    await waitForCommentOk(() => logBuffer, 20000);
+    log("Detected commentary generation (`comment_ok`) from bundled server.");
   } catch (error) {
     if (logBuffer.trim()) {
       log("Bundled server logs (tail):");
