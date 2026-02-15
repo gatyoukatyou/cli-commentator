@@ -99,15 +99,36 @@ jobs:
       - name: Set up Rust
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Prepare desktop sidecar node binary
+      - name: Prepare desktop sidecar artifacts
         shell: pwsh
         run: |
           $hostTriple = (rustc -vV | Select-String '^host:' | ForEach-Object { $_.ToString().Split(':')[1].Trim() })
           $nodeBinaryName = if ($hostTriple -like '*windows*') { "node-$hostTriple.exe" } else { "node-$hostTriple" }
-          $dest = "apps/desktop/src-tauri/binaries/$nodeBinaryName"
-          New-Item -ItemType Directory -Force -Path (Split-Path $dest) | Out-Null
-          Copy-Item -Force (Get-Command node).Source $dest
-          Write-Host "Prepared sidecar binary: $dest"
+          $nodeDest = "apps/desktop/src-tauri/binaries/$nodeBinaryName"
+          New-Item -ItemType Directory -Force -Path (Split-Path $nodeDest) | Out-Null
+          Copy-Item -Force (Get-Command node).Source $nodeDest
+
+          $serverDistDir = "apps/desktop/src-tauri/resources/server/dist"
+          New-Item -ItemType Directory -Force -Path $serverDistDir | Out-Null
+          $serverEntry = Join-Path $serverDistDir "index.js"
+          if (-not (Test-Path $serverEntry)) {
+            Set-Content -Path $serverEntry -NoNewline -Value "console.log('ci placeholder sidecar server');"
+          }
+
+          $manifestPath = "apps/desktop/src-tauri/resources/sidecar-manifest.json"
+          $manifest = @{
+            generatedAt = (Get-Date).ToUniversalTime().ToString("o")
+            targetTriple = $hostTriple
+            nodeVersion = (node --version)
+            serverVersion = "0.0.0-ci"
+            nodeBinary = "binaries/$nodeBinaryName"
+            serverRoot = "resources/server"
+            serverEntry = "resources/server/dist/index.js"
+          } | ConvertTo-Json
+          Set-Content -Path $manifestPath -Value $manifest
+
+          Write-Host "Prepared sidecar binary: $nodeDest"
+          Write-Host "Prepared sidecar resources: apps/desktop/src-tauri/resources/server"
 
       - name: Desktop cargo check
         run: cargo check --manifest-path apps/desktop/src-tauri/Cargo.toml
