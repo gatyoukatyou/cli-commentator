@@ -11,6 +11,11 @@ English: This repository is an MVP for streaming CLI commentary in a separate wi
 - JA docs: `./docs/getting-started.ja.md`
 - EN docs: `./docs/getting-started.en.md`
 
+## Desktop Distribution
+- JA guide: `./docs/desktop-release.ja.md`
+- EN guide: `./docs/desktop-release.en.md`
+- Latest release: <https://github.com/gatyoukatyou/cli-commentator/releases/latest>
+
 ## Target CLI Examples
 日本語: `apps/server/.env` の `TARGET_CMD` に指定します。例: `/bin/bash`, `/bin/zsh`, `powershell`, `claude`, `codex`
 

@@ -21,6 +21,12 @@ CLIの出力を別ウィンドウで実況するMVP。
 
 `apps/server/.env` の `TARGET_CMD` に指定します。例: `/bin/bash`, `/bin/zsh`, `powershell`, `claude`, `codex`
 
+## 導入・配布導線
+
+- Getting Started: `docs/getting-started.ja.md`
+- Desktop配布ガイド: `docs/desktop-release.ja.md`
+- 最新リリース: <https://github.com/gatyoukatyou/cli-commentator/releases/latest>
+
 ## トラブルシューティング
 
 - docs/getting-started.ja.md#troubleshooting

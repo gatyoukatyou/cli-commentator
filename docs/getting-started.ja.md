@@ -13,13 +13,22 @@ CLI Commentator は CLI 出力（PTY またはログファイル tail）を取�
   - Rust ツールチェーン（`rustup`）
   - Tauri v2 前提: <https://v2.tauri.app/start/prerequisites/>
 
-現状メモ: Node/pnpm なしで動く Desktop sidecar 同梱は Sprint 28 で対応中です。現時点の開発フローはローカル Node/pnpm が必要です。
+現状メモ: Desktop は sidecar 同梱済みで、配布版の実行に Node/pnpm は不要です。  
+ただし開発フロー（`pnpm dev*` / `tauri:build`）にはローカル Node/pnpm が必要です。
 
 ## セットアップ
 
 ```bash
 pnpm install
 ```
+
+## 配布版（Desktop）を入手して使う
+
+- 最新配布ページ: <https://github.com/gatyoukatyou/cli-commentator/releases/latest>
+- 配布ガイド: `docs/desktop-release.ja.md`
+
+通常は Releases から `.dmg`（macOS）を取得して起動します。  
+運用や署名/更新まわりの詳細は配布ガイドと runbook を参照してください。
 
 ## Web モードで起動（server + web）
 
@@ -41,6 +50,8 @@ pnpm dev:desktop:managed
 Desktop Server パネルで server の状態を操作します（`Start` / `Stop`、`stopped` / `starting` / `running` / `stopping` / `failed`）。
 
 `failed` になった場合は、パネルの復旧ガイダンスと同じターミナルのログを確認してください。
+
+補足: Desktop managed モードでは、既定ポート `8787` が使用中なら `8788` 以降へ自動退避し、UI の接続先も自動追従します。
 
 ## 入力モード
 
@@ -98,7 +109,7 @@ pnpm dev:web
 - `TARGET_CMD`, `TARGET_ARGS`, `TARGET_ARGS_JSON`, `TARGET_CWD`
 - `LOG_SOURCE`（`auto|claude|codex|generic`）
 
-Web 側（server port と合わせる）:
+Web 側（server port と合わせる、主にWebモードで利用）:
 
 - `apps/web/.env.development` -> `VITE_WS_PORT`
 
@@ -124,22 +135,20 @@ set PTY_USE_CONPTY=0 && pnpm dev:server
 
 ### ポート競合（`8787` が使用中）
 
-現状挙動:
-
-- server が起動失敗する場合があります。
-- Desktop パネルは `failed` に遷移することがあります。
-
-回避策:
+Web モードの回避策（server/webを同じポートに合わせる）:
 
 ```bash
 CLI_COMMENTATOR_PORT=8788 VITE_WS_PORT=8788 pnpm dev
 ```
 
-Desktop managed の回避策:
+Desktop managed モード:
 
 ```bash
-CLI_COMMENTATOR_PORT=8788 VITE_WS_PORT=8788 pnpm dev:desktop:managed
+CLI_COMMENTATOR_PORT=8788 pnpm dev:desktop:managed
 ```
+
+通常は自動退避で起動できます。  
+多数ポート競合などで `failed` になる場合のみ、開始ポートを明示して再試行してください。
 
 ### `Error: posix_spawnp failed`
 
