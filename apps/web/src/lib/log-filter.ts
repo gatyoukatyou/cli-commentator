@@ -1,0 +1,78 @@
+import type { EventType } from "../types";
+
+export type LogEventTypeFilter = "all" | EventType;
+
+export type CommentaryItem = {
+  ts: number;
+  text: string;
+  eventType: EventType;
+  summary?: string;
+  detail?: string;
+};
+
+export const EVENT_TYPE_LABELS: Record<EventType, string> = {
+  start: "開始",
+  stdout: "標準出力",
+  stderr: "標準エラー",
+  read: "読取",
+  write: "更新",
+  search: "検索",
+  test: "テスト",
+  git: "Git",
+  github: "GitHub",
+  install: "インストール",
+  build: "ビルド",
+  lint: "Lint",
+  server: "サーバー",
+  error: "エラー",
+  done: "完了",
+};
+
+export const EVENT_TYPE_OPTIONS: Array<{ value: LogEventTypeFilter; label: string }> = [
+  { value: "all", label: "すべて" },
+  { value: "start", label: EVENT_TYPE_LABELS.start },
+  { value: "stdout", label: EVENT_TYPE_LABELS.stdout },
+  { value: "stderr", label: EVENT_TYPE_LABELS.stderr },
+  { value: "read", label: EVENT_TYPE_LABELS.read },
+  { value: "write", label: EVENT_TYPE_LABELS.write },
+  { value: "search", label: EVENT_TYPE_LABELS.search },
+  { value: "test", label: EVENT_TYPE_LABELS.test },
+  { value: "git", label: EVENT_TYPE_LABELS.git },
+  { value: "github", label: EVENT_TYPE_LABELS.github },
+  { value: "install", label: EVENT_TYPE_LABELS.install },
+  { value: "build", label: EVENT_TYPE_LABELS.build },
+  { value: "lint", label: EVENT_TYPE_LABELS.lint },
+  { value: "server", label: EVENT_TYPE_LABELS.server },
+  { value: "error", label: EVENT_TYPE_LABELS.error },
+  { value: "done", label: EVENT_TYPE_LABELS.done },
+];
+
+const SEARCHABLE_EVENT_TYPES = new Set<EventType>(Object.keys(EVENT_TYPE_LABELS) as EventType[]);
+
+export function isEventType(value: unknown): value is EventType {
+  return typeof value === "string" && SEARCHABLE_EVENT_TYPES.has(value as EventType);
+}
+
+export function filterCommentaryItems(
+  items: CommentaryItem[],
+  filter: { query: string; eventType: LogEventTypeFilter }
+): CommentaryItem[] {
+  const query = filter.query.trim().toLowerCase();
+
+  return items.filter((item) => {
+    if (filter.eventType !== "all" && item.eventType !== filter.eventType) return false;
+    if (!query) return true;
+
+    const haystack = [
+      item.text,
+      item.summary ?? "",
+      item.detail ?? "",
+      item.eventType,
+      EVENT_TYPE_LABELS[item.eventType],
+    ]
+      .join(" ")
+      .toLowerCase();
+
+    return haystack.includes(query);
+  });
+}

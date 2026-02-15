@@ -2,6 +2,28 @@ export type Style = "standard" | "kansai" | "zundamon";
 export type DetectedSource = "claude" | "codex" | "generic";
 export type SourceMode = "auto" | DetectedSource;
 export type SourceState = { mode: SourceMode; detected: DetectedSource | null };
+export type EventType =
+  | "start"
+  | "stdout"
+  | "stderr"
+  | "read"
+  | "write"
+  | "search"
+  | "test"
+  | "git"
+  | "github"
+  | "install"
+  | "build"
+  | "lint"
+  | "server"
+  | "error"
+  | "done";
+
+export type Event = {
+  type: EventType;
+  summary: string;
+  detail?: string;
+};
 
 export type ProviderName = "disabled" | "mock" | "openai" | "groq" | "local" | "anthropic" | "gemini";
 
@@ -39,7 +61,7 @@ export type ServerToClientMessage =
   | { kind: "hello"; style: Style; source: SourceState }
   | { kind: "style"; style: Style }
   | { kind: "source"; source: SourceState }
-  | { kind: "commentary"; ts: number; text: string }
+  | { kind: "commentary"; ts: number; text: string; ev?: Event }
   | { kind: "profiles"; profiles: ProfileSummary[]; activeId: string | null }
   | { kind: "profileSaved"; profile: ProfileSummary; activeId: string | null }
   | { kind: "profileDeleted"; id: string; activeId: string | null }
