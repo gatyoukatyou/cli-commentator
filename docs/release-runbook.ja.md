@@ -6,6 +6,10 @@
 このRunbookは、タグ起点のDesktopリリースを安全に実行するための運用手順です。  
 対象は `.github/workflows/release-desktop.yml` です。
 
+関連ドキュメント:
+- RC判定チェックリスト: `docs/release-rc-checklist.ja.md`
+- 証明書/Secrets運用: `docs/certificate-secrets.ja.md`
+
 ## 0) 前提
 
 - リポジトリ: `gatyoukatyou/cli-commentator`
