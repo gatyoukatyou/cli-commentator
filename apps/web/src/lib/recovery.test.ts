@@ -9,8 +9,8 @@ describe("getDesktopFailureGuidance", () => {
 
   it("classifies port conflict errors", () => {
     const result = getDesktopFailureGuidance("failed", "Server exited unexpectedly; port 8787 is already in use", null);
-    expect(result?.category).toBe("ポート競合");
-    expect(result?.hints[0]).toContain("8787");
+    expect(result?.category).toBe("ポート解決エラー");
+    expect(result?.hints[0]).toContain("自動退避");
   });
 
   it("classifies structured unexpected-exit port conflicts", () => {
@@ -19,7 +19,12 @@ describe("getDesktopFailureGuidance", () => {
       "[unexpected_exit] Server exited unexpectedly | exit_code=1 | port=8787 | port_in_use=true",
       null
     );
-    expect(result?.category).toBe("ポート競合");
+    expect(result?.category).toBe("ポート解決エラー");
+  });
+
+  it("classifies structured port resolve failures", () => {
+    const result = getDesktopFailureGuidance("failed", "[port_resolve] No available server port was found | preferred=8787", null);
+    expect(result?.category).toBe("ポート解決エラー");
   });
 
   it("classifies project root errors", () => {
@@ -33,10 +38,10 @@ describe("getDesktopFailureGuidance", () => {
     expect(result?.category).toBe("起動ディレクトリエラー");
   });
 
-  it("classifies dependency and command errors", () => {
-    const result = getDesktopFailureGuidance("failed", "Failed to start server: pnpm: command not found", null);
-    expect(result?.category).toBe("依存関係/実行コマンドエラー");
-    expect(result?.hints.join(" ")).toContain("pnpm install");
+  it("classifies sidecar runtime errors", () => {
+    const result = getDesktopFailureGuidance("failed", "[sidecar_manifest_missing] No sidecar manifest was found", null);
+    expect(result?.category).toBe("同梱ランタイムエラー");
+    expect(result?.hints.join(" ")).toContain("prepare:desktop-sidecar");
   });
 
   it("classifies permission errors", () => {
@@ -47,6 +52,7 @@ describe("getDesktopFailureGuidance", () => {
   it("classifies unexpected exit errors", () => {
     const result = getDesktopFailureGuidance("failed", "Server exited unexpectedly with code 1", null);
     expect(result?.category).toBe("サーバープロセス異常終了");
+    expect(result?.hints.join(" ")).toContain("resources/server/dist/index.js");
   });
 
   it("falls back to generic guidance for unknown errors", () => {
