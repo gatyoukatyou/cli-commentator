@@ -286,6 +286,22 @@
   font-size: var(--text-lg);
 }
 
+.log-item__note {
+  margin-top: var(--space-1);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.log-item__note-chip {
+  font-size: var(--text-xs);
+  color: var(--color-fg-secondary);
+  background-color: var(--color-bg-secondary);
+  border: var(--panel-border);
+  border-radius: var(--radius-sm);
+  padding: 1px var(--space-1);
+}
+
 @media (max-width: 768px) {
   .log-toolbar__type {
     flex: 1 1 100%;
