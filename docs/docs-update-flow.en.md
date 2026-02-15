@@ -51,3 +51,9 @@ Use the Doc Freshness checklist in `.github/pull_request_template.md` and enforc
 
 - Do not defer doc updates to a later PR; include them with the implementation change.
 - Re-check ROADMAP before closing sprint parent issues.
+
+## CI Guard (Issue #132)
+
+- On pull requests, `docs_drift_guard` runs `scripts/check-doc-sync.mjs`.
+- If LLM/desktop-distribution implementation changes without matching docs updates, CI fails.
+- Use `[skip-doc-sync-check]` in the PR body only for explicit exceptions, and include the reason.

@@ -7,6 +7,24 @@ on:
       - main
 
 jobs:
+  docs_drift_guard:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: "20"
+
+      - name: Check documentation drift guard
+        run: node ./scripts/check-doc-sync.mjs
+
   failure_regression:
     runs-on: ubuntu-latest
 
