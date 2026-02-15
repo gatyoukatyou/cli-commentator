@@ -136,6 +136,72 @@ jobs:
       - name: Desktop cargo test
         run: cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml
 
+  desktop_distribution_smoke:
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.0.0
+
+      - name: Set up Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: "20"
+          cache: "pnpm"
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Web build
+        run: pnpm -C apps/web build
+
+      - name: Prepare desktop sidecar artifacts
+        run: pnpm prepare:desktop-sidecar
+
+      - name: Verify sidecar artifacts
+        run: |
+          set -euo pipefail
+          target_triple="$(rustc --print host-tuple 2>/dev/null || rustc -Vv | awk '/^host:/ {print $2}')"
+          node_binary="apps/desktop/src-tauri/binaries/node-${target_triple}"
+          if [[ "${target_triple}" == *windows* ]]; then
+            node_binary="${node_binary}.exe"
+          fi
+
+          test -f "${node_binary}"
+          test -f apps/desktop/src-tauri/resources/server/dist/index.js
+          test -f apps/desktop/src-tauri/resources/sidecar-manifest.json
+
+          echo "Sidecar artifacts OK:"
+          echo "- ${node_binary}"
+          echo "- apps/desktop/src-tauri/resources/server/dist/index.js"
+          echo "- apps/desktop/src-tauri/resources/sidecar-manifest.json"
+
+      - name: Desktop tauri build
+        run: |
+          pnpm -C apps/desktop tauri:build \
+            --bundles app \
+            --config '{"bundle":{"createUpdaterArtifacts":false}}'
+
+      - name: Verify desktop build outputs
+        run: |
+          set -euo pipefail
+          bundle_dir="apps/desktop/src-tauri/target/release/bundle"
+          test -d "${bundle_dir}"
+          if ! find "${bundle_dir}" -name "*.app" | grep -q .; then
+            echo "Desktop app bundle artifacts were not produced."
+            exit 1
+          fi
+          find "${bundle_dir}" -name "*.app"
+
   test_windows:
     runs-on: windows-latest
 
