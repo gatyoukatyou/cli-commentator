@@ -13,13 +13,22 @@ CLI Commentator captures CLI output (PTY or file tail), extracts events, and str
   - Rust toolchain (`rustup`)
   - Tauri v2 prerequisites: <https://v2.tauri.app/start/prerequisites/>
 
-Current note: Desktop sidecar packaging (Node/pnpm-free runtime) is in progress in Sprint 28. For now, development flow still uses local Node/pnpm.
+Current note: Desktop now ships with sidecar runtime, so released desktop binaries run without local Node/pnpm.  
+Development flow (`pnpm dev*` / `tauri:build`) still requires local Node/pnpm.
 
 ## Setup
 
 ```bash
 pnpm install
 ```
+
+## Use Desktop Release Builds
+
+- Latest release page: <https://github.com/gatyoukatyou/cli-commentator/releases/latest>
+- Desktop release guide: `docs/desktop-release.en.md`
+
+For normal usage, download `.dmg` (macOS) from Releases and launch it.  
+For signing/updater/release operations, use the desktop release guide and runbook docs.
 
 ## Run in Web Mode (server + web)
 
@@ -41,6 +50,8 @@ pnpm dev:desktop:managed
 The Desktop Server panel controls server lifecycle (`Start` / `Stop`) and shows status (`stopped` / `starting` / `running` / `stopping` / `failed`).
 
 If status becomes `failed`, use the guidance shown in the panel and check logs from the same terminal.
+
+Note: In desktop managed mode, if `8787` is occupied, desktop automatically falls back to `8788+` and the UI WebSocket target follows automatically.
 
 ## Input Modes
 
@@ -98,7 +109,7 @@ Main keys:
 - `TARGET_CMD`, `TARGET_ARGS`, `TARGET_ARGS_JSON`, `TARGET_CWD`
 - `LOG_SOURCE` (`auto|claude|codex|generic`)
 
-Web dev key (must match server port):
+Web dev key (must match server port, mainly for web mode):
 
 - `apps/web/.env.development` -> `VITE_WS_PORT`
 
@@ -124,22 +135,20 @@ set PTY_USE_CONPTY=0 && pnpm dev:server
 
 ### Port conflict (`8787` already in use)
 
-Current behavior:
-
-- Server may fail to start.
-- Desktop panel can move to `failed`.
-
-Workaround:
+Web mode workaround (keep server/web ports aligned):
 
 ```bash
 CLI_COMMENTATOR_PORT=8788 VITE_WS_PORT=8788 pnpm dev
 ```
 
-Desktop managed workaround:
+Desktop managed mode:
 
 ```bash
-CLI_COMMENTATOR_PORT=8788 VITE_WS_PORT=8788 pnpm dev:desktop:managed
+CLI_COMMENTATOR_PORT=8788 pnpm dev:desktop:managed
 ```
+
+Desktop usually auto-falls back to the next available port.  
+Only set an explicit start port when repeated conflicts still cause `failed`.
 
 ### `Error: posix_spawnp failed`
 

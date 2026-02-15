@@ -21,6 +21,12 @@ Public documentation is maintained in both Japanese and English.
 
 Set `TARGET_CMD` in `apps/server/.env`. Examples: `/bin/bash`, `/bin/zsh`, `powershell`, `claude`, `codex`
 
+## Onboarding and Distribution
+
+- Getting Started: `docs/getting-started.en.md`
+- Desktop Release Guide: `docs/desktop-release.en.md`
+- Latest release: <https://github.com/gatyoukatyou/cli-commentator/releases/latest>
+
 ## Troubleshooting
 
 - docs/getting-started.en.md#troubleshooting
