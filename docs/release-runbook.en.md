@@ -56,6 +56,9 @@ pnpm verify:updater
 pnpm -C apps/web lint
 pnpm -C apps/web build
 CLI_COMMENTATOR_FORCE_NO_PTY=1 pnpm -C apps/server test
+pnpm prepare:desktop-sidecar
+pnpm -C apps/desktop tauri:build --bundles app --config '{"bundle":{"createUpdaterArtifacts":false}}'
+pnpm smoke:desktop-distribution
 ```
 
 ### 1-2. What `verify:updater` validates
