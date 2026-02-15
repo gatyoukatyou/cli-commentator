@@ -102,8 +102,9 @@ pnpm smoke:desktop-distribution
 対応:
 1. 正式配布が必要なら `APPLE_CERTIFICATE` / `APPLE_CERTIFICATE_PASSWORD` / `KEYCHAIN_PASSWORD` を登録
 2. `APPLE_ID` / `APPLE_PASSWORD` / `APPLE_TEAM_ID` を登録
-3. Secrets を追加後、新しいタグで signedモード実行を確認
-4. 予算都合で未設定の場合は内部検証用途として運用継続
+3. 同じシェルに値を展開し `pnpm verify:apple-signing` で形式検証
+4. Secrets を追加後、新しいタグで signedモード実行を確認
+5. 予算都合で未設定の場合は内部検証用途として運用継続
    - unsigned 実行は `v0.0.0-smoke.*` タグでのみ可能
 
 ### ケースC: `tauri-action` で署名/ビルド失敗

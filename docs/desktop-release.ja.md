@@ -64,6 +64,8 @@ GitHub Actions では同じ値を Repository Secrets に登録します。
 - `APPLE_PASSWORD`（app-specific password）
 - `APPLE_TEAM_ID`
 
+登録後は `pnpm verify:apple-signing` で形式チェックできます（同じシェルに値を展開して実行）。
+
 ## 3) `tauri.conf.json` のUpdater設定（有効化時）
 
 `apps/desktop/src-tauri/tauri.conf.json` は以下の形にします。

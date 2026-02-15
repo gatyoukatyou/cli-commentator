@@ -64,6 +64,8 @@ The `release-desktop` workflow requires these repository secrets:
 - `APPLE_PASSWORD` (app-specific password)
 - `APPLE_TEAM_ID`
 
+After registration, run `pnpm verify:apple-signing` to validate format (export values in the same shell first).
+
 ## 3) Updater settings in `tauri.conf.json` (when enabling)
 
 Set `apps/desktop/src-tauri/tauri.conf.json` like this:

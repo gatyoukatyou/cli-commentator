@@ -26,6 +26,30 @@ Desktop配布（署名/Notarization）で利用する証明書とSecretsの運�
 3. 関連パスワードをSecretsへ登録
 4. `pnpm verify:updater` とリリースworkflowで検証
 
+#### 2-1-1. `APPLE_CERTIFICATE` 登録コマンド例
+
+```bash
+base64 < ./certs/developer-id-application.p12 | tr -d '\n' > /tmp/apple-certificate.base64
+gh secret set APPLE_CERTIFICATE < /tmp/apple-certificate.base64
+gh secret set APPLE_CERTIFICATE_PASSWORD
+gh secret set KEYCHAIN_PASSWORD
+gh secret set APPLE_ID
+gh secret set APPLE_PASSWORD
+gh secret set APPLE_TEAM_ID
+```
+
+登録後の形式チェック（同じシェルで値を展開して実行）:
+
+```bash
+APPLE_CERTIFICATE="$(cat /tmp/apple-certificate.base64)" \
+APPLE_CERTIFICATE_PASSWORD="***" \
+KEYCHAIN_PASSWORD="***" \
+APPLE_ID="user@example.com" \
+APPLE_PASSWORD="***" \
+APPLE_TEAM_ID="ABCDEFGHIJ" \
+pnpm verify:apple-signing
+```
+
 ### 2-2. ローテーション
 1. 新証明書/新鍵を発行
 2. 先にSecretsを更新（古い値は即削除しない）
