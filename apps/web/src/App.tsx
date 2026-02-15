@@ -11,7 +11,11 @@ import {
   getTTSSettings,
   setTTSSettings,
   waitForVoices,
+  TTS_PRESETS,
   DEFAULT_TTS_SETTINGS,
+  applyTTSPreset,
+  detectTTSPreset,
+  type TTSPresetId,
   type TTSSettings,
 } from "./lib/tts";
 import { getDesktopFailureGuidance, type DesktopServerState } from "./lib/recovery";
@@ -37,6 +41,7 @@ export type Skin = "standard" | "brutalism" | "paper";
 
 type LegacyHello = { type: "hello"; style: Style };
 type PayloadMessage = { type?: string; payload?: PtyUnavailablePayload | Record<string, unknown> };
+type TTSPresetSelectValue = TTSPresetId | "custom";
 
 type ConnectionStatus = "connecting" | "connected" | "disconnected" | "reconnecting";
 
@@ -551,6 +556,11 @@ export default function App() {
     setTTSSettings(newSettings);
   };
 
+  const handleTTSPresetChange = (presetId: TTSPresetSelectValue) => {
+    if (presetId === "custom") return;
+    handleTTSSettingsChange(applyTTSPreset(ttsSettings, presetId));
+  };
+
   const handleTestSpeak = () => {
     speak("これはテスト読み上げです。設定を確認してください。", ttsSettings);
   };
@@ -855,6 +865,7 @@ export default function App() {
         ? `auto → ${source.detected}`
         : "auto (detecting)"
       : source.mode;
+  const ttsPresetValue: TTSPresetSelectValue = detectTTSPreset(ttsSettings) ?? "custom";
   const filteredItems = useMemo(
     () => filterCommentaryItems(items, { query: logQuery, eventType: logEventType }),
     [items, logEventType, logQuery]
@@ -998,6 +1009,23 @@ export default function App() {
       {/* TTS Settings Panel */}
       {ttsSupported && ttsEnabled && ttsSettingsOpen && (
         <div className="tts-settings">
+          {/* Preset Select */}
+          <div className="tts-settings__field">
+            <label className="tts-settings__label">プリセット:</label>
+            <select
+              value={ttsPresetValue}
+              onChange={(e) => handleTTSPresetChange(e.target.value as TTSPresetSelectValue)}
+              style={{ width: "100%", padding: "var(--space-1)" }}
+            >
+              {TTS_PRESETS.map((preset) => (
+                <option key={preset.id} value={preset.id}>
+                  {preset.label}（{preset.description}）
+                </option>
+              ))}
+              <option value="custom">カスタム（手動調整）</option>
+            </select>
+          </div>
+
           {/* Voice Select */}
           <div className="tts-settings__field">
             <label className="tts-settings__label">音声:</label>

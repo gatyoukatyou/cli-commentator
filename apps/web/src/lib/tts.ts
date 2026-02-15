@@ -2,6 +2,7 @@
  * TTS (Text-to-Speech) utilities using Web Speech API
  * Sprint 24: cancel方式（最新のみ読み上げ）
  * Sprint 25: TTS設定（voice/rate/pitch/volume）
+ * Sprint 26: 読み上げプリセット
  */
 
 /** TTS 設定 */
@@ -12,13 +13,69 @@ export interface TTSSettings {
   volume: number; // 0 - 1 (default: 1.0)
 }
 
-/** デフォルト設定 */
+export type TTSPresetId = "balanced" | "calm" | "clear";
+type TTSPresetCore = Pick<TTSSettings, "rate" | "pitch" | "volume">;
+
+export type TTSPreset = {
+  id: TTSPresetId;
+  label: string;
+  description: string;
+  settings: TTSPresetCore;
+};
+
+export const TTS_PRESETS: TTSPreset[] = [
+  {
+    id: "balanced",
+    label: "標準（推奨）",
+    description: "聞き取り重視の基準値",
+    settings: { rate: 0.95, pitch: 1.0, volume: 1.0 },
+  },
+  {
+    id: "calm",
+    label: "ゆっくり",
+    description: "速度を落として落ち着いた読み上げ",
+    settings: { rate: 0.85, pitch: 0.95, volume: 0.9 },
+  },
+  {
+    id: "clear",
+    label: "はっきり",
+    description: "少し高め/速めで明瞭さを優先",
+    settings: { rate: 1.05, pitch: 1.1, volume: 1.0 },
+  },
+];
+
+const DEFAULT_TTS_PRESET_ID: TTSPresetId = "balanced";
+const DEFAULT_TTS_PRESET = TTS_PRESETS.find((preset) => preset.id === DEFAULT_TTS_PRESET_ID) ?? TTS_PRESETS[0];
+
+/** デフォルト設定（preset: balanced） */
 export const DEFAULT_TTS_SETTINGS: TTSSettings = {
   voiceURI: null,
-  rate: 1.0,
-  pitch: 1.0,
-  volume: 1.0,
+  rate: DEFAULT_TTS_PRESET.settings.rate,
+  pitch: DEFAULT_TTS_PRESET.settings.pitch,
+  volume: DEFAULT_TTS_PRESET.settings.volume,
 };
+
+export function applyTTSPreset(settings: TTSSettings, presetId: TTSPresetId): TTSSettings {
+  const preset = TTS_PRESETS.find((candidate) => candidate.id === presetId);
+  if (!preset) return settings;
+  return {
+    ...settings,
+    ...preset.settings,
+  };
+}
+
+function nearlyEqual(a: number, b: number, epsilon = 0.001): boolean {
+  return Math.abs(a - b) <= epsilon;
+}
+
+export function detectTTSPreset(settings: TTSSettings): TTSPresetId | null {
+  const matched = TTS_PRESETS.find((preset) =>
+    nearlyEqual(settings.rate, preset.settings.rate) &&
+    nearlyEqual(settings.pitch, preset.settings.pitch) &&
+    nearlyEqual(settings.volume, preset.settings.volume)
+  );
+  return matched?.id ?? null;
+}
 
 const ANSI_COLOR_CODE_RE = /\[(?:\d{1,3};)*\d{1,3}m/g;
 const BOX_DRAWING_CHARS_RE = /[─│┌┐└┘├┤┬┴┼╔╗╚╝╠╣╦╩╬═║]+/g;
