@@ -101,8 +101,9 @@ Symptoms:
 Actions:
 1. For production-ready distribution, set `APPLE_CERTIFICATE` / `APPLE_CERTIFICATE_PASSWORD` / `KEYCHAIN_PASSWORD`
 2. Set `APPLE_ID` / `APPLE_PASSWORD` / `APPLE_TEAM_ID`
-3. Re-run with a new tag and confirm signed mode
-4. If budget is not available yet, continue using unsigned mode for internal validation
+3. Export values in the same shell and run `pnpm verify:apple-signing` for format validation
+4. Re-run with a new tag and confirm signed mode
+5. If budget is not available yet, continue using unsigned mode for internal validation
    - unsigned mode is allowed only with `v0.0.0-smoke.*` tags
 
 ### Case C: `tauri-action` build/signing fails

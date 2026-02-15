@@ -26,6 +26,30 @@ This guide defines the standard operations for certificates and secrets used in 
 3. Register related passwords in repository secrets
 4. Verify using `pnpm verify:updater` and release workflow run
 
+#### 2-1-1. `APPLE_CERTIFICATE` registration command example
+
+```bash
+base64 < ./certs/developer-id-application.p12 | tr -d '\n' > /tmp/apple-certificate.base64
+gh secret set APPLE_CERTIFICATE < /tmp/apple-certificate.base64
+gh secret set APPLE_CERTIFICATE_PASSWORD
+gh secret set KEYCHAIN_PASSWORD
+gh secret set APPLE_ID
+gh secret set APPLE_PASSWORD
+gh secret set APPLE_TEAM_ID
+```
+
+Post-registration format check (run in the same shell after exporting values):
+
+```bash
+APPLE_CERTIFICATE="$(cat /tmp/apple-certificate.base64)" \
+APPLE_CERTIFICATE_PASSWORD="***" \
+KEYCHAIN_PASSWORD="***" \
+APPLE_ID="user@example.com" \
+APPLE_PASSWORD="***" \
+APPLE_TEAM_ID="ABCDEFGHIJ" \
+pnpm verify:apple-signing
+```
+
 ### 2-2. Rotation
 1. Generate new certificate/key set
 2. Update secrets first (do not immediately delete old set)
