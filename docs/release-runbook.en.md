@@ -6,6 +6,10 @@
 This runbook defines the operational steps for safe tag-triggered desktop releases.  
 Target workflow: `.github/workflows/release-desktop.yml`.
 
+Related docs:
+- RC decision checklist: `docs/release-rc-checklist.en.md`
+- Certificate/secrets operations: `docs/certificate-secrets.en.md`
+
 ## 0) Prerequisites
 
 - Repository: `gatyoukatyou/cli-commentator`
