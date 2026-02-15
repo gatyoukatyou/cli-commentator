@@ -45,7 +45,7 @@ describe("comment() timeout behavior", () => {
     const result = await comment(ev, "standard");
 
     // ルール実況の特徴を含む（LLMレスポンスではない）
-    expect(result).toContain("初心者向け");
+    expect(result).toContain("1行メモ");
     expect(result).not.toBe("should not reach here");
 
     // Clean up the mock for next test
