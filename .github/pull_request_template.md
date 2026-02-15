@@ -37,6 +37,8 @@ Note: Closing keywords only work for PRs targeting the default branch (main).
 
 ### Documentation
 - [ ] CLAUDE.md updated if env vars or config changed
+- [ ] ROADMAP/LLM_ADAPTER freshness reviewed (see `docs/docs-update-flow.ja.md`)
+- [ ] If docs update was not needed, reason is written in Summary
 - [ ] Inline comments added for non-obvious logic
 
 ### Desktop / Tauri (Sprint 28+)
@@ -44,6 +46,9 @@ Note: Closing keywords only work for PRs targeting the default branch (main).
 - [ ] Port collision handled (when 8787 is already in use, Desktop auto-falls back and still works)
 - [ ] Desktop build passes (`pnpm -C apps/desktop tauri:build`)
 - [ ] Bundled artifacts verified (sidecar node + server entry/resources included in the final bundle)
+
+### Reviewer Focus
+- [ ] Reviewed docs consistency for behavior/env/CI/release changes
 
 ## Test Plan
 
