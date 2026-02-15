@@ -123,13 +123,39 @@ function decodeWsMessage(data) {
   return "";
 }
 
-async function waitForCommentary(port, timeoutMs) {
-  if (typeof WebSocket !== "function") {
-    throw new Error("Global WebSocket is unavailable on this Node runtime");
+async function getWebSocketConstructor() {
+  if (typeof WebSocket === "function") {
+    return WebSocket;
   }
 
+  const wsModule = await import("ws");
+  const WebSocketCtor = wsModule.WebSocket ?? wsModule.default;
+  if (typeof WebSocketCtor !== "function") {
+    throw new Error("WebSocket implementation is unavailable");
+  }
+  return WebSocketCtor;
+}
+
+async function waitForCommentary(port, timeoutMs) {
+  const WebSocketCtor = await getWebSocketConstructor();
+
   return await new Promise((resolve, reject) => {
-    const ws = new WebSocket(`ws://127.0.0.1:${port}`);
+    const ws = new WebSocketCtor(`ws://127.0.0.1:${port}`);
+    const addListener = (event, handler) => {
+      if (typeof ws.addEventListener === "function") {
+        ws.addEventListener(event, handler);
+        return;
+      }
+      if (typeof ws.on === "function") {
+        if (event === "message") {
+          ws.on("message", (data) => handler({ data }));
+        } else if (event === "error") {
+          ws.on("error", (error) => handler(error));
+        } else {
+          ws.on(event, handler);
+        }
+      }
+    };
     const timeout = setTimeout(() => {
       try {
         ws.close();
@@ -137,13 +163,18 @@ async function waitForCommentary(port, timeoutMs) {
       reject(new Error("Timed out waiting for commentary event over WebSocket"));
     }, timeoutMs);
 
-    ws.addEventListener("error", (event) => {
+    addListener("error", (event) => {
       clearTimeout(timeout);
-      reject(new Error(`WebSocket error: ${String(event.type ?? "unknown")}`));
+      const errorText =
+        event instanceof Error
+          ? event.message
+          : String(event?.type ?? event?.message ?? "unknown");
+      reject(new Error(`WebSocket error: ${errorText}`));
     });
 
-    ws.addEventListener("message", (event) => {
-      const text = decodeWsMessage(event.data);
+    addListener("message", (event) => {
+      const payloadData = event?.data ?? event;
+      const text = decodeWsMessage(payloadData);
       if (!text) return;
       try {
         const payload = JSON.parse(text);

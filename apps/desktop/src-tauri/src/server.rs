@@ -1231,6 +1231,9 @@ mod tests {
         let sidecar_root = root.join("Contents").join("Resources");
         let exe_dir = root.join("Contents").join("MacOS");
         let manifest_node = "binaries/node-x86_64-apple-darwin";
+        #[cfg(windows)]
+        let fallback_node = exe_dir.join("node.exe");
+        #[cfg(not(windows))]
         let fallback_node = exe_dir.join("node");
         touch_file(&fallback_node);
 
