@@ -64,6 +64,8 @@ type BeginnerLineTable = Record<Event["type"], string> & { default: string };
 
 const BEGINNER_STANDARD: BeginnerLineTable = {
   read: "1行メモ: 現状を把握して次の修正方針を決めています。",
+  stdout: "1行メモ: コマンドの通常出力を確認しています。",
+  stderr: "1行メモ: エラー出力を確認して原因を絞っています。",
   write: "1行メモ: 問題を直すために内容を更新しています。",
   search: "1行メモ: 手がかりを探して調査範囲を絞っています。",
   test: "1行メモ: 変更で壊れていないか確認しています。",
@@ -81,6 +83,8 @@ const BEGINNER_STANDARD: BeginnerLineTable = {
 
 const BEGINNER_KANSAI: BeginnerLineTable = {
   read: "1行メモ: 今の状況つかんで次の手を決めてるとこや。",
+  stdout: "1行メモ: コマンドの通常出力を確認してるで。",
+  stderr: "1行メモ: エラー出力を見て原因しぼってるで。",
   write: "1行メモ: 問題直すために中身を更新してるで。",
   search: "1行メモ: 手がかり探して調査範囲しぼってるで。",
   test: "1行メモ: 変更で壊れてへんか確認してるで。",
@@ -98,6 +102,8 @@ const BEGINNER_KANSAI: BeginnerLineTable = {
 
 const BEGINNER_ZUNDAMON: BeginnerLineTable = {
   read: "1行メモ: 今の状況をつかんで次の手を決めてるのだ。",
+  stdout: "1行メモ: コマンドの通常出力を確認してるのだ。",
+  stderr: "1行メモ: エラー出力を見て原因をしぼってるのだ。",
   write: "1行メモ: 問題を直すために中身を更新してるのだ。",
   search: "1行メモ: 手がかりを探して調査範囲をしぼってるのだ。",
   test: "1行メモ: 変更で壊れてないか確認してるのだ。",
