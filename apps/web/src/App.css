@@ -191,12 +191,65 @@
 }
 
 /* Log container */
+.log-toolbar {
+  margin-bottom: var(--space-2);
+  text-align: left;
+}
+
+.log-toolbar__controls {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.log-toolbar__search,
+.log-toolbar__type {
+  border: var(--input-border);
+  background-color: var(--input-bg);
+  color: var(--input-text);
+  border-radius: var(--radius-sm);
+  padding: var(--space-1) var(--space-2);
+}
+
+.log-toolbar__search {
+  flex: 1 1 260px;
+  min-width: 200px;
+}
+
+.log-toolbar__search::placeholder {
+  color: var(--input-placeholder);
+}
+
+.log-toolbar__search:focus,
+.log-toolbar__type:focus {
+  outline: none;
+  border: var(--input-border-focus);
+}
+
+.log-toolbar__type {
+  flex: 0 0 180px;
+}
+
+.log-toolbar__meta {
+  margin-top: var(--space-1);
+  font-size: var(--text-sm);
+  color: var(--color-fg-secondary);
+}
+
 .log-container {
   border: var(--panel-border);
   border-radius: var(--radius-md);
   padding: var(--space-3);
   height: 60vh;
   overflow: auto;
+  text-align: left;
+}
+
+.log-empty {
+  color: var(--color-fg-tertiary);
+  font-size: var(--text-sm);
+  padding: var(--space-3) 0;
 }
 
 /* Log item (border is full shorthand token) */
@@ -209,13 +262,34 @@
   border-bottom: none;
 }
 
+.log-item__header {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  justify-content: space-between;
+}
+
 .log-item__time {
   font-size: var(--text-sm);
   color: var(--color-fg-tertiary);
 }
 
+.log-item__type {
+  font-size: var(--text-xs);
+  color: var(--color-fg-secondary);
+  background-color: var(--color-bg-tertiary);
+  border-radius: var(--radius-sm);
+  padding: 1px var(--space-1);
+}
+
 .log-item__text {
   font-size: var(--text-lg);
+}
+
+@media (max-width: 768px) {
+  .log-toolbar__type {
+    flex: 1 1 100%;
+  }
 }
 
 /* TTS Settings Panel */

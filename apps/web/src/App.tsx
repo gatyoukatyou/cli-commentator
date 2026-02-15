@@ -15,6 +15,14 @@ import {
   type TTSSettings,
 } from "./lib/tts";
 import { getDesktopFailureGuidance, type DesktopServerState } from "./lib/recovery";
+import {
+  EVENT_TYPE_LABELS,
+  EVENT_TYPE_OPTIONS,
+  filterCommentaryItems,
+  isEventType,
+  type CommentaryItem,
+  type LogEventTypeFilter,
+} from "./lib/log-filter";
 import type {
   Style,
   SourceState,
@@ -428,7 +436,9 @@ function TauriStatusPanel({ onStatusChange }: TauriStatusPanelProps) {
 
 export default function App() {
   const isTauriRuntime = Boolean(getTauriCore());
-  const [items, setItems] = useState<Array<{ ts: number; text: string }>>([]);
+  const [items, setItems] = useState<CommentaryItem[]>([]);
+  const [logQuery, setLogQuery] = useState("");
+  const [logEventType, setLogEventType] = useState<LogEventTypeFilter>("all");
   const [style, setStyle] = useState<Style>("kansai");
   const [source, setSource] = useState<SourceState>({ mode: "auto", detected: null });
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>("connecting");
@@ -611,7 +621,14 @@ export default function App() {
               break;
             case "commentary":
               if (typeof data.ts === "number" && typeof data.text === "string") {
-                setItems((prev) => [...prev, { ts: data.ts as number, text: data.text as string }].slice(-200));
+                const ev = isRecord(data.ev) ? data.ev : null;
+                const eventTypeCandidate = ev?.type;
+                const eventType = isEventType(eventTypeCandidate) ? eventTypeCandidate : "stdout";
+                const summary = typeof ev?.summary === "string" ? ev.summary : undefined;
+                const detail = typeof ev?.detail === "string" ? ev.detail : undefined;
+                setItems((prev) =>
+                  [...prev, { ts: data.ts as number, text: data.text as string, eventType, summary, detail }].slice(-200)
+                );
                 // TTS: 有効なら読み上げ
                 if (ttsEnabledRef.current) {
                   speak(data.text as string, ttsSettingsRef.current);
@@ -838,6 +855,10 @@ export default function App() {
         ? `auto → ${source.detected}`
         : "auto (detecting)"
       : source.mode;
+  const filteredItems = useMemo(
+    () => filterCommentaryItems(items, { query: logQuery, eventType: logEventType }),
+    [items, logEventType, logQuery]
+  );
 
   const getStatusIndicatorClass = () => {
     switch (connectionStatus) {
@@ -1096,13 +1117,46 @@ export default function App() {
         Ruleset: {sourceLabel}
       </div>
 
+      <div className="log-toolbar panel">
+        <div className="log-toolbar__controls">
+          <input
+            className="log-toolbar__search"
+            type="text"
+            value={logQuery}
+            onChange={(e) => setLogQuery(e.target.value)}
+            placeholder="ログを検索（本文/詳細/種別）"
+          />
+          <select
+            className="log-toolbar__type"
+            value={logEventType}
+            onChange={(e) => setLogEventType(e.target.value as LogEventTypeFilter)}
+          >
+            {EVENT_TYPE_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="log-toolbar__meta">
+          {filteredItems.length} / {items.length} 件
+        </div>
+      </div>
+
       <div className="log-container">
-        {items.map((it, idx) => (
-          <div key={idx} className="log-item">
-            <div className="log-item__time">{new Date(it.ts).toLocaleTimeString()}</div>
-            <div className="log-item__text">{it.text}</div>
-          </div>
-        ))}
+        {filteredItems.length === 0 ? (
+          <div className="log-empty">条件に一致するログはありません。</div>
+        ) : (
+          filteredItems.map((it, idx) => (
+            <div key={`${it.ts}-${idx}-${it.eventType}`} className="log-item">
+              <div className="log-item__header">
+                <div className="log-item__time">{new Date(it.ts).toLocaleTimeString()}</div>
+                <div className="log-item__type">{EVENT_TYPE_LABELS[it.eventType]}</div>
+              </div>
+              <div className="log-item__text">{it.text}</div>
+            </div>
+          ))
+        )}
       </div>
 
       {/* Profile Editor Modal */}
