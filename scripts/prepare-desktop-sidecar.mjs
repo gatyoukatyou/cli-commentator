@@ -1,0 +1,152 @@
+#!/usr/bin/env node
+
+import { execSync, spawnSync } from "node:child_process";
+import {
+  chmodSync,
+  copyFileSync,
+  cpSync,
+  existsSync,
+  mkdtempSync,
+  mkdirSync,
+  readFileSync,
+  realpathSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+const scriptDir = path.dirname(fileURLToPath(import.meta.url));
+const repoRoot = path.resolve(scriptDir, "..");
+const workspaceFile = path.join(repoRoot, "pnpm-workspace.yaml");
+const serverDir = path.join(repoRoot, "apps", "server");
+const serverDistDir = path.join(serverDir, "dist");
+const tauriDir = path.join(repoRoot, "apps", "desktop", "src-tauri");
+const resourcesDir = path.join(tauriDir, "resources");
+const bundledServerDir = path.join(resourcesDir, "server");
+const binariesDir = path.join(tauriDir, "binaries");
+const stageDir = mkdtempSync(path.join(os.tmpdir(), "cli-commentator-sidecar-"));
+const tempStoreDir = mkdtempSync(path.join(os.tmpdir(), "cli-commentator-pnpm-store-"));
+
+function run(cmd, args, cwd = repoRoot) {
+  const result = spawnSync(cmd, args, {
+    cwd,
+    env: process.env,
+    stdio: "inherit",
+  });
+  if (result.status !== 0) {
+    throw new Error(`Command failed: ${cmd} ${args.join(" ")}`);
+  }
+}
+
+function toPosix(relativePath) {
+  return relativePath.split(path.sep).join("/");
+}
+
+function readPackageVersion(packageJsonPath) {
+  const raw = readFileSync(packageJsonPath, "utf8");
+  const parsed = JSON.parse(raw);
+  return String(parsed.version ?? "0.0.0");
+}
+
+function getRustHostTriple() {
+  try {
+    return execSync("rustc --print host-tuple", { encoding: "utf8" }).trim();
+  } catch {
+    const verbose = execSync("rustc -Vv", { encoding: "utf8" });
+    const hostLine = verbose
+      .split(/\r?\n/)
+      .find((line) => line.startsWith("host:"));
+    if (!hostLine) {
+      throw new Error("Failed to determine rustc host triple");
+    }
+    return hostLine.replace("host:", "").trim();
+  }
+}
+
+function sidecarNodeFilename(targetTriple) {
+  return targetTriple.includes("windows")
+    ? `node-${targetTriple}.exe`
+    : `node-${targetTriple}`;
+}
+
+if (!existsSync(workspaceFile)) {
+  throw new Error("pnpm-workspace.yaml not found. Run this script from the repository.");
+}
+
+const targetTriple = getRustHostTriple();
+const sidecarNodeName = sidecarNodeFilename(targetTriple);
+const sidecarNodePath = path.join(binariesDir, sidecarNodeName);
+
+try {
+  console.log("[sidecar] Building server dist...");
+  rmSync(serverDistDir, { recursive: true, force: true });
+  run("pnpm", ["-C", "apps/server", "build"]);
+
+  if (!existsSync(serverDistDir)) {
+    throw new Error("Server build output missing: apps/server/dist");
+  }
+
+  console.log("[sidecar] Deploying production server dependencies...");
+  run("pnpm", [
+    "--store-dir",
+    tempStoreDir,
+    "--node-linker",
+    "hoisted",
+    "--filter",
+    "@cli-commentator/server",
+    "--prod",
+    "deploy",
+    stageDir,
+  ]);
+
+  console.log("[sidecar] Copying deployed server bundle...");
+  rmSync(bundledServerDir, { recursive: true, force: true });
+  mkdirSync(resourcesDir, { recursive: true });
+  cpSync(stageDir, bundledServerDir, { recursive: true });
+
+  // Always overwrite dist from local build so the entrypoint is deterministic.
+  cpSync(serverDistDir, path.join(bundledServerDir, "dist"), { recursive: true, force: true });
+
+  // Keep sidecar payload focused on runtime artifacts.
+  rmSync(path.join(bundledServerDir, "src"), { recursive: true, force: true });
+  rmSync(path.join(bundledServerDir, "test"), { recursive: true, force: true });
+  rmSync(path.join(bundledServerDir, "tsconfig.json"), { recursive: true, force: true });
+  rmSync(path.join(bundledServerDir, "tsconfig.build.json"), { recursive: true, force: true });
+  rmSync(path.join(bundledServerDir, ".env"), { recursive: true, force: true });
+  rmSync(path.join(bundledServerDir, ".env.local"), { recursive: true, force: true });
+  rmSync(path.join(bundledServerDir, ".env.development"), { recursive: true, force: true });
+  rmSync(path.join(bundledServerDir, ".env.production"), { recursive: true, force: true });
+
+  console.log("[sidecar] Copying node runtime...");
+  const nodeSource = realpathSync(process.execPath);
+  mkdirSync(binariesDir, { recursive: true });
+  rmSync(sidecarNodePath, { force: true });
+  copyFileSync(nodeSource, sidecarNodePath);
+  if (!targetTriple.includes("windows")) {
+    chmodSync(sidecarNodePath, 0o755);
+  }
+
+  const manifestPath = path.join(resourcesDir, "sidecar-manifest.json");
+  const manifest = {
+    generatedAt: new Date().toISOString(),
+    targetTriple,
+    nodeVersion: process.version,
+    serverVersion: readPackageVersion(path.join(serverDir, "package.json")),
+    nodeBinary: toPosix(path.relative(tauriDir, sidecarNodePath)),
+    serverRoot: toPosix(path.relative(tauriDir, bundledServerDir)),
+    serverEntry: toPosix(path.join(path.relative(tauriDir, bundledServerDir), "dist", "index.js")),
+  };
+  writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`, "utf8");
+
+  console.log("[sidecar] Done.");
+  console.log(`- target triple: ${targetTriple}`);
+  console.log(`- node: ${manifest.nodeBinary}`);
+  console.log(`- server root: ${manifest.serverRoot}`);
+  console.log(`- server entry: ${manifest.serverEntry}`);
+  console.log(`- manifest: ${toPosix(path.relative(repoRoot, manifestPath))}`);
+} finally {
+  rmSync(stageDir, { recursive: true, force: true });
+  rmSync(tempStoreDir, { recursive: true, force: true });
+}
