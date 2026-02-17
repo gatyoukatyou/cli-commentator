@@ -84,11 +84,12 @@ CLI Commentator は「ターミナルの作業ログを見て、別ウィンド�
 
 **進行中**
 - Tauri managed の起動ライフサイクル（start/stop/status/recovery）は運用中
-- Sprint 28 の実行を開始（親子Issue #141-#146: docs同期、sidecar同梱方針、ポート衝突回避、CIガード）
+- Sprint 28（親子Issue #141-#146）を完了し、docs同期 + sidecar同梱起動 + ポート自動退避 + CI最小ガードまで反映
+- 配布信頼性の仕上げとして、署名前提チェックと起動失敗時の復旧品質を継続改善
 
 ---
 
-## 現在地（2026-02-14 時点）
+## 現在地（2026-02-17 時点）
 **Done**
 - PR #1：detect 境界テスト（混在→generic、50行制限、重要定数export）
 - PR #2：ロードマップ docs 追加（日英＋docs/READMEからリンク）
@@ -112,17 +113,24 @@ CLI Commentator は「ターミナルの作業ログを見て、別ウィンド�
 - 3AI運用基盤（`AGENTS.md` / `GEMINI.md` / `/wrapup` 運用フック）を追加
 - 2026-02-13: `v0.0.0-smoke.5` で `release-desktop` をドライランし、Updater鍵ペア検証成功を確認（Apple Secrets不足を検出）
 - 2026-02-14: Sprint 28 の管理Issueを作成（親 #141、子 #142-#146）
+- PR #147：Sprint 28 docs同期（Desktop運用 / 入力モード `pty|file` / Windows制約 / `.env.example`）
+- PR #148-151：同梱server成果物生成 + 同梱起動切替 + ポート自動退避 + desktop配布スモークCI
+- PR #153-155：getting-started/配布導線更新 + ROADMAP/LLM_ADAPTER更新フロー固定 + docs差分CIガード
+- PR #156-158：AI運用チェックリスト / v0.2.0 RCチェックリスト / cross-platform smoke matrix docs
+- PR #159-164：実況品質とUX改善（テンプレ改善、fixture拡充、detect誤判定低減、ログ検索、TTS調整、用語注釈）
+- PR #165：同梱配布経路のruntime smokeをCIへ追加
+- PR #166：Apple署名Secretsのpreflight validationを追加
+- PR #167：Desktop失敗分類と復旧ガイド表示を改善
 
 **Now**
-- Sprint 28 を依存順で実行（`28-01` -> `28-02` -> `28-03` -> `28-04` -> `28-05`）
-- まず #142（docs同期）を実施し、Desktop運用・入力モード（`pty|file`）・Windows制約・`.env.example` を揃える
-- sidecar同梱実装に入る前提として、`release-desktop` ドライラン結果は参照可能な状態で維持
+- `server: 起動失敗の原因分類ログを強化` を進行中（分類粒度の明確化 + 構造化ログ + テスト）
+- 実タグ運用で署名付き配布フローの連続成功を確認し、Runbookへ証跡を反映
+- docs drift guard と smoke matrix を運用し、v0.2.0 RC 判断材料を継続蓄積
 
 **Next**
-- #143: 同梱server成果物の生成手順を確定（build + 配置）
-- #144: Tauri 起動を同梱物実行へ切替（runtimeから dev-time `pnpm` 依存を外す）
-- #145: ポート衝突の自動退避と UI/WS の追従を実装
-- #146: Desktop build + 同梱物存在チェックの最小CIガードを追加
+- `server: 起動失敗の原因分類ログを強化` を完了（回帰ケース追加 + docs反映）
+- `server: 状態遷移ログを構造化して収集可能にする` に着手
+- `ci: 障害シナリオの回帰テストジョブを追加` で起動障害系の常時検知を強化
 
 ---
 
