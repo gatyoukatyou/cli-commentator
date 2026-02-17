@@ -18,6 +18,14 @@ type StartupFailureLog = {
     reason?: string;
   };
 };
+type ServerStateLog = {
+  trigger?: string;
+  from?: string;
+  to?: string;
+  inputMode?: string;
+  profileId?: string | null;
+  detail?: string | null;
+};
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -151,6 +159,20 @@ function parseStartupFailureLogs(stderrOutput: string): StartupFailureLog[] {
     });
 }
 
+function parseServerStateLogs(output: string): ServerStateLog[] {
+  const prefix = "[server/state-event] ";
+  return output
+    .split(/\r?\n/)
+    .filter((line) => line.startsWith(prefix))
+    .flatMap((line) => {
+      try {
+        return [JSON.parse(line.slice(prefix.length)) as ServerStateLog];
+      } catch {
+        return [];
+      }
+    });
+}
+
 describe("windows fallback integration", () => {
   it("emits ptyUnavailable on startup and on profile restart, without ptyError", async () => {
     const port = await getFreePort();
@@ -176,6 +198,10 @@ describe("windows fallback integration", () => {
     let spawnError: Error | null = null;
     child.on("error", (err) => {
       spawnError = err;
+    });
+    let stdoutOutput = "";
+    child.stdout?.on("data", (chunk) => {
+      stdoutOutput += chunk.toString();
     });
     let stderrOutput = "";
     child.stderr?.on("data", (chunk) => {
@@ -234,6 +260,19 @@ describe("windows fallback integration", () => {
         10000,
         50,
         "Did not observe structured startup failure log for startup fallback"
+      );
+      await waitFor(
+        () =>
+          parseServerStateLogs(`${stdoutOutput}\n${stderrOutput}`).some(
+            (log) =>
+              log.trigger === "file_tail_started" &&
+              log.from === "starting" &&
+              log.to === "file_running" &&
+              log.inputMode === "file"
+          ),
+        10000,
+        50,
+        "Did not observe state transition to file_running during startup fallback"
       );
 
       ws.send(
@@ -294,6 +333,19 @@ describe("windows fallback integration", () => {
         50,
         "Did not observe structured startup failure log for restart fallback"
       );
+      await waitFor(
+        () =>
+          parseServerStateLogs(`${stdoutOutput}\n${stderrOutput}`).some(
+            (log) =>
+              (log.trigger === "restart_fallback_file" || log.trigger === "file_tail_started") &&
+              log.from === "restarting" &&
+              log.to === "file_running" &&
+              log.inputMode === "file"
+          ),
+        10000,
+        50,
+        "Did not observe state transition to file_running during restart fallback"
+      );
 
       const ptyErrorAfterRestart = messages.slice(checkpoint).find((m) => m.kind === "ptyError");
       expect(ptyErrorAfterRestart).toBeUndefined();
@@ -329,6 +381,10 @@ describe("windows fallback integration", () => {
     let spawnError: Error | null = null;
     child.on("error", (err) => {
       spawnError = err;
+    });
+    let stdoutOutput = "";
+    child.stdout?.on("data", (chunk) => {
+      stdoutOutput += chunk.toString();
     });
     let stderrOutput = "";
     child.stderr?.on("data", (chunk) => {
@@ -384,6 +440,18 @@ describe("windows fallback integration", () => {
         10000,
         50,
         "Did not observe structured startup failure log for missing INPUT_FILE on startup"
+      );
+      await waitFor(
+        () =>
+          parseServerStateLogs(`${stdoutOutput}\n${stderrOutput}`).some(
+            (log) =>
+              log.trigger === "startup_failed" &&
+              log.from === "starting" &&
+              log.to === "failed"
+          ),
+        10000,
+        50,
+        "Did not observe state transition to failed during startup without fallback"
       );
 
       const startupPtyError = messages.find((m) => m.kind === "ptyError");
@@ -444,6 +512,18 @@ describe("windows fallback integration", () => {
         10000,
         50,
         "Did not observe structured startup failure log for missing INPUT_FILE on restart"
+      );
+      await waitFor(
+        () =>
+          parseServerStateLogs(`${stdoutOutput}\n${stderrOutput}`).some(
+            (log) =>
+              log.trigger === "restart_failed" &&
+              log.from === "restarting" &&
+              log.to === "failed"
+          ),
+        10000,
+        50,
+        "Did not observe state transition to failed during restart without fallback"
       );
 
       const fileTailStartAfterRestart = messages.slice(checkpoint).find((m) => {
