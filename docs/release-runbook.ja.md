@@ -8,6 +8,7 @@
 
 関連ドキュメント:
 - RC判定チェックリスト: `docs/release-rc-checklist.ja.md`
+- RC判定証跡テンプレート: `docs/release-evidence-template.ja.md`
 - 証明書/Secrets運用: `docs/certificate-secrets.ja.md`
 
 ## 0) 前提
@@ -160,6 +161,7 @@ pnpm smoke:desktop-distribution
 - 実行workflow URL
 - Publish判定者
 - 異常時の原因と対応内容
+- RC判定証跡レコード（`docs/release-evidence-template.ja.md` 形式）
 - `failure_regression` の要約（`failure-regression-logs/summary.md`）
 
 この5点を残すと、次回の再現性が上がります。

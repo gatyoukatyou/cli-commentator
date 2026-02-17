@@ -8,6 +8,7 @@ Target workflow: `.github/workflows/release-desktop.yml`.
 
 Related docs:
 - RC decision checklist: `docs/release-rc-checklist.en.md`
+- RC decision evidence template: `docs/release-evidence-template.en.md`
 - Certificate/secrets operations: `docs/certificate-secrets.en.md`
 
 ## 0) Prerequisites
@@ -159,6 +160,7 @@ Actions:
 - Workflow run URL
 - Release approver
 - Root cause + remediation notes (if incident occurred)
+- RC decision evidence record (format from `docs/release-evidence-template.en.md`)
 - `failure_regression` summary (`failure-regression-logs/summary.md`)
 
 Keeping these five points makes later incidents much easier to reproduce and fix.

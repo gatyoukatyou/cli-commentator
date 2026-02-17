@@ -5,6 +5,10 @@
 
 This document defines release-candidate decision criteria and logging format for `v0.2.0`.
 
+Related docs:
+- Decision evidence template: `docs/release-evidence-template.en.md`
+- Desktop Release Runbook: `docs/release-runbook.en.md`
+
 ## 1) Go/No-Go Criteria
 
 ### A. Mandatory (any failure => No-Go)
@@ -27,9 +31,11 @@ This document defines release-candidate decision criteria and logging format for
 2. Run `release-desktop` and record Actions URL
 3. Verify artifacts exist (`latest.json`, `.app.tar.gz`, `.sig`, `.dmg`)
 4. Evaluate mandatory section A and decide Go/No-Go
-5. Record the result using the template below
+5. Record the result using `docs/release-evidence-template.en.md` (the template below is the minimum format)
 
-## 3) Decision Record Template
+## 3) Decision Record Template (Minimum)
+
+In operation, prefer `docs/release-evidence-template.en.md`; use the block below as a compact fallback.
 
 ```md
 ## RC Record: YYYY-MM-DD

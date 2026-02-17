@@ -20,6 +20,7 @@
 - [Desktop配布ガイド](desktop-release.ja.md)
 - [Desktop Release Runbook](release-runbook.ja.md)
 - [v0.2.0 RCチェックリスト](release-rc-checklist.ja.md)
+- [v0.2.0 RC判定 証跡テンプレート](release-evidence-template.ja.md)
 - [Cross-Platform Smoke Matrix](cross-platform-smoke-matrix.ja.md)
 - [証明書・Secrets運用ガイド](certificate-secrets.ja.md)
 - [ROADMAP/LLM_ADAPTER更新フロー](docs-update-flow.ja.md)
