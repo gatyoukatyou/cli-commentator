@@ -125,6 +125,7 @@ Build a minimal MVP that reliably works, then expand once value is proven.
 - Update `docs: release runbook` with server state-transition log format for timeline-based incident triage
 - Validate repeated success of signed desktop distribution on real tags and feed evidence back into the runbook
 - Operate docs drift guard and smoke matrix continuously to build v0.2.0 RC decision evidence
+- Start operating `docs/release-evidence-log.*` and register the `v0.0.0-smoke.5` decision evidence record
 
 **Next**
 - Close `server: add structured state-transition logging` with fixed samples and ops guidance

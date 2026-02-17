@@ -9,6 +9,7 @@ Target workflow: `.github/workflows/release-desktop.yml`.
 Related docs:
 - RC decision checklist: `docs/release-rc-checklist.en.md`
 - RC decision evidence template: `docs/release-evidence-template.en.md`
+- RC decision evidence log: `docs/release-evidence-log.en.md`
 - Certificate/secrets operations: `docs/certificate-secrets.en.md`
 
 ## 0) Prerequisites

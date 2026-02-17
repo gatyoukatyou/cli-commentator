@@ -8,6 +8,7 @@ During operation, copy this template and append records to a file like `docs/rel
 
 Related docs:
 - RC checklist: `docs/release-rc-checklist.en.md`
+- RC evidence log: `docs/release-evidence-log.en.md`
 - Desktop Release Runbook: `docs/release-runbook.en.md`
 - Cross-Platform Smoke Matrix: `docs/cross-platform-smoke-matrix.en.md`
 

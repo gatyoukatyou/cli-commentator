@@ -7,6 +7,7 @@
 
 関連ドキュメント:
 - 判定証跡テンプレート: `docs/release-evidence-template.ja.md`
+- 判定証跡ログ: `docs/release-evidence-log.ja.md`
 - Desktop Release Runbook: `docs/release-runbook.ja.md`
 
 ## 1) Go/No-Go 判定項目
