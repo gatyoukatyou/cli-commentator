@@ -197,3 +197,22 @@ server プロセス側の状態遷移は次の形式でstdout/stderrへ出力さ
 - `inputMode`: 遷移時の入力モード（`pty` / `file`）
 - `profileId`: 対象プロファイルID（未指定時は `null`）
 - `detail`: 追加コンテキスト（fallback理由、exit code、エラー要約など）
+
+### 6-3) 時系列追跡コマンド（実運用）
+
+```bash
+# 1) server runtime の状態遷移のみ抽出
+rg '^\[server/state-event\] ' <log-file> \
+  | sed 's/^\[server\/state-event\] //'
+
+# 2) desktop lifecycle の状態遷移のみ抽出
+rg '^\[desktop/server-event\] ' <log-file> \
+  | sed 's/^\[desktop\/server-event\] //'
+
+# 3) 起動障害と状態遷移を同時に確認
+rg '^\[(startup/failure|server/state-event|desktop/server-event)\] ' <log-file>
+```
+
+メモ:
+- `<log-file>` には Actions artifact（例: `artifacts/failure-regression/console.log`）またはローカル実行のstdout/stderrログを指定
+- まず `startup/failure` を見てから `server/state-event` / `desktop/server-event` を時系列で追うと切り分けしやすい
