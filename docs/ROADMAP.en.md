@@ -116,16 +116,19 @@ Build a minimal MVP that reliably works, then expand once value is proven.
 - PR #165: add runtime smoke CI for bundled distribution path
 - PR #166: add Apple signing secrets preflight validation
 - PR #167: improve Desktop failure classification and recovery guidance UI
+- PR #174: structure server startup-failure classification logs (failure codes + fallback results + regression tests)
+- PR #175: structure server runtime state-transition logs (`[server/state-event]` + integration assertions)
 
 **Now**
-- In progress: `server: strengthen startup-failure classification logs` (clearer categories + structured logs + tests)
+- Finalize `ci: regression tests for failure scenarios` by including state-transition log regression coverage
+- Update `docs: release runbook` with server state-transition log format for timeline-based incident triage
 - Validate repeated success of signed desktop distribution on real tags and feed evidence back into the runbook
 - Operate docs drift guard and smoke matrix continuously to build v0.2.0 RC decision evidence
 
 **Next**
-- Complete `server: strengthen startup-failure classification logs` (regression cases + docs updates)
-- Start `server: add structured state-transition logging`
-- Add `ci: regression tests for failure scenarios` to continuously cover startup-failure paths
+- Close `server: add structured state-transition logging` with fixed samples and ops guidance
+- Expand startup-failure regression coverage across desktop/server boundary scenarios
+- Prepare release evidence templates for v0.2.0 RC decisions
 
 ---
 

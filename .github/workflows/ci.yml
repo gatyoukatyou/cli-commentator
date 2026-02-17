@@ -52,6 +52,8 @@ jobs:
           set -euo pipefail
           mkdir -p artifacts/failure-regression
           pnpm -C apps/server exec vitest run \
+            src/tests/state-event.test.ts \
+            src/tests/startup.failure.test.ts \
             src/tests/windows-fallback-integration.test.ts \
             src/tests/pty.unavailable.test.ts \
             src/tests/file.fallback.test.ts \

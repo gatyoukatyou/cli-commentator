@@ -164,6 +164,8 @@ Keeping these four points makes later incidents much easier to reproduce and fix
 
 ## 6) Reference: state-transition log format
 
+### 6-1) Desktop lifecycle
+
 Desktop server lifecycle transitions are emitted to stderr in this format:
 
 ```text
@@ -175,3 +177,18 @@ Key fields:
 - `from` / `to`: lifecycle state transition
 - `operation_id`: start/stop operation identifier
 - `detail`: optional context (`exit_code`, failure detail, etc.)
+
+### 6-2) Server runtime (`apps/server`)
+
+Server runtime transitions are emitted to stdout/stderr in this format:
+
+```text
+[server/state-event] {"ts":1739470000123,"trigger":"restart_fallback_file","from":"restarting","to":"file_running","inputMode":"file","profileId":"profile-1","detail":"fallback_reason=activated"}
+```
+
+Key fields:
+- `trigger`: transition source handler (for example: `bootstrap`, `restart_begin`, `cleanup_complete`)
+- `from` / `to`: server runtime state transition
+- `inputMode`: active input mode (`pty` / `file`) at transition time
+- `profileId`: target profile id (`null` if not applicable)
+- `detail`: optional context (fallback reason, exit code, error summary, etc.)
