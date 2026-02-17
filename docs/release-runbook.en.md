@@ -196,3 +196,22 @@ Key fields:
 - `inputMode`: active input mode (`pty` / `file`) at transition time
 - `profileId`: target profile id (`null` if not applicable)
 - `detail`: optional context (fallback reason, exit code, error summary, etc.)
+
+### 6-3) Timeline triage commands (operations)
+
+```bash
+# 1) Extract only server runtime transitions
+rg '^\[server/state-event\] ' <log-file> \
+  | sed 's/^\[server\/state-event\] //'
+
+# 2) Extract only desktop lifecycle transitions
+rg '^\[desktop/server-event\] ' <log-file> \
+  | sed 's/^\[desktop\/server-event\] //'
+
+# 3) Inspect startup failures and transitions together
+rg '^\[(startup/failure|server/state-event|desktop/server-event)\] ' <log-file>
+```
+
+Notes:
+- Use `<log-file>` as either an Actions artifact log (for example: `artifacts/failure-regression/console.log`) or local stdout/stderr capture
+- For incident triage, start with `startup/failure` and then correlate `server/state-event` and `desktop/server-event` in timeline order
