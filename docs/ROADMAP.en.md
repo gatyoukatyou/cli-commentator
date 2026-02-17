@@ -118,6 +118,7 @@ Build a minimal MVP that reliably works, then expand once value is proven.
 - PR #167: improve Desktop failure classification and recovery guidance UI
 - PR #174: structure server startup-failure classification logs (failure codes + fallback results + regression tests)
 - PR #175: structure server runtime state-transition logs (`[server/state-event]` + integration assertions)
+- PR #178: add v0.2.0 RC decision evidence templates and align links across checklist/runbook/docs index
 
 **Now**
 - Finalize `ci: regression tests for failure scenarios` by including state-transition log regression coverage
@@ -128,7 +129,7 @@ Build a minimal MVP that reliably works, then expand once value is proven.
 **Next**
 - Close `server: add structured state-transition logging` with fixed samples and ops guidance
 - Expand startup-failure regression coverage across desktop/server boundary scenarios
-- Prepare release evidence templates for v0.2.0 RC decisions
+- Operate RC evidence templates and accumulate candidate-level Go/No-Go records for v0.2.0
 
 ---
 
