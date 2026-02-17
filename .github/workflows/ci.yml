@@ -63,6 +63,13 @@ jobs:
             --outputFile ../../artifacts/failure-regression/vitest-results.json \
             2>&1 | tee artifacts/failure-regression/console.log
 
+      - name: Summarize failure regression results
+        if: always()
+        run: |
+          node ./scripts/summarize-failure-regression.mjs \
+            artifacts/failure-regression/vitest-results.json \
+            artifacts/failure-regression/summary.md
+
       - name: Upload failure regression logs
         if: always()
         uses: actions/upload-artifact@v4
