@@ -1120,6 +1120,33 @@ mod tests {
     }
 
     #[test]
+    fn start_transition_marks_failed_when_port_resolution_is_exhausted() {
+        let max_port = u16::MAX;
+        let _listener = TcpListener::bind(("127.0.0.1", max_port)).ok();
+        assert!(
+            check_port_in_use(max_port),
+            "expected max port to be occupied for port resolution exhaustion test"
+        );
+
+        let mut rt = runtime_with(ServerLifecycle::Stopped);
+        rt.selected_port = max_port;
+
+        let next = begin_start_transition(&mut rt);
+        match next {
+            StartAction::Noop(status) => {
+                assert_eq!(status.state, ServerLifecycleState::Failed);
+                let error = status.error.unwrap_or_default();
+                assert!(error.contains("[port_resolve]"));
+                assert!(error.contains("preferred=65535"));
+                assert_eq!(status.port, max_port);
+            }
+            StartAction::Start { .. } => {
+                panic!("start should fail when preferred port is max and already occupied")
+            }
+        }
+    }
+
+    #[test]
     fn stop_transition_is_idempotent_outside_running() {
         let mut stopped = runtime_with(ServerLifecycle::Stopped);
         let noop = begin_stop_transition(&mut stopped);
