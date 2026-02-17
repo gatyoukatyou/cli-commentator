@@ -16,8 +16,12 @@ import {
   configFromEnv,
   getNodePtyError,
   classifyPtyFailure,
+  buildPtyStartupFailureLog,
+  formatPtyStartupFailureLog,
   createPtyUnavailableMessage,
   type PTYConfig,
+  type PtyFailure,
+  type FileFallbackResult,
 } from "./pty/index.js";
 import { createFileTail, resolveFileFallback, type FileTail } from "./input/index.js";
 
@@ -107,6 +111,26 @@ let fileTail: FileTail | null = null;
 let ignoredFileTailExit: FileTail | null = null;
 let stdinPassthroughEnabled = false;
 let isCleaningUp = false;
+const NO_FILE_FALLBACK: FileFallbackResult = {
+  attempted: false,
+  activated: false,
+  reason: "not_attempted",
+};
+
+function logPtyStartupFailure(context: "startup" | "restart", failure: PtyFailure, fallback: FileFallbackResult): void {
+  const payload = buildPtyStartupFailureLog({
+    context,
+    failure,
+    inputMode: runtimeInputMode,
+    fallback,
+  });
+  const line = formatPtyStartupFailureLog(payload);
+  if (failure.kind === "ptyUnavailable") {
+    console.warn(line);
+    return;
+  }
+  console.error(line);
+}
 
 /**
  * Process incoming data from any input source (PTY or FileTail).
@@ -297,13 +321,16 @@ async function restartPTY(profileId: string | null): Promise<void> {
     if (failure.kind === "ptyUnavailable") {
       markPtyUnavailable(failure.error);
       broadcast(createPtyUnavailableMessage(failure.error));
-      if (tryStartFileFallback("restart")) {
+      const fallback = tryStartFileFallback("restart");
+      logPtyStartupFailure("restart", failure, fallback);
+      if (fallback.activated) {
         console.warn(`[INFO] Switched to file monitoring fallback (${INPUT_FILE}) after PTY restart failure.`);
       }
       console.error("[WARN] PTY restart failed because node-pty is unavailable:", failure.error);
       return;
     }
 
+    logPtyStartupFailure("restart", failure, NO_FILE_FALLBACK);
     broadcast({ kind: "ptyError", error: failure.error });
     console.error("Failed to restart PTY:", err);
   } finally {
@@ -563,25 +590,27 @@ function stopFileTail(ignoreExitHandler: boolean): void {
   }
 }
 
-function tryStartFileFallback(context: "startup" | "restart"): boolean {
-  if (fileTail) return true;
+function tryStartFileFallback(context: "startup" | "restart"): FileFallbackResult {
+  if (fileTail) {
+    return { attempted: true, activated: true, reason: "already_active" };
+  }
 
   const decision = resolveFileFallback(INPUT_FILE, (filePath) => fs.existsSync(filePath));
   if (!decision.enabled) {
     if (context === "restart") {
       console.warn(`[WARN] File fallback unavailable (${decision.reason}). Set INPUT_FILE to a readable log file.`);
     }
-    return false;
+    return { attempted: true, activated: false, reason: decision.reason };
   }
 
   try {
     disableStdinPassthrough();
     setupFileTail(decision.filePath);
     runtimeInputMode = "file";
-    return true;
+    return { attempted: true, activated: true, reason: "activated" };
   } catch (err) {
     console.error("[ERROR] Failed to switch to file monitoring fallback:", err);
-    return false;
+    return { attempted: true, activated: false, reason: "start_failed" };
   }
 }
 
@@ -596,12 +625,15 @@ if (INPUT_MODE === "pty") {
     const failure = classifyPtyFailure(err, getNodePtyError());
     if (failure.kind === "ptyUnavailable") {
       markPtyUnavailable(failure.error);
-      if (tryStartFileFallback("startup")) {
+      const fallback = tryStartFileFallback("startup");
+      logPtyStartupFailure("startup", failure, fallback);
+      if (fallback.activated) {
         console.warn(`[INFO] Switched to file monitoring fallback (${INPUT_FILE}) after PTY startup failure.`);
       }
       console.error("[WARN] PTY initialization failed:", ptyInitError);
       console.error("[INFO] Server will continue without PTY. Use INPUT_MODE=file for file monitoring.");
     } else {
+      logPtyStartupFailure("startup", failure, NO_FILE_FALLBACK);
       console.error("[ERROR] PTY initialization failed:", failure.error);
     }
   }

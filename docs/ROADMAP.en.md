@@ -79,11 +79,12 @@ Build a minimal MVP that reliably works, then expand once value is proven.
 
 **In progress**
 - Tauri managed lifecycle (start/stop/status/recovery) is already in operation
-- Sprint 28 execution started with parent/child issues #141-#146 (docs sync, sidecar packaging path, port-collision handling, CI guard)
+- Sprint 28 (parent/child issues #141-#146) is complete: docs sync + sidecar startup + port fallback + minimum CI guard are in place
+- Ongoing reliability work is focused on signing preflight checks and startup-failure recovery quality
 
 ---
 
-## Current status (as of 2026-02-14)
+## Current status (as of 2026-02-17)
 **Done**
 - PR #1: detect boundary tests (mixed => generic, 50-line limit, exported constants)
 - PR #2: add roadmap docs (JA/EN + links from docs/README)
@@ -107,17 +108,24 @@ Build a minimal MVP that reliably works, then expand once value is proven.
 - Added 3AI operations foundation (`AGENTS.md` / `GEMINI.md` / `/wrapup` session hook)
 - 2026-02-13: ran `release-desktop` dry-run with `v0.0.0-smoke.5`; updater key-pair validation passed and Apple-secret gate was identified
 - 2026-02-14: created Sprint 28 tracking issues (#141 parent, #142-#146 children) for docs sync + desktop sidecar distribution path
+- PR #147: Sprint 28 docs sync (Desktop operations / `pty|file` input mode / Windows constraints / `.env.example`)
+- PR #148-151: bundled server artifacts + sidecar startup switch + port fallback + desktop distribution smoke CI
+- PR #153-155: getting-started/distribution docs refresh + ROADMAP/LLM_ADAPTER update flow + docs drift CI guard
+- PR #156-158: AI operation checklist + v0.2.0 RC checklist + cross-platform smoke matrix docs
+- PR #159-164: commentary quality and UX updates (template tuning, fixtures, detect false-positive reduction, log filter/search, TTS presets, glossary readability)
+- PR #165: add runtime smoke CI for bundled distribution path
+- PR #166: add Apple signing secrets preflight validation
+- PR #167: improve Desktop failure classification and recovery guidance UI
 
 **Now**
-- Execute Sprint 28 in dependency order (`28-01` -> `28-02` -> `28-03` -> `28-04` -> `28-05`)
-- Start with docs sync (#142): Desktop operation, input modes (`pty|file`), Windows constraints, and `.env.example` alignment
-- Keep release-desktop dry-run findings visible while implementation shifts to sidecar packaging foundation
+- In progress: `server: strengthen startup-failure classification logs` (clearer categories + structured logs + tests)
+- Validate repeated success of signed desktop distribution on real tags and feed evidence back into the runbook
+- Operate docs drift guard and smoke matrix continuously to build v0.2.0 RC decision evidence
 
 **Next**
-- #143: finalize bundled server artifact generation (build + placement)
-- #144: switch Tauri server startup to bundled artifacts (remove dev-time `pnpm` dependency from runtime path)
-- #145: implement port collision fallback and make UI/WS follow actual port
-- #146: add minimum CI guard for desktop build + bundled artifact presence
+- Complete `server: strengthen startup-failure classification logs` (regression cases + docs updates)
+- Start `server: add structured state-transition logging`
+- Add `ci: regression tests for failure scenarios` to continuously cover startup-failure paths
 
 ---
 

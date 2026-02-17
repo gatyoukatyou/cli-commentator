@@ -8,6 +8,16 @@ import path from "node:path";
 import { WebSocket } from "ws";
 
 type WsMessage = Record<string, unknown> & { kind?: string };
+type StartupFailureLog = {
+  context?: string;
+  kind?: string;
+  code?: string;
+  fallback?: {
+    attempted?: boolean;
+    activated?: boolean;
+    reason?: string;
+  };
+};
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -127,6 +137,20 @@ async function stopChild(child: ChildProcess): Promise<void> {
   });
 }
 
+function parseStartupFailureLogs(stderrOutput: string): StartupFailureLog[] {
+  const prefix = "[startup/failure] ";
+  return stderrOutput
+    .split(/\r?\n/)
+    .filter((line) => line.startsWith(prefix))
+    .flatMap((line) => {
+      try {
+        return [JSON.parse(line.slice(prefix.length)) as StartupFailureLog];
+      } catch {
+        return [];
+      }
+    });
+}
+
 describe("windows fallback integration", () => {
   it("emits ptyUnavailable on startup and on profile restart, without ptyError", async () => {
     const port = await getFreePort();
@@ -152,6 +176,10 @@ describe("windows fallback integration", () => {
     let spawnError: Error | null = null;
     child.on("error", (err) => {
       spawnError = err;
+    });
+    let stderrOutput = "";
+    child.stderr?.on("data", (chunk) => {
+      stderrOutput += chunk.toString();
     });
 
     const messages: WsMessage[] = [];
@@ -193,6 +221,20 @@ describe("windows fallback integration", () => {
       expect(String(startupUnavailable.error)).toContain("CLI_COMMENTATOR_FORCE_NO_PTY");
       expect(startupUnavailable.suggestion).toBeTypeOf("string");
       expect(String(startupUnavailable.suggestion)).toContain("INPUT_MODE=file");
+      await waitFor(
+        () =>
+          parseStartupFailureLogs(stderrOutput).some(
+            (log) =>
+              log.context === "startup" &&
+              log.kind === "ptyUnavailable" &&
+              log.code === "node_pty_unavailable" &&
+              log.fallback?.reason === "activated" &&
+              log.fallback?.activated === true
+          ),
+        10000,
+        50,
+        "Did not observe structured startup failure log for startup fallback"
+      );
 
       ws.send(
         JSON.stringify({
@@ -238,6 +280,20 @@ describe("windows fallback integration", () => {
         50,
         "Did not observe file tail start event after fallback"
       );
+      await waitFor(
+        () =>
+          parseStartupFailureLogs(stderrOutput).some(
+            (log) =>
+              log.context === "restart" &&
+              log.kind === "ptyUnavailable" &&
+              log.code === "node_pty_unavailable" &&
+              log.fallback?.reason === "activated" &&
+              log.fallback?.activated === true
+          ),
+        10000,
+        50,
+        "Did not observe structured startup failure log for restart fallback"
+      );
 
       const ptyErrorAfterRestart = messages.slice(checkpoint).find((m) => m.kind === "ptyError");
       expect(ptyErrorAfterRestart).toBeUndefined();
@@ -273,6 +329,10 @@ describe("windows fallback integration", () => {
     let spawnError: Error | null = null;
     child.on("error", (err) => {
       spawnError = err;
+    });
+    let stderrOutput = "";
+    child.stderr?.on("data", (chunk) => {
+      stderrOutput += chunk.toString();
     });
 
     const messages: WsMessage[] = [];
@@ -311,6 +371,20 @@ describe("windows fallback integration", () => {
       );
       expect(String(startupUnavailable.error)).toContain("CLI_COMMENTATOR_FORCE_NO_PTY");
       expect(String(startupUnavailable.suggestion)).toContain("INPUT_MODE=file");
+      await waitFor(
+        () =>
+          parseStartupFailureLogs(stderrOutput).some(
+            (log) =>
+              log.context === "startup" &&
+              log.kind === "ptyUnavailable" &&
+              log.code === "node_pty_unavailable" &&
+              log.fallback?.reason === "file_not_found" &&
+              log.fallback?.activated === false
+          ),
+        10000,
+        50,
+        "Did not observe structured startup failure log for missing INPUT_FILE on startup"
+      );
 
       const startupPtyError = messages.find((m) => m.kind === "ptyError");
       expect(startupPtyError).toBeUndefined();
@@ -357,6 +431,20 @@ describe("windows fallback integration", () => {
 
       const ptyErrorAfterRestart = messages.slice(checkpoint).find((m) => m.kind === "ptyError");
       expect(ptyErrorAfterRestart).toBeUndefined();
+      await waitFor(
+        () =>
+          parseStartupFailureLogs(stderrOutput).some(
+            (log) =>
+              log.context === "restart" &&
+              log.kind === "ptyUnavailable" &&
+              log.code === "node_pty_unavailable" &&
+              log.fallback?.reason === "file_not_found" &&
+              log.fallback?.activated === false
+          ),
+        10000,
+        50,
+        "Did not observe structured startup failure log for missing INPUT_FILE on restart"
+      );
 
       const fileTailStartAfterRestart = messages.slice(checkpoint).find((m) => {
         if (m.kind !== "event") return false;
