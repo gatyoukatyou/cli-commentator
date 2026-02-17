@@ -7,6 +7,7 @@ This document defines release-candidate decision criteria and logging format for
 
 Related docs:
 - Decision evidence template: `docs/release-evidence-template.en.md`
+- Decision evidence log: `docs/release-evidence-log.en.md`
 - Desktop Release Runbook: `docs/release-runbook.en.md`
 
 ## 1) Go/No-Go Criteria

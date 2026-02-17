@@ -9,6 +9,7 @@
 関連ドキュメント:
 - RC判定チェックリスト: `docs/release-rc-checklist.ja.md`
 - RC判定証跡テンプレート: `docs/release-evidence-template.ja.md`
+- RC判定証跡ログ: `docs/release-evidence-log.ja.md`
 - 証明書/Secrets運用: `docs/certificate-secrets.ja.md`
 
 ## 0) 前提

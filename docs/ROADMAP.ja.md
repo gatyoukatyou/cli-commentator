@@ -130,6 +130,7 @@ CLI Commentator は「ターミナルの作業ログを見て、別ウィンド�
 - `docs: release runbook` へ server 状態遷移ログ形式を追記し、障害時の時系列追跡導線を明確化
 - 実タグ運用で署名付き配布フローの連続成功を確認し、Runbookへ証跡を反映
 - docs drift guard と smoke matrix を運用し、v0.2.0 RC 判断材料を継続蓄積
+- `docs/release-evidence-log.*` を運用開始し、`v0.0.0-smoke.5` の判定証跡を登録
 
 **Next**
 - `server: 状態遷移ログを構造化して収集可能にする` を完了（サンプル/運用導線を固定）

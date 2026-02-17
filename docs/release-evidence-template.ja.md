@@ -8,6 +8,7 @@
 
 関連ドキュメント:
 - RC判定チェックリスト: `docs/release-rc-checklist.ja.md`
+- RC判定証跡ログ: `docs/release-evidence-log.ja.md`
 - Desktop Release Runbook: `docs/release-runbook.ja.md`
 - Cross-Platform Smoke Matrix: `docs/cross-platform-smoke-matrix.ja.md`
 
