@@ -159,8 +159,9 @@ Actions:
 - Workflow run URL
 - Release approver
 - Root cause + remediation notes (if incident occurred)
+- `failure_regression` summary (`failure-regression-logs/summary.md`)
 
-Keeping these four points makes later incidents much easier to reproduce and fix.
+Keeping these five points makes later incidents much easier to reproduce and fix.
 
 ## 6) Reference: state-transition log format
 
