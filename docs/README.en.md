@@ -20,6 +20,7 @@ Each document should start with mutual links so readers can switch languages eas
 - [Desktop Release Guide](desktop-release.en.md)
 - [Desktop Release Runbook](release-runbook.en.md)
 - [v0.2.0 RC Checklist](release-rc-checklist.en.md)
+- [v0.2.0 RC Decision Evidence Template](release-evidence-template.en.md)
 - [Cross-Platform Smoke Matrix](cross-platform-smoke-matrix.en.md)
 - [Certificate & Secrets Operations](certificate-secrets.en.md)
 - [ROADMAP/LLM_ADAPTER Update Flow](docs-update-flow.en.md)

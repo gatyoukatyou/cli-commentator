@@ -5,6 +5,10 @@
 
 このドキュメントは、`v0.2.0` の RC（Release Candidate）判定を一定品質で実施するための基準と記録フォーマットを定義します。
 
+関連ドキュメント:
+- 判定証跡テンプレート: `docs/release-evidence-template.ja.md`
+- Desktop Release Runbook: `docs/release-runbook.ja.md`
+
 ## 1) Go/No-Go 判定項目
 
 ### A. 必須（1つでも NG なら No-Go）
@@ -27,9 +31,11 @@
 2. `release-desktop` を実行し、Actions URLを記録
 3. 成果物（`latest.json` / `.app.tar.gz` / `.sig` / `.dmg`）の存在を確認
 4. 必須項目 A を判定し、Go/No-Go を決定
-5. 判定結果を本ドキュメント末尾の記録フォーマットで保存
+5. 判定結果を `docs/release-evidence-template.ja.md` のテンプレートで保存（末尾フォーマットは簡易版）
 
-## 3) 判定記録フォーマット
+## 3) 判定記録フォーマット（簡易）
+
+運用では `docs/release-evidence-template.ja.md` を優先し、以下は最小記録用として利用する。
 
 ```md
 ## RC Record: YYYY-MM-DD
