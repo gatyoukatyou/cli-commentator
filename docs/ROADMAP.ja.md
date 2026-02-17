@@ -126,7 +126,7 @@ CLI Commentator は「ターミナルの作業ログを見て、別ウィンド�
 - PR #178：v0.2.0 RC判定証跡テンプレートを追加（RC checklist / runbook / docs indexの導線を統一）
 
 **Now**
-- `ci: 障害シナリオの回帰テスト` を拡張（restart時 `ptyError` / fallback未実行ケース + desktop `port_resolve` 枯渇ケースを追加）
+- `ci: 障害シナリオの回帰テスト` を拡張（restart時 `ptyError` / fallback未実行 + file mode設定不備の `startup_failed` + desktop `port_resolve` 枯渇ケースを追加）
 - `docs: release runbook` へ server 状態遷移ログ形式を追記し、障害時の時系列追跡導線を明確化
 - 実タグ運用で署名付き配布フローの連続成功を確認し、Runbookへ証跡を反映
 - docs drift guard と smoke matrix を運用し、v0.2.0 RC 判断材料を継続蓄積

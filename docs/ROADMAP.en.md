@@ -121,7 +121,7 @@ Build a minimal MVP that reliably works, then expand once value is proven.
 - PR #178: add v0.2.0 RC decision evidence templates and align links across checklist/runbook/docs index
 
 **Now**
-- Expand `ci: regression tests for failure scenarios` with restart `ptyError` (no-fallback) and desktop `port_resolve` exhaustion cases
+- Expand `ci: regression tests for failure scenarios` with restart `ptyError` (no-fallback), file-mode `startup_failed` on missing `INPUT_FILE`, and desktop `port_resolve` exhaustion cases
 - Update `docs: release runbook` with server state-transition log format for timeline-based incident triage
 - Validate repeated success of signed desktop distribution on real tags and feed evidence back into the runbook
 - Operate docs drift guard and smoke matrix continuously to build v0.2.0 RC decision evidence

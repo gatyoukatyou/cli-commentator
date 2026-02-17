@@ -129,6 +129,31 @@ async function waitForMessage(
   return messages.find(predicate)!;
 }
 
+async function waitForChildExit(
+  child: ChildProcess,
+  timeoutMs: number,
+  timeoutMessage: string
+): Promise<number | null> {
+  if (child.exitCode !== null) {
+    return child.exitCode;
+  }
+
+  return await new Promise<number | null>((resolve, reject) => {
+    const timer = setTimeout(() => {
+      reject(new Error(timeoutMessage));
+    }, timeoutMs);
+
+    child.once("exit", (code) => {
+      clearTimeout(timer);
+      resolve(code);
+    });
+    child.once("error", (err) => {
+      clearTimeout(timer);
+      reject(err);
+    });
+  });
+}
+
 async function stopChild(child: ChildProcess): Promise<void> {
   if (child.exitCode !== null || child.killed) return;
 
@@ -541,6 +566,49 @@ describe("windows fallback integration", () => {
       await fs.rm(tmpDir, { recursive: true, force: true });
     }
   }, 30000);
+
+  it("logs startup_failed and exits when file mode starts without INPUT_FILE", async () => {
+    const port = await getFreePort();
+
+    const child = spawn("node", ["--import", "tsx", "src/index.ts"], {
+      cwd: process.cwd(),
+      env: {
+        ...process.env,
+        INPUT_MODE: "file",
+        INPUT_FILE: "",
+        CLI_COMMENTATOR_PORT: String(port),
+        LLM_PROVIDER: "disabled",
+      },
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+
+    let stdoutOutput = "";
+    child.stdout?.on("data", (chunk) => {
+      stdoutOutput += chunk.toString();
+    });
+    let stderrOutput = "";
+    child.stderr?.on("data", (chunk) => {
+      stderrOutput += chunk.toString();
+    });
+
+    const exitCode = await waitForChildExit(
+      child,
+      10000,
+      "Server did not exit for invalid file mode startup configuration"
+    );
+    expect(exitCode).toBe(1);
+
+    const startupFailure = parseServerStateLogs(`${stdoutOutput}\n${stderrOutput}`).find(
+      (log) =>
+        log.trigger === "startup_failed" &&
+        log.from === "starting" &&
+        log.to === "failed" &&
+        log.inputMode === "file"
+    );
+    expect(startupFailure).toBeTruthy();
+    expect(String(startupFailure?.detail ?? "")).toContain("file_mode_invalid_config=missing_input_file");
+    expect(`${stdoutOutput}\n${stderrOutput}`).toContain("INPUT_FILE is required when INPUT_MODE=file");
+  }, 10000);
 
   itRequiresNodePty("emits ptyError and structured restart failure logs when profile args are invalid", async () => {
     const port = await getFreePort();
