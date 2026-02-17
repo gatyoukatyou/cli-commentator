@@ -174,6 +174,7 @@ function parseServerStateLogs(output: string): ServerStateLog[] {
 }
 
 describe("windows fallback integration", () => {
+  const itRequiresNodePty = process.platform === "win32" ? it.skip : it;
   it("emits ptyUnavailable on startup and on profile restart, without ptyError", async () => {
     const port = await getFreePort();
     const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "cli-commentator-fallback-it-"));
@@ -532,6 +533,166 @@ describe("windows fallback integration", () => {
         return typeof ev?.detail === "string" && ev.detail.includes("tail -f");
       });
       expect(fileTailStartAfterRestart).toBeUndefined();
+    } finally {
+      if (ws) {
+        ws.close();
+      }
+      await stopChild(child);
+      await fs.rm(tmpDir, { recursive: true, force: true });
+    }
+  }, 30000);
+
+  itRequiresNodePty("emits ptyError and structured restart failure logs when profile args are invalid", async () => {
+    const port = await getFreePort();
+    const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "cli-commentator-restart-failure-it-"));
+    const xdgConfigHome = path.join(tmpDir, "xdg");
+    await fs.mkdir(xdgConfigHome, { recursive: true });
+
+    const child = spawn("node", ["--import", "tsx", "src/index.ts"], {
+      cwd: process.cwd(),
+      env: {
+        ...process.env,
+        INPUT_MODE: "pty",
+        TARGET_CMD: process.execPath,
+        TARGET_ARGS_JSON: JSON.stringify(["-e", "setInterval(() => {}, 1000)"]),
+        CLI_COMMENTATOR_PORT: String(port),
+        XDG_CONFIG_HOME: xdgConfigHome,
+        LLM_PROVIDER: "disabled",
+      },
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+    let spawnError: Error | null = null;
+    child.on("error", (err) => {
+      spawnError = err;
+    });
+    let stdoutOutput = "";
+    child.stdout?.on("data", (chunk) => {
+      stdoutOutput += chunk.toString();
+    });
+    let stderrOutput = "";
+    child.stderr?.on("data", (chunk) => {
+      stderrOutput += chunk.toString();
+    });
+
+    const messages: WsMessage[] = [];
+    let ws: WebSocket | null = null;
+
+    try {
+      await waitForHealth(port, child, () => spawnError);
+      ws = new WebSocket(`ws://127.0.0.1:${port}`);
+      ws.on("message", (raw) => {
+        try {
+          messages.push(JSON.parse(raw.toString()) as WsMessage);
+        } catch {
+          // Ignore malformed message
+        }
+      });
+      await new Promise<void>((resolve, reject) => {
+        const timer = setTimeout(() => {
+          ws?.close();
+          reject(new Error("WebSocket connection timeout"));
+        }, 5000);
+        ws?.on("open", () => {
+          clearTimeout(timer);
+          resolve();
+        });
+        ws?.on("error", (err) => {
+          clearTimeout(timer);
+          reject(err);
+        });
+      });
+
+      ws.send(
+        JSON.stringify({
+          kind: "saveProfile",
+          profile: {
+            name: "restart-failure-it-profile",
+            cmd: process.execPath,
+            args: "invalid-args",
+            style: "kansai",
+            logSource: "auto",
+          },
+        })
+      );
+
+      const saved = await waitForMessage(
+        messages,
+        (m) => m.kind === "profileSaved",
+        10000,
+        "Did not receive profileSaved message"
+      );
+      const profile = (saved.profile as Record<string, unknown>) ?? null;
+      const profileId = typeof profile?.id === "string" ? profile.id : null;
+      expect(profileId).toBeTruthy();
+
+      const checkpoint = messages.length;
+      ws.send(JSON.stringify({ kind: "setActiveProfile", id: profileId }));
+
+      await waitFor(
+        () => messages.slice(checkpoint).some((m) => m.kind === "ptyRestart"),
+        10000,
+        50,
+        "Did not receive ptyRestart after setActiveProfile"
+      );
+
+      await waitFor(
+        () => messages.slice(checkpoint).some((m) => m.kind === "ptyError"),
+        10000,
+        50,
+        () =>
+          `Did not receive ptyError after restart with invalid args. kinds=${messages
+            .slice(checkpoint)
+            .map((m) => String(m.kind ?? "unknown"))
+            .join(",")} stderr_tail=${stderrOutput.slice(-500)}`
+      );
+      const restartError = messages.slice(checkpoint).find((m) => m.kind === "ptyError");
+      expect(restartError).toBeTruthy();
+      expect(restartError?.error).toBeTypeOf("string");
+      expect(String(restartError?.error ?? "").length).toBeGreaterThan(0);
+
+      const ptyUnavailableAfterRestart = messages.slice(checkpoint).find((m) => m.kind === "ptyUnavailable");
+      expect(ptyUnavailableAfterRestart).toBeUndefined();
+
+      await waitFor(
+        () =>
+          parseStartupFailureLogs(stderrOutput).some(
+            (log) =>
+              log.context === "restart" &&
+              log.kind === "ptyError" &&
+              log.code !== "node_pty_unavailable" &&
+              log.fallback?.attempted === false &&
+              log.fallback?.activated === false &&
+              log.fallback?.reason === "not_attempted"
+          ),
+        10000,
+        50,
+        "Did not observe structured restart failure log for invalid profile args"
+      );
+
+      const restartFailureLog = parseStartupFailureLogs(stderrOutput).find(
+        (log) => log.context === "restart" && log.kind === "ptyError"
+      );
+      expect(restartFailureLog?.code).toBe("unknown");
+
+      await waitFor(
+        () =>
+          parseServerStateLogs(`${stdoutOutput}\n${stderrOutput}`).some(
+            (log) =>
+              log.trigger === "restart_failed" &&
+              log.from === "restarting" &&
+              log.to === "failed" &&
+              typeof log.detail === "string" &&
+              log.detail.includes("kind=ptyError")
+          ),
+        10000,
+        50,
+        "Did not observe state transition to failed during restart ptyError"
+      );
+
+      const fileFallbackStateAfterRestart = parseServerStateLogs(`${stdoutOutput}\n${stderrOutput}`).find(
+        (log) => log.from === "restarting" && log.to === "file_running"
+      );
+      expect(fileFallbackStateAfterRestart).toBeUndefined();
     } finally {
       if (ws) {
         ws.close();

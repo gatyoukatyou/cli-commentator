@@ -121,14 +121,14 @@ Build a minimal MVP that reliably works, then expand once value is proven.
 - PR #178: add v0.2.0 RC decision evidence templates and align links across checklist/runbook/docs index
 
 **Now**
-- Finalize `ci: regression tests for failure scenarios` by including state-transition log regression coverage
+- Expand `ci: regression tests for failure scenarios` with restart `ptyError` (no-fallback) and desktop `port_resolve` exhaustion cases
 - Update `docs: release runbook` with server state-transition log format for timeline-based incident triage
 - Validate repeated success of signed desktop distribution on real tags and feed evidence back into the runbook
 - Operate docs drift guard and smoke matrix continuously to build v0.2.0 RC decision evidence
 
 **Next**
 - Close `server: add structured state-transition logging` with fixed samples and ops guidance
-- Expand startup-failure regression coverage across desktop/server boundary scenarios
+- Continue expanding startup-failure regression coverage (distribution startup and signing-mode differences)
 - Operate RC evidence templates and accumulate candidate-level Go/No-Go records for v0.2.0
 
 ---
