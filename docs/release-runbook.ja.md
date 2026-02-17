@@ -165,6 +165,8 @@ pnpm smoke:desktop-distribution
 
 ## 6) 参考: 状態遷移ログの形式
 
+### 6-1) Desktop lifecycle
+
 Desktop server の状態遷移は次の形式でstderrへ出力されます。
 
 ```text
@@ -176,3 +178,18 @@ Desktop server の状態遷移は次の形式でstderrへ出力されます。
 - `from` / `to`: 遷移前後の状態
 - `operation_id`: start/stop系の操作単位ID
 - `detail`: 失敗理由や補助情報（`exit_code` など）
+
+### 6-2) Server runtime（apps/server）
+
+server プロセス側の状態遷移は次の形式でstdout/stderrへ出力されます。
+
+```text
+[server/state-event] {"ts":1739470000123,"trigger":"restart_fallback_file","from":"restarting","to":"file_running","inputMode":"file","profileId":"profile-1","detail":"fallback_reason=activated"}
+```
+
+主なフィールド:
+- `trigger`: 遷移を発生させた処理名（例: `bootstrap`, `restart_begin`, `cleanup_complete`）
+- `from` / `to`: serverランタイム状態の遷移
+- `inputMode`: 遷移時の入力モード（`pty` / `file`）
+- `profileId`: 対象プロファイルID（未指定時は `null`）
+- `detail`: 追加コンテキスト（fallback理由、exit code、エラー要約など）
