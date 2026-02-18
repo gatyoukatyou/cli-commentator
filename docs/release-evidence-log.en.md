@@ -106,3 +106,56 @@ Related docs:
 - [ ] Resolve `Resource not accessible by integration` permission requirement for draft release creation
 - Owner: maintainers
 - Due: 2026-02-19
+
+## RC Evidence Record: 2026-02-18 (token fallback validation)
+
+### Metadata
+- Candidate: `v0.0.0-smoke.20260218-06` (workflow smoke rerun)
+- Commit: `bde390b` (`fix/release-token-fallback-smoke-artifacts`)
+- Reviewer: Codex
+- Decision Meeting: `2026-02-18`
+- Decision: Conditional Go (token fallback path only)
+
+### CI Evidence
+- Required checks run: PR #185 checks (`https://github.com/gatyoukatyou/cli-commentator/pull/185`)
+- `publish-tauri`:
+  - arm64: Pass (`https://github.com/gatyoukatyou/cli-commentator/actions/runs/22141743350/job/64007523325`)
+  - x64: Pass (`https://github.com/gatyoukatyou/cli-commentator/actions/runs/22141743350/job/64007523482`)
+- `desktop_distribution_smoke`: Pass (`https://github.com/gatyoukatyou/cli-commentator/actions/runs/22141738456/job/64007505359`)
+- `failure_regression`: Pass (`https://github.com/gatyoukatyou/cli-commentator/actions/runs/22141738456/job/64007505332`)
+
+### Release Workflow Evidence
+- `release-desktop` run:
+  - `v0.0.0-smoke.20260218-04` → `https://github.com/gatyoukatyou/cli-commentator/actions/runs/22141337857` (Failure)
+  - `v0.0.0-smoke.20260218-05` → `https://github.com/gatyoukatyou/cli-commentator/actions/runs/22141678791` (Cancelled, superseded by smoke.06)
+  - `v0.0.0-smoke.20260218-06` → `https://github.com/gatyoukatyou/cli-commentator/actions/runs/22141743350` (Success)
+- Execution mode: token fallback (`GH_RELEASE_TOKEN` not configured)
+- Artifact check:
+  - `latest.json`: Missing (Draft Release is intentionally skipped in fallback mode)
+  - `smoke-bundle-aarch64-apple-darwin`: Present (artifact id `5556004921`)
+  - `smoke-bundle-x86_64-apple-darwin`: Present (artifact id `5556019968`)
+  - `.app.tar.gz` / `.sig` / `.dmg`: Present (included in both uploaded artifacts)
+
+### Runtime/Recovery Evidence
+- Desktop lifecycle event sample (`[desktop/server-event]`): runtime smoke continued to pass via `desktop_distribution_smoke`
+- Server state event sample (`[server/state-event]`): state-event related regression coverage continued via `failure_regression`
+- Startup failure classification checked: Yes (continued in existing regression suite)
+
+### Cross-Platform Smoke Evidence
+- macOS arm64: Pass (`smoke-bundle-aarch64-apple-darwin`)
+- macOS x64: Pass (`smoke-bundle-x86_64-apple-darwin`)
+- Windows fallback path: Pass (continued in `failure_regression`)
+
+### Risks and Exceptions
+- Open P0/P1: None known at this record point
+- Accepted risk: no Draft Release is created when `GH_RELEASE_TOKEN` is missing
+- Blocking issue:
+  - `#138` Apple certificate configuration (Apple secrets not configured)
+  - Missing `GH_RELEASE_TOKEN` for release creation path
+
+### Follow-up
+- [ ] Configure `GH_RELEASE_TOKEN` (`contents:write`) and restore Draft Release creation path
+- [ ] Configure `APPLE_*` secrets and make `pnpm verify:apple-signing` pass
+- [x] Validate token fallback smoke artifact path (`smoke.06`)
+- Owner: maintainers
+- Due: 2026-02-19

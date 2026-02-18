@@ -106,3 +106,56 @@
 - [ ] `Resource not accessible by integration` の権限要件を確認し、Draft Release作成を復旧する
 - Owner: maintainers
 - Due: 2026-02-19
+
+## RC Evidence Record: 2026-02-18 (token fallback validation)
+
+### Metadata
+- Candidate: `v0.0.0-smoke.20260218-06` (workflow smoke rerun)
+- Commit: `bde390b` (`fix/release-token-fallback-smoke-artifacts`)
+- Reviewer: Codex
+- Decision Meeting: `2026-02-18`
+- Decision: Conditional Go（token fallback 経路のみ）
+
+### CI Evidence
+- Required checks run: PR #185 checks (`https://github.com/gatyoukatyou/cli-commentator/pull/185`)
+- `publish-tauri`:
+  - arm64: Pass (`https://github.com/gatyoukatyou/cli-commentator/actions/runs/22141743350/job/64007523325`)
+  - x64: Pass (`https://github.com/gatyoukatyou/cli-commentator/actions/runs/22141743350/job/64007523482`)
+- `desktop_distribution_smoke`: Pass (`https://github.com/gatyoukatyou/cli-commentator/actions/runs/22141738456/job/64007505359`)
+- `failure_regression`: Pass (`https://github.com/gatyoukatyou/cli-commentator/actions/runs/22141738456/job/64007505332`)
+
+### Release Workflow Evidence
+- `release-desktop` run:
+  - `v0.0.0-smoke.20260218-04` → `https://github.com/gatyoukatyou/cli-commentator/actions/runs/22141337857`（Failure）
+  - `v0.0.0-smoke.20260218-05` → `https://github.com/gatyoukatyou/cli-commentator/actions/runs/22141678791`（Cancelled, superseded by smoke.06）
+  - `v0.0.0-smoke.20260218-06` → `https://github.com/gatyoukatyou/cli-commentator/actions/runs/22141743350`（Success）
+- Execution mode: token fallback（`GH_RELEASE_TOKEN` 未設定）
+- Artifact check:
+  - `latest.json`: Missing（fallback modeではDraft Release未作成）
+  - `smoke-bundle-aarch64-apple-darwin`: Present（artifact id `5556004921`）
+  - `smoke-bundle-x86_64-apple-darwin`: Present（artifact id `5556019968`）
+  - `.app.tar.gz` / `.sig` / `.dmg`: Present（両artifactに含有）
+
+### Runtime/Recovery Evidence
+- Desktop lifecycle event sample (`[desktop/server-event]`): `desktop_distribution_smoke` で runtime smoke を継続確認
+- Server state event sample (`[server/state-event]`): `failure_regression` で state-event 系テストを継続確認
+- Startup failure classification checked: Yes（既存 regression suite で継続確認）
+
+### Cross-Platform Smoke Evidence
+- macOS arm64: Pass（`smoke-bundle-aarch64-apple-darwin`）
+- macOS x64: Pass（`smoke-bundle-x86_64-apple-darwin`）
+- Windows fallback path: Pass（既存 `failure_regression` で継続）
+
+### Risks and Exceptions
+- Open P0/P1: None known at this record point
+- Accepted risk: `GH_RELEASE_TOKEN` 未設定時は Draft Release を作成しない運用
+- Blocking issue:
+  - `#138` Apple certificate configuration（Apple secrets 未設定）
+  - `GH_RELEASE_TOKEN` 未設定による release 作成不可
+
+### Follow-up
+- [ ] `GH_RELEASE_TOKEN`（`contents:write`）を設定し、Draft Release 作成フローへ戻す
+- [ ] `APPLE_*` secrets を整備し `pnpm verify:apple-signing` をPassさせる
+- [x] token fallback経路で smoke artifact 出力を検証（`smoke.06`）
+- Owner: maintainers
+- Due: 2026-02-19
