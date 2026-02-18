@@ -19,6 +19,8 @@
 - 必須 Secrets（常に必要）
   - `TAURI_SIGNING_PRIVATE_KEY`
   - `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`
+- 任意 Secrets（release 作成権限の回避用）
+  - `GH_RELEASE_TOKEN`（`contents:write` を持つ token。未設定時は `GITHUB_TOKEN` を使用）
 - Apple署名/Notarizationを有効化する場合に必要な Secrets（任意）
   - `APPLE_CERTIFICATE`
   - `APPLE_CERTIFICATE_PASSWORD`
@@ -182,8 +184,9 @@ pnpm smoke:desktop-distribution
 対応:
 1. リポジトリの Actions 権限（Workflow permissions）が `Read and write` か確認
 2. `contents: write` が job で有効か確認
-3. 組織/リポジトリルールで release 作成APIが制限されていないか確認
-4. 権限修正後、新しいタグで再実行
+3. `GH_RELEASE_TOKEN`（`contents:write`）を設定し、workflow が `GH_RELEASE_TOKEN || GITHUB_TOKEN` で実行されることを確認
+4. 組織/リポジトリルールで release 作成APIが制限されていないか確認
+5. 権限修正後、新しいタグで再実行
 
 ### ケースG: matrix runner が unsupported で job が起動しない
 

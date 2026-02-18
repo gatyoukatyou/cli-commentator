@@ -19,6 +19,8 @@ Related docs:
 - Required secrets (always):
   - `TAURI_SIGNING_PRIVATE_KEY`
   - `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`
+- Optional secret (release-permission fallback):
+  - `GH_RELEASE_TOKEN` (token with `contents:write`; when unset, workflow falls back to `GITHUB_TOKEN`)
 - Optional secrets (required only for Apple signing/notarization mode):
   - `APPLE_CERTIFICATE`
   - `APPLE_CERTIFICATE_PASSWORD`
@@ -181,8 +183,9 @@ Symptoms:
 Actions:
 1. Verify repository workflow permissions are set to `Read and write`
 2. Verify job-level `contents: write` is active
-3. Check org/repo rulesets for restrictions on release creation APIs
-4. After permission fixes, rerun with a new tag
+3. Configure `GH_RELEASE_TOKEN` (`contents:write`) and verify workflow uses `GH_RELEASE_TOKEN || GITHUB_TOKEN`
+4. Check org/repo rulesets for restrictions on release creation APIs
+5. After permission fixes, rerun with a new tag
 
 ### Case G: matrix runner label is unsupported
 
