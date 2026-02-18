@@ -70,6 +70,11 @@
     - 結果: Cancelled
     - 内訳: arm64 build は bundle 生成まで成功したが、Draft Release 作成で `Resource not accessible by integration`
     - 内訳: x86 job は `macos-13-us-default` unsupported で起動不可
+  - `v0.0.0-smoke.20260218-03`:
+    - run: `https://github.com/gatyoukatyou/cli-commentator/actions/runs/22139085837`
+    - 結果: Failure
+    - 内訳: arm64/x64 両方で bundle 生成は成功
+    - 内訳: 両jobとも Draft Release 作成で `Resource not accessible by integration`
 
 ## 1) リリース前チェック（必須）
 

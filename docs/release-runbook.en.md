@@ -70,6 +70,11 @@ Related docs:
     - outcome: Cancelled
     - detail: arm64 build completed bundling, then failed at Draft Release creation with `Resource not accessible by integration`
     - detail: x64 job did not start because `macos-13-us-default` is unsupported
+  - `v0.0.0-smoke.20260218-03`:
+    - run: `https://github.com/gatyoukatyou/cli-commentator/actions/runs/22139085837`
+    - outcome: Failure
+    - detail: both arm64 and x64 jobs completed bundling successfully
+    - detail: both jobs failed when creating Draft Release with `Resource not accessible by integration`
 
 ## 1) Pre-release checks (required)
 

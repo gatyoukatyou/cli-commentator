@@ -124,14 +124,13 @@ Build a minimal MVP that reliably works, then expand once value is proven.
 - Ran 2026-02-18 local preflight (`verify:updater`, web lint+build, `CLI_COMMENTATOR_FORCE_NO_PTY=1` server test, failure regression 34/34, desktop distribution smoke) and all checks passed
 - Hardened test assumptions for `CLI_COMMENTATOR_FORCE_NO_PTY=1` by skipping node-pty-required restart failure coverage in that mode, so runbook preflight commands are reproducible
 - Resumed `release-desktop` smoke runs and logged `smoke.01` / `smoke.02` failure causes (missing sidecar node binaries, unsupported runner label, release creation permission error)
-- Added sidecar prepare/verify steps in `.github/workflows/release-desktop.yml`, restoring arm64 bundling up to release creation
+- Added sidecar prepare/verify steps in `.github/workflows/release-desktop.yml` and moved x64 to `macos-15-intel` (`smoke.03` confirmed successful bundling on both arm64/x64)
 - Updated `docs/release-runbook.*` and `docs/release-evidence-log.*` with same-day evidence
 - Continue operating docs drift guard and smoke matrix to accumulate v0.2.0 RC readiness evidence
 - Signed release readiness remains blocked by `#138` (Apple certificate/secrets)
 
 **Next**
 - Resolve `#138` and make `pnpm verify:apple-signing` pass
-- Move `release-desktop` x64 runner to a supported configuration and rerun with a fresh `v0.0.0-smoke.*` tag
 - Resolve `Resource not accessible by integration` permission constraints so Draft Release creation can complete
 - Continue expanding startup-failure regression coverage (distribution startup and signing-mode differences)
 

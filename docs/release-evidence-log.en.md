@@ -75,12 +75,13 @@ Related docs:
 - `release-desktop` run:
   - `v0.0.0-smoke.20260218-01` → `https://github.com/gatyoukatyou/cli-commentator/actions/runs/22138523276` (Failure)
   - `v0.0.0-smoke.20260218-02` → `https://github.com/gatyoukatyou/cli-commentator/actions/runs/22138744883` (Cancelled)
+  - `v0.0.0-smoke.20260218-03` → `https://github.com/gatyoukatyou/cli-commentator/actions/runs/22139085837` (Failure)
 - Execution mode: unsigned-internal (Apple secrets missing)
 - Artifact check:
   - `latest.json`: Missing (workflow failed before release creation)
-  - `.app.tar.gz`: Partial (generated in `smoke.02` arm64 job)
-  - `.sig`: Partial (generated in `smoke.02` arm64 job)
-  - `.dmg`: Partial (generated in `smoke.02` arm64 job)
+  - `.app.tar.gz`: Present (generated in both arm64/x64 jobs on `smoke.03`)
+  - `.sig`: Present (generated in both arm64/x64 jobs on `smoke.03`)
+  - `.dmg`: Present (generated in both arm64/x64 jobs on `smoke.03`)
 
 ### Runtime/Recovery Evidence
 - Desktop lifecycle event sample (`[desktop/server-event]`): local `pnpm smoke:desktop-distribution` confirmed `/healthz` + `comment_ok`
@@ -94,15 +95,14 @@ Related docs:
 
 ### Risks and Exceptions
 - Open P0/P1: None known at this record point
-- Accepted risk: x64 artifacts and Draft Release creation remain incomplete (arm64 build only)
+- Accepted risk: workflow still stops before Draft Release creation, leaving `latest.json` missing
 - Blocking issue:
   - `#138` Apple certificate configuration (Apple secrets missing)
-  - `release-desktop` x64 matrix runner configuration (`macos-13-us-default` unsupported)
   - GitHub release creation permission (`Resource not accessible by integration`)
 
 ### Follow-up
 - [ ] Configure `APPLE_*` secrets and make `pnpm verify:apple-signing` pass
-- [ ] Move x64 runner config to a supported image and rerun `release-desktop`
+- [x] Move x64 runner config to a supported image (`macos-15-intel`) and rerun `release-desktop`
 - [ ] Resolve `Resource not accessible by integration` permission requirement for draft release creation
 - Owner: maintainers
 - Due: 2026-02-19
