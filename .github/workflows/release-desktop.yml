@@ -15,9 +15,9 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - platform: macos-latest
+          - platform: macos-14
             args: --target aarch64-apple-darwin
-          - platform: macos-latest
+          - platform: macos-13
             args: --target x86_64-apple-darwin
 
     runs-on: ${{ matrix.platform }}
@@ -143,6 +143,27 @@ jobs:
 
       - name: Server typecheck
         run: pnpm -C apps/server exec tsc --noEmit
+
+      - name: Prepare desktop sidecar artifacts
+        run: pnpm prepare:desktop-sidecar
+
+      - name: Verify sidecar artifacts
+        run: |
+          set -euo pipefail
+          target_triple="$(rustc --print host-tuple 2>/dev/null || rustc -Vv | awk '/^host:/ {print $2}')"
+          node_binary="apps/desktop/src-tauri/binaries/node-${target_triple}"
+          if [[ "${target_triple}" == *windows* ]]; then
+            node_binary="${node_binary}.exe"
+          fi
+
+          test -f "${node_binary}"
+          test -f apps/desktop/src-tauri/resources/server/dist/index.js
+          test -f apps/desktop/src-tauri/resources/sidecar-manifest.json
+
+          echo "Sidecar artifacts OK:"
+          echo "- ${node_binary}"
+          echo "- apps/desktop/src-tauri/resources/server/dist/index.js"
+          echo "- apps/desktop/src-tauri/resources/sidecar-manifest.json"
 
       - name: Build and draft release (signed + notarized)
         if: ${{ steps.apple_signing.outputs.enabled == 'true' }}
