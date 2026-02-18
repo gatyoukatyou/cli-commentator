@@ -84,7 +84,7 @@ Build a minimal MVP that reliably works, then expand once value is proven.
 
 ---
 
-## Current status (as of 2026-02-17)
+## Current status (as of 2026-02-18)
 **Done**
 - PR #1: detect boundary tests (mixed => generic, 50-line limit, exported constants)
 - PR #2: add roadmap docs (JA/EN + links from docs/README)
@@ -121,16 +121,16 @@ Build a minimal MVP that reliably works, then expand once value is proven.
 - PR #178: add v0.2.0 RC decision evidence templates and align links across checklist/runbook/docs index
 
 **Now**
-- Expand `ci: regression tests for failure scenarios` with restart `ptyError` (no-fallback), file-mode `startup_failed` on missing `INPUT_FILE`, and desktop `port_resolve` exhaustion cases
-- Update `docs: release runbook` with server state-transition log format for timeline-based incident triage
-- Validate repeated success of signed desktop distribution on real tags and feed evidence back into the runbook
-- Operate docs drift guard and smoke matrix continuously to build v0.2.0 RC decision evidence
-- Start operating `docs/release-evidence-log.*` and register the `v0.0.0-smoke.5` decision evidence record
+- Ran 2026-02-18 local preflight (`verify:updater`, web lint+build, `CLI_COMMENTATOR_FORCE_NO_PTY=1` server test, failure regression 34/34, desktop distribution smoke) and all checks passed
+- Hardened test assumptions for `CLI_COMMENTATOR_FORCE_NO_PTY=1` by skipping node-pty-required restart failure coverage in that mode, so runbook preflight commands are reproducible
+- Updated `docs/release-runbook.*` and `docs/release-evidence-log.*` with same-day evidence
+- Continue operating docs drift guard and smoke matrix to accumulate v0.2.0 RC readiness evidence
+- Signed release readiness remains blocked by `#138` (Apple certificate/secrets)
 
 **Next**
-- Close `server: add structured state-transition logging` with fixed samples and ops guidance
+- Resolve `#138` and make `pnpm verify:apple-signing` pass
+- Run `release-desktop` with a fresh `v0.0.0-smoke.*` tag and append Actions URL evidence
 - Continue expanding startup-failure regression coverage (distribution startup and signing-mode differences)
-- Operate RC evidence templates and accumulate candidate-level Go/No-Go records for v0.2.0
 
 ---
 

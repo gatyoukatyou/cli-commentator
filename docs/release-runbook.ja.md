@@ -48,6 +48,20 @@
   - 欠落Secrets: `APPLE_CERTIFICATE`, `APPLE_CERTIFICATE_PASSWORD`, `KEYCHAIN_PASSWORD`, `APPLE_ID`, `APPLE_PASSWORD`, `APPLE_TEAM_ID`
   - 2026-02-13 更新後のworkflowでは、欠落時は unsigned internal モードで継続する
 
+## 0.6) 最新ローカル事前検証（2026-02-18）
+
+- 対象コミット: `35262de`（`main`）
+- 結果:
+  - `pnpm verify:updater`: Pass（config-only、key id `0EDB9F95DB53F9FA`）
+  - `pnpm -C apps/web lint` / `pnpm -C apps/web build`: Pass
+  - `CLI_COMMENTATOR_FORCE_NO_PTY=1 pnpm -C apps/server test`: Pass
+  - `failure_regression` 相当スイート: 34/34 Pass（`artifacts/failure-regression/summary.md`）
+  - `pnpm smoke:desktop-distribution`: Pass
+  - `pnpm verify:apple-signing`: Fail（`APPLE_CERTIFICATE`, `APPLE_CERTIFICATE_PASSWORD`, `KEYCHAIN_PASSWORD`, `APPLE_ID`, `APPLE_PASSWORD`, `APPLE_TEAM_ID` が未設定）
+- 判定:
+  - ローカル事前検証: Go
+  - signed 配布判定: No-Go（`#138` 未解消、`release-desktop` signed 実行証跡なし）
+
 ## 1) リリース前チェック（必須）
 
 ### 1-1. ローカル検証
@@ -62,6 +76,9 @@ pnpm prepare:desktop-sidecar
 pnpm -C apps/desktop tauri:build --bundles app --config '{"bundle":{"createUpdaterArtifacts":false}}'
 pnpm smoke:desktop-distribution
 ```
+
+補足:
+- `CLI_COMMENTATOR_FORCE_NO_PTY=1` では node-pty 必須ケース（`windows-fallback-integration` の restart `ptyError` 検証）は意図的に skip される。
 
 ### 1-2. 検証の意味
 

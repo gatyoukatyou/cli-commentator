@@ -55,3 +55,48 @@ Related docs:
 - [x] Add RC decision evidence templates (PR #178)
 - Owner: maintainers
 - Due: 2026-02-17
+
+## RC Evidence Record: 2026-02-18
+
+### Metadata
+- Candidate: `preflight-2026-02-18` (local verification)
+- Commit: `35262de` (`main`)
+- Reviewer: Codex
+- Decision Meeting: `2026-02-18`
+- Decision: Conditional Go (local preflight only)
+
+### CI Evidence
+- Required checks run: local preflight (`pnpm verify:updater`, `pnpm -C apps/web lint`, `pnpm -C apps/web build`, `CLI_COMMENTATOR_FORCE_NO_PTY=1 pnpm -C apps/server test`)
+- `desktop_distribution_smoke`: Pass (`pnpm smoke:desktop-distribution`, local)
+- `failure_regression`: Pass (local vitest suite)
+- `failure_regression` summary artifact: `artifacts/failure-regression/summary.md` (local workspace)
+
+### Release Workflow Evidence
+- `release-desktop` run: N/A (not executed on 2026-02-18)
+- Execution mode: N/A
+- Artifact check:
+  - `latest.json`: N/A (workflow not run)
+  - `.app.tar.gz`: N/A (workflow not run)
+  - `.sig`: N/A (workflow not run)
+  - `.dmg`: N/A (workflow not run)
+
+### Runtime/Recovery Evidence
+- Desktop lifecycle event sample (`[desktop/server-event]`): local `pnpm smoke:desktop-distribution` confirmed `/healthz` + `comment_ok`
+- Server state event sample (`[server/state-event]`): local `failure_regression` run included `state-event` tests
+- Startup failure classification checked: Yes (`src/tests/startup.failure.test.ts`)
+
+### Cross-Platform Smoke Evidence
+- macOS arm64: Pass (local `.app` runtime smoke)
+- macOS x64: Skip (single-host local verification)
+- Windows fallback path: Pass (`src/tests/windows-fallback-integration.test.ts` in local regression suite)
+
+### Risks and Exceptions
+- Open P0/P1: None known at this record point
+- Accepted risk: signed `release-desktop` evidence is still missing
+- Blocking issue: `#138` Apple certificate configuration (Apple secrets missing)
+
+### Follow-up
+- [ ] Configure `APPLE_*` secrets and make `pnpm verify:apple-signing` pass
+- [ ] Run `release-desktop` on a new smoke tag and append Actions URL evidence
+- Owner: maintainers
+- Due: 2026-02-19

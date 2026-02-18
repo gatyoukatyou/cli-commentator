@@ -48,6 +48,20 @@ Related docs:
   - Missing secrets: `APPLE_CERTIFICATE`, `APPLE_CERTIFICATE_PASSWORD`, `KEYCHAIN_PASSWORD`, `APPLE_ID`, `APPLE_PASSWORD`, `APPLE_TEAM_ID`
   - As of 2026-02-13 workflow update, missing Apple secrets trigger unsigned internal fallback instead of hard stop
 
+## 0.6) Latest Local Preflight Record (2026-02-18)
+
+- Target commit: `35262de` (`main`)
+- Outcome:
+  - `pnpm verify:updater`: Pass (config-only, key id `0EDB9F95DB53F9FA`)
+  - `pnpm -C apps/web lint` / `pnpm -C apps/web build`: Pass
+  - `CLI_COMMENTATOR_FORCE_NO_PTY=1 pnpm -C apps/server test`: Pass
+  - `failure_regression` equivalent suite: 34/34 Pass (`artifacts/failure-regression/summary.md`)
+  - `pnpm smoke:desktop-distribution`: Pass
+  - `pnpm verify:apple-signing`: Fail (missing `APPLE_CERTIFICATE`, `APPLE_CERTIFICATE_PASSWORD`, `KEYCHAIN_PASSWORD`, `APPLE_ID`, `APPLE_PASSWORD`, `APPLE_TEAM_ID`)
+- Decision:
+  - Local preflight: Go
+  - Signed distribution readiness: No-Go (`#138` unresolved, no signed `release-desktop` run evidence yet)
+
 ## 1) Pre-release checks (required)
 
 ### 1-1. Local verification
@@ -62,6 +76,9 @@ pnpm prepare:desktop-sidecar
 pnpm -C apps/desktop tauri:build --bundles app --config '{"bundle":{"createUpdaterArtifacts":false}}'
 pnpm smoke:desktop-distribution
 ```
+
+Notes:
+- With `CLI_COMMENTATOR_FORCE_NO_PTY=1`, node-pty-required coverage (`windows-fallback-integration` restart `ptyError` scenario) is intentionally skipped.
 
 ### 1-2. What `verify:updater` validates
 
