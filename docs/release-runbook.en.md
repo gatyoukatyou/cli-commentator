@@ -19,6 +19,8 @@ Related docs:
 - Required secrets (always):
   - `TAURI_SIGNING_PRIVATE_KEY`
   - `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`
+- Optional secret (release-permission fallback):
+  - `GH_RELEASE_TOKEN` (token with `contents:write`; when unset, workflow falls back to `GITHUB_TOKEN`)
 - Optional secrets (required only for Apple signing/notarization mode):
   - `APPLE_CERTIFICATE`
   - `APPLE_CERTIFICATE_PASSWORD`
@@ -48,6 +50,34 @@ Related docs:
   - Missing secrets: `APPLE_CERTIFICATE`, `APPLE_CERTIFICATE_PASSWORD`, `KEYCHAIN_PASSWORD`, `APPLE_ID`, `APPLE_PASSWORD`, `APPLE_TEAM_ID`
   - As of 2026-02-13 workflow update, missing Apple secrets trigger unsigned internal fallback instead of hard stop
 
+## 0.6) Latest Local Preflight Record (2026-02-18)
+
+- Target commit: `35262de` (`main`)
+- Outcome:
+  - `pnpm verify:updater`: Pass (config-only, key id `0EDB9F95DB53F9FA`)
+  - `pnpm -C apps/web lint` / `pnpm -C apps/web build`: Pass
+  - `CLI_COMMENTATOR_FORCE_NO_PTY=1 pnpm -C apps/server test`: Pass
+  - `failure_regression` equivalent suite: 34/34 Pass (`artifacts/failure-regression/summary.md`)
+  - `pnpm smoke:desktop-distribution`: Pass
+  - `pnpm verify:apple-signing`: Fail (missing `APPLE_CERTIFICATE`, `APPLE_CERTIFICATE_PASSWORD`, `KEYCHAIN_PASSWORD`, `APPLE_ID`, `APPLE_PASSWORD`, `APPLE_TEAM_ID`)
+- Decision:
+  - Local preflight: Go
+  - Signed distribution readiness: No-Go (`#138` unresolved, no signed `release-desktop` run evidence yet)
+- Additional smoke runs:
+  - `v0.0.0-smoke.20260218-01`:
+    - run: `https://github.com/gatyoukatyou/cli-commentator/actions/runs/22138523276`
+    - outcome: Failure (missing `binaries/node-aarch64-apple-darwin` / `binaries/node-x86_64-apple-darwin`)
+  - `v0.0.0-smoke.20260218-02`:
+    - run: `https://github.com/gatyoukatyou/cli-commentator/actions/runs/22138744883`
+    - outcome: Cancelled
+    - detail: arm64 build completed bundling, then failed at Draft Release creation with `Resource not accessible by integration`
+    - detail: x64 job did not start because `macos-13-us-default` is unsupported
+  - `v0.0.0-smoke.20260218-03`:
+    - run: `https://github.com/gatyoukatyou/cli-commentator/actions/runs/22139085837`
+    - outcome: Failure
+    - detail: both arm64 and x64 jobs completed bundling successfully
+    - detail: both jobs failed when creating Draft Release with `Resource not accessible by integration`
+
 ## 1) Pre-release checks (required)
 
 ### 1-1. Local verification
@@ -62,6 +92,9 @@ pnpm prepare:desktop-sidecar
 pnpm -C apps/desktop tauri:build --bundles app --config '{"bundle":{"createUpdaterArtifacts":false}}'
 pnpm smoke:desktop-distribution
 ```
+
+Notes:
+- With `CLI_COMMENTATOR_FORCE_NO_PTY=1`, node-pty-required coverage (`windows-fallback-integration` restart `ptyError` scenario) is intentionally skipped.
 
 ### 1-2. What `verify:updater` validates
 
@@ -141,6 +174,28 @@ Actions:
 1. Re-check `APPLE_ID` / `APPLE_PASSWORD` / `APPLE_TEAM_ID`
 2. Verify Apple account state (for example expired app-specific password)
 3. Update secrets if needed and rerun with corrected tag
+
+### Case F: `Resource not accessible by integration` while creating release
+
+Symptoms:
+- `tauri-action` fails during Draft Release creation with `Resource not accessible by integration`
+
+Actions:
+1. Verify repository workflow permissions are set to `Read and write`
+2. Verify job-level `contents: write` is active
+3. Configure `GH_RELEASE_TOKEN` (`contents:write`) and verify workflow uses `GH_RELEASE_TOKEN || GITHUB_TOKEN`
+4. Check org/repo rulesets for restrictions on release creation APIs
+5. After permission fixes, rerun with a new tag
+
+### Case G: matrix runner label is unsupported
+
+Symptoms:
+- Job annotation shows `The configuration '<runner-label>' is not supported`
+
+Actions:
+1. Replace the runner label with one supported by the repository
+2. Re-check matrix platform/target mapping
+3. Rerun with a new tag after the workflow update
 
 ## 4) Rollback policy
 

@@ -19,6 +19,8 @@
 - 必須 Secrets（常に必要）
   - `TAURI_SIGNING_PRIVATE_KEY`
   - `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`
+- 任意 Secrets（release 作成権限の回避用）
+  - `GH_RELEASE_TOKEN`（`contents:write` を持つ token。未設定時は `GITHUB_TOKEN` を使用）
 - Apple署名/Notarizationを有効化する場合に必要な Secrets（任意）
   - `APPLE_CERTIFICATE`
   - `APPLE_CERTIFICATE_PASSWORD`
@@ -48,6 +50,34 @@
   - 欠落Secrets: `APPLE_CERTIFICATE`, `APPLE_CERTIFICATE_PASSWORD`, `KEYCHAIN_PASSWORD`, `APPLE_ID`, `APPLE_PASSWORD`, `APPLE_TEAM_ID`
   - 2026-02-13 更新後のworkflowでは、欠落時は unsigned internal モードで継続する
 
+## 0.6) 最新ローカル事前検証（2026-02-18）
+
+- 対象コミット: `35262de`（`main`）
+- 結果:
+  - `pnpm verify:updater`: Pass（config-only、key id `0EDB9F95DB53F9FA`）
+  - `pnpm -C apps/web lint` / `pnpm -C apps/web build`: Pass
+  - `CLI_COMMENTATOR_FORCE_NO_PTY=1 pnpm -C apps/server test`: Pass
+  - `failure_regression` 相当スイート: 34/34 Pass（`artifacts/failure-regression/summary.md`）
+  - `pnpm smoke:desktop-distribution`: Pass
+  - `pnpm verify:apple-signing`: Fail（`APPLE_CERTIFICATE`, `APPLE_CERTIFICATE_PASSWORD`, `KEYCHAIN_PASSWORD`, `APPLE_ID`, `APPLE_PASSWORD`, `APPLE_TEAM_ID` が未設定）
+- 判定:
+  - ローカル事前検証: Go
+  - signed 配布判定: No-Go（`#138` 未解消、`release-desktop` signed 実行証跡なし）
+- 追加実行（smoke tags）:
+  - `v0.0.0-smoke.20260218-01`:
+    - run: `https://github.com/gatyoukatyou/cli-commentator/actions/runs/22138523276`
+    - 結果: Failure（`binaries/node-aarch64-apple-darwin` / `binaries/node-x86_64-apple-darwin` 不足）
+  - `v0.0.0-smoke.20260218-02`:
+    - run: `https://github.com/gatyoukatyou/cli-commentator/actions/runs/22138744883`
+    - 結果: Cancelled
+    - 内訳: arm64 build は bundle 生成まで成功したが、Draft Release 作成で `Resource not accessible by integration`
+    - 内訳: x86 job は `macos-13-us-default` unsupported で起動不可
+  - `v0.0.0-smoke.20260218-03`:
+    - run: `https://github.com/gatyoukatyou/cli-commentator/actions/runs/22139085837`
+    - 結果: Failure
+    - 内訳: arm64/x64 両方で bundle 生成は成功
+    - 内訳: 両jobとも Draft Release 作成で `Resource not accessible by integration`
+
 ## 1) リリース前チェック（必須）
 
 ### 1-1. ローカル検証
@@ -62,6 +92,9 @@ pnpm prepare:desktop-sidecar
 pnpm -C apps/desktop tauri:build --bundles app --config '{"bundle":{"createUpdaterArtifacts":false}}'
 pnpm smoke:desktop-distribution
 ```
+
+補足:
+- `CLI_COMMENTATOR_FORCE_NO_PTY=1` では node-pty 必須ケース（`windows-fallback-integration` の restart `ptyError` 検証）は意図的に skip される。
 
 ### 1-2. 検証の意味
 
@@ -142,6 +175,28 @@ pnpm smoke:desktop-distribution
 1. `APPLE_ID` / `APPLE_PASSWORD` / `APPLE_TEAM_ID` の値を確認
 2. Apple側の認証状態（app-specific password失効等）を確認
 3. Secrets更新後、タグを切り直して再実行
+
+### ケースF: Release作成で `Resource not accessible by integration`
+
+症状:
+- `tauri-action` が Draft Release 作成時に `Resource not accessible by integration` で失敗
+
+対応:
+1. リポジトリの Actions 権限（Workflow permissions）が `Read and write` か確認
+2. `contents: write` が job で有効か確認
+3. `GH_RELEASE_TOKEN`（`contents:write`）を設定し、workflow が `GH_RELEASE_TOKEN || GITHUB_TOKEN` で実行されることを確認
+4. 組織/リポジトリルールで release 作成APIが制限されていないか確認
+5. 権限修正後、新しいタグで再実行
+
+### ケースG: matrix runner が unsupported で job が起動しない
+
+症状:
+- ジョブ注記に `The configuration '<runner-label>' is not supported` が出る
+
+対応:
+1. 対象リポジトリで利用可能な runner label へ置き換える
+2. matrix の platform と target の組み合わせを見直す
+3. 修正後、新しいタグで再実行
 
 ## 4) ロールバック指針
 

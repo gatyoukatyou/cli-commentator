@@ -55,3 +55,54 @@
 - [x] RC判定証跡テンプレートを整備（PR #178）
 - Owner: maintainers
 - Due: 2026-02-17
+
+## RC Evidence Record: 2026-02-18
+
+### Metadata
+- Candidate: `preflight-2026-02-18` (local verification)
+- Commit: `35262de` (`main`)
+- Reviewer: Codex
+- Decision Meeting: `2026-02-18`
+- Decision: Conditional Go（local preflight only）
+
+### CI Evidence
+- Required checks run: local preflight (`pnpm verify:updater`, `pnpm -C apps/web lint`, `pnpm -C apps/web build`, `CLI_COMMENTATOR_FORCE_NO_PTY=1 pnpm -C apps/server test`)
+- `desktop_distribution_smoke`: Pass（`pnpm smoke:desktop-distribution`, local）
+- `failure_regression`: Pass（local vitest suite）
+- `failure_regression` summary artifact: `artifacts/failure-regression/summary.md`（local workspace）
+
+### Release Workflow Evidence
+- `release-desktop` run:
+  - `v0.0.0-smoke.20260218-01` → `https://github.com/gatyoukatyou/cli-commentator/actions/runs/22138523276`（Failure）
+  - `v0.0.0-smoke.20260218-02` → `https://github.com/gatyoukatyou/cli-commentator/actions/runs/22138744883`（Cancelled）
+  - `v0.0.0-smoke.20260218-03` → `https://github.com/gatyoukatyou/cli-commentator/actions/runs/22139085837`（Failure）
+- Execution mode: unsigned-internal（Apple secrets missing）
+- Artifact check:
+  - `latest.json`: Missing（workflow failed before release creation）
+  - `.app.tar.gz`: Present（`smoke.03` arm64/x64 buildで生成）
+  - `.sig`: Present（`smoke.03` arm64/x64 buildで生成）
+  - `.dmg`: Present（`smoke.03` arm64/x64 buildで生成）
+
+### Runtime/Recovery Evidence
+- Desktop lifecycle event sample (`[desktop/server-event]`): local `pnpm smoke:desktop-distribution` で `/healthz` + `comment_ok` を確認
+- Server state event sample (`[server/state-event]`): local `failure_regression` で `state-event` テストを実行
+- Startup failure classification checked: Yes（`src/tests/startup.failure.test.ts`）
+
+### Cross-Platform Smoke Evidence
+- macOS arm64: Pass（local `.app` runtime smoke）
+- macOS x64: Skip（single-host local verification）
+- Windows fallback path: Pass（`src/tests/windows-fallback-integration.test.ts` in local regression suite）
+
+### Risks and Exceptions
+- Open P0/P1: None known at this record point
+- Accepted risk: Draft Release作成前に停止するため `latest.json` が未生成
+- Blocking issue:
+  - `#138` Apple certificate configuration（Apple secrets 未設定）
+  - GitHub release create権限（`Resource not accessible by integration`）
+
+### Follow-up
+- [ ] `APPLE_*` secrets を整備し `pnpm verify:apple-signing` をPassさせる
+- [x] x86向け runner 設定をサポート構成へ修正（`macos-15-intel`）し、`release-desktop` を再実行
+- [ ] `Resource not accessible by integration` の権限要件を確認し、Draft Release作成を復旧する
+- Owner: maintainers
+- Due: 2026-02-19

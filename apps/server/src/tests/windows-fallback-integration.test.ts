@@ -199,7 +199,10 @@ function parseServerStateLogs(output: string): ServerStateLog[] {
 }
 
 describe("windows fallback integration", () => {
-  const itRequiresNodePty = process.platform === "win32" ? it.skip : it;
+  const itRequiresNodePty =
+    process.platform === "win32" || process.env.CLI_COMMENTATOR_FORCE_NO_PTY === "1"
+      ? it.skip
+      : it;
   it("emits ptyUnavailable on startup and on profile restart, without ptyError", async () => {
     const port = await getFreePort();
     const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "cli-commentator-fallback-it-"));

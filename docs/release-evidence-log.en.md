@@ -55,3 +55,54 @@ Related docs:
 - [x] Add RC decision evidence templates (PR #178)
 - Owner: maintainers
 - Due: 2026-02-17
+
+## RC Evidence Record: 2026-02-18
+
+### Metadata
+- Candidate: `preflight-2026-02-18` (local verification)
+- Commit: `35262de` (`main`)
+- Reviewer: Codex
+- Decision Meeting: `2026-02-18`
+- Decision: Conditional Go (local preflight only)
+
+### CI Evidence
+- Required checks run: local preflight (`pnpm verify:updater`, `pnpm -C apps/web lint`, `pnpm -C apps/web build`, `CLI_COMMENTATOR_FORCE_NO_PTY=1 pnpm -C apps/server test`)
+- `desktop_distribution_smoke`: Pass (`pnpm smoke:desktop-distribution`, local)
+- `failure_regression`: Pass (local vitest suite)
+- `failure_regression` summary artifact: `artifacts/failure-regression/summary.md` (local workspace)
+
+### Release Workflow Evidence
+- `release-desktop` run:
+  - `v0.0.0-smoke.20260218-01` → `https://github.com/gatyoukatyou/cli-commentator/actions/runs/22138523276` (Failure)
+  - `v0.0.0-smoke.20260218-02` → `https://github.com/gatyoukatyou/cli-commentator/actions/runs/22138744883` (Cancelled)
+  - `v0.0.0-smoke.20260218-03` → `https://github.com/gatyoukatyou/cli-commentator/actions/runs/22139085837` (Failure)
+- Execution mode: unsigned-internal (Apple secrets missing)
+- Artifact check:
+  - `latest.json`: Missing (workflow failed before release creation)
+  - `.app.tar.gz`: Present (generated in both arm64/x64 jobs on `smoke.03`)
+  - `.sig`: Present (generated in both arm64/x64 jobs on `smoke.03`)
+  - `.dmg`: Present (generated in both arm64/x64 jobs on `smoke.03`)
+
+### Runtime/Recovery Evidence
+- Desktop lifecycle event sample (`[desktop/server-event]`): local `pnpm smoke:desktop-distribution` confirmed `/healthz` + `comment_ok`
+- Server state event sample (`[server/state-event]`): local `failure_regression` run included `state-event` tests
+- Startup failure classification checked: Yes (`src/tests/startup.failure.test.ts`)
+
+### Cross-Platform Smoke Evidence
+- macOS arm64: Pass (local `.app` runtime smoke)
+- macOS x64: Skip (single-host local verification)
+- Windows fallback path: Pass (`src/tests/windows-fallback-integration.test.ts` in local regression suite)
+
+### Risks and Exceptions
+- Open P0/P1: None known at this record point
+- Accepted risk: workflow still stops before Draft Release creation, leaving `latest.json` missing
+- Blocking issue:
+  - `#138` Apple certificate configuration (Apple secrets missing)
+  - GitHub release creation permission (`Resource not accessible by integration`)
+
+### Follow-up
+- [ ] Configure `APPLE_*` secrets and make `pnpm verify:apple-signing` pass
+- [x] Move x64 runner config to a supported image (`macos-15-intel`) and rerun `release-desktop`
+- [ ] Resolve `Resource not accessible by integration` permission requirement for draft release creation
+- Owner: maintainers
+- Due: 2026-02-19
