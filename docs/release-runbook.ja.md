@@ -38,6 +38,9 @@
   - workflow は unsigned internal モードで継続
   - `v0.0.0-smoke.*` タグのみ Draft Release を作成（内部検証用途）
   - 通常の `vX.Y.Z` タグではエラー終了し、署名モードを強制
+- `GH_RELEASE_TOKEN なし`
+  - `v0.0.0-smoke.*` タグでは Draft Release の代わりに Actions artifact を出力して継続
+  - 通常の `vX.Y.Z` タグではエラー終了（release 作成権限を必須化）
 
 ## 0.5) 最新ドライラン結果（2026-02-13）
 
@@ -185,8 +188,9 @@ pnpm smoke:desktop-distribution
 1. リポジトリの Actions 権限（Workflow permissions）が `Read and write` か確認
 2. `contents: write` が job で有効か確認
 3. `GH_RELEASE_TOKEN`（`contents:write`）を設定し、workflow が `GH_RELEASE_TOKEN || GITHUB_TOKEN` で実行されることを確認
-4. 組織/リポジトリルールで release 作成APIが制限されていないか確認
-5. 権限修正後、新しいタグで再実行
+4. 未設定のまま smoke 実行する場合は、`smoke-bundle-<target>` artifact が出力されることを確認
+5. 組織/リポジトリルールで release 作成APIが制限されていないか確認
+6. 権限修正後、新しいタグで再実行
 
 ### ケースG: matrix runner が unsupported で job が起動しない
 

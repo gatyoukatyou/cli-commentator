@@ -38,6 +38,9 @@ Related docs:
   - Workflow continues in unsigned internal mode
   - Draft Release is generated only for `v0.0.0-smoke.*` tags (internal testing only)
   - Normal `vX.Y.Z` tags fail fast and require signed mode
+- `GH_RELEASE_TOKEN missing`
+  - For `v0.0.0-smoke.*` tags, workflow continues by uploading Actions artifacts instead of creating a Draft Release
+  - Normal `vX.Y.Z` tags fail fast and require release-creation permissions
 
 ## 0.5) Latest Dry-Run Record (2026-02-13)
 
@@ -184,8 +187,9 @@ Actions:
 1. Verify repository workflow permissions are set to `Read and write`
 2. Verify job-level `contents: write` is active
 3. Configure `GH_RELEASE_TOKEN` (`contents:write`) and verify workflow uses `GH_RELEASE_TOKEN || GITHUB_TOKEN`
-4. Check org/repo rulesets for restrictions on release creation APIs
-5. After permission fixes, rerun with a new tag
+4. If still running smoke tags without it, verify `smoke-bundle-<target>` artifacts are uploaded
+5. Check org/repo rulesets for restrictions on release creation APIs
+6. After permission fixes, rerun with a new tag
 
 ### Case G: matrix runner label is unsupported
 
