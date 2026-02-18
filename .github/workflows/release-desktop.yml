@@ -246,19 +246,30 @@ jobs:
 
       - name: Build smoke artifacts without Draft Release (token fallback)
         if: ${{ steps.release_token.outputs.available != 'true' && startsWith(github.ref_name, 'v0.0.0-smoke.') }}
+        id: fallback_build
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: |
           set -euo pipefail
           pnpm -C apps/desktop exec tauri build ${{ matrix.args }}
 
           bundle_dir="apps/desktop/src-tauri/target/${{ steps.fallback_target.outputs.triple }}/release/bundle"
+          if [ ! -d "${bundle_dir}" ]; then
+            fallback_bundle_dir="apps/desktop/src-tauri/target/release/bundle"
+            if [ -d "${fallback_bundle_dir}" ]; then
+              bundle_dir="${fallback_bundle_dir}"
+            fi
+          fi
           test -d "${bundle_dir}"
           find "${bundle_dir}" -name "*.dmg" | grep -q .
           find "${bundle_dir}" -name "*.app.tar.gz" | grep -q .
           find "${bundle_dir}" -name "*.app.tar.gz.sig" | grep -q .
+          echo "bundle_dir=${bundle_dir}" >> "$GITHUB_OUTPUT"
 
       - name: Upload smoke artifacts (token fallback)
         if: ${{ steps.release_token.outputs.available != 'true' && startsWith(github.ref_name, 'v0.0.0-smoke.') }}
         uses: actions/upload-artifact@v4
         with:
           name: smoke-bundle-${{ steps.fallback_target.outputs.triple }}
-          path: apps/desktop/src-tauri/target/${{ steps.fallback_target.outputs.triple }}/release/bundle
+          path: ${{ steps.fallback_build.outputs.bundle_dir }}
