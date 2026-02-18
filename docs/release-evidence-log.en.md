@@ -72,13 +72,15 @@ Related docs:
 - `failure_regression` summary artifact: `artifacts/failure-regression/summary.md` (local workspace)
 
 ### Release Workflow Evidence
-- `release-desktop` run: N/A (not executed on 2026-02-18)
-- Execution mode: N/A
+- `release-desktop` run:
+  - `v0.0.0-smoke.20260218-01` → `https://github.com/gatyoukatyou/cli-commentator/actions/runs/22138523276` (Failure)
+  - `v0.0.0-smoke.20260218-02` → `https://github.com/gatyoukatyou/cli-commentator/actions/runs/22138744883` (Cancelled)
+- Execution mode: unsigned-internal (Apple secrets missing)
 - Artifact check:
-  - `latest.json`: N/A (workflow not run)
-  - `.app.tar.gz`: N/A (workflow not run)
-  - `.sig`: N/A (workflow not run)
-  - `.dmg`: N/A (workflow not run)
+  - `latest.json`: Missing (workflow failed before release creation)
+  - `.app.tar.gz`: Partial (generated in `smoke.02` arm64 job)
+  - `.sig`: Partial (generated in `smoke.02` arm64 job)
+  - `.dmg`: Partial (generated in `smoke.02` arm64 job)
 
 ### Runtime/Recovery Evidence
 - Desktop lifecycle event sample (`[desktop/server-event]`): local `pnpm smoke:desktop-distribution` confirmed `/healthz` + `comment_ok`
@@ -92,11 +94,15 @@ Related docs:
 
 ### Risks and Exceptions
 - Open P0/P1: None known at this record point
-- Accepted risk: signed `release-desktop` evidence is still missing
-- Blocking issue: `#138` Apple certificate configuration (Apple secrets missing)
+- Accepted risk: x64 artifacts and Draft Release creation remain incomplete (arm64 build only)
+- Blocking issue:
+  - `#138` Apple certificate configuration (Apple secrets missing)
+  - `release-desktop` x64 matrix runner configuration (`macos-13-us-default` unsupported)
+  - GitHub release creation permission (`Resource not accessible by integration`)
 
 ### Follow-up
 - [ ] Configure `APPLE_*` secrets and make `pnpm verify:apple-signing` pass
-- [ ] Run `release-desktop` on a new smoke tag and append Actions URL evidence
+- [ ] Move x64 runner config to a supported image and rerun `release-desktop`
+- [ ] Resolve `Resource not accessible by integration` permission requirement for draft release creation
 - Owner: maintainers
 - Due: 2026-02-19

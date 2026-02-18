@@ -61,6 +61,15 @@
 - 判定:
   - ローカル事前検証: Go
   - signed 配布判定: No-Go（`#138` 未解消、`release-desktop` signed 実行証跡なし）
+- 追加実行（smoke tags）:
+  - `v0.0.0-smoke.20260218-01`:
+    - run: `https://github.com/gatyoukatyou/cli-commentator/actions/runs/22138523276`
+    - 結果: Failure（`binaries/node-aarch64-apple-darwin` / `binaries/node-x86_64-apple-darwin` 不足）
+  - `v0.0.0-smoke.20260218-02`:
+    - run: `https://github.com/gatyoukatyou/cli-commentator/actions/runs/22138744883`
+    - 結果: Cancelled
+    - 内訳: arm64 build は bundle 生成まで成功したが、Draft Release 作成で `Resource not accessible by integration`
+    - 内訳: x86 job は `macos-13-us-default` unsupported で起動不可
 
 ## 1) リリース前チェック（必須）
 
@@ -159,6 +168,27 @@ pnpm smoke:desktop-distribution
 1. `APPLE_ID` / `APPLE_PASSWORD` / `APPLE_TEAM_ID` の値を確認
 2. Apple側の認証状態（app-specific password失効等）を確認
 3. Secrets更新後、タグを切り直して再実行
+
+### ケースF: Release作成で `Resource not accessible by integration`
+
+症状:
+- `tauri-action` が Draft Release 作成時に `Resource not accessible by integration` で失敗
+
+対応:
+1. リポジトリの Actions 権限（Workflow permissions）が `Read and write` か確認
+2. `contents: write` が job で有効か確認
+3. 組織/リポジトリルールで release 作成APIが制限されていないか確認
+4. 権限修正後、新しいタグで再実行
+
+### ケースG: matrix runner が unsupported で job が起動しない
+
+症状:
+- ジョブ注記に `The configuration '<runner-label>' is not supported` が出る
+
+対応:
+1. 対象リポジトリで利用可能な runner label へ置き換える
+2. matrix の platform と target の組み合わせを見直す
+3. 修正後、新しいタグで再実行
 
 ## 4) ロールバック指針
 

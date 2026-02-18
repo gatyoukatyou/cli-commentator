@@ -72,13 +72,15 @@
 - `failure_regression` summary artifact: `artifacts/failure-regression/summary.md`（local workspace）
 
 ### Release Workflow Evidence
-- `release-desktop` run: N/A（2026-02-18 は未実行）
-- Execution mode: N/A
+- `release-desktop` run:
+  - `v0.0.0-smoke.20260218-01` → `https://github.com/gatyoukatyou/cli-commentator/actions/runs/22138523276`（Failure）
+  - `v0.0.0-smoke.20260218-02` → `https://github.com/gatyoukatyou/cli-commentator/actions/runs/22138744883`（Cancelled）
+- Execution mode: unsigned-internal（Apple secrets missing）
 - Artifact check:
-  - `latest.json`: N/A（workflow未実行）
-  - `.app.tar.gz`: N/A（workflow未実行）
-  - `.sig`: N/A（workflow未実行）
-  - `.dmg`: N/A（workflow未実行）
+  - `latest.json`: Missing（workflow failed before release creation）
+  - `.app.tar.gz`: Partial（`smoke.02` arm64 jobで生成）
+  - `.sig`: Partial（`smoke.02` arm64 jobで生成）
+  - `.dmg`: Partial（`smoke.02` arm64 jobで生成）
 
 ### Runtime/Recovery Evidence
 - Desktop lifecycle event sample (`[desktop/server-event]`): local `pnpm smoke:desktop-distribution` で `/healthz` + `comment_ok` を確認
@@ -92,11 +94,15 @@
 
 ### Risks and Exceptions
 - Open P0/P1: None known at this record point
-- Accepted risk: signed `release-desktop` の証跡は未取得
-- Blocking issue: `#138` Apple certificate configuration（Apple secrets 未設定）
+- Accepted risk: x86成果物とDraft Release作成は未完了（arm64のみ build 成功）
+- Blocking issue:
+  - `#138` Apple certificate configuration（Apple secrets 未設定）
+  - `release-desktop` x86 matrix runner設定（`macos-13-us-default` unsupported）
+  - GitHub release create権限（`Resource not accessible by integration`）
 
 ### Follow-up
 - [ ] `APPLE_*` secrets を整備し `pnpm verify:apple-signing` をPassさせる
-- [ ] 新しい smoke tag で `release-desktop` を実行し、Actions URL付きで証跡を追記する
+- [ ] x86向け runner 設定をサポート構成へ修正し、`release-desktop` を再実行する
+- [ ] `Resource not accessible by integration` の権限要件を確認し、Draft Release作成を復旧する
 - Owner: maintainers
 - Due: 2026-02-19

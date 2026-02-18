@@ -61,6 +61,15 @@ Related docs:
 - Decision:
   - Local preflight: Go
   - Signed distribution readiness: No-Go (`#138` unresolved, no signed `release-desktop` run evidence yet)
+- Additional smoke runs:
+  - `v0.0.0-smoke.20260218-01`:
+    - run: `https://github.com/gatyoukatyou/cli-commentator/actions/runs/22138523276`
+    - outcome: Failure (missing `binaries/node-aarch64-apple-darwin` / `binaries/node-x86_64-apple-darwin`)
+  - `v0.0.0-smoke.20260218-02`:
+    - run: `https://github.com/gatyoukatyou/cli-commentator/actions/runs/22138744883`
+    - outcome: Cancelled
+    - detail: arm64 build completed bundling, then failed at Draft Release creation with `Resource not accessible by integration`
+    - detail: x64 job did not start because `macos-13-us-default` is unsupported
 
 ## 1) Pre-release checks (required)
 
@@ -158,6 +167,27 @@ Actions:
 1. Re-check `APPLE_ID` / `APPLE_PASSWORD` / `APPLE_TEAM_ID`
 2. Verify Apple account state (for example expired app-specific password)
 3. Update secrets if needed and rerun with corrected tag
+
+### Case F: `Resource not accessible by integration` while creating release
+
+Symptoms:
+- `tauri-action` fails during Draft Release creation with `Resource not accessible by integration`
+
+Actions:
+1. Verify repository workflow permissions are set to `Read and write`
+2. Verify job-level `contents: write` is active
+3. Check org/repo rulesets for restrictions on release creation APIs
+4. After permission fixes, rerun with a new tag
+
+### Case G: matrix runner label is unsupported
+
+Symptoms:
+- Job annotation shows `The configuration '<runner-label>' is not supported`
+
+Actions:
+1. Replace the runner label with one supported by the repository
+2. Re-check matrix platform/target mapping
+3. Rerun with a new tag after the workflow update
 
 ## 4) Rollback policy
 

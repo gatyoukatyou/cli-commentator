@@ -128,13 +128,16 @@ CLI Commentator は「ターミナルの作業ログを見て、別ウィンド�
 **Now**
 - 2026-02-18 のローカル事前検証を実施（`verify:updater` / web lint+build / `CLI_COMMENTATOR_FORCE_NO_PTY=1` server test / failure regression 34/34 / desktop distribution smoke がPass）
 - `CLI_COMMENTATOR_FORCE_NO_PTY=1` 実行時に node-pty 必須ケースを skip するテスト前提を補強し、Runbook のローカル検証コマンドを再現可能化
+- `release-desktop` の smoke 実行を再開し、`smoke.01` / `smoke.02` の失敗要因（sidecar node不足、runner unsupported、release作成権限）を証跡へ反映
+- `.github/workflows/release-desktop.yml` に sidecar 準備/検証ステップを追加し、arm64側の bundle 生成まで回復
 - `docs/release-runbook.*` / `docs/release-evidence-log.*` を当日証跡で更新
 - docs drift guard と smoke matrix を運用し、v0.2.0 RC 判断材料を継続蓄積
 - `#138`（Apple certificate/secrets）未解消のため signed 配布判定は保留
 
 **Next**
 - `#138` を解消し、`pnpm verify:apple-signing` をPassさせる
-- 新しい `v0.0.0-smoke.*` タグで `release-desktop` を実行し、Actions URL付きで証跡を追記する
+- `release-desktop` の x86 runner をサポート済み構成へ修正し、`v0.0.0-smoke.*` で再実行する
+- `Resource not accessible by integration` の権限制約を解消し、Draft Release作成を復旧する
 - 起動障害系の回帰ケースを継続拡張（配布物起動/署名モード差分を含む）
 
 ---
