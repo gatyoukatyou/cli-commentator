@@ -248,7 +248,7 @@ jobs:
         if: ${{ steps.release_token.outputs.available != 'true' && startsWith(github.ref_name, 'v0.0.0-smoke.') }}
         run: |
           set -euo pipefail
-          pnpm -C apps/desktop tauri:build -- ${{ matrix.args }}
+          pnpm -C apps/desktop exec tauri build ${{ matrix.args }}
 
           bundle_dir="apps/desktop/src-tauri/target/${{ steps.fallback_target.outputs.triple }}/release/bundle"
           test -d "${bundle_dir}"
