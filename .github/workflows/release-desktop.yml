@@ -168,30 +168,26 @@ jobs:
           echo "- apps/desktop/src-tauri/resources/server/dist/index.js"
           echo "- apps/desktop/src-tauri/resources/sidecar-manifest.json"
 
-      - name: Detect release publish token mode
+      - name: Verify release publish permissions
         id: release_token
         env:
           GH_RELEASE_TOKEN: ${{ secrets.GH_RELEASE_TOKEN }}
-        run: |
-          set -euo pipefail
-          if [ -n "${GH_RELEASE_TOKEN:-}" ]; then
-            echo "available=true" >> "$GITHUB_OUTPUT"
-            echo "::notice::Using GH_RELEASE_TOKEN for Draft Release creation."
-          else
-            echo "available=false" >> "$GITHUB_OUTPUT"
-            echo "::warning::GH_RELEASE_TOKEN is not set. Smoke tags will build artifacts without creating Draft Release."
-          fi
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: node scripts/verify-release-token-permissions.mjs --mode detect --write-github-output
 
-      - name: Enforce release token for non-smoke tags
-        if: ${{ steps.release_token.outputs.available != 'true' && startsWith(github.ref_name, 'v') && !startsWith(github.ref_name, 'v0.0.0-smoke.') }}
+      - name: Enforce release publish permissions for non-smoke tags
+        if: ${{ steps.release_token.outputs.write_capable != 'true' && startsWith(github.ref_name, 'v') && !startsWith(github.ref_name, 'v0.0.0-smoke.') }}
         run: |
           set -euo pipefail
-          echo "::error::GH_RELEASE_TOKEN is required for non-smoke release tags: ${{ github.ref_name }}"
-          echo "::error::Configure GH_RELEASE_TOKEN with contents:write and rerun."
+          echo "::error::Release write permission is required for non-smoke release tags: ${{ github.ref_name }}"
+          echo "::error::Token source: ${{ steps.release_token.outputs.token_source }}"
+          echo "::error::Probe status: ${{ steps.release_token.outputs.probe_status }}"
+          echo "::error::Configure GH_RELEASE_TOKEN with contents:write or enable read/write workflow permissions."
           exit 1
 
       - name: Build and draft release (signed + notarized)
-        if: ${{ steps.apple_signing.outputs.enabled == 'true' && steps.release_token.outputs.available == 'true' }}
+        if: ${{ steps.apple_signing.outputs.enabled == 'true' && steps.release_token.outputs.write_capable == 'true' }}
         uses: tauri-apps/tauri-action@v0.6.1
         env:
           GITHUB_TOKEN: ${{ secrets.GH_RELEASE_TOKEN || secrets.GITHUB_TOKEN }}
@@ -211,7 +207,7 @@ jobs:
           args: ${{ matrix.args }}
 
       - name: Build and draft release (unsigned internal)
-        if: ${{ steps.apple_signing.outputs.enabled != 'true' && startsWith(github.ref_name, 'v0.0.0-smoke.') && steps.release_token.outputs.available == 'true' }}
+        if: ${{ steps.apple_signing.outputs.enabled != 'true' && startsWith(github.ref_name, 'v0.0.0-smoke.') && steps.release_token.outputs.write_capable == 'true' }}
         uses: tauri-apps/tauri-action@v0.6.1
         env:
           GITHUB_TOKEN: ${{ secrets.GH_RELEASE_TOKEN || secrets.GITHUB_TOKEN }}
@@ -227,7 +223,7 @@ jobs:
           args: ${{ matrix.args }}
 
       - name: Resolve fallback target triple
-        if: ${{ steps.release_token.outputs.available != 'true' && startsWith(github.ref_name, 'v0.0.0-smoke.') }}
+        if: ${{ steps.release_token.outputs.write_capable != 'true' && startsWith(github.ref_name, 'v0.0.0-smoke.') }}
         id: fallback_target
         run: |
           set -euo pipefail
@@ -245,7 +241,7 @@ jobs:
           esac
 
       - name: Build smoke artifacts without Draft Release (token fallback)
-        if: ${{ steps.release_token.outputs.available != 'true' && startsWith(github.ref_name, 'v0.0.0-smoke.') }}
+        if: ${{ steps.release_token.outputs.write_capable != 'true' && startsWith(github.ref_name, 'v0.0.0-smoke.') }}
         id: fallback_build
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
@@ -268,7 +264,7 @@ jobs:
           echo "bundle_dir=${bundle_dir}" >> "$GITHUB_OUTPUT"
 
       - name: Upload smoke artifacts (token fallback)
-        if: ${{ steps.release_token.outputs.available != 'true' && startsWith(github.ref_name, 'v0.0.0-smoke.') }}
+        if: ${{ steps.release_token.outputs.write_capable != 'true' && startsWith(github.ref_name, 'v0.0.0-smoke.') }}
         uses: actions/upload-artifact@v4
         with:
           name: smoke-bundle-${{ steps.fallback_target.outputs.triple }}

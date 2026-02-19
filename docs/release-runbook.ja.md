@@ -38,7 +38,7 @@
   - workflow は unsigned internal モードで継続
   - `v0.0.0-smoke.*` タグのみ Draft Release を作成（内部検証用途）
   - 通常の `vX.Y.Z` タグではエラー終了し、署名モードを強制
-- `GH_RELEASE_TOKEN なし`
+- `release write 権限を確認できない（token未設定/権限不足）`
   - `v0.0.0-smoke.*` タグでは Draft Release の代わりに Actions artifact を出力して継続
   - 通常の `vX.Y.Z` タグではエラー終了（release 作成権限を必須化）
 
@@ -88,6 +88,7 @@
 ```bash
 pnpm install
 pnpm verify:updater
+GH_RELEASE_TOKEN=<token> pnpm verify:release-token --repo gatyoukatyou/cli-commentator
 pnpm -C apps/web lint
 pnpm -C apps/web build
 CLI_COMMENTATOR_FORCE_NO_PTY=1 pnpm -C apps/server test
@@ -98,6 +99,8 @@ pnpm smoke:desktop-distribution
 
 補足:
 - `CLI_COMMENTATOR_FORCE_NO_PTY=1` では node-pty 必須ケース（`windows-fallback-integration` の restart `ptyError` 検証）は意図的に skip される。
+- `verify:release-token` は `GH_RELEASE_TOKEN` 優先・未設定時は `GITHUB_TOKEN` を使用し、release write 権限を API で判定する。
+- ローカルで `GITHUB_TOKEN` が無い場合は、`GH_RELEASE_TOKEN` を一時exportして実行する。
 
 ### 1-2. 検証の意味
 
@@ -187,10 +190,11 @@ pnpm smoke:desktop-distribution
 対応:
 1. リポジトリの Actions 権限（Workflow permissions）が `Read and write` か確認
 2. `contents: write` が job で有効か確認
-3. `GH_RELEASE_TOKEN`（`contents:write`）を設定し、workflow が `GH_RELEASE_TOKEN || GITHUB_TOKEN` で実行されることを確認
-4. 未設定のまま smoke 実行する場合は、`smoke-bundle-<target>` artifact が出力されることを確認
-5. 組織/リポジトリルールで release 作成APIが制限されていないか確認
-6. 権限修正後、新しいタグで再実行
+3. `GH_RELEASE_TOKEN=<token> pnpm verify:release-token --repo gatyoukatyou/cli-commentator` で release write 権限を事前確認
+4. `GH_RELEASE_TOKEN`（`contents:write`）を設定し、workflow の `Verify release publish permissions` が `write_capable=true` になることを確認
+5. 権限未確認のまま smoke 実行する場合は、`smoke-bundle-<target>` artifact が出力されることを確認
+6. 組織/リポジトリルールで release 作成APIが制限されていないか確認
+7. 権限修正後、新しいタグで再実行
 
 ### ケースG: matrix runner が unsupported で job が起動しない
 
