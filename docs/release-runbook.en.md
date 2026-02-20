@@ -38,7 +38,7 @@ Related docs:
   - Workflow continues in unsigned internal mode
   - Draft Release is generated only for `v0.0.0-smoke.*` tags (internal testing only)
   - Normal `vX.Y.Z` tags fail fast and require signed mode
-- `GH_RELEASE_TOKEN missing`
+- `Release write capability not confirmed (missing token or insufficient permission)`
   - For `v0.0.0-smoke.*` tags, workflow continues by uploading Actions artifacts instead of creating a Draft Release
   - Normal `vX.Y.Z` tags fail fast and require release-creation permissions
 
@@ -88,6 +88,7 @@ Related docs:
 ```bash
 pnpm install
 pnpm verify:updater
+GH_RELEASE_TOKEN=<token> pnpm verify:release-token --repo gatyoukatyou/cli-commentator
 pnpm -C apps/web lint
 pnpm -C apps/web build
 CLI_COMMENTATOR_FORCE_NO_PTY=1 pnpm -C apps/server test
@@ -98,6 +99,8 @@ pnpm smoke:desktop-distribution
 
 Notes:
 - With `CLI_COMMENTATOR_FORCE_NO_PTY=1`, node-pty-required coverage (`windows-fallback-integration` restart `ptyError` scenario) is intentionally skipped.
+- `verify:release-token` prefers `GH_RELEASE_TOKEN` and falls back to `GITHUB_TOKEN`, then probes release-write capability via GitHub API.
+- If local `GITHUB_TOKEN` is unavailable, export `GH_RELEASE_TOKEN` temporarily before running the check.
 
 ### 1-2. What `verify:updater` validates
 
@@ -186,10 +189,11 @@ Symptoms:
 Actions:
 1. Verify repository workflow permissions are set to `Read and write`
 2. Verify job-level `contents: write` is active
-3. Configure `GH_RELEASE_TOKEN` (`contents:write`) and verify workflow uses `GH_RELEASE_TOKEN || GITHUB_TOKEN`
-4. If still running smoke tags without it, verify `smoke-bundle-<target>` artifacts are uploaded
-5. Check org/repo rulesets for restrictions on release creation APIs
-6. After permission fixes, rerun with a new tag
+3. Run `GH_RELEASE_TOKEN=<token> pnpm verify:release-token --repo gatyoukatyou/cli-commentator` to preflight release-write capability
+4. Configure `GH_RELEASE_TOKEN` (`contents:write`) and verify workflow step `Verify release publish permissions` reports `write_capable=true`
+5. If smoke tags run without confirmed write access, verify `smoke-bundle-<target>` artifacts are uploaded
+6. Check org/repo rulesets for restrictions on release creation APIs
+7. After permission fixes, rerun with a new tag
 
 ### Case G: matrix runner label is unsupported
 
