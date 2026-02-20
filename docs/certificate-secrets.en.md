@@ -3,20 +3,28 @@
 
 # Certificate & Secrets Operations Guide (v1)
 
-This guide defines the standard operations for certificates and secrets used in desktop signing/notarization.
+This guide defines the standard operations for certificates and secrets used in desktop signing/notarization.  
+It also defines unsigned-internal operation while paid Apple certificates are deferred.
 
 ## 1. Managed secrets
 
-| Secret | Purpose | Required |
+| Secret | Purpose | Requirement |
 |---|---|---|
-| `TAURI_SIGNING_PRIVATE_KEY` | Updater artifact signing key | Required |
-| `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` | Updater signing-key password | Required |
-| `APPLE_CERTIFICATE` | base64-encoded macOS `.p12` signing certificate | Required |
-| `APPLE_CERTIFICATE_PASSWORD` | `.p12` export password | Required |
-| `KEYCHAIN_PASSWORD` | Temporary CI keychain protection | Required |
-| `APPLE_ID` | Apple ID for notarization | Required |
-| `APPLE_PASSWORD` | App-specific password for notarization | Required |
-| `APPLE_TEAM_ID` | Apple Developer Team ID | Required |
+| `TAURI_SIGNING_PRIVATE_KEY` | Updater artifact signing key | Required in all modes |
+| `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` | Updater signing-key password | Required in all modes |
+| `APPLE_CERTIFICATE` | base64-encoded macOS `.p12` signing certificate | Required in signed mode |
+| `APPLE_CERTIFICATE_PASSWORD` | `.p12` export password | Required in signed mode |
+| `KEYCHAIN_PASSWORD` | Temporary CI keychain protection | Required in signed mode |
+| `APPLE_ID` | Apple ID for notarization | Required in signed mode |
+| `APPLE_PASSWORD` | App-specific password for notarization | Required in signed mode |
+| `APPLE_TEAM_ID` | Apple Developer Team ID | Required in signed mode |
+
+### 1-1. Operation while paid certificates are deferred
+
+- `pnpm verify:apple-signing` (require mode) fails when `APPLE_CERTIFICATE` is not configured
+- Use `pnpm verify:apple-signing:detect` for non-blocking visibility of missing secrets
+- In CI, continue validation via unsigned-internal path using `v0.0.0-smoke.*` tags
+- For normal `vX.Y.Z` tags, signed mode remains mandatory; decision stays No-Go
 
 ## 2. Lifecycle operations
 
@@ -24,7 +32,7 @@ This guide defines the standard operations for certificates and secrets used in 
 1. Export signing certificate as `.p12`
 2. Base64-encode it and store in `APPLE_CERTIFICATE`
 3. Register related passwords in repository secrets
-4. Verify using `pnpm verify:updater` and release workflow run
+4. Verify using `pnpm verify:updater`, `pnpm verify:apple-signing` (require mode), and release workflow run
 
 #### 2-1-1. `APPLE_CERTIFICATE` registration command example
 

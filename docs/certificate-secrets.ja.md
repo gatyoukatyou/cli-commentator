@@ -3,20 +3,28 @@
 
 # 証明書・Secrets運用ガイド（v1）
 
-Desktop配布（署名/Notarization）で利用する証明書とSecretsの運用標準です。
+Desktop配布（署名/Notarization）で利用する証明書とSecretsの運用標準です。  
+有償Apple証明書を導入しない期間の unsigned internal 運用もこのガイドで扱います。
 
 ## 1. 対象Secrets
 
-| Secret | 用途 | 必須 |
+| Secret | 用途 | 要件 |
 |---|---|---|
-| `TAURI_SIGNING_PRIVATE_KEY` | Updaterアーティファクト署名 | 必須 |
-| `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` | Updater秘密鍵パスワード | 必須 |
-| `APPLE_CERTIFICATE` | macOSコード署名用 `.p12` のbase64 | 必須 |
-| `APPLE_CERTIFICATE_PASSWORD` | `.p12` のエクスポート時パスワード | 必須 |
-| `KEYCHAIN_PASSWORD` | CI一時keychain保護 | 必須 |
-| `APPLE_ID` | notarization用 Apple ID | 必須 |
-| `APPLE_PASSWORD` | notarization用 app-specific password | 必須 |
-| `APPLE_TEAM_ID` | Developer Team ID | 必須 |
+| `TAURI_SIGNING_PRIVATE_KEY` | Updaterアーティファクト署名 | 全モードで必須 |
+| `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` | Updater秘密鍵パスワード | 全モードで必須 |
+| `APPLE_CERTIFICATE` | macOSコード署名用 `.p12` のbase64 | signedモードで必須 |
+| `APPLE_CERTIFICATE_PASSWORD` | `.p12` のエクスポート時パスワード | signedモードで必須 |
+| `KEYCHAIN_PASSWORD` | CI一時keychain保護 | signedモードで必須 |
+| `APPLE_ID` | notarization用 Apple ID | signedモードで必須 |
+| `APPLE_PASSWORD` | notarization用 app-specific password | signedモードで必須 |
+| `APPLE_TEAM_ID` | Developer Team ID | signedモードで必須 |
+
+### 1-1. 有償証明書を導入しない期間の運用
+
+- `APPLE_CERTIFICATE` 未登録時に `pnpm verify:apple-signing`（require mode）は Fail する
+- 代わりに `pnpm verify:apple-signing:detect` を使い、不足Secretsの可視化だけを行う
+- CIでは `v0.0.0-smoke.*` タグで unsigned internal 経路を使って継続検証する
+- 通常の `vX.Y.Z` タグでは signedモード必須のため No-Go とする
 
 ## 2. ライフサイクル管理
 
@@ -24,7 +32,7 @@ Desktop配布（署名/Notarization）で利用する証明書とSecretsの運�
 1. 証明書を `.p12` でエクスポート
 2. `base64` 変換して `APPLE_CERTIFICATE` に登録
 3. 関連パスワードをSecretsへ登録
-4. `pnpm verify:updater` とリリースworkflowで検証
+4. `pnpm verify:updater` / `pnpm verify:apple-signing`（require mode）とリリースworkflowで検証
 
 #### 2-1-1. `APPLE_CERTIFICATE` 登録コマンド例
 

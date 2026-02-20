@@ -26,6 +26,10 @@ Related docs:
 - [ ] In-place updater flow validation from existing install
 - [ ] Known limitations are documented for users
 
+Note (while paid Apple certificates are deferred):
+- If `APPLE_CERTIFICATE` is not configured, public signed-release decision stays No-Go
+- Internal validation with `v0.0.0-smoke.*` may continue as Conditional Go when all mandatory section A checks pass
+
 ## 2) Minimum Procedure
 
 1. Select candidate commit and tag (example: `v0.2.0-rc.1`)
@@ -54,7 +58,7 @@ In operation, prefer `docs/release-evidence-template.en.md`; use the block below
 - open P0/P1: Pass/Fail
 
 ### Recommended Checks (B)
-- signed install smoke: Pass/Fail/Skip
+- signed install smoke: Pass/Fail/Skip (Skip while certificate procurement is deferred)
 - updater upgrade smoke: Pass/Fail/Skip
 - known limitations note: Pass/Fail
 
@@ -79,9 +83,9 @@ In operation, prefer `docs/release-evidence-template.en.md`; use the block below
 - open P0/P1: Pass (Sprint 28 parent #141 closed)
 
 ### Recommended Checks (B)
-- signed install smoke: Skip (`APPLE_CERTIFICATE` setup in progress)
+- signed install smoke: Skip (paid Apple certificate setup is deferred)
 - updater upgrade smoke: Pass (configuration path)
 - known limitations note: Pass
 
 ### Notes
-- `#138` (Apple certificate configuration) is still required before public signed distribution.
+- `#138` (Apple certificate configuration) remains required before public signed distribution; current operation is internal validation only.

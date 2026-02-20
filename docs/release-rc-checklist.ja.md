@@ -26,6 +26,10 @@
 - [ ] 既存インストールからの更新確認（Updater）
 - [ ] 既知制約のユーザー向け注記が整備済み
 
+補足（有償証明書を保留する期間）:
+- `APPLE_CERTIFICATE` 未登録時は公開向け signed 配布判定を No-Go とする
+- ただし内部検証（`v0.0.0-smoke.*`）は、必須項目 A を満たせば Conditional Go として継続可能
+
 ## 2) 実行手順（最小）
 
 1. 対象コミットと候補タグを決定（例: `v0.2.0-rc.1`）
@@ -54,7 +58,7 @@
 - open P0/P1: Pass/Fail
 
 ### Recommended Checks (B)
-- signed install smoke: Pass/Fail/Skip
+- signed install smoke: Pass/Fail/Skip（証明書保留中は Skip）
 - updater upgrade smoke: Pass/Fail/Skip
 - known limitations note: Pass/Fail
 
@@ -79,9 +83,9 @@
 - open P0/P1: Pass（Sprint 28 parent #141 closed）
 
 ### Recommended Checks (B)
-- signed install smoke: Skip（`APPLE_CERTIFICATE` 設定作業中）
+- signed install smoke: Skip（有償Apple証明書の導入保留中）
 - updater upgrade smoke: Pass（設定確認パス）
 - known limitations note: Pass
 
 ### Notes
-- 正式外部配布前に `#138`（Apple certificate）完了が必要。
+- 正式外部配布前に `#138`（Apple certificate）完了が必要（現時点は内部検証のみ継続）。
