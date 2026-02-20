@@ -105,6 +105,14 @@
 
 ### 1-1. ローカル検証
 
+まずは1コマンド版（推奨）:
+
+```bash
+pnpm verify:internal-release
+```
+
+個別実行する場合:
+
 ```bash
 pnpm install
 pnpm verify:updater
@@ -119,6 +127,8 @@ pnpm smoke:desktop-distribution
 ```
 
 補足:
+- `verify:internal-release` は Runbook の unsigned internal 検証手順を順番に実行するラッパー。
+- `GH_RELEASE_TOKEN` 未設定時は `gh auth token` を自動利用する。
 - `CLI_COMMENTATOR_FORCE_NO_PTY=1` では node-pty 必須ケース（`windows-fallback-integration` の restart `ptyError` 検証）は意図的に skip される。
 - `verify:release-token` は `GH_RELEASE_TOKEN` 優先・未設定時は `GITHUB_TOKEN` を使用し、release write 権限を API で判定する。
 - ローカルで `GITHUB_TOKEN` が無い場合は、`GH_RELEASE_TOKEN` を一時exportして実行する。
