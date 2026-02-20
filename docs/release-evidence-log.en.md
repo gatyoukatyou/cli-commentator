@@ -213,3 +213,57 @@ Related docs:
 - [ ] Configure `APPLE_CERTIFICATE` and make `pnpm verify:apple-signing` pass
 - Owner: maintainers
 - Due: 2026-02-23
+
+## RC Evidence Record: 2026-02-20 (GH release token configured)
+
+### Metadata
+- Candidate: `v0.0.0-smoke.20260220-211548` (workflow smoke rerun)
+- Commit: `878f833` (`docs: record release preflight rollout evidence (#187)`)
+- Reviewer: Codex
+- Decision Meeting: `2026-02-20`
+- Decision: Conditional Go (unsigned internal + Draft Release)
+
+### CI Evidence
+- Required checks run: `release-desktop` (`https://github.com/gatyoukatyou/cli-commentator/actions/runs/22223734792`)
+- `publish-tauri`:
+  - arm64: Pass (`https://github.com/gatyoukatyou/cli-commentator/actions/runs/22223734792/job/64285137016`)
+  - x64: Pass (`https://github.com/gatyoukatyou/cli-commentator/actions/runs/22223734792/job/64285136990`)
+- `desktop_distribution_smoke`: N/A (tag workflow scope)
+- `failure_regression`: N/A (tag workflow scope)
+
+### Release Workflow Evidence
+- `release-desktop` run:
+  - `v0.0.0-smoke.20260220-211548` → `https://github.com/gatyoukatyou/cli-commentator/actions/runs/22223734792` (Success)
+- Execution mode: unsigned internal (Apple secrets missing)
+- Release permission preflight:
+  - `Verify release publish permissions`: Pass on both arm64/x64 jobs
+  - token source: `gh_release_token`
+  - `Build and draft release (unsigned internal)`: Pass on both arm64/x64 jobs
+  - token fallback steps (24-26): Skip
+- Artifact check:
+  - `latest.json`: Present (generated in Draft Release)
+  - `.app.tar.gz` / `.sig` / `.dmg`: Present (arm64/x64)
+  - Draft Release metadata: `isDraft=true`, `isPrerelease=true`, `tagName=v0.0.0-smoke.20260220-211548`
+
+### Runtime/Recovery Evidence
+- Desktop lifecycle event sample (`[desktop/server-event]`): N/A (tag workflow scope)
+- Server state event sample (`[server/state-event]`): N/A (tag workflow scope)
+- Startup failure classification checked: Yes (workflow test steps passed)
+
+### Cross-Platform Smoke Evidence
+- macOS arm64: Pass (Draft Release assets)
+- macOS x64: Pass (Draft Release assets)
+- Windows fallback path: N/A
+
+### Risks and Exceptions
+- Open P0/P1: None known at this record point
+- Accepted risk: signed/notarized distribution is still pending until `#138` is resolved
+- Blocking issue:
+  - `#138` Apple certificate configuration (`APPLE_CERTIFICATE` is still missing in repo secrets)
+
+### Follow-up
+- [x] Configure `GH_RELEASE_TOKEN` (`contents:write`) and confirm `write_capable=true` in `Verify release publish permissions`
+- [ ] Configure `APPLE_CERTIFICATE` and make `pnpm verify:apple-signing` pass
+- [ ] While paid Apple certificate setup is deferred, continue unsigned internal validation with `v0.0.0-smoke.*`
+- Owner: maintainers
+- Due: 2026-02-27

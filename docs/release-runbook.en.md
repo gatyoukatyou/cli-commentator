@@ -86,6 +86,21 @@ Related docs:
     - detail: `Verify release publish permissions` passed on both arm64/x64 jobs (after PR #186 preflight rollout)
     - detail: with `GH_RELEASE_TOKEN` still missing, Draft Release was skipped and token fallback artifacts were uploaded (`smoke-bundle-aarch64-apple-darwin` / `smoke-bundle-x86_64-apple-darwin`)
 
+## 0.7) Latest Smoke Run (2026-02-20: after configuring GH release token)
+
+- Tag: `v0.0.0-smoke.20260220-211548`
+- Workflow run: `https://github.com/gatyoukatyou/cli-commentator/actions/runs/22223734792`
+- Outcome:
+  - `Verify release publish permissions`: Pass on both arm64/x64 jobs
+  - token source: `gh_release_token` (`GH_RELEASE_TOKEN` path)
+  - `Build and draft release (unsigned internal)`: Pass on both arm64/x64 jobs
+  - token fallback steps (`Resolve fallback target triple` / `Build smoke artifacts without Draft Release` / `Upload smoke artifacts`) were skipped
+  - Draft Release: `isDraft=true`, `isPrerelease=true`, `tagName=v0.0.0-smoke.20260220-211548`
+  - Draft Release assets: `latest.json` / `.app.tar.gz` / `.sig` / `.dmg` generated for arm64/x64
+- Notes:
+  - `gh secret list --repo gatyoukatyou/cli-commentator` shows Apple secrets are present except `APPLE_CERTIFICATE`
+  - signed/notarized distribution remains blocked by `#138`
+
 ## 1) Pre-release checks (required)
 
 ### 1-1. Local verification
@@ -94,6 +109,7 @@ Related docs:
 pnpm install
 pnpm verify:updater
 GH_RELEASE_TOKEN=<token> pnpm verify:release-token --repo gatyoukatyou/cli-commentator
+pnpm verify:apple-signing:detect
 pnpm -C apps/web lint
 pnpm -C apps/web build
 CLI_COMMENTATOR_FORCE_NO_PTY=1 pnpm -C apps/server test
@@ -106,6 +122,8 @@ Notes:
 - With `CLI_COMMENTATOR_FORCE_NO_PTY=1`, node-pty-required coverage (`windows-fallback-integration` restart `ptyError` scenario) is intentionally skipped.
 - `verify:release-token` prefers `GH_RELEASE_TOKEN` and falls back to `GITHUB_TOKEN`, then probes release-write capability via GitHub API.
 - If local `GITHUB_TOKEN` is unavailable, export `GH_RELEASE_TOKEN` temporarily before running the check.
+- `verify:apple-signing:detect` reports missing Apple secrets and exits 0 (useful for unsigned-internal operation).
+- Before signed distribution, always run `pnpm verify:apple-signing` (require mode) and make it pass.
 
 ### 1-2. What `verify:updater` validates
 
@@ -147,9 +165,10 @@ Symptoms:
 Actions:
 1. For production-ready distribution, set `APPLE_CERTIFICATE` / `APPLE_CERTIFICATE_PASSWORD` / `KEYCHAIN_PASSWORD`
 2. Set `APPLE_ID` / `APPLE_PASSWORD` / `APPLE_TEAM_ID`
-3. Export values in the same shell and run `pnpm verify:apple-signing` for format validation
+3. Export values in the same shell and run `pnpm verify:apple-signing` (require mode) for format validation
 4. Re-run with a new tag and confirm signed mode
-5. If budget is not available yet, continue using unsigned mode for internal validation
+5. If budget is not available yet, run `pnpm verify:apple-signing:detect` to confirm missing-secret state only
+6. If budget is not available yet, continue using unsigned mode for internal validation
    - unsigned mode is allowed only with `v0.0.0-smoke.*` tags
 
 ### Case C: `tauri-action` build/signing fails
