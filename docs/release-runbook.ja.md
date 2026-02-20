@@ -86,6 +86,21 @@
     - 内訳: `Verify release publish permissions` は arm64/x64 両jobで成功（PR #186 の preflight 追加後）
     - 内訳: `GH_RELEASE_TOKEN` 未設定のため Draft Release は作成せず、token fallback artifact（`smoke-bundle-aarch64-apple-darwin` / `smoke-bundle-x86_64-apple-darwin`）を出力
 
+## 0.7) 最新smoke実行（2026-02-20: GH release token 設定後）
+
+- 実行タグ: `v0.0.0-smoke.20260220-211548`
+- workflow run: `https://github.com/gatyoukatyou/cli-commentator/actions/runs/22223734792`
+- 結果:
+  - `Verify release publish permissions`: Pass（arm64/x64 両job）
+  - token source: `gh_release_token`（`GH_RELEASE_TOKEN` 使用）
+  - `Build and draft release (unsigned internal)`: Pass（arm64/x64）
+  - token fallback steps（`Resolve fallback target triple` / `Build smoke artifacts without Draft Release` / `Upload smoke artifacts`）は Skip
+  - Draft Release: `isDraft=true`, `isPrerelease=true`, `tagName=v0.0.0-smoke.20260220-211548`
+  - Draft Release assets: `latest.json` / `.app.tar.gz` / `.sig` / `.dmg` が arm64/x64 で生成
+- 補足:
+  - `gh secret list --repo gatyoukatyou/cli-commentator` 上で Apple secrets は `APPLE_CERTIFICATE` のみ未登録
+  - signed/notarized 配布は引き続き `#138` の解消待ち
+
 ## 1) リリース前チェック（必須）
 
 ### 1-1. ローカル検証
@@ -94,6 +109,7 @@
 pnpm install
 pnpm verify:updater
 GH_RELEASE_TOKEN=<token> pnpm verify:release-token --repo gatyoukatyou/cli-commentator
+pnpm verify:apple-signing:detect
 pnpm -C apps/web lint
 pnpm -C apps/web build
 CLI_COMMENTATOR_FORCE_NO_PTY=1 pnpm -C apps/server test
@@ -106,6 +122,8 @@ pnpm smoke:desktop-distribution
 - `CLI_COMMENTATOR_FORCE_NO_PTY=1` では node-pty 必須ケース（`windows-fallback-integration` の restart `ptyError` 検証）は意図的に skip される。
 - `verify:release-token` は `GH_RELEASE_TOKEN` 優先・未設定時は `GITHUB_TOKEN` を使用し、release write 権限を API で判定する。
 - ローカルで `GITHUB_TOKEN` が無い場合は、`GH_RELEASE_TOKEN` を一時exportして実行する。
+- `verify:apple-signing:detect` は不足Secretsを表示して 0 で終了する（無償期間の unsigned internal 運用向け）。
+- signed配布を行う前には `pnpm verify:apple-signing`（require mode）を必ず Pass させる。
 
 ### 1-2. 検証の意味
 
@@ -148,9 +166,10 @@ pnpm smoke:desktop-distribution
 対応:
 1. 正式配布が必要なら `APPLE_CERTIFICATE` / `APPLE_CERTIFICATE_PASSWORD` / `KEYCHAIN_PASSWORD` を登録
 2. `APPLE_ID` / `APPLE_PASSWORD` / `APPLE_TEAM_ID` を登録
-3. 同じシェルに値を展開し `pnpm verify:apple-signing` で形式検証
+3. 同じシェルに値を展開し `pnpm verify:apple-signing`（require mode）で形式検証
 4. Secrets を追加後、新しいタグで signedモード実行を確認
-5. 予算都合で未設定の場合は内部検証用途として運用継続
+5. 予算都合で未設定の場合は `pnpm verify:apple-signing:detect` で不足状態のみ確認
+6. 予算都合で未設定の場合は内部検証用途として運用継続
    - unsigned 実行は `v0.0.0-smoke.*` タグでのみ可能
 
 ### ケースC: `tauri-action` で署名/ビルド失敗

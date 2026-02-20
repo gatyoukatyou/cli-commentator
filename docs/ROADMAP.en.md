@@ -128,12 +128,13 @@ Build a minimal MVP that reliably works, then expand once value is proven.
 - Updated `docs/release-runbook.*` and `docs/release-evidence-log.*` with same-day evidence
 - Merged PR #186 (`fix(release): preflight release write permissions`) and introduced `Verify release publish permissions`
 - Validated preflight + token fallback path with `v0.0.0-smoke.20260219-test` (`release-desktop` run `22185152032`)
+- Configured `GH_RELEASE_TOKEN` and confirmed Draft Release path recovery with `v0.0.0-smoke.20260220-211548` (run `22223734792`)
 - Continue operating docs drift guard and smoke matrix to accumulate v0.2.0 RC readiness evidence
 - Signed release readiness remains blocked by `#138` (Apple certificate/secrets)
 
 **Next**
 - Resolve `#138`, register `APPLE_CERTIFICATE`, and make `pnpm verify:apple-signing` pass
-- Configure `GH_RELEASE_TOKEN` (`contents:write`), confirm `write_capable=true` in `Verify release publish permissions`, and restore Draft Release creation
+- While paid Apple certificates are deferred, continue unsigned-internal validation with `v0.0.0-smoke.*` tags
 - Continue expanding startup-failure regression coverage (distribution startup and signing-mode differences)
 
 ---

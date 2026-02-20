@@ -213,3 +213,57 @@
 - [ ] `APPLE_CERTIFICATE` を登録し、`pnpm verify:apple-signing` をPassさせる
 - Owner: maintainers
 - Due: 2026-02-23
+
+## RC Evidence Record: 2026-02-20（GH release token 設定確認）
+
+### Metadata
+- Candidate: `v0.0.0-smoke.20260220-211548`（workflow smoke rerun）
+- Commit: `878f833`（`docs: record release preflight rollout evidence (#187)`）
+- Reviewer: Codex
+- Decision Meeting: `2026-02-20`
+- Decision: Conditional Go（unsigned internal + Draft Release）
+
+### CI Evidence
+- Required checks run: `release-desktop` (`https://github.com/gatyoukatyou/cli-commentator/actions/runs/22223734792`)
+- `publish-tauri`:
+  - arm64: Pass (`https://github.com/gatyoukatyou/cli-commentator/actions/runs/22223734792/job/64285137016`)
+  - x64: Pass (`https://github.com/gatyoukatyou/cli-commentator/actions/runs/22223734792/job/64285136990`)
+- `desktop_distribution_smoke`: N/A（tag workflow scope）
+- `failure_regression`: N/A（tag workflow scope）
+
+### Release Workflow Evidence
+- `release-desktop` run:
+  - `v0.0.0-smoke.20260220-211548` → `https://github.com/gatyoukatyou/cli-commentator/actions/runs/22223734792`（Success）
+- Execution mode: unsigned internal（Apple secrets不足）
+- Release permission preflight:
+  - `Verify release publish permissions`: Pass（arm64/x64 両job）
+  - token source: `gh_release_token`
+  - `Build and draft release (unsigned internal)`: Pass（arm64/x64 両job）
+  - token fallback steps（24-26）: Skip
+- Artifact check:
+  - `latest.json`: Present（Draft Release に生成）
+  - `.app.tar.gz` / `.sig` / `.dmg`: Present（arm64/x64）
+  - Draft Release metadata: `isDraft=true`, `isPrerelease=true`, `tagName=v0.0.0-smoke.20260220-211548`
+
+### Runtime/Recovery Evidence
+- Desktop lifecycle event sample (`[desktop/server-event]`): N/A（tag workflow scope）
+- Server state event sample (`[server/state-event]`): N/A（tag workflow scope）
+- Startup failure classification checked: Yes（workflow内テストステップがPass）
+
+### Cross-Platform Smoke Evidence
+- macOS arm64: Pass（Draft Release assets）
+- macOS x64: Pass（Draft Release assets）
+- Windows fallback path: N/A
+
+### Risks and Exceptions
+- Open P0/P1: None known at this record point
+- Accepted risk: `#138` 未解消のため signed/notarized 配布は未実施
+- Blocking issue:
+  - `#138` Apple certificate configuration（repo secretsに `APPLE_CERTIFICATE` が未登録）
+
+### Follow-up
+- [x] `GH_RELEASE_TOKEN`（`contents:write`）を設定し、`Verify release publish permissions` の `write_capable=true` を確認
+- [ ] `APPLE_CERTIFICATE` を登録し、`pnpm verify:apple-signing` をPassさせる
+- [ ] 証明書未導入期間は `v0.0.0-smoke.*` で unsigned internal 検証を継続
+- Owner: maintainers
+- Due: 2026-02-27

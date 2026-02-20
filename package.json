@@ -14,6 +14,7 @@
     "check:doc-sync": "node ./scripts/check-doc-sync.mjs",
     "smoke:desktop-distribution": "node ./scripts/desktop-distribution-smoke.mjs",
     "smoke:llm": "bash ./scripts/smoke-llm.sh",
+    "verify:apple-signing:detect": "node ./scripts/verify-apple-signing-secrets.mjs --mode detect",
     "verify:apple-signing": "node ./scripts/verify-apple-signing-secrets.mjs --mode require",
     "verify:release-token": "node ./scripts/verify-release-token-permissions.mjs --mode require-write",
     "verify:updater": "node ./scripts/verify-updater-config.mjs"

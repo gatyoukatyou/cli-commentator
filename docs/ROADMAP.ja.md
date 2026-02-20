@@ -133,12 +133,13 @@ CLI Commentator は「ターミナルの作業ログを見て、別ウィンド�
 - `docs/release-runbook.*` / `docs/release-evidence-log.*` を当日証跡で更新
 - PR #186（`fix(release): preflight release write permissions`）をマージし、`Verify release publish permissions` を導入
 - `v0.0.0-smoke.20260219-test`（`release-desktop` run `22185152032`）で preflight + token fallback 経路の成功を確認
+- `GH_RELEASE_TOKEN` を設定し、`v0.0.0-smoke.20260220-211548`（run `22223734792`）で Draft Release 復旧を確認
 - docs drift guard と smoke matrix を運用し、v0.2.0 RC 判断材料を継続蓄積
 - `#138`（Apple certificate/secrets）未解消のため signed 配布判定は保留
 
 **Next**
 - `#138` を解消し、`APPLE_CERTIFICATE` を登録したうえで `pnpm verify:apple-signing` をPassさせる
-- `GH_RELEASE_TOKEN`（`contents:write`）を設定し、`Verify release publish permissions` の `write_capable=true` を確認して Draft Release作成を復旧する
+- Apple有償証明書を導入しない期間は `v0.0.0-smoke.*` タグで unsigned internal 検証を継続する
 - 起動障害系の回帰ケースを継続拡張（配布物起動/署名モード差分を含む）
 
 ---
