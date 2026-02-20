@@ -159,3 +159,57 @@ Related docs:
 - [x] Validate token fallback smoke artifact path (`smoke.06`)
 - Owner: maintainers
 - Due: 2026-02-19
+
+## RC Evidence Record: 2026-02-20 (release permission preflight rollout)
+
+### Metadata
+- Candidate: `v0.0.0-smoke.20260219-test` (workflow smoke rerun)
+- Commit: `559f781` (`fix/release-write-permission-preflight`)
+- Reviewer: Codex
+- Decision Meeting: `2026-02-20`
+- Decision: Conditional Go (permission preflight + token fallback)
+
+### CI Evidence
+- Required checks run: PR #186 checks (`https://github.com/gatyoukatyou/cli-commentator/pull/186/checks`)
+- `publish-tauri`:
+  - arm64: Pass (`https://github.com/gatyoukatyou/cli-commentator/actions/runs/22185152032/job/64156687334`)
+  - x64: Pass (`https://github.com/gatyoukatyou/cli-commentator/actions/runs/22185152032/job/64156687358`)
+- `desktop_distribution_smoke`: Pass (`https://github.com/gatyoukatyou/cli-commentator/actions/runs/22185057157/job/64156345943`)
+- `failure_regression`: Pass (`https://github.com/gatyoukatyou/cli-commentator/actions/runs/22185057157/job/64156345960`)
+
+### Release Workflow Evidence
+- `release-desktop` run:
+  - `v0.0.0-smoke.20260219-test` → `https://github.com/gatyoukatyou/cli-commentator/actions/runs/22185152032` (Success)
+- Execution mode: token fallback (`GH_RELEASE_TOKEN` not configured)
+- Release permission preflight:
+  - `Verify release publish permissions`: Pass on both arm64/x64 jobs
+  - `Build and draft release (signed + notarized)` / `Build and draft release (unsigned internal)`: Skip (token fallback path)
+- Artifact check:
+  - `latest.json`: Missing (Draft Release is intentionally skipped in fallback mode)
+  - `smoke-bundle-aarch64-apple-darwin`: Present (artifact id `5573817931`)
+  - `smoke-bundle-x86_64-apple-darwin`: Present (artifact id `5573870598`)
+  - `.app.tar.gz` / `.sig` / `.dmg`: Present (included in both uploaded artifacts)
+
+### Runtime/Recovery Evidence
+- Desktop lifecycle event sample (`[desktop/server-event]`): runtime smoke continued to pass via `desktop_distribution_smoke`
+- Server state event sample (`[server/state-event]`): state-event related regression coverage continued via `failure_regression`
+- Startup failure classification checked: Yes (continued in existing regression suite)
+
+### Cross-Platform Smoke Evidence
+- macOS arm64: Pass (`smoke-bundle-aarch64-apple-darwin`)
+- macOS x64: Pass (`smoke-bundle-x86_64-apple-darwin`)
+- Windows fallback path: Pass (`test_windows` check)
+
+### Risks and Exceptions
+- Open P0/P1: None known at this record point
+- Accepted risk: no Draft Release is created when `GH_RELEASE_TOKEN` is missing
+- Blocking issue:
+  - `#138` Apple certificate configuration (`APPLE_CERTIFICATE` secret is still missing)
+  - Missing `GH_RELEASE_TOKEN` for release creation path
+
+### Follow-up
+- [x] Add release write-permission preflight to workflow (PR #186, merge commit `60576eb`)
+- [ ] Configure `GH_RELEASE_TOKEN` (`contents:write`) and confirm `write_capable=true` in `Verify release publish permissions`
+- [ ] Configure `APPLE_CERTIFICATE` and make `pnpm verify:apple-signing` pass
+- Owner: maintainers
+- Due: 2026-02-23

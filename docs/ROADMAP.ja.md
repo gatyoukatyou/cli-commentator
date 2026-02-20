@@ -131,12 +131,14 @@ CLI Commentator は「ターミナルの作業ログを見て、別ウィンド�
 - `release-desktop` の smoke 実行を再開し、`smoke.01` / `smoke.02` の失敗要因（sidecar node不足、runner unsupported、release作成権限）を証跡へ反映
 - `.github/workflows/release-desktop.yml` に sidecar 準備/検証ステップを追加し、x86 runner を `macos-15-intel` へ修正（`smoke.03` で arm64/x64 両bundle生成を確認）
 - `docs/release-runbook.*` / `docs/release-evidence-log.*` を当日証跡で更新
+- PR #186（`fix(release): preflight release write permissions`）をマージし、`Verify release publish permissions` を導入
+- `v0.0.0-smoke.20260219-test`（`release-desktop` run `22185152032`）で preflight + token fallback 経路の成功を確認
 - docs drift guard と smoke matrix を運用し、v0.2.0 RC 判断材料を継続蓄積
 - `#138`（Apple certificate/secrets）未解消のため signed 配布判定は保留
 
 **Next**
-- `#138` を解消し、`pnpm verify:apple-signing` をPassさせる
-- `Resource not accessible by integration` の権限制約を解消し、Draft Release作成を復旧する
+- `#138` を解消し、`APPLE_CERTIFICATE` を登録したうえで `pnpm verify:apple-signing` をPassさせる
+- `GH_RELEASE_TOKEN`（`contents:write`）を設定し、`Verify release publish permissions` の `write_capable=true` を確認して Draft Release作成を復旧する
 - 起動障害系の回帰ケースを継続拡張（配布物起動/署名モード差分を含む）
 
 ---
