@@ -105,6 +105,14 @@ Related docs:
 
 ### 1-1. Local verification
 
+Recommended one-command wrapper:
+
+```bash
+pnpm verify:internal-release
+```
+
+Run individual commands if needed:
+
 ```bash
 pnpm install
 pnpm verify:updater
@@ -119,6 +127,8 @@ pnpm smoke:desktop-distribution
 ```
 
 Notes:
+- `verify:internal-release` is a wrapper that executes the unsigned-internal runbook checklist in order.
+- If `GH_RELEASE_TOKEN` is not set, it automatically uses `gh auth token`.
 - With `CLI_COMMENTATOR_FORCE_NO_PTY=1`, node-pty-required coverage (`windows-fallback-integration` restart `ptyError` scenario) is intentionally skipped.
 - `verify:release-token` prefers `GH_RELEASE_TOKEN` and falls back to `GITHUB_TOKEN`, then probes release-write capability via GitHub API.
 - If local `GITHUB_TOKEN` is unavailable, export `GH_RELEASE_TOKEN` temporarily before running the check.
