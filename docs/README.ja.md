@@ -24,4 +24,5 @@
 - [v0.2.0 RC判定 証跡ログ](release-evidence-log.ja.md)
 - [Cross-Platform Smoke Matrix](cross-platform-smoke-matrix.ja.md)
 - [証明書・Secrets運用ガイド](certificate-secrets.ja.md)
+- [手動テストチェックシート（内部検証）](manual-test-checklist.ja.md)
 - [ROADMAP/LLM_ADAPTER更新フロー](docs-update-flow.ja.md)

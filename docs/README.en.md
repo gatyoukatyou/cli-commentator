@@ -24,4 +24,5 @@ Each document should start with mutual links so readers can switch languages eas
 - [v0.2.0 RC Decision Evidence Log](release-evidence-log.en.md)
 - [Cross-Platform Smoke Matrix](cross-platform-smoke-matrix.en.md)
 - [Certificate & Secrets Operations](certificate-secrets.en.md)
+- [Manual Test Checklist (Internal Validation)](manual-test-checklist.en.md)
 - [ROADMAP/LLM_ADAPTER Update Flow](docs-update-flow.en.md)
