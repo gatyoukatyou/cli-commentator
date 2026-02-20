@@ -53,7 +53,7 @@ Related docs:
   - Missing secrets: `APPLE_CERTIFICATE`, `APPLE_CERTIFICATE_PASSWORD`, `KEYCHAIN_PASSWORD`, `APPLE_ID`, `APPLE_PASSWORD`, `APPLE_TEAM_ID`
   - As of 2026-02-13 workflow update, missing Apple secrets trigger unsigned internal fallback instead of hard stop
 
-## 0.6) Latest Local Preflight Record (2026-02-18)
+## 0.6) Latest Local Preflight (2026-02-18) + Smoke Revalidation (2026-02-19)
 
 - Target commit: `35262de` (`main`)
 - Outcome:
@@ -80,6 +80,11 @@ Related docs:
     - outcome: Failure
     - detail: both arm64 and x64 jobs completed bundling successfully
     - detail: both jobs failed when creating Draft Release with `Resource not accessible by integration`
+  - `v0.0.0-smoke.20260219-test`:
+    - run: `https://github.com/gatyoukatyou/cli-commentator/actions/runs/22185152032`
+    - outcome: Success
+    - detail: `Verify release publish permissions` passed on both arm64/x64 jobs (after PR #186 preflight rollout)
+    - detail: with `GH_RELEASE_TOKEN` still missing, Draft Release was skipped and token fallback artifacts were uploaded (`smoke-bundle-aarch64-apple-darwin` / `smoke-bundle-x86_64-apple-darwin`)
 
 ## 1) Pre-release checks (required)
 

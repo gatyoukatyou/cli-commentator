@@ -126,12 +126,14 @@ Build a minimal MVP that reliably works, then expand once value is proven.
 - Resumed `release-desktop` smoke runs and logged `smoke.01` / `smoke.02` failure causes (missing sidecar node binaries, unsupported runner label, release creation permission error)
 - Added sidecar prepare/verify steps in `.github/workflows/release-desktop.yml` and moved x64 to `macos-15-intel` (`smoke.03` confirmed successful bundling on both arm64/x64)
 - Updated `docs/release-runbook.*` and `docs/release-evidence-log.*` with same-day evidence
+- Merged PR #186 (`fix(release): preflight release write permissions`) and introduced `Verify release publish permissions`
+- Validated preflight + token fallback path with `v0.0.0-smoke.20260219-test` (`release-desktop` run `22185152032`)
 - Continue operating docs drift guard and smoke matrix to accumulate v0.2.0 RC readiness evidence
 - Signed release readiness remains blocked by `#138` (Apple certificate/secrets)
 
 **Next**
-- Resolve `#138` and make `pnpm verify:apple-signing` pass
-- Resolve `Resource not accessible by integration` permission constraints so Draft Release creation can complete
+- Resolve `#138`, register `APPLE_CERTIFICATE`, and make `pnpm verify:apple-signing` pass
+- Configure `GH_RELEASE_TOKEN` (`contents:write`), confirm `write_capable=true` in `Verify release publish permissions`, and restore Draft Release creation
 - Continue expanding startup-failure regression coverage (distribution startup and signing-mode differences)
 
 ---

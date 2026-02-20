@@ -53,7 +53,7 @@
   - 欠落Secrets: `APPLE_CERTIFICATE`, `APPLE_CERTIFICATE_PASSWORD`, `KEYCHAIN_PASSWORD`, `APPLE_ID`, `APPLE_PASSWORD`, `APPLE_TEAM_ID`
   - 2026-02-13 更新後のworkflowでは、欠落時は unsigned internal モードで継続する
 
-## 0.6) 最新ローカル事前検証（2026-02-18）
+## 0.6) 最新ローカル事前検証（2026-02-18）と smoke再検証（2026-02-19）
 
 - 対象コミット: `35262de`（`main`）
 - 結果:
@@ -80,6 +80,11 @@
     - 結果: Failure
     - 内訳: arm64/x64 両方で bundle 生成は成功
     - 内訳: 両jobとも Draft Release 作成で `Resource not accessible by integration`
+  - `v0.0.0-smoke.20260219-test`:
+    - run: `https://github.com/gatyoukatyou/cli-commentator/actions/runs/22185152032`
+    - 結果: Success
+    - 内訳: `Verify release publish permissions` は arm64/x64 両jobで成功（PR #186 の preflight 追加後）
+    - 内訳: `GH_RELEASE_TOKEN` 未設定のため Draft Release は作成せず、token fallback artifact（`smoke-bundle-aarch64-apple-darwin` / `smoke-bundle-x86_64-apple-darwin`）を出力
 
 ## 1) リリース前チェック（必須）
 
