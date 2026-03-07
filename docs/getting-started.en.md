@@ -153,6 +153,8 @@ Only set an explicit start port when repeated conflicts still cause `failed`.
 ### `Error: posix_spawnp failed`
 
 `node-pty` `spawn-helper` may not be executable.
+This is usually auto-fixed by the root `postinstall` during `pnpm install` / `pnpm dev`.
+If it still happens, inspect and repair it manually:
 
 ```bash
 find node_modules/.pnpm -path '*node-pty*' -name spawn-helper -print -exec ls -l {} \;

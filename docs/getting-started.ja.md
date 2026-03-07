@@ -153,6 +153,8 @@ CLI_COMMENTATOR_PORT=8788 pnpm dev:desktop:managed
 ### `Error: posix_spawnp failed`
 
 `node-pty` の `spawn-helper` に実行権限が付いていない可能性があります。
+通常は `pnpm install` / `pnpm dev` 時の `postinstall` で自動補正されます。
+それでも再発する場合は、以下で確認・手動補正してください。
 
 ```bash
 find node_modules/.pnpm -path '*node-pty*' -name spawn-helper -print -exec ls -l {} \;

@@ -3,6 +3,7 @@
   "private": true,
   "packageManager": "pnpm@9.0.0",
   "scripts": {
+    "postinstall": "node ./scripts/fix-node-pty-permissions.mjs",
     "dev": "concurrently -n server,web \"pnpm -C apps/server dev\" \"pnpm -C apps/web dev\"",
     "dev:server": "pnpm -C apps/server dev",
     "dev:web": "pnpm -C apps/web dev",
