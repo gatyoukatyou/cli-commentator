@@ -613,7 +613,7 @@ describe("windows fallback integration", () => {
     expect(`${stdoutOutput}\n${stderrOutput}`).toContain("INPUT_FILE is required when INPUT_MODE=file");
   }, 10000);
 
-  itRequiresNodePty("emits ptyError and structured restart failure logs when profile args are invalid", async () => {
+  itRequiresNodePty("emits ptyError and structured restart failure logs when profile command is invalid", async () => {
     const port = await getFreePort();
     const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "cli-commentator-restart-failure-it-"));
     const xdgConfigHome = path.join(tmpDir, "xdg");
@@ -678,8 +678,8 @@ describe("windows fallback integration", () => {
           kind: "saveProfile",
           profile: {
             name: "restart-failure-it-profile",
-            cmd: process.execPath,
-            args: "invalid-args",
+            cmd: "__definitely_missing_command__",
+            args: [],
             style: "kansai",
             logSource: "auto",
           },
@@ -711,7 +711,7 @@ describe("windows fallback integration", () => {
         10000,
         50,
         () =>
-          `Did not receive ptyError after restart with invalid args. kinds=${messages
+          `Did not receive ptyError after restart with invalid command. kinds=${messages
             .slice(checkpoint)
             .map((m) => String(m.kind ?? "unknown"))
             .join(",")} stderr_tail=${stderrOutput.slice(-500)}`

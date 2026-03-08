@@ -59,6 +59,26 @@ describe("pty/manager", () => {
 
       expect(config.args).toEqual([]);
     });
+
+    it("trims profile command, args, and cwd", () => {
+      const profile: Profile = {
+        id: "test-id",
+        name: "Whitespace",
+        cmd: "  /bin/zsh  ",
+        args: ["  -l", "-i  ", "   "],
+        cwd: "  /tmp/test  ",
+        style: "standard",
+        logSource: "claude",
+        createdAt: 1000,
+        updatedAt: 1000,
+      };
+
+      const config = configFromProfile(profile);
+
+      expect(config.cmd).toBe("/bin/zsh");
+      expect(config.args).toEqual(["-l", "-i"]);
+      expect(config.cwd).toBe("/tmp/test");
+    });
   });
 
   describe("configFromEnv", () => {
@@ -115,6 +135,18 @@ describe("pty/manager", () => {
       });
 
       expect(config.cwd).toBe(process.cwd());
+    });
+
+    it("trims environment command, args, and cwd", () => {
+      const config = configFromEnv({
+        TARGET_CMD: "  bash  ",
+        TARGET_ARGS: "  -l   -i  ",
+        TARGET_CWD: "  /tmp/demo  ",
+      });
+
+      expect(config.cmd).toBe("bash");
+      expect(config.args).toEqual(["-l", "-i"]);
+      expect(config.cwd).toBe("/tmp/demo");
     });
 
     it("uses default process.env when no argument provided", () => {

@@ -3,13 +3,12 @@ import fs from "node:fs";
 import http from "node:http";
 import { WebSocketServer } from "ws";
 
-import type { Event, SourceMode, SourceState, Style, WsIncoming, WsOutgoing } from "./types.js";
+import type { Event, InputMode, SourceMode, SourceState, Style, WsIncoming, WsOutgoing } from "./types.js";
 import { redact } from "./redact.js";
 import { extractEvents } from "./extract.js";
 import { comment } from "./styles/index.js";
 import { getAutoDetectedSource, resetAutoDetection } from "./rulesets/index.js";
 import * as profileManager from "./profile/manager.js";
-import type { ProfileSummary } from "./profile/types.js";
 import {
   createPTYManager,
   configFromProfile,
@@ -33,8 +32,6 @@ import {
 const PORT = Number(process.env.CLI_COMMENTATOR_PORT ?? process.env.PORT ?? 8787);
 const COMMENT_EXIT_TIMEOUT_MS = parseInt(process.env.COMMENT_EXIT_TIMEOUT_MS ?? "1500", 10);
 
-// Input mode configuration
-type InputMode = "pty" | "file";
 const INPUT_MODE_RAW = process.env.INPUT_MODE; // For debugging
 
 function parseInputMode(value?: string): InputMode {
@@ -234,10 +231,16 @@ function setupPTY(config: PTYConfig, profileId: string | null): void {
   }
 
   // Process and broadcast data using common pipeline
-  term.onData((data) => processInputData(data, true));
+  term.onData((data) => {
+    if (ptyManager.current !== term) return;
+    processInputData(data, true);
+  });
 
   // Handle PTY exit - only trigger cleanup for final exit, not for profile switch
   term.onExit(({ exitCode }) => {
+    if (ptyManager.current !== term) {
+      return;
+    }
     // If we're restarting, don't broadcast done or trigger cleanup
     if (restartInFlight || queuedProfileId !== undefined) {
       return;
@@ -299,7 +302,7 @@ function setupPTY(config: PTYConfig, profileId: string | null): void {
  * Restart PTY with new profile settings
  * Serialized to prevent race conditions from rapid profile switches
  */
-async function restartPTY(profileId: string | null): Promise<void> {
+async function restartPTY(profileId: string | null, force = false): Promise<void> {
   // If a restart is already in progress, queue this request (only keep the latest)
   if (restartInFlight) {
     queuedProfileId = profileId;
@@ -307,16 +310,18 @@ async function restartPTY(profileId: string | null): Promise<void> {
   }
 
   // Check if we're already running this profile (skip unnecessary restart)
-  if (profileId === currentlyRunningProfileId && ptyManager.current !== null) {
+  if (!force && profileId === currentlyRunningProfileId && (ptyManager.current !== null || fileTail !== null)) {
     // Already running this profile - no restart needed
     return;
   }
 
   restartInFlight = true;
   transitionServerState("restart_begin", "restarting", { profileId });
+  let nextInputMode: InputMode = INPUT_MODE;
 
   try {
-    let config: PTYConfig;
+    let config: PTYConfig | null = null;
+    let filePath: string | null = null;
     let newStyle = currentStyle;
     let newSourceMode = currentSourceMode;
 
@@ -326,14 +331,30 @@ async function restartPTY(profileId: string | null): Promise<void> {
         broadcast({ kind: "ptyError", error: `Profile not found: ${profileId}` });
         return;
       }
-      config = configFromProfile(profile);
+      nextInputMode = profile.inputMode ?? "pty";
       newStyle = profile.style;
       newSourceMode = profile.logSource;
+      if (nextInputMode === "file") {
+        filePath = (profile.inputFile ?? "").trim();
+        if (!filePath) {
+          throw new Error("inputFile is required when inputMode=file");
+        }
+      } else {
+        config = configFromProfile(profile);
+      }
     } else {
       // No profile - use environment variables
-      config = configFromEnv();
+      nextInputMode = INPUT_MODE;
       newStyle = (process.env.STYLE as Style) ?? "kansai";
       newSourceMode = normalizeSource(process.env.LOG_SOURCE);
+      if (nextInputMode === "file") {
+        filePath = INPUT_FILE.trim();
+        if (!filePath) {
+          throw new Error("INPUT_FILE is required when INPUT_MODE=file");
+        }
+      } else {
+        config = configFromEnv();
+      }
     }
 
     // Kill existing PTY / file tail fallback
@@ -350,18 +371,40 @@ async function restartPTY(profileId: string | null): Promise<void> {
     };
 
     // Broadcast in correct order: ptyRestart -> style -> source -> (then event:start from setupPTY)
-    broadcast({ kind: "ptyRestart", cmd: config.cmd, args: config.args, profileId });
+    broadcast({
+      kind: "ptyRestart",
+      cmd: nextInputMode === "file" ? "file" : config?.cmd ?? "file",
+      args: nextInputMode === "file" ? [filePath ?? ""] : config?.args ?? [],
+      profileId,
+    });
     broadcast({ kind: "style", style: currentStyle });
     broadcast({ kind: "source", source: sourceState });
 
-    // Spawn new PTY (this broadcasts event:start at the end)
-    runtimeInputMode = "pty";
-    setupPTY(config, profileId);
-    enableStdinPassthrough();
+    if (nextInputMode === "file") {
+      runtimeInputMode = "file";
+      setupFileTail(filePath ?? "", { fatal: false });
+    } else {
+      runtimeInputMode = "pty";
+      setupPTY(config as PTYConfig, profileId);
+      enableStdinPassthrough();
+    }
 
     // Update tracking
     currentlyRunningProfileId = profileId;
   } catch (err) {
+    if (nextInputMode === "file") {
+      const message = err instanceof Error ? err.message : String(err);
+      transitionServerState("restart_failed", "failed", {
+        level: "error",
+        inputMode: "file",
+        detail: message,
+        profileId,
+      });
+      broadcast({ kind: "ptyError", error: message });
+      console.error("Failed to restart file monitoring:", err);
+      return;
+    }
+
     const failure = classifyPtyFailure(err, getNodePtyError());
     if (failure.kind === "ptyUnavailable") {
       markPtyUnavailable(failure.error);
@@ -472,18 +515,26 @@ wss.on("connection", async (ws) => {
             const input = msg.profile;
             if (!input) throw new Error("Missing profile data");
 
-            let saved: ProfileSummary;
+            let savedId: string;
             if (input.id) {
               // Update existing
               const updated = await profileManager.update(input.id, input);
-              saved = { id: updated.id, name: updated.name, cmd: updated.cmd };
+              savedId = updated.id;
             } else {
               // Create new
               const created = await profileManager.create(input);
-              saved = { id: created.id, name: created.name, cmd: created.cmd };
+              savedId = created.id;
+            }
+            const summaries = await profileManager.list();
+            const saved = summaries.find((profile) => profile.id === savedId);
+            if (!saved) {
+              throw new Error(`Saved profile not found: ${savedId}`);
             }
             const active = await profileManager.getActiveId();
             broadcast({ kind: "profileSaved", profile: saved, activeId: active });
+            if (active === savedId) {
+              await restartPTY(active, true);
+            }
           } catch (err) {
             ws.send(JSON.stringify({ kind: "profileError", error: String(err) }));
           }
@@ -526,7 +577,8 @@ wss.on("connection", async (ws) => {
  * Setup file tail input source for external log monitoring.
  * @see Issue #40
  */
-function setupFileTail(filePath: string): void {
+function setupFileTail(filePath: string, options?: { fatal?: boolean }): void {
+  const fatal = options?.fatal ?? true;
   if (!filePath) {
     transitionServerState("file_tail_setup_failed", "failed", {
       level: "error",
@@ -534,7 +586,10 @@ function setupFileTail(filePath: string): void {
       detail: "INPUT_FILE is required",
     });
     console.error("INPUT_FILE is required when INPUT_MODE=file");
-    process.exit(1);
+    if (fatal) {
+      process.exit(1);
+    }
+    throw new Error("INPUT_FILE is required when INPUT_MODE=file");
   }
 
   console.log(`Starting file tail mode: ${filePath}`);
@@ -626,7 +681,10 @@ function setupFileTail(filePath: string): void {
       detail: err instanceof Error ? err.message : String(err),
     });
     console.error("Failed to start file tail:", err);
-    process.exit(1);
+    if (fatal) {
+      process.exit(1);
+    }
+    throw err;
   }
 }
 

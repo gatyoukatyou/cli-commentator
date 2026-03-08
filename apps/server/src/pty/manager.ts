@@ -81,6 +81,19 @@ export type PTYConfig = {
   rows?: number;
 };
 
+function normalizeCommand(value: string): string {
+  return value.trim();
+}
+
+function normalizeArgs(args: string[]): string[] {
+  return args.map((arg) => arg.trim()).filter(Boolean);
+}
+
+function normalizeCwd(value?: string): string {
+  const trimmed = value?.trim();
+  return trimmed || process.cwd();
+}
+
 /**
  * Get the default shell for the current platform
  */
@@ -214,9 +227,9 @@ export function createPTYManager(): PTYManager {
  */
 export function configFromProfile(profile: Profile): PTYConfig {
   return {
-    cmd: profile.cmd,
-    args: profile.args,
-    cwd: profile.cwd ?? process.cwd(),
+    cmd: normalizeCommand(profile.cmd),
+    args: normalizeArgs(profile.args),
+    cwd: normalizeCwd(profile.cwd),
   };
 }
 
@@ -253,8 +266,8 @@ export function configFromEnv(
   env: Record<string, string | undefined> = process.env
 ): PTYConfig {
   return {
-    cmd: env.TARGET_CMD ?? getDefaultShell(),
-    args: parseArgs(env),
-    cwd: env.TARGET_CWD ?? process.cwd(),
+    cmd: normalizeCommand(env.TARGET_CMD ?? getDefaultShell()),
+    args: normalizeArgs(parseArgs(env)),
+    cwd: normalizeCwd(env.TARGET_CWD),
   };
 }

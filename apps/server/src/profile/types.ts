@@ -1,4 +1,4 @@
-import type { Style, SourceMode } from "../types.js";
+import type { Style, SourceMode, InputMode } from "../types.js";
 import type { ProviderName } from "../llm/types.js";
 
 /**
@@ -12,6 +12,8 @@ export type Profile = {
   cwd?: string;
   style: Style;
   logSource: SourceMode;
+  inputMode?: InputMode;
+  inputFile?: string;
   llmProvider?: ProviderName;
   createdAt: number;
   updatedAt: number;
@@ -41,6 +43,8 @@ export type CreateProfileInput = {
   cwd?: string;
   style?: Style;
   logSource?: SourceMode;
+  inputMode?: InputMode;
+  inputFile?: string;
   llmProvider?: ProviderName;
 };
 
