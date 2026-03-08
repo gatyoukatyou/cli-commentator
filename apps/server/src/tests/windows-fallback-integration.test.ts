@@ -717,6 +717,7 @@ describe("windows fallback integration", () => {
         50,
         () =>
           `Did not observe PTY session exit after restart with invalid command. kinds=${messages
+          `Did not observe PTY session exit after restart with invalid command. kinds=${messages
             .slice(checkpoint)
             .map((m) => String(m.kind ?? "unknown"))
             .join(",")} stderr_tail=${stderrOutput.slice(-500)}`
