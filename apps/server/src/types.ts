@@ -3,6 +3,7 @@ import type { Profile, ProfileSummary, CreateProfileInput, UpdateProfileInput } 
 export type Style = "standard" | "kansai" | "zundamon";
 export type DetectedSource = "claude" | "codex" | "generic";
 export type SourceMode = "auto" | DetectedSource;
+export type InputMode = "pty" | "file";
 export type SourceState = { mode: SourceMode; detected: DetectedSource | null };
 
 export type EventType =

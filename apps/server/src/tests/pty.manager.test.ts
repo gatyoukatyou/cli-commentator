@@ -1,8 +1,13 @@
-import { describe, it, expect } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { configFromProfile, configFromEnv, resolveUseConpty } from "../pty/manager.js";
 import type { Profile } from "../profile/types.js";
 
 describe("pty/manager", () => {
+  afterEach(() => {
+    vi.doUnmock("node:module");
+    vi.resetModules();
+  });
+
   describe("configFromProfile", () => {
     it("extracts PTY config from profile", () => {
       const profile: Profile = {
@@ -58,6 +63,26 @@ describe("pty/manager", () => {
       const config = configFromProfile(profile);
 
       expect(config.args).toEqual([]);
+    });
+
+    it("trims profile command, args, and cwd", () => {
+      const profile: Profile = {
+        id: "test-id",
+        name: "Whitespace",
+        cmd: "  /bin/zsh  ",
+        args: ["  -l", "-i  ", "   "],
+        cwd: "  /tmp/test  ",
+        style: "standard",
+        logSource: "claude",
+        createdAt: 1000,
+        updatedAt: 1000,
+      };
+
+      const config = configFromProfile(profile);
+
+      expect(config.cmd).toBe("/bin/zsh");
+      expect(config.args).toEqual(["-l", "-i"]);
+      expect(config.cwd).toBe("/tmp/test");
     });
   });
 
@@ -117,6 +142,18 @@ describe("pty/manager", () => {
       expect(config.cwd).toBe(process.cwd());
     });
 
+    it("trims environment command, args, and cwd", () => {
+      const config = configFromEnv({
+        TARGET_CMD: "  bash  ",
+        TARGET_ARGS: "  -l   -i  ",
+        TARGET_CWD: "  /tmp/demo  ",
+      });
+
+      expect(config.cmd).toBe("bash");
+      expect(config.args).toEqual(["-l", "-i"]);
+      expect(config.cwd).toBe("/tmp/demo");
+    });
+
     it("uses default process.env when no argument provided", () => {
       // This tests that the function can be called without arguments
       // We can't fully test this without mocking process.env, but we can verify it doesn't throw
@@ -163,6 +200,50 @@ describe("pty/manager", () => {
 
     it("defaults to true on Windows when no override/debugger is present", () => {
       expect(resolveUseConpty({ platform: "win32", env: {}, execArgv: [] })).toBe(true);
+    });
+  });
+
+  describe("createPTYManager", () => {
+    it("surfaces node-pty spawn failures unchanged", async () => {
+      vi.resetModules();
+      const spawnError = new Error("spawn bash ENOENT");
+      const spawn = vi.fn(() => {
+        throw spawnError;
+      });
+
+      vi.doMock("node:module", () => ({
+        createRequire: () => {
+          return (specifier: string) => {
+            if (specifier === "node-pty") {
+              return { spawn };
+            }
+            throw new Error(`unexpected require: ${specifier}`);
+          };
+        },
+      }));
+
+      const { createPTYManager } = await import("../pty/manager.js");
+      const manager = createPTYManager();
+
+      expect(() =>
+        manager.spawn({
+          cmd: "bash",
+          args: ["-lc", "pwd"],
+          cwd: process.cwd(),
+        })
+      ).toThrow(spawnError);
+
+      expect(spawn).toHaveBeenCalledWith(
+        "bash",
+        ["-lc", "pwd"],
+        expect.objectContaining({
+          name: "xterm-256color",
+          cols: 120,
+          rows: 30,
+          cwd: process.cwd(),
+          env: expect.any(Object),
+        })
+      );
     });
   });
 });

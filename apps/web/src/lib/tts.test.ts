@@ -22,6 +22,7 @@ describe("TTS presets", () => {
       rate: 1.2,
       pitch: 1.2,
       volume: 0.8,
+      includeRawDetail: true,
     };
 
     const next = applyTTSPreset(current, "calm");
@@ -29,6 +30,7 @@ describe("TTS presets", () => {
     expect(next.rate).toBe(0.85);
     expect(next.pitch).toBe(0.95);
     expect(next.volume).toBe(0.9);
+    expect(next.includeRawDetail).toBe(true);
   });
 
   it("detects matching preset id from settings", () => {
@@ -36,6 +38,7 @@ describe("TTS presets", () => {
     if (!preset) throw new Error("clear preset not found");
     const settings: TTSSettings = {
       voiceURI: null,
+      includeRawDetail: false,
       ...preset.settings,
     };
     expect(detectTTSPreset(settings)).toBe("clear");
@@ -47,6 +50,7 @@ describe("TTS presets", () => {
       rate: 0.92,
       pitch: 1.03,
       volume: 0.97,
+      includeRawDetail: false,
     };
     expect(detectTTSPreset(custom)).toBeNull();
   });

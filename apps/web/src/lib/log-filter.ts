@@ -1,4 +1,5 @@
 import type { EventType } from "../types";
+import { splitGlossaryNote } from "./glossary-note";
 
 export type LogEventTypeFilter = "all" | EventType;
 
@@ -8,6 +9,16 @@ export type CommentaryItem = {
   eventType: EventType;
   summary?: string;
   detail?: string;
+};
+
+export type GroupedCommentaryItem = {
+  key: string;
+  eventType: EventType;
+  count: number;
+  startTs: number;
+  endTs: number;
+  latest: CommentaryItem;
+  items: CommentaryItem[];
 };
 
 export const EVENT_TYPE_LABELS: Record<EventType, string> = {
@@ -48,6 +59,32 @@ export const EVENT_TYPE_OPTIONS: Array<{ value: LogEventTypeFilter; label: strin
 ];
 
 const SEARCHABLE_EVENT_TYPES = new Set<EventType>(Object.keys(EVENT_TYPE_LABELS) as EventType[]);
+const GROUPABLE_EVENT_TYPES = new Set<EventType>([
+  "stdout",
+  "search",
+  "read",
+  "git",
+  "github",
+  "test",
+  "install",
+  "build",
+  "lint",
+]);
+const GROUP_WINDOW_MS = 15000;
+
+const normalizeGroupText = (text: string): string =>
+  splitGlossaryNote(text)
+    .mainText.toLowerCase()
+    .replace(/\s+/g, " ")
+    .replace(/[「」『』“”"]/g, "")
+    .trim();
+
+export const getCommentaryGroupKey = (item: CommentaryItem): string | null => {
+  if (!GROUPABLE_EVENT_TYPES.has(item.eventType)) return null;
+  const textKey = normalizeGroupText(item.text);
+  if (!textKey) return null;
+  return `${item.eventType}:${textKey}`;
+};
 
 export function isEventType(value: unknown): value is EventType {
   return typeof value === "string" && SEARCHABLE_EVENT_TYPES.has(value as EventType);
@@ -75,4 +112,38 @@ export function filterCommentaryItems(
 
     return haystack.includes(query);
   });
+}
+
+export function groupCommentaryItems(items: CommentaryItem[]): GroupedCommentaryItem[] {
+  const groups: GroupedCommentaryItem[] = [];
+
+  for (const item of items) {
+    const key = getCommentaryGroupKey(item);
+    const previous = groups.at(-1);
+
+    if (
+      key &&
+      previous &&
+      previous.key === key &&
+      item.ts - previous.endTs <= GROUP_WINDOW_MS
+    ) {
+      previous.count += 1;
+      previous.endTs = item.ts;
+      previous.latest = item;
+      previous.items.push(item);
+      continue;
+    }
+
+    groups.push({
+      key: key ?? `${item.eventType}:${item.ts}:${groups.length}`,
+      eventType: item.eventType,
+      count: 1,
+      startTs: item.ts,
+      endTs: item.ts,
+      latest: item,
+      items: [item],
+    });
+  }
+
+  return groups;
 }

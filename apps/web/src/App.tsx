@@ -23,17 +23,20 @@ import {
   EVENT_TYPE_LABELS,
   EVENT_TYPE_OPTIONS,
   filterCommentaryItems,
+  getCommentaryGroupKey,
+  groupCommentaryItems,
   isEventType,
   type CommentaryItem,
   type LogEventTypeFilter,
 } from "./lib/log-filter";
-import { splitGlossaryNote } from "./lib/glossary-note";
+import { buildSpeechText, splitGlossaryNote } from "./lib/glossary-note";
 import type {
   Style,
   SourceState,
   Profile,
   ProfileSummary,
   CreateProfileInput,
+  InputMode,
   ServerToClientMessage,
   PtyUnavailablePayload,
 } from "./types";
@@ -45,6 +48,10 @@ type PayloadMessage = { type?: string; payload?: PtyUnavailablePayload | Record<
 type TTSPresetSelectValue = TTSPresetId | "custom";
 
 type ConnectionStatus = "connecting" | "connected" | "disconnected" | "reconnecting";
+const LOG_AUTO_SCROLL_THRESHOLD_PX = 64;
+const GENERIC_LOG_SUMMARIES = new Set(["ログ更新"]);
+const GROUP_DETAIL_PREVIEW_COUNT = 3;
+const TTS_BATCH_DELAY_MS = 900;
 
 type ServerStatusDetail = {
   state: DesktopServerState;
@@ -65,6 +72,12 @@ type UpdaterCheckStatus = {
   date: string | null;
   body: string | null;
   error: string | null;
+};
+
+type PendingSpeechBatch = {
+  groupKey: string | null;
+  latest: CommentaryItem;
+  count: number;
 };
 
 type TauriCore = { invoke: (cmd: string) => Promise<unknown> };
@@ -93,6 +106,25 @@ const normalizeSuggestion = (value?: string): string | undefined => {
   if (!value) return undefined;
   const trimmed = value.trim();
   return trimmed.length > 0 ? trimmed : undefined;
+};
+
+const unique = (values: Array<string | undefined>): string[] => {
+  const result: string[] = [];
+  const seen = new Set<string>();
+  for (const value of values) {
+    const normalized = normalizeSuggestion(value);
+    if (!normalized || seen.has(normalized)) continue;
+    seen.add(normalized);
+    result.push(normalized);
+  }
+  return result;
+};
+
+const formatLogTimeRange = (startTs: number, endTs: number): string => {
+  const start = new Date(startTs).toLocaleTimeString();
+  if (startTs === endTs) return start;
+  const end = new Date(endTs).toLocaleTimeString();
+  return `${start} - ${end}`;
 };
 
 const errorToMessage = (error: unknown): string => {
@@ -145,6 +177,7 @@ function stubProfileFromSummary(summary: ProfileSummary): Profile {
     args: [],
     style: "kansai",
     logSource: "auto",
+    inputMode: "pty",
     createdAt: 0,
     updatedAt: 0,
   };
@@ -457,6 +490,8 @@ export default function App() {
   const reconnectAttemptRef = useRef(0);
   const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingEditIdRef = useRef<string | null>(null);
+  const logContainerRef = useRef<HTMLDivElement | null>(null);
+  const shouldStickLogRef = useRef(true);
 
   // Profile state
   const [profiles, setProfiles] = useState<ProfileSummary[]>([]);
@@ -484,6 +519,8 @@ export default function App() {
   const ttsSupported = isTTSSupported();
   const ttsEnabledRef = useRef(ttsEnabled);
   const ttsSettingsRef = useRef(ttsSettings);
+  const pendingSpeechRef = useRef<PendingSpeechBatch | null>(null);
+  const pendingSpeechTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const defaultWsPort = useMemo(() => {
     const parsed = Number(import.meta.env.VITE_WS_PORT ?? "8787");
@@ -529,7 +566,73 @@ export default function App() {
   }, [ttsSupported]);
 
   // TTS cleanup on unmount (prevent orphan speech on reload/navigation)
-  useEffect(() => () => stopSpeech(), []);
+  useEffect(() => {
+    return () => {
+      if (pendingSpeechTimeoutRef.current) {
+        clearTimeout(pendingSpeechTimeoutRef.current);
+        pendingSpeechTimeoutRef.current = null;
+      }
+      pendingSpeechRef.current = null;
+      stopSpeech();
+    };
+  }, []);
+
+  const clearPendingSpeech = () => {
+    if (pendingSpeechTimeoutRef.current) {
+      clearTimeout(pendingSpeechTimeoutRef.current);
+      pendingSpeechTimeoutRef.current = null;
+    }
+    pendingSpeechRef.current = null;
+  };
+
+  const flushPendingSpeech = () => {
+    if (pendingSpeechTimeoutRef.current) {
+      clearTimeout(pendingSpeechTimeoutRef.current);
+      pendingSpeechTimeoutRef.current = null;
+    }
+
+    const pending = pendingSpeechRef.current;
+    pendingSpeechRef.current = null;
+    if (!pending || !ttsEnabledRef.current) return;
+
+    const rawDetail = ttsSettingsRef.current.includeRawDetail ? normalizeSuggestion(pending.latest.detail) : undefined;
+    const speechText = buildSpeechText(pending.latest.text, pending.count, rawDetail);
+    if (!speechText) return;
+    speak(speechText, ttsSettingsRef.current);
+  };
+
+  const schedulePendingSpeech = () => {
+    if (pendingSpeechTimeoutRef.current) {
+      clearTimeout(pendingSpeechTimeoutRef.current);
+    }
+    pendingSpeechTimeoutRef.current = setTimeout(() => {
+      flushPendingSpeech();
+    }, TTS_BATCH_DELAY_MS);
+  };
+
+  const queueSpeech = (item: CommentaryItem) => {
+    if (!ttsEnabledRef.current) return;
+
+    const groupKey = getCommentaryGroupKey(item);
+    const pending = pendingSpeechRef.current;
+    if (pending && groupKey && pending.groupKey === groupKey) {
+      pending.latest = item;
+      pending.count += 1;
+      schedulePendingSpeech();
+      return;
+    }
+
+    if (pending) {
+      flushPendingSpeech();
+    }
+
+    pendingSpeechRef.current = {
+      groupKey,
+      latest: item,
+      count: 1,
+    };
+    schedulePendingSpeech();
+  };
 
   // Copy feedback cleanup/reset
   useEffect(() => {
@@ -547,6 +650,7 @@ export default function App() {
       // Safari対策: ユーザー操作をトリガーに一言喋らせる
       speak("読み上げを開始します", ttsSettings);
     } else {
+      clearPendingSpeech();
       stopSpeech();
       setTtsSettingsOpen(false);
     }
@@ -605,7 +709,7 @@ export default function App() {
       wsRef.current = ws;
 
       ws.onopen = () => {
-        if (cancelled) return;
+        if (cancelled || wsRef.current !== ws) return;
         console.log("WebSocket connected");
         setConnectionStatus("connected");
         setProfileError(null); // Clear WS offline error on reconnect
@@ -613,7 +717,7 @@ export default function App() {
       };
 
       ws.onmessage = (e) => {
-        if (cancelled) return;
+        if (cancelled || wsRef.current !== ws) return;
         try {
           const msg = JSON.parse(e.data) as ServerToClientMessage | LegacyHello | PayloadMessage;
           const kind = "kind" in msg ? msg.kind : msg.type;
@@ -637,13 +741,15 @@ export default function App() {
                 const eventType = isEventType(eventTypeCandidate) ? eventTypeCandidate : "stdout";
                 const summary = typeof ev?.summary === "string" ? ev.summary : undefined;
                 const detail = typeof ev?.detail === "string" ? ev.detail : undefined;
-                setItems((prev) =>
-                  [...prev, { ts: data.ts as number, text: data.text as string, eventType, summary, detail }].slice(-200)
-                );
-                // TTS: 有効なら読み上げ
-                if (ttsEnabledRef.current) {
-                  speak(data.text as string, ttsSettingsRef.current);
-                }
+                const nextItem: CommentaryItem = {
+                  ts: data.ts as number,
+                  text: data.text as string,
+                  eventType,
+                  summary,
+                  detail,
+                };
+                setItems((prev) => [...prev, nextItem].slice(-200));
+                queueSpeech(nextItem);
               }
               break;
             case "profiles":
@@ -708,6 +814,8 @@ export default function App() {
             case "ptyRestart":
               // Clear commentary items when PTY restarts
               setItems([]);
+              clearPendingSpeech();
+              stopSpeech();
               setProfileError(null);
               setPtyError(null);
               break;
@@ -735,12 +843,15 @@ export default function App() {
       };
 
       ws.onerror = (error) => {
+        if (wsRef.current !== ws) return;
         console.error("WebSocket error:", error);
       };
 
       ws.onclose = (event) => {
+        if (wsRef.current !== ws) return;
         console.log("WebSocket closed:", event.code, event.reason);
         wsRef.current = null;
+        clearPendingSpeech();
 
         // D-1: Don't reconnect if cancelled (unmount/hot-reload)
         if (cancelled) return;
@@ -823,6 +934,8 @@ export default function App() {
     cwd: string;
     style: Style;
     logSource: SourceState["mode"];
+    inputMode: InputMode;
+    inputFile: string;
     llmProvider: string;
   }) => {
     setProfileError(null);
@@ -830,14 +943,20 @@ export default function App() {
       setProfileError("サーバーに接続されていません。再接続を待ってください。");
       return;
     }
+    const normalizedName = input.name.trim();
+    const normalizedCmd = input.cmd.trim();
+    const normalizedCwd = input.cwd.trim();
+    const normalizedInputFile = input.inputFile.trim();
     const profile: CreateProfileInput & { id?: string } = {
       id: input.id,
-      name: input.name,
-      cmd: input.cmd,
-      args: input.args.split(" ").filter(Boolean),
-      cwd: input.cwd || undefined,
+      name: normalizedName,
+      cmd: normalizedCmd || (input.inputMode === "file" ? "file" : normalizedCmd),
+      args: input.args.trim().split(/\s+/).filter(Boolean),
+      cwd: normalizedCwd || undefined,
       style: input.style,
       logSource: input.logSource,
+      inputMode: input.inputMode,
+      inputFile: normalizedInputFile || undefined,
       llmProvider: input.llmProvider as CreateProfileInput["llmProvider"],
     };
     wsRef.current.send(JSON.stringify({ kind: "saveProfile", profile }));
@@ -871,6 +990,25 @@ export default function App() {
     () => filterCommentaryItems(items, { query: logQuery, eventType: logEventType }),
     [items, logEventType, logQuery]
   );
+  const groupedItems = useMemo(() => groupCommentaryItems(filteredItems), [filteredItems]);
+
+  const handleLogScroll = useCallback(() => {
+    const container = logContainerRef.current;
+    if (!container) return;
+    const distanceToBottom = container.scrollHeight - container.scrollTop - container.clientHeight;
+    shouldStickLogRef.current = distanceToBottom <= LOG_AUTO_SCROLL_THRESHOLD_PX;
+  }, []);
+
+  useEffect(() => {
+    const container = logContainerRef.current;
+    if (!container || !shouldStickLogRef.current) return;
+
+    const frame = requestAnimationFrame(() => {
+      container.scrollTop = container.scrollHeight;
+    });
+
+    return () => cancelAnimationFrame(frame);
+  }, [filteredItems]);
 
   const getStatusIndicatorClass = () => {
     switch (connectionStatus) {
@@ -1130,6 +1268,25 @@ export default function App() {
             </div>
           </div>
 
+          <div className="tts-settings__field">
+            <label className="tts-settings__checkbox">
+              <input
+                type="checkbox"
+                checked={ttsSettings.includeRawDetail}
+                onChange={(e) =>
+                  handleTTSSettingsChange({
+                    ...ttsSettings,
+                    includeRawDetail: e.target.checked,
+                  })
+                }
+              />
+              <span>原文も読む</span>
+            </label>
+            <div className="tts-settings__helper">
+              オフ: 実況中心で短く読みます。オン: 検出した原文も続けて読みます。
+            </div>
+          </div>
+
           {/* Test & Reset Buttons */}
           <div className="tts-settings__actions">
             <button onClick={handleTestSpeak} className="btn-primary">
@@ -1169,31 +1326,104 @@ export default function App() {
         </div>
         <div className="log-toolbar__meta">
           {filteredItems.length} / {items.length} 件
+          {groupedItems.length !== filteredItems.length && `（表示 ${groupedItems.length} カード）`}
         </div>
       </div>
 
-      <div className="log-container">
+      <div ref={logContainerRef} className="log-container" onScroll={handleLogScroll}>
         {filteredItems.length === 0 ? (
           <div className="log-empty">条件に一致するログはありません。</div>
         ) : (
-          filteredItems.map((it, idx) => {
+          groupedItems.map((group, idx) => {
+            const it = group.latest;
             const parts = splitGlossaryNote(it.text);
             const notes = parts.noteText?.split(" / ").map((entry) => entry.trim()).filter(Boolean) ?? [];
+            const detailEntries = unique(group.items.map((entry) => entry.detail));
+            const summaryEntries = unique(
+              group.items
+                .map((entry) => entry.summary)
+                .filter((entry) => entry && !GENERIC_LOG_SUMMARIES.has(entry))
+            );
+            const detailPreview = detailEntries.slice(-GROUP_DETAIL_PREVIEW_COUNT);
+            const hiddenDetailCount = Math.max(0, detailEntries.length - detailPreview.length);
+            const isGrouped = group.count > 1;
+            const latestSummary = summaryEntries.at(-1);
+            const hasUsefulSummary = summaryEntries.length > 0;
+            const groupHint = isGrouped
+              ? `同じ流れのログが ${group.count} 件続いたので、最新の内容を代表で見せています。`
+              : null;
 
             return (
-              <div key={`${it.ts}-${idx}-${it.eventType}`} className="log-item">
+              <div key={`${group.key}-${idx}`} className="log-item">
                 <div className="log-item__header">
-                  <div className="log-item__time">{new Date(it.ts).toLocaleTimeString()}</div>
-                  <div className="log-item__type">{EVENT_TYPE_LABELS[it.eventType]}</div>
+                  <div className="log-item__time">{formatLogTimeRange(group.startTs, group.endTs)}</div>
+                  <div className="log-item__header-meta">
+                    <div className="log-item__type">{EVENT_TYPE_LABELS[it.eventType]}</div>
+                    {isGrouped && <div className="log-item__group-badge">{group.count}件まとめ</div>}
+                  </div>
                 </div>
                 <div className="log-item__text">{parts.mainText}</div>
-                {notes.length > 0 && (
-                  <div className="log-item__note" aria-label="用語注釈">
-                    {notes.map((note) => (
-                      <span key={note} className="log-item__note-chip">
-                        {note}
-                      </span>
-                    ))}
+                {(groupHint || parts.memoText || notes.length > 0) && (
+                  <div className="log-item__explain">
+                    {groupHint && (
+                      <div className="log-item__explain-body">
+                        <div className="log-item__section-label">まとめ表示</div>
+                        <div className="log-item__explain-text">{groupHint}</div>
+                      </div>
+                    )}
+                    {parts.memoText && (
+                      <div className="log-item__explain-body">
+                        <div className="log-item__section-label">やさしい説明</div>
+                        <div className="log-item__explain-text">{parts.memoText}</div>
+                      </div>
+                    )}
+                    {notes.length > 0 && (
+                      <div className="log-item__note-block" aria-label="用語注釈">
+                        <div className="log-item__section-label">用語補足</div>
+                        <div className="log-item__note">
+                          {notes.map((note) => (
+                            <span key={note} className="log-item__note-chip">
+                              {note}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+                {(hasUsefulSummary || detailPreview.length > 0) && (
+                  <div className="log-item__raw">
+                    {hasUsefulSummary && (
+                      <div className="log-item__meta-row">
+                        <div className="log-item__section-label">検出イベント</div>
+                        {summaryEntries.length === 1 ? (
+                          <div className="log-item__summary">{latestSummary}</div>
+                        ) : (
+                          <div className="log-item__summary-list">
+                            {summaryEntries.map((entry) => (
+                              <div key={entry} className="log-item__summary">
+                                {entry}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    {detailPreview.length > 0 && (
+                      <div className="log-item__meta-row">
+                        <div className="log-item__section-label">{isGrouped ? "原文プレビュー" : "原文"}</div>
+                        <div className="log-item__detail-stack">
+                          {detailPreview.map((entry, previewIndex) => (
+                            <pre key={`${group.key}-detail-${previewIndex}`} className="log-item__detail">
+                              {entry}
+                            </pre>
+                          ))}
+                        </div>
+                        {hiddenDetailCount > 0 && (
+                          <div className="log-item__detail-more">さらに {hiddenDetailCount} 件の近いログがあります。</div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

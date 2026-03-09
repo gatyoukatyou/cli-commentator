@@ -40,6 +40,56 @@
     }
   },
   {
+    "id": "stdout-claude-detail",
+    "intent": "通常出力でも見えている行の中身が少し分かる",
+    "event": {
+      "ts": 1735689600000,
+      "type": "stdout",
+      "summary": "ログ更新",
+      "detail": "⏺ Read(/Users/demo/project/README.md)"
+    }
+  },
+  {
+    "id": "git-status-detail",
+    "intent": "git status の一行メモを具体化する",
+    "event": {
+      "ts": 1735689600000,
+      "type": "git",
+      "summary": "Git操作をしている",
+      "detail": "⏺ Bash(git status -sb)"
+    }
+  },
+  {
+    "id": "apply-patch-detail",
+    "intent": "apply_patch の一行メモを差分適用として伝える",
+    "event": {
+      "ts": 1735689600000,
+      "type": "write",
+      "summary": "パッチを適用している",
+      "detail": "apply_patch"
+    }
+  },
+  {
+    "id": "read-readme-detail",
+    "intent": "Read の一行メモで前提確認だと伝える",
+    "event": {
+      "ts": 1735689600000,
+      "type": "read",
+      "summary": "ファイルを読み込んでいる",
+      "detail": "⏺ Read(/Users/demo/project/README.md)"
+    }
+  },
+  {
+    "id": "stdout-ssh-docker-detail",
+    "intent": "長い Bash コマンドを人間向けの意味で要約する",
+    "event": {
+      "ts": 1735689600000,
+      "type": "stdout",
+      "summary": "ログ更新",
+      "detail": "⏺ Bash(ssh user@example.com 'hostname && docker ps --format \"table {{.Names}}\\t{{.Image}}\\t{{.Status}}\"')"
+    }
+  },
+  {
     "id": "done-no-detail",
     "intent": "詳細なし完了時でも口調差分を維持する",
     "event": {
