@@ -3,6 +3,9 @@
   "private": true,
   "packageManager": "pnpm@9.0.0",
   "scripts": {
+    "claude:setup-hooks": "node ./scripts/setup-claude-hooks.mjs",
+    "dev:claude:file": "node ./scripts/dev-claude-file.mjs",
+    "dev:codex:file": "node ./scripts/dev-codex-file.mjs",
     "postinstall": "node ./scripts/fix-node-pty-permissions.mjs",
     "dev": "concurrently -n server,web \"pnpm -C apps/server dev\" \"pnpm -C apps/web dev\"",
     "dev:server": "pnpm -C apps/server dev",

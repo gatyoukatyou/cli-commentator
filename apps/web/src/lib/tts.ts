@@ -11,6 +11,7 @@ export interface TTSSettings {
   rate: number;   // 0.1 - 10 (default: 1.0)
   pitch: number;  // 0 - 2 (default: 1.0)
   volume: number; // 0 - 1 (default: 1.0)
+  includeRawDetail: boolean; // true = read detected raw detail after commentary
 }
 
 export type TTSPresetId = "balanced" | "calm" | "clear";
@@ -53,6 +54,7 @@ export const DEFAULT_TTS_SETTINGS: TTSSettings = {
   rate: DEFAULT_TTS_PRESET.settings.rate,
   pitch: DEFAULT_TTS_PRESET.settings.pitch,
   volume: DEFAULT_TTS_PRESET.settings.volume,
+  includeRawDetail: false,
 };
 
 export function applyTTSPreset(settings: TTSSettings, presetId: TTSPresetId): TTSSettings {
@@ -254,6 +256,7 @@ export function getTTSSettings(): TTSSettings {
       rate: clamp(parsed.rate, 0.1, 10, DEFAULT_TTS_SETTINGS.rate),
       pitch: clamp(parsed.pitch, 0, 2, DEFAULT_TTS_SETTINGS.pitch),
       volume: clamp(parsed.volume, 0, 1, DEFAULT_TTS_SETTINGS.volume),
+      includeRawDetail: parsed.includeRawDetail === true,
     };
   } catch {
     return DEFAULT_TTS_SETTINGS;

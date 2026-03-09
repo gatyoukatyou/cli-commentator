@@ -11,7 +11,6 @@ export const codexRuleset: RuleSet = {
     { id: "codex.update", priority: 90, re: /^[⏺•]\s*Update\(/, type: "write", summary: "ファイルを更新している" },
     { id: "codex.write", priority: 80, re: /^[⏺•]\s*Write\(/, type: "write", summary: "ファイルを書き込んでいる" },
     { id: "codex.patch", priority: 75, re: /\bapply_patch\b|apply patch/i, type: "write", summary: "パッチを適用している" },
-    { id: "codex.bash", priority: 70, re: /^[⏺•]\s*Bash\(/, type: "stdout", summary: "コマンドを実行している" },
     { id: "codex.approval.ask", priority: 65, re: /would you like to run the following command/i, type: "stdout", summary: "コマンド実行の確認待ち" },
     { id: "codex.approval.ok", priority: 64, re: /you approved .* to run/i, type: "stdout", summary: "コマンド実行が承認された" },
 
@@ -22,6 +21,8 @@ export const codexRuleset: RuleSet = {
     { id: "codex.git", priority: 30, re: /\bgit\s+(status|add|commit|push|pull|checkout|switch|merge|rebase)\b/i, type: "git", summary: "Git操作をしている" },
 
     { id: "codex.install", priority: 20, re: /\b(pnpm|npm|yarn)\s+(add|install|i|run)\b/i, type: "install", summary: "依存関係/スクリプトを処理している" },
+    { id: "codex.bash", priority: 18, re: /^[⏺•]\s*Bash\(/, type: "stdout", summary: "コマンドを実行している" },
+    { id: "codex.toolcall", priority: 17, re: /^ToolCall:\s*[A-Za-z0-9_.:]+/i, type: "stdout", summary: "ツールを呼び出している" },
 
     { id: "codex.lifecycle", priority: 15, re: /\bELIFECYCLE\b/i, type: "error", summary: "スクリプトが異常終了している" },
     { id: "codex.exitcode", priority: 12, re: /exited with code|exit code/i, type: "error", summary: "終了コードで失敗している" },

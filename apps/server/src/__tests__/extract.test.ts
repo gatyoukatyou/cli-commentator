@@ -12,6 +12,7 @@ const cases = [
   { name: "claude.basic.log", source: "claude" },
   { name: "claude.readonly.log", source: "claude" },
   { name: "codex.approval.log", source: "codex" },
+  { name: "codex.toolcall.log", source: "codex" },
   { name: "codex.lifecycle-error.log", source: "codex" },
   { name: "generic.shell.log", source: "generic" }
 ];
@@ -39,4 +40,18 @@ describe("extractEvents fixtures", () => {
       expect(events).toMatchSnapshot();
     });
   }
+
+  it("strips ANSI escape sequences before matching Claude rules", () => {
+    process.env.LOG_SOURCE = "claude";
+    const chunk = "\u001b[32m⏺ Read(/Users/demo/project/README.md)\u001b[39m";
+    const events = extractEvents(chunk);
+    expect(events).toEqual([
+      {
+        ts: new Date("2025-01-01T00:00:00.000Z").getTime(),
+        type: "read",
+        summary: "ファイルを読み込んでいる",
+        detail: "⏺ Read(/Users/demo/project/README.md)",
+      },
+    ]);
+  });
 });
