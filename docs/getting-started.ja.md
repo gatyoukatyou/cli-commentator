@@ -88,6 +88,59 @@ $env:INPUT_MODE="file"; $env:INPUT_FILE="C:\\logs\\app.log"; pnpm dev:server
 pnpm dev:web
 ```
 
+### 2-b) Claude Code を別ターミナルで実況（推奨）
+
+現行の Claude Code はフルスクリーン TUI なので、`TARGET_CMD=claude` で直接 PTY を読むよりも、
+hook でログファイルへ行を書き出し、`file` モードで監視する方が安定します。
+
+1. 対象リポジトリに Claude hook を設定します。
+
+```bash
+pnpm claude:setup-hooks /Users/home/AION_Project/repos/n8n-workflows
+```
+
+2. `cli-commentator` を Claude 専用 file モードで起動します。
+
+```bash
+pnpm dev:claude:file /Users/home/AION_Project/repos/n8n-workflows
+```
+
+3. 別ターミナルで対象リポジトリへ移動して `claude` を起動します。
+
+```bash
+cd /Users/home/AION_Project/repos/n8n-workflows
+claude
+```
+
+補足:
+
+- hook 設定は対象リポジトリの `.claude/settings.local.json` に保存されます。
+- ログファイルは対象リポジトリの `.claude/cli-commentator.claude.log` です。
+- `pnpm dev:claude:file` はこのログを空にしてから `INPUT_MODE=file` / `LOG_SOURCE=claude` で起動します。
+
+### 2-c) Codex を別ターミナルで実況（推奨）
+
+Codex は専用ログディレクトリへ `codex-tui.log` を出せるので、
+対象リポジトリごとにログを分離して `file` モードで監視するのが安定します。
+
+1. `cli-commentator` を Codex 専用 file モードで起動します。
+
+```bash
+pnpm dev:codex:file /Users/home/AION_Project/repos/n8n-workflows
+```
+
+2. 別ターミナルで対象リポジトリへ移動し、同じログディレクトリを指定して `codex` を起動します。
+
+```bash
+codex --no-alt-screen -C /Users/home/AION_Project/repos/n8n-workflows -c log_dir=/Users/home/AION_Project/repos/n8n-workflows/.codex/cli-commentator-log
+```
+
+補足:
+
+- ログファイルは対象リポジトリの `.codex/cli-commentator-log/codex-tui.log` です。
+- `pnpm dev:codex:file` はこのログを空にしてから `INPUT_MODE=file` / `LOG_SOURCE=codex` で起動します。
+- UI の保存済みプロファイルでも `入力モード=file` と `ログファイル=<上記ログファイル>` を直接保存できます。
+
 ### 3) 自動フォールバック（`pty` -> `file`）
 
 `INPUT_MODE=pty` で PTY 初期化に失敗した場合:
@@ -153,6 +206,8 @@ CLI_COMMENTATOR_PORT=8788 pnpm dev:desktop:managed
 ### `Error: posix_spawnp failed`
 
 `node-pty` の `spawn-helper` に実行権限が付いていない可能性があります。
+通常は `pnpm install` / `pnpm dev` 時の `postinstall` で自動補正されます。
+それでも再発する場合は、以下で確認・手動補正してください。
 
 ```bash
 find node_modules/.pnpm -path '*node-pty*' -name spawn-helper -print -exec ls -l {} \;

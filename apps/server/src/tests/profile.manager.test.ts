@@ -63,13 +63,14 @@ describe("profile/manager", () => {
 
     it("returns profile summaries", async () => {
       await create({ name: "Profile 1", cmd: "bash" });
-      await create({ name: "Profile 2", cmd: "zsh" });
+      await create({ name: "Profile 2", cmd: "file", inputMode: "file", inputFile: "/tmp/codex-tui.log" });
 
       const profiles = await list();
       expect(profiles).toHaveLength(2);
       expect(profiles[0]).toHaveProperty("id");
       expect(profiles[0]).toHaveProperty("name", "Profile 1");
       expect(profiles[0]).toHaveProperty("cmd", "bash");
+      expect(profiles[1]).toHaveProperty("cmd", "file:codex-tui.log");
       // Summaries should not contain full profile fields
       expect(profiles[0]).not.toHaveProperty("args");
       expect(profiles[0]).not.toHaveProperty("style");
@@ -86,6 +87,7 @@ describe("profile/manager", () => {
       expect(profile.args).toEqual([]);
       expect(profile.style).toBe("kansai");
       expect(profile.logSource).toBe("auto");
+      expect(profile.inputMode).toBe("pty");
       expect(profile.createdAt).toBeGreaterThan(0);
       expect(profile.updatedAt).toBe(profile.createdAt);
     });
@@ -98,6 +100,8 @@ describe("profile/manager", () => {
         cwd: "/home/user",
         style: "standard",
         logSource: "claude",
+        inputMode: "file",
+        inputFile: "/tmp/claude.log",
         llmProvider: "openai",
       });
 
@@ -107,7 +111,15 @@ describe("profile/manager", () => {
       expect(profile.cwd).toBe("/home/user");
       expect(profile.style).toBe("standard");
       expect(profile.logSource).toBe("claude");
+      expect(profile.inputMode).toBe("file");
+      expect(profile.inputFile).toBe("/tmp/claude.log");
       expect(profile.llmProvider).toBe("openai");
+    });
+
+    it("requires inputFile for file mode", async () => {
+      await expect(create({ name: "Codex File", cmd: "file", inputMode: "file" })).rejects.toThrow(
+        "inputFile is required when inputMode=file"
+      );
     });
 
     it("persists to disk", async () => {
@@ -117,6 +129,23 @@ describe("profile/manager", () => {
       const store = await loadStore();
       expect(store.profiles).toHaveLength(1);
       expect(store.profiles[0].id).toBe(profile.id);
+    });
+
+    it("trims whitespace from string fields", async () => {
+      const profile = await create({
+        name: "  Trim Test  ",
+        cmd: "  bash  ",
+        args: ["  -l", "-i  ", "   "],
+        cwd: "  /tmp/workspace  ",
+        inputMode: "file",
+        inputFile: "  /tmp/demo.log  ",
+      });
+
+      expect(profile.name).toBe("Trim Test");
+      expect(profile.cmd).toBe("bash");
+      expect(profile.args).toEqual(["-l", "-i"]);
+      expect(profile.cwd).toBe("/tmp/workspace");
+      expect(profile.inputFile).toBe("/tmp/demo.log");
     });
   });
 
@@ -141,12 +170,16 @@ describe("profile/manager", () => {
         name: "Updated",
         cmd: "zsh",
         style: "zundamon",
+        inputMode: "file",
+        inputFile: "/tmp/updated.log",
       });
 
       expect(updated.id).toBe(created.id);
       expect(updated.name).toBe("Updated");
       expect(updated.cmd).toBe("zsh");
       expect(updated.style).toBe("zundamon");
+      expect(updated.inputMode).toBe("file");
+      expect(updated.inputFile).toBe("/tmp/updated.log");
       // Use >= to avoid flaky test when operations complete within same millisecond
       expect(updated.updatedAt).toBeGreaterThanOrEqual(created.updatedAt);
     });
@@ -164,6 +197,31 @@ describe("profile/manager", () => {
 
       const store = await loadStore();
       expect(store.profiles[0].name).toBe("After");
+    });
+
+    it("trims whitespace when updating fields", async () => {
+      const created = await create({ name: "Original", cmd: "bash", cwd: "/tmp" });
+      const updated = await update(created.id, {
+        name: "  Updated  ",
+        cmd: "  zsh  ",
+        args: ["  -l", "-i  ", "   "],
+        cwd: "  /tmp/next  ",
+        inputFile: "  /tmp/next.log  ",
+      });
+
+      expect(updated.name).toBe("Updated");
+      expect(updated.cmd).toBe("zsh");
+      expect(updated.args).toEqual(["-l", "-i"]);
+      expect(updated.cwd).toBe("/tmp/next");
+      expect(updated.inputFile).toBe("/tmp/next.log");
+    });
+
+    it("requires inputFile when switching to file mode", async () => {
+      const created = await create({ name: "Original", cmd: "bash" });
+
+      await expect(update(created.id, { inputMode: "file" })).rejects.toThrow(
+        "inputFile is required when inputMode=file"
+      );
     });
   });
 
@@ -251,6 +309,8 @@ describe("profile/manager", () => {
         TARGET_CMD: "/bin/zsh",
         TARGET_ARGS: "-l -i",
         TARGET_CWD: "/home/user",
+        INPUT_MODE: "file",
+        INPUT_FILE: "/tmp/profile.log",
         STYLE: "standard",
         LOG_SOURCE: "claude",
         LLM_PROVIDER: "openai",
@@ -263,6 +323,8 @@ describe("profile/manager", () => {
         cwd: "/home/user",
         style: "standard",
         logSource: "claude",
+        inputMode: "file",
+        inputFile: "/tmp/profile.log",
         llmProvider: "openai",
       });
     });
@@ -278,6 +340,8 @@ describe("profile/manager", () => {
         cwd: undefined,
         style: "kansai",
         logSource: "auto",
+        inputMode: "pty",
+        inputFile: undefined,
         llmProvider: undefined,
       });
     });
@@ -296,6 +360,16 @@ describe("profile/manager", () => {
       });
 
       expect(input.args).toEqual(["-l", "-i"]);
+    });
+
+    it("trims TARGET_CMD and TARGET_CWD", () => {
+      const input = createFromEnv({
+        TARGET_CMD: "  /bin/zsh  ",
+        TARGET_CWD: "  /tmp/demo  ",
+      });
+
+      expect(input.cmd).toBe("/bin/zsh");
+      expect(input.cwd).toBe("/tmp/demo");
     });
   });
 

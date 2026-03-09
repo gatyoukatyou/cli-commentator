@@ -88,6 +88,59 @@ $env:INPUT_MODE="file"; $env:INPUT_FILE="C:\\logs\\app.log"; pnpm dev:server
 pnpm dev:web
 ```
 
+### 2-b) Commentate Claude Code from another terminal (recommended)
+
+Modern Claude Code uses a fullscreen TUI, so direct `TARGET_CMD=claude` PTY capture is less reliable than
+writing canonical lines via hooks and watching them in `file` mode.
+
+1. Install Claude hooks into the target repository.
+
+```bash
+pnpm claude:setup-hooks /Users/home/AION_Project/repos/n8n-workflows
+```
+
+2. Start `cli-commentator` in Claude-specific file mode.
+
+```bash
+pnpm dev:claude:file /Users/home/AION_Project/repos/n8n-workflows
+```
+
+3. In another terminal, move to the target repository and start `claude`.
+
+```bash
+cd /Users/home/AION_Project/repos/n8n-workflows
+claude
+```
+
+Notes:
+
+- Hook settings are written to the target repo at `.claude/settings.local.json`.
+- The log file is `.claude/cli-commentator.claude.log` under the target repo.
+- `pnpm dev:claude:file` clears that log first, then starts with `INPUT_MODE=file` and `LOG_SOURCE=claude`.
+
+### 2-c) Commentate Codex from another terminal (recommended)
+
+Codex can write `codex-tui.log` into a dedicated log directory, so the most stable setup is
+to isolate that log per repository and monitor it in `file` mode.
+
+1. Start `cli-commentator` in Codex-specific file mode.
+
+```bash
+pnpm dev:codex:file /Users/home/AION_Project/repos/n8n-workflows
+```
+
+2. In another terminal, move to the target repository and start `codex` with the same log directory.
+
+```bash
+codex --no-alt-screen -C /Users/home/AION_Project/repos/n8n-workflows -c log_dir=/Users/home/AION_Project/repos/n8n-workflows/.codex/cli-commentator-log
+```
+
+Notes:
+
+- The log file is `.codex/cli-commentator-log/codex-tui.log` under the target repo.
+- `pnpm dev:codex:file` clears that log first, then starts with `INPUT_MODE=file` and `LOG_SOURCE=codex`.
+- Saved UI profiles can now store `input mode=file` and `log file=<that log file>` directly.
+
 ### 3) Automatic fallback (`pty` -> `file`)
 
 When `INPUT_MODE=pty` and PTY startup fails:
@@ -153,6 +206,8 @@ Only set an explicit start port when repeated conflicts still cause `failed`.
 ### `Error: posix_spawnp failed`
 
 `node-pty` `spawn-helper` may not be executable.
+This is usually auto-fixed by the root `postinstall` during `pnpm install` / `pnpm dev`.
+If it still happens, inspect and repair it manually:
 
 ```bash
 find node_modules/.pnpm -path '*node-pty*' -name spawn-helper -print -exec ls -l {} \;

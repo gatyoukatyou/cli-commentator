@@ -41,17 +41,17 @@ const llm: LLMAdapter | null = (() => {
 })();
 
 const GLOSSARY: Array<{ re: RegExp; note: string }> = [
-  { re: /\brg\b/, note: "rg= ripgrep（高速grep）" },
-  { re: /\btsc\b|\btypecheck\b/i, note: "tsc/typecheck=型チェック（TypeScript）" },
-  { re: /\bpnpm\b|\bnpm\b|\byarn\b/i, note: "依存関係の操作（パッケージ管理）" },
-  { re: /\bvite\b/i, note: "Vite=開発用の高速フロントエンド環境" },
-  { re: /\btsx\b/i, note: "tsx=TypeScriptを実行するランタイム" },
-  { re: /\bnode-pty\b|\bpty\b/i, note: "pty=擬似端末（CLIを包んで実行）" },
-  { re: /\bws\b|\bwebsocket\b/i, note: "WebSocket=双方向通信" },
-  { re: /\bplaywright\b/i, note: "Playwright=ブラウザ自動化テスト" },
-  { re: /\bvitest\b|\bjest\b/i, note: "Vitest/Jest=テスト実行" },
-  { re: /\bgh\b/i, note: "gh=GitHub CLI" },
-  { re: /\bgit\b/i, note: "git=履歴管理" }
+  { re: /\brg\b/, note: "補足: rg はプロジェクト全体を高速検索するコマンド" },
+  { re: /\btsc\b|\btypecheck\b/i, note: "補足: tsc/typecheck は型の整合性を自動確認するチェック" },
+  { re: /\bpnpm\b|\bnpm\b|\byarn\b/i, note: "補足: pnpm/npm/yarn は依存関係やスクリプト実行に使う" },
+  { re: /\bvite\b/i, note: "補足: Vite はフロントエンド開発用の高速実行環境" },
+  { re: /\btsx\b/i, note: "補足: tsx は TypeScript をそのまま実行する仕組み" },
+  { re: /\bnode-pty\b|\bpty\b/i, note: "補足: pty は CLI を仮想端末として包んで動かす仕組み" },
+  { re: /\bws\b|\bwebsocket\b/i, note: "補足: WebSocket は画面とサーバーをつなぐ常時接続" },
+  { re: /\bplaywright\b/i, note: "補足: Playwright はブラウザ操作を自動で試すテスト" },
+  { re: /\bvitest\b|\bjest\b/i, note: "補足: Vitest/Jest は自動テストを走らせる仕組み" },
+  { re: /\bgh\b/i, note: "補足: gh は GitHub を操作する公式CLI" },
+  { re: /\bgit\b/i, note: "補足: git は変更履歴を管理する仕組み" }
 ];
 
 function annotate(detail?: string): string {
@@ -60,7 +60,410 @@ function annotate(detail?: string): string {
   return hits.length ? `（${Array.from(new Set(hits)).join(" / ")}）` : "";
 }
 
+const DETAIL_PREVIEW_MAX = 96;
+
+function detailPreview(detail?: string): string {
+  if (!detail) return "";
+  const compact = detail.replace(/\s+/g, " ").trim();
+  if (!compact) return "";
+  if (compact.length <= DETAIL_PREVIEW_MAX) return compact;
+  return `${compact.slice(0, DETAIL_PREVIEW_MAX - 1).trimEnd()}…`;
+}
+
+function detailSpotlight(ev: Event, style: Style): string {
+  const preview = detailPreview(ev.detail);
+  if (!preview) return "";
+
+  if (ev.type === "stdout") {
+    if (/^[⏺•]\s*Bash\(/.test(ev.detail ?? "")) {
+      return describeBashMeaning(detailCommand(ev.detail), style).spotlight;
+    }
+    return style === "kansai"
+      ? `今見えてる出力は「${preview}」や。`
+      : style === "zundamon"
+        ? `今見えてる出力は「${preview}」なのだ。`
+        : `今見えている出力は「${preview}」です。`;
+  }
+
+  if (ev.type === "stderr" || ev.type === "error") {
+    return style === "kansai"
+      ? `引っかかってる行は「${preview}」や。`
+      : style === "zundamon"
+        ? `引っかかってる行は「${preview}」なのだ。`
+        : `引っかかっている行は「${preview}」です。`;
+  }
+
+  return "";
+}
+
 type BeginnerLineTable = Record<Event["type"], string> & { default: string };
+
+function say(style: Style, text: { standard: string; kansai: string; zundamon: string }): string {
+  return style === "kansai" ? text.kansai : style === "zundamon" ? text.zundamon : text.standard;
+}
+
+function basenameFromPath(value: string): string {
+  const normalized = value.replace(/\\/g, "/");
+  const parts = normalized.split("/");
+  return parts[parts.length - 1] || value;
+}
+
+function extractReadTarget(detail?: string): string | null {
+  if (!detail) return null;
+  const match = detail.match(/^[⏺•]\s*Read\((.+)\)$/);
+  if (!match) return null;
+  return basenameFromPath(match[1].trim());
+}
+
+function extractWriteTarget(detail?: string): string | null {
+  if (!detail) return null;
+  const match = detail.match(/^[⏺•]\s*(?:Update|Write)\((.+)\)$/);
+  if (!match) return null;
+  return basenameFromPath(match[1].trim());
+}
+
+function extractSearchTerm(detail?: string): string | null {
+  if (!detail) return null;
+  const quoted =
+    detail.match(/"(.*?)"/)?.[1] ??
+    detail.match(/'(.*?)'/)?.[1] ??
+    detail.match(/`(.*?)`/)?.[1];
+  if (quoted) return quoted.trim();
+
+  const grepMatch = detail.match(/\b(?:rg|grep)\b(?:\s+-\S+|\s+--\S+)*\s+([^\s][^|&;]*)/i);
+  return grepMatch ? grepMatch[1].trim() : null;
+}
+
+function detailCommand(detail?: string): string {
+  if (!detail) return "";
+  const bashMatch = detail.match(/^[⏺•]\s*Bash\((.+)\)$/);
+  if (bashMatch) return bashMatch[1].trim();
+  return detail.trim();
+}
+
+function compactCommand(command: string): string {
+  return command.replace(/\s+/g, " ").trim();
+}
+
+function describeBashMeaning(command: string, style: Style): { spotlight: string; memo: string } {
+  const compact = compactCommand(command);
+  const hasSsh = /^\s*ssh\b/i.test(compact);
+  const hasDockerPs = /\bdocker\s+ps\b/i.test(compact);
+  const hasDockerCompose = /\bdocker\s+compose\b/i.test(compact);
+  const hasHostname = /\bhostname\b/i.test(compact);
+  const hasFind = /\b(find|fd)\b/i.test(compact);
+  const hasGrep = /\b(rg|grep)\b/i.test(compact);
+  const hasGitStatus = /\bgit\s+status\b/i.test(compact);
+  const hasGhPrChecks = /\bgh\s+pr\s+checks\b/i.test(compact);
+  const hasInstall = /\b(pnpm|npm|yarn)\s+(install|add|i)\b/i.test(compact);
+  const hasTypecheck = /\b(tsc|typecheck)\b/i.test(compact);
+  const hasTests = /\b(playwright|vitest|jest|\btest\b)\b/i.test(compact);
+  const hasReadFile = /\b(cat|sed|head|tail|less|more)\b/i.test(compact);
+
+  if (hasSsh && hasDockerPs) {
+    return {
+      spotlight: say(style, {
+        standard: "いまやっているのは、リモートサーバーに接続して Docker コンテナの稼働状況を確認する作業です。",
+        kansai: "今やってるのは、リモートサーバー入って Docker コンテナの動作状況を確認する作業や。",
+        zundamon: "今やってるのは、リモートサーバーに入って Docker コンテナの動作状況を確認する作業なのだ。",
+      }),
+      memo: say(style, {
+        standard: `${hasHostname ? "接続先が正しいかを確かめつつ、" : ""}サーバー上で今どのサービスが動いているか棚卸ししています。`,
+        kansai: `${hasHostname ? "接続先が合ってるか確かめつつ、" : ""}サーバー上で今どのサービス動いてるか棚卸ししてるで。`,
+        zundamon: `${hasHostname ? "接続先が合ってるか確かめつつ、" : ""}サーバー上で今どのサービスが動いてるか棚卸ししてるのだ。`,
+      }),
+    };
+  }
+
+  if (hasSsh && hasFind && hasGrep) {
+    return {
+      spotlight: say(style, {
+        standard: "いまやっているのは、リモートサーバーに接続して設定ファイルの場所を探す作業です。",
+        kansai: "今やってるのは、リモートサーバー入って設定ファイルの場所を探す作業や。",
+        zundamon: "今やってるのは、リモートサーバーに入って設定ファイルの場所を探す作業なのだ。",
+      }),
+      memo: say(style, {
+        standard: "どこに設定が置かれているかを見つけて、次に直す場所を特定しています。",
+        kansai: "どこに設定置かれてるか見つけて、次に直す場所を特定してるで。",
+        zundamon: "どこに設定が置かれてるか見つけて、次に直す場所を特定してるのだ。",
+      }),
+    };
+  }
+
+  if (hasSsh) {
+    return {
+      spotlight: say(style, {
+        standard: "いまやっているのは、リモートサーバーに接続して現地の状態を直接確認する作業です。",
+        kansai: "今やってるのは、リモートサーバー入って現地の状態を直接確認する作業や。",
+        zundamon: "今やってるのは、リモートサーバーに入って現地の状態を直接確認する作業なのだ。",
+      }),
+      memo: say(style, {
+        standard: "手元の予想ではなく、実際のサーバー環境を見て判断材料を集めています。",
+        kansai: "手元の予想やなくて、実際のサーバー環境見て判断材料集めてるで。",
+        zundamon: "手元の予想ではなく、実際のサーバー環境を見て判断材料を集めてるのだ。",
+      }),
+    };
+  }
+
+  if (hasDockerCompose) {
+    return {
+      spotlight: say(style, {
+        standard: "いまやっているのは、Docker Compose でサービス群の状態を確認・操作する作業です。",
+        kansai: "今やってるのは、Docker Compose でサービス全体の状態を確認・操作する作業や。",
+        zundamon: "今やってるのは、Docker Compose でサービス全体の状態を確認・操作する作業なのだ。",
+      }),
+      memo: say(style, {
+        standard: "複数の関連サービスをまとめて扱って、環境全体がどう動いているかを見ています。",
+        kansai: "関連するサービスまとめて扱って、環境全体がどう動いてるか見てるで。",
+        zundamon: "関連するサービスをまとめて扱って、環境全体がどう動いてるか見てるのだ。",
+      }),
+    };
+  }
+
+  if (hasDockerPs) {
+    return {
+      spotlight: say(style, {
+        standard: "いまやっているのは、Docker コンテナの稼働状況を確認する作業です。",
+        kansai: "今やってるのは、Docker コンテナの稼働状況を確認する作業や。",
+        zundamon: "今やってるのは、Docker コンテナの稼働状況を確認する作業なのだ。",
+      }),
+      memo: say(style, {
+        standard: "裏側で動いているサービス一覧を見て、落ちているものがないか確認しています。",
+        kansai: "裏で動いてるサービス一覧見て、落ちてるもんないか確認してるで。",
+        zundamon: "裏側で動いてるサービス一覧を見て、落ちてるものがないか確認してるのだ。",
+      }),
+    };
+  }
+
+  if (hasGhPrChecks) {
+    return {
+      spotlight: say(style, {
+        standard: "いまやっているのは、PR の自動チェック結果を確認する作業です。",
+        kansai: "今やってるのは、PR の自動チェック結果を確認する作業や。",
+        zundamon: "今やってるのは、PR の自動チェック結果を確認する作業なのだ。",
+      }),
+      memo: say(style, {
+        standard: "公開前の安全確認として、自動テストや解析が通っているか見ています。",
+        kansai: "公開前の安全確認として、自動テストや解析が通ってるか見てるで。",
+        zundamon: "公開前の安全確認として、自動テストや解析が通ってるか見てるのだ。",
+      }),
+    };
+  }
+
+  if (hasGitStatus) {
+    return {
+      spotlight: say(style, {
+        standard: "いまやっているのは、変更されたファイル一覧を確認する作業です。",
+        kansai: "今やってるのは、変更されたファイル一覧を確認する作業や。",
+        zundamon: "今やってるのは、変更されたファイル一覧を確認する作業なのだ。",
+      }),
+      memo: say(style, {
+        standard: "今どこまで編集が進んだか、作業範囲を棚卸ししています。",
+        kansai: "今どこまで編集進んだか、作業範囲を棚卸ししてるで。",
+        zundamon: "今どこまで編集が進んだか、作業範囲を棚卸ししてるのだ。",
+      }),
+    };
+  }
+
+  if (hasInstall) {
+    return {
+      spotlight: say(style, {
+        standard: "いまやっているのは、必要な部品や依存関係をそろえる作業です。",
+        kansai: "今やってるのは、必要な部品や依存関係そろえる作業や。",
+        zundamon: "今やってるのは、必要な部品や依存関係をそろえる作業なのだ。",
+      }),
+      memo: say(style, {
+        standard: "この環境でプログラムが動くように、足りない材料を入れています。",
+        kansai: "この環境でプログラム動くように、足りてへん材料入れてるで。",
+        zundamon: "この環境でプログラムが動くように、足りない材料を入れてるのだ。",
+      }),
+    };
+  }
+
+  if (hasTypecheck) {
+    return {
+      spotlight: say(style, {
+        standard: "いまやっているのは、型ルールでプログラムのつながりを確認する作業です。",
+        kansai: "今やってるのは、型ルールでプログラムのつながり確認する作業や。",
+        zundamon: "今やってるのは、型ルールでプログラムのつながりを確認する作業なのだ。",
+      }),
+      memo: say(style, {
+        standard: "データや部品の受け渡しが食い違っていないか、機械的に確認しています。",
+        kansai: "データや部品の受け渡し食い違ってへんか、機械的に確認してるで。",
+        zundamon: "データや部品の受け渡しが食い違ってないか、機械的に確認してるのだ。",
+      }),
+    };
+  }
+
+  if (hasTests) {
+    return {
+      spotlight: say(style, {
+        standard: "いまやっているのは、自動テストで動作確認する作業です。",
+        kansai: "今やってるのは、自動テストで動作確認する作業や。",
+        zundamon: "今やってるのは、自動テストで動作確認する作業なのだ。",
+      }),
+      memo: say(style, {
+        standard: "変更のせいで別の部分が壊れていないか、まとめて確かめています。",
+        kansai: "変更のせいで別の部分壊れてへんか、まとめて確かめてるで。",
+        zundamon: "変更のせいで別の部分が壊れてないか、まとめて確かめてるのだ。",
+      }),
+    };
+  }
+
+  if (hasReadFile) {
+    return {
+      spotlight: say(style, {
+        standard: "いまやっているのは、ファイルの中身を直接確認する作業です。",
+        kansai: "今やってるのは、ファイルの中身を直接確認する作業や。",
+        zundamon: "今やってるのは、ファイルの中身を直接確認する作業なのだ。",
+      }),
+      memo: say(style, {
+        standard: "設定やログの実物を見て、仮説が合っているか確かめています。",
+        kansai: "設定やログの実物見て、仮説合ってるか確かめてるで。",
+        zundamon: "設定やログの実物を見て、仮説が合ってるか確かめてるのだ。",
+      }),
+    };
+  }
+
+  if (hasFind && hasGrep) {
+    return {
+      spotlight: say(style, {
+        standard: "いまやっているのは、条件に合うファイルや設定を探す作業です。",
+        kansai: "今やってるのは、条件に合うファイルや設定探す作業や。",
+        zundamon: "今やってるのは、条件に合うファイルや設定を探す作業なのだ。",
+      }),
+      memo: say(style, {
+        standard: "直す場所や設定箇所を見つけるために、候補を絞り込んでいます。",
+        kansai: "直す場所や設定箇所見つけるために、候補しぼり込んでるで。",
+        zundamon: "直す場所や設定箇所を見つけるために、候補をしぼり込んでるのだ。",
+      }),
+    };
+  }
+
+  if (hasGrep) {
+    const term = extractSearchTerm(compact);
+    return {
+      spotlight: say(style, {
+        standard: `いまやっているのは、${term ? `「${term}」を手がかりに` : ""}関連箇所を探す作業です。`,
+        kansai: `今やってるのは、${term ? `「${term}」を手がかりに` : ""}関連箇所探す作業や。`,
+        zundamon: `今やってるのは、${term ? `「${term}」を手がかりに` : ""}関連箇所を探す作業なのだ。`,
+      }),
+      memo: say(style, {
+        standard: "問題や設定に関係する記述がどこにあるか、横断的に探しています。",
+        kansai: "問題や設定に関係ある記述がどこにあるか、横断的に探してるで。",
+        zundamon: "問題や設定に関係する記述がどこにあるか、横断的に探してるのだ。",
+      }),
+    };
+  }
+
+  return {
+    spotlight: say(style, {
+      standard: "いまやっているのは、コマンドを実行して実際の挙動を確かめる作業です。",
+      kansai: "今やってるのは、コマンド実行して実際の挙動を確かめる作業や。",
+      zundamon: "今やってるのは、コマンドを実行して実際の挙動を確かめる作業なのだ。",
+    }),
+    memo: say(style, {
+      standard: "推測だけで進めず、実際に動かした結果を見て判断しています。",
+      kansai: "推測だけで進めんと、実際に動かした結果見て判断してるで。",
+      zundamon: "推測だけで進めず、実際に動かした結果を見て判断してるのだ。",
+    }),
+  };
+}
+
+function contextualBeginnerLine(ev: Event, style: Style): string | null {
+  const detail = ev.detail?.trim();
+  const command = detailCommand(detail);
+
+  if (detail && /^[⏺•]\s*Read\(/.test(detail)) {
+    const target = extractReadTarget(detail) ?? "対象ファイル";
+    const isDoc = /\.(md|txt|rst|adoc)$/i.test(target) || /readme|docs?/i.test(target);
+    return say(style, {
+      standard: `1行メモ: ${target} を読んで、${isDoc ? "手順や前提" : "現在の実装"}を確認しています。`,
+      kansai: `1行メモ: ${target} を読んで、${isDoc ? "手順や前提" : "今の実装"}を確認してるで。`,
+      zundamon: `1行メモ: ${target} を読んで、${isDoc ? "手順や前提" : "今の実装"}を確認してるのだ。`,
+    });
+  }
+
+  if (detail && /^[⏺•]\s*(Update|Write)\(/.test(detail)) {
+    const target = extractWriteTarget(detail) ?? "対象ファイル";
+    return say(style, {
+      standard: `1行メモ: ${target} を書き換えて、挙動を直接調整しています。`,
+      kansai: `1行メモ: ${target} を書き換えて、挙動を直接調整してるで。`,
+      zundamon: `1行メモ: ${target} を書き換えて、挙動を直接調整してるのだ。`,
+    });
+  }
+
+  if (detail && /\bapply_patch\b|apply patch/i.test(detail)) {
+    return say(style, {
+      standard: "1行メモ: 変更差分をまとめて当てて、複数箇所を一気に更新しています。",
+      kansai: "1行メモ: 変更差分まとめて当てて、複数箇所を一気に更新してるで。",
+      zundamon: "1行メモ: 変更差分をまとめて当てて、複数箇所を一気に更新してるのだ。",
+    });
+  }
+
+  if (ev.type === "search" && /\b(rg|grep)\b/i.test(command)) {
+    const term = extractSearchTerm(command);
+    return say(style, {
+      standard: `1行メモ: ${term ? `「${term}」を手がかりに` : ""}プロジェクト全体を横断検索して、関係する場所を絞っています。`,
+      kansai: `1行メモ: ${term ? `「${term}」を手がかりに` : ""}プロジェクト全体を横断検索して、関係ある場所しぼってるで。`,
+      zundamon: `1行メモ: ${term ? `「${term}」を手がかりに` : ""}プロジェクト全体を横断検索して、関係ある場所をしぼってるのだ。`,
+    });
+  }
+
+  if (ev.type === "github" && /\bgh\s+pr\s+checks\b/i.test(command)) {
+    return say(style, {
+      standard: "1行メモ: PRの自動チェック結果を見て、公開前の安全確認をしています。",
+      kansai: "1行メモ: PRの自動チェック結果見て、公開前の安全確認してるで。",
+      zundamon: "1行メモ: PRの自動チェック結果を見て、公開前の安全確認をしてるのだ。",
+    });
+  }
+
+  if ((ev.type === "git" || ev.type === "github") && /\bgit\s+status\b/i.test(command)) {
+    return say(style, {
+      standard: "1行メモ: 変更されたファイル一覧を見て、今どこまで触ったか確認しています。",
+      kansai: "1行メモ: 変更されたファイル一覧を見て、今どこまで触ったか確認してるで。",
+      zundamon: "1行メモ: 変更されたファイル一覧を見て、今どこまで触ったか確認してるのだ。",
+    });
+  }
+
+  if (ev.type === "test" && /\b(tsc|typecheck)\b/i.test(command)) {
+    return say(style, {
+      standard: "1行メモ: プログラム同士のつながりが噛み合っているか、型ルールで機械確認しています。",
+      kansai: "1行メモ: プログラム同士のつながり合ってるか、型ルールで機械確認してるで。",
+      zundamon: "1行メモ: プログラム同士のつながりが合ってるか、型ルールで機械確認してるのだ。",
+    });
+  }
+
+  if (ev.type === "test" && /\b(test|vitest|jest|playwright)\b/i.test(command)) {
+    return say(style, {
+      standard: "1行メモ: 変更の副作用がないか、自動テストで機械的に確認しています。",
+      kansai: "1行メモ: 変更の副作用ないか、自動テストで機械的に確認してるで。",
+      zundamon: "1行メモ: 変更の副作用がないか、自動テストで機械的に確認してるのだ。",
+    });
+  }
+
+  if (ev.type === "install" && /\b(pnpm|npm|yarn)\s+install\b/i.test(command)) {
+    return say(style, {
+      standard: "1行メモ: 必要な部品をそろえて、この環境で動く状態にしています。",
+      kansai: "1行メモ: 必要な部品そろえて、この環境で動く状態にしてるで。",
+      zundamon: "1行メモ: 必要な部品をそろえて、この環境で動く状態にしてるのだ。",
+    });
+  }
+
+  if (ev.type === "error" && /\bTS\d{4,5}\b/i.test(detail ?? "")) {
+    return say(style, {
+      standard: "1行メモ: TypeScript が『データや部品のつながりが合っていない』箇所を知らせています。",
+      kansai: "1行メモ: TypeScript が『データや部品のつながり合ってへん』場所を知らせてるで。",
+      zundamon: "1行メモ: TypeScript が『データや部品のつながりが合ってない』場所を知らせてるのだ。",
+    });
+  }
+
+  if (ev.type === "stdout" && detail && /^[⏺•]\s*Bash\(/.test(detail)) {
+    return `1行メモ: ${describeBashMeaning(command, style).memo}`;
+  }
+
+  return null;
+}
 
 const BEGINNER_STANDARD: BeginnerLineTable = {
   read: "1行メモ: 現状を把握して次の修正方針を決めています。",
@@ -120,6 +523,9 @@ const BEGINNER_ZUNDAMON: BeginnerLineTable = {
 };
 
 function beginnerOneLine(ev: Event, style: Style): string {
+  const contextual = contextualBeginnerLine(ev, style);
+  if (contextual) return contextual;
+
   const table =
     style === "kansai" ? BEGINNER_KANSAI :
     style === "zundamon" ? BEGINNER_ZUNDAMON :
@@ -131,13 +537,14 @@ function beginnerOneLine(ev: Event, style: Style): string {
 function commentByRules(ev: Event, style: Style): string {
   const beginner = beginnerOneLine(ev, style);
   const note = annotate(ev.detail);
+  const spotlight = detailSpotlight(ev, style);
 
   const core =
     style === "kansai" ? commentKansai(ev) :
     style === "zundamon" ? commentZundamon(ev) :
     commentStandard(ev);
 
-  return `${core} ${beginner}${note ? " " + note : ""}`;
+  return [core, spotlight, beginner, note].filter(Boolean).join(" ");
 }
 
 function buildLLMPrompt(ev: Event, style: Style): string {
