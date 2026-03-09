@@ -1,0 +1,6 @@
+2026-03-07T17:49:03.635625Z  INFO session_loop{thread_id=demo}: codex_core::stream_events_utils: ToolCall: exec_command {"cmd":"rg -n --hidden 'TODO' src","yield_time_ms":1000,"max_output_tokens":4000,"workdir":"/Users/demo/project"} thread_id=demo
+2026-03-07T17:49:03.647575Z  INFO session_loop{thread_id=demo}: codex_core::stream_events_utils: ToolCall: exec_command {"cmd":"pnpm -C apps/server test","yield_time_ms":1000,"max_output_tokens":4000,"workdir":"/Users/demo/project"} thread_id=demo
+2026-03-07T17:49:03.676430Z  WARN session_init:shell_snapshot{thread_id=demo}: codex_core::shell_snapshot: Failed to delete shell snapshot at "/Users/demo/.codex/shell_snapshots/demo": Os { code: 2, kind: NotFound, message: "No such file or directory" }
+2026-03-07T17:49:03.676431Z  INFO session_loop{thread_id=demo}: codex_core::stream_events_utils: ToolCall: apply_patch *** Begin Patch
+2026-03-07T17:49:03.676432Z  INFO session_loop{thread_id=demo}: codex_core::stream_events_utils: ToolCall: exec_command {"cmd":"git status -sb","yield_time_ms":1000,"max_output_tokens":2000,"workdir":"/Users/demo/project"} thread_id=demo
+2026-03-07T17:49:03.676433Z  INFO session_loop{thread_id=demo}: codex_core::stream_events_utils: ToolCall: write_stdin {"session_id":42,"chars":"","yield_time_ms":1000,"max_output_tokens":4000} thread_id=demo

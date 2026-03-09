@@ -122,9 +122,9 @@ exports[`extractEvents fixtures > codex.approval.log 1`] = `
   },
   {
     "detail": "⏺ Bash(pnpm install)",
-    "summary": "コマンドを実行している",
+    "summary": "依存関係/スクリプトを処理している",
     "ts": 1735689600000,
-    "type": "stdout",
+    "type": "install",
   },
 ]
 `;
@@ -154,6 +154,35 @@ exports[`extractEvents fixtures > codex.lifecycle-error.log 1`] = `
     "summary": "エラーが出ている",
     "ts": 1735689600000,
     "type": "error",
+  },
+]
+`;
+
+exports[`extractEvents fixtures > codex.toolcall.log 1`] = `
+[
+  {
+    "detail": "⏺ Grep(rg -n --hidden 'TODO' src)",
+    "summary": "該当箇所を検索している",
+    "ts": 1735689600000,
+    "type": "search",
+  },
+  {
+    "detail": "⏺ Bash(pnpm -C apps/server test)",
+    "summary": "テスト/型チェックを実行している",
+    "ts": 1735689600000,
+    "type": "test",
+  },
+  {
+    "detail": "apply_patch",
+    "summary": "パッチを適用している",
+    "ts": 1735689600000,
+    "type": "write",
+  },
+  {
+    "detail": "⏺ Bash(git status -sb)",
+    "summary": "Git操作をしている",
+    "ts": 1735689600000,
+    "type": "git",
   },
 ]
 `;

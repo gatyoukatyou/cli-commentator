@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { Profile, Style, SourceMode, ProviderName } from "../types";
+import type { Profile, Style, SourceMode, InputMode, ProviderName } from "../types";
 
 type ProfileInput = {
   id?: string;
@@ -9,6 +9,8 @@ type ProfileInput = {
   cwd: string;
   style: Style;
   logSource: SourceMode;
+  inputMode: InputMode;
+  inputFile: string;
   llmProvider: ProviderName | "";
 };
 
@@ -33,6 +35,11 @@ const LOG_SOURCES: { value: SourceMode; label: string }[] = [
   { value: "generic", label: "汎用" },
 ];
 
+const INPUT_MODES: { value: InputMode; label: string }[] = [
+  { value: "pty", label: "PTY（コマンド起動）" },
+  { value: "file", label: "File（ログ監視）" },
+];
+
 const LLM_PROVIDERS: { value: ProviderName | ""; label: string }[] = [
   { value: "", label: "（未設定）" },
   { value: "disabled", label: "無効" },
@@ -52,6 +59,8 @@ function createEmptyInput(): ProfileInput {
     cwd: "",
     style: "kansai",
     logSource: "auto",
+    inputMode: "pty",
+    inputFile: "",
     llmProvider: "",
   };
 }
@@ -65,7 +74,20 @@ function profileToInput(profile: Profile): ProfileInput {
     cwd: profile.cwd ?? "",
     style: profile.style,
     logSource: profile.logSource,
+    inputMode: profile.inputMode ?? "pty",
+    inputFile: profile.inputFile ?? "",
     llmProvider: profile.llmProvider ?? "",
+  };
+}
+
+function normalizeInput(input: ProfileInput): ProfileInput {
+  return {
+    ...input,
+    name: input.name.trim(),
+    cmd: input.cmd.trim(),
+    args: input.args.trim(),
+    cwd: input.cwd.trim(),
+    inputFile: input.inputFile.trim(),
   };
 }
 
@@ -74,11 +96,20 @@ export function ProfileEditor({ profile, error, isWsOpen = true, onSave, onCance
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!input.name.trim() || !input.cmd.trim()) {
-      alert("名前とコマンドは必須です");
+    const normalized = normalizeInput(input);
+    if (!normalized.name) {
+      alert("名前は必須です");
       return;
     }
-    onSave(input);
+    if (normalized.inputMode === "pty" && !normalized.cmd) {
+      alert("PTYモードではコマンドが必須です");
+      return;
+    }
+    if (normalized.inputMode === "file" && !normalized.inputFile) {
+      alert("Fileモードではログファイルが必須です");
+      return;
+    }
+    onSave(normalized);
   };
 
   const isEditing = !!profile;
@@ -111,42 +142,79 @@ export function ProfileEditor({ profile, error, isWsOpen = true, onSave, onCance
 
           <div className="form-field">
             <label className="form-field__label">
-              コマンド <span className="form-field__required">*</span>
+              入力モード
             </label>
-            <input
-              type="text"
-              value={input.cmd}
-              onChange={(e) => setInput({ ...input, cmd: e.target.value })}
-              placeholder="例: /bin/zsh"
+            <select
+              value={input.inputMode}
+              onChange={(e) => setInput({ ...input, inputMode: e.target.value as InputMode })}
               className="form-field__input"
-            />
+            >
+              {INPUT_MODES.map((mode) => (
+                <option key={mode.value} value={mode.value}>
+                  {mode.label}
+                </option>
+              ))}
+            </select>
           </div>
 
-          <div className="form-field">
-            <label className="form-field__label">
-              引数（スペース区切り）
-            </label>
-            <input
-              type="text"
-              value={input.args}
-              onChange={(e) => setInput({ ...input, args: e.target.value })}
-              placeholder="例: -l -i"
-              className="form-field__input"
-            />
-          </div>
+          {input.inputMode === "pty" ? (
+            <>
+              <div className="form-field">
+                <label className="form-field__label">
+                  コマンド <span className="form-field__required">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={input.cmd}
+                  onChange={(e) => setInput({ ...input, cmd: e.target.value })}
+                  placeholder="例: /bin/zsh"
+                  className="form-field__input"
+                />
+              </div>
 
-          <div className="form-field">
-            <label className="form-field__label">
-              作業ディレクトリ
-            </label>
-            <input
-              type="text"
-              value={input.cwd}
-              onChange={(e) => setInput({ ...input, cwd: e.target.value })}
-              placeholder="例: /home/user/project（空欄で現在のディレクトリ）"
-              className="form-field__input"
-            />
-          </div>
+              <div className="form-field">
+                <label className="form-field__label">
+                  引数（スペース区切り）
+                </label>
+                <input
+                  type="text"
+                  value={input.args}
+                  onChange={(e) => setInput({ ...input, args: e.target.value })}
+                  placeholder="例: -l -i"
+                  className="form-field__input"
+                />
+              </div>
+
+              <div className="form-field">
+                <label className="form-field__label">
+                  作業ディレクトリ
+                </label>
+                <input
+                  type="text"
+                  value={input.cwd}
+                  onChange={(e) => setInput({ ...input, cwd: e.target.value })}
+                  placeholder="例: /home/user/project（空欄で現在のディレクトリ）"
+                  className="form-field__input"
+                />
+              </div>
+            </>
+          ) : (
+            <div className="form-field">
+              <label className="form-field__label">
+                ログファイル <span className="form-field__required">*</span>
+              </label>
+              <input
+                type="text"
+                value={input.inputFile}
+                onChange={(e) => setInput({ ...input, inputFile: e.target.value })}
+                placeholder="例: /Users/home/project/.codex/cli-commentator-log/codex-tui.log"
+                className="form-field__input"
+              />
+              <div className="form-field__helper">
+                Fileモードでは指定したログファイルを監視します。
+              </div>
+            </div>
+          )}
 
           <div className="form-field">
             <label className="form-field__label">

@@ -21,7 +21,8 @@ const CLAUDE_MEDIUM = [/AskUserQuestion/i, /read[-\s]?only/i, /⎿/];
 const CODEX_STRONG = [
   /would you like to run the following command\?/i,
   /you approved .* to run/i,
-  /\bapply_patch\b|apply patch/i
+  /\bapply_patch\b|apply patch/i,
+  /\bToolCall:\b/i
 ];
 const CODEX_MEDIUM = [/\bcodex\b/i];
 const CODEX_WEAK = [/\bELIFECYCLE\b/i, /exit code/i];

@@ -1,6 +1,7 @@
 export type Style = "standard" | "kansai" | "zundamon";
 export type DetectedSource = "claude" | "codex" | "generic";
 export type SourceMode = "auto" | DetectedSource;
+export type InputMode = "pty" | "file";
 export type SourceState = { mode: SourceMode; detected: DetectedSource | null };
 export type EventType =
   | "start"
@@ -35,6 +36,8 @@ export type Profile = {
   cwd?: string;
   style: Style;
   logSource: SourceMode;
+  inputMode?: InputMode;
+  inputFile?: string;
   llmProvider?: ProviderName;
   createdAt: number;
   updatedAt: number;
@@ -49,6 +52,8 @@ export type CreateProfileInput = {
   cwd?: string;
   style?: Style;
   logSource?: SourceMode;
+  inputMode?: InputMode;
+  inputFile?: string;
   llmProvider?: ProviderName;
 };
 
