@@ -1,3 +1,4 @@
+import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { loadStore, saveStore } from "./store.js";
 import type {
@@ -7,11 +8,79 @@ import type {
   CreateProfileInput,
   UpdateProfileInput,
 } from "./types.js";
-import type { Style, SourceMode } from "../types.js";
+import type { Style, SourceMode, InputMode } from "../types.js";
 import type { ProviderName } from "../llm/types.js";
 
 // In-memory cache to avoid repeated disk reads
 let cachedStore: ProfileStore | null = null;
+
+function normalizeString(value: string): string {
+  return value.trim();
+}
+
+function normalizeOptionalString(value?: string): string | undefined {
+  if (value === undefined) return undefined;
+  const trimmed = value.trim();
+  return trimmed ? trimmed : undefined;
+}
+
+function normalizeArgs(args?: string[]): string[] | undefined {
+  if (args === undefined) return undefined;
+  return args.map((arg) => arg.trim()).filter(Boolean);
+}
+
+function normalizeInputMode(value?: InputMode): InputMode | undefined {
+  if (value === undefined) return undefined;
+  return value === "file" ? "file" : "pty";
+}
+
+function normalizeCommand(value: string, inputMode?: InputMode): string {
+  const trimmed = value.trim();
+  if (trimmed) return trimmed;
+  return inputMode === "file" ? "file" : trimmed;
+}
+
+function normalizeCreateInput(input: CreateProfileInput): CreateProfileInput {
+  const inputMode = normalizeInputMode(input.inputMode) ?? "pty";
+  return {
+    ...input,
+    name: normalizeString(input.name),
+    cmd: normalizeCommand(input.cmd, inputMode),
+    args: normalizeArgs(input.args),
+    cwd: normalizeOptionalString(input.cwd),
+    inputMode,
+    inputFile: normalizeOptionalString(input.inputFile),
+  };
+}
+
+function normalizeUpdateInput(input: UpdateProfileInput): UpdateProfileInput {
+  const inputMode = normalizeInputMode(input.inputMode);
+  return {
+    ...input,
+    ...(input.name !== undefined && { name: normalizeString(input.name) }),
+    ...(input.cmd !== undefined && { cmd: normalizeCommand(input.cmd, inputMode) }),
+    ...(input.args !== undefined && { args: normalizeArgs(input.args) }),
+    ...(input.cwd !== undefined && { cwd: normalizeOptionalString(input.cwd) }),
+    ...(input.inputMode !== undefined && { inputMode }),
+    ...(input.inputFile !== undefined && { inputFile: normalizeOptionalString(input.inputFile) }),
+  };
+}
+
+function displayCommand(profile: Profile): string {
+  if (profile.inputMode === "file") {
+    const base = profile.inputFile ? path.basename(profile.inputFile) : "log";
+    return `file:${base}`;
+  }
+  return profile.cmd;
+}
+
+function hydrateProfile(profile: Profile): Profile {
+  return {
+    ...profile,
+    inputMode: profile.inputMode ?? "pty",
+    inputFile: normalizeOptionalString(profile.inputFile),
+  };
+}
 
 /**
  * Get the current store (with caching)
@@ -35,10 +104,11 @@ async function persistStore(store: ProfileStore): Promise<void> {
  * Convert a full Profile to ProfileSummary
  */
 function toSummary(profile: Profile): ProfileSummary {
+  const hydrated = hydrateProfile(profile);
   return {
-    id: profile.id,
-    name: profile.name,
-    cmd: profile.cmd,
+    id: hydrated.id,
+    name: hydrated.name,
+    cmd: displayCommand(hydrated),
   };
 }
 
@@ -55,7 +125,8 @@ export async function list(): Promise<ProfileSummary[]> {
  */
 export async function get(id: string): Promise<Profile | null> {
   const store = await getStore();
-  return store.profiles.find((p) => p.id === id) ?? null;
+  const profile = store.profiles.find((p) => p.id === id) ?? null;
+  return profile ? hydrateProfile(profile) : null;
 }
 
 /**
@@ -72,7 +143,8 @@ export async function getActiveId(): Promise<string | null> {
 export async function getActive(): Promise<Profile | null> {
   const store = await getStore();
   if (!store.activeId) return null;
-  return store.profiles.find((p) => p.id === store.activeId) ?? null;
+  const profile = store.profiles.find((p) => p.id === store.activeId) ?? null;
+  return profile ? hydrateProfile(profile) : null;
 }
 
 /**
@@ -99,18 +171,25 @@ export async function setActive(id: string | null): Promise<void> {
  * Create a new profile
  */
 export async function create(input: CreateProfileInput): Promise<Profile> {
+  const normalized = normalizeCreateInput(input);
   const store = await getStore();
   const now = Date.now();
 
+  if (normalized.inputMode === "file" && !normalized.inputFile) {
+    throw new Error("inputFile is required when inputMode=file");
+  }
+
   const profile: Profile = {
     id: randomUUID(),
-    name: input.name,
-    cmd: input.cmd,
-    args: input.args ?? [],
-    cwd: input.cwd,
-    style: input.style ?? "kansai",
-    logSource: input.logSource ?? "auto",
-    llmProvider: input.llmProvider,
+    name: normalized.name,
+    cmd: normalized.cmd,
+    args: normalized.args ?? [],
+    cwd: normalized.cwd,
+    style: normalized.style ?? "kansai",
+    logSource: normalized.logSource ?? "auto",
+    inputMode: normalized.inputMode ?? "pty",
+    inputFile: normalized.inputFile,
+    llmProvider: normalized.llmProvider,
     createdAt: now,
     updatedAt: now,
   };
@@ -130,6 +209,7 @@ export async function update(
   id: string,
   input: UpdateProfileInput
 ): Promise<Profile> {
+  const normalized = normalizeUpdateInput(input);
   const store = await getStore();
   const index = store.profiles.findIndex((p) => p.id === id);
 
@@ -138,15 +218,25 @@ export async function update(
   }
 
   const existing = store.profiles[index];
+  const nextInputMode = normalized.inputMode ?? existing.inputMode ?? "pty";
+  const nextInputFile =
+    normalized.inputFile !== undefined ? normalized.inputFile : existing.inputFile;
+
+  if (nextInputMode === "file" && !nextInputFile) {
+    throw new Error("inputFile is required when inputMode=file");
+  }
+
   const updated: Profile = {
     ...existing,
-    ...(input.name !== undefined && { name: input.name }),
-    ...(input.cmd !== undefined && { cmd: input.cmd }),
-    ...(input.args !== undefined && { args: input.args }),
-    ...(input.cwd !== undefined && { cwd: input.cwd }),
-    ...(input.style !== undefined && { style: input.style }),
-    ...(input.logSource !== undefined && { logSource: input.logSource }),
-    ...(input.llmProvider !== undefined && { llmProvider: input.llmProvider }),
+    ...(normalized.name !== undefined && { name: normalized.name }),
+    ...(normalized.cmd !== undefined && { cmd: normalized.cmd }),
+    ...(normalized.args !== undefined && { args: normalized.args }),
+    ...(normalized.cwd !== undefined && { cwd: normalized.cwd }),
+    ...(normalized.style !== undefined && { style: normalized.style }),
+    ...(normalized.logSource !== undefined && { logSource: normalized.logSource }),
+    ...(normalized.inputMode !== undefined && { inputMode: normalized.inputMode }),
+    ...(normalized.inputFile !== undefined && { inputFile: normalized.inputFile }),
+    ...(normalized.llmProvider !== undefined && { llmProvider: normalized.llmProvider }),
     updatedAt: Date.now(),
   };
 
@@ -158,7 +248,7 @@ export async function update(
     profiles,
   });
 
-  return updated;
+  return hydrateProfile(updated);
 }
 
 /**
@@ -191,6 +281,10 @@ function getDefaultShell(): string {
     return "powershell.exe";
   }
   return "bash";
+}
+
+function parseInputMode(env: Record<string, string | undefined>): InputMode {
+  return env.INPUT_MODE?.trim().toLowerCase() === "file" ? "file" : "pty";
 }
 
 /**
@@ -226,9 +320,11 @@ function parseArgs(env: Record<string, string | undefined>): string[] {
 export function createFromEnv(
   env: Record<string, string | undefined> = process.env
 ): CreateProfileInput {
-  const cmd = env.TARGET_CMD ?? getDefaultShell();
+  const inputMode = parseInputMode(env);
+  const cmd = normalizeString(env.TARGET_CMD ?? getDefaultShell());
   const args = parseArgs(env);
-  const cwd = env.TARGET_CWD;
+  const cwd = normalizeOptionalString(env.TARGET_CWD);
+  const inputFile = normalizeOptionalString(env.INPUT_FILE);
 
   const style = (env.STYLE as Style | undefined) ?? "kansai";
   const logSource = (env.LOG_SOURCE as SourceMode | undefined) ?? "auto";
@@ -241,6 +337,8 @@ export function createFromEnv(
     cwd,
     style,
     logSource,
+    inputMode,
+    inputFile,
     llmProvider,
   };
 }

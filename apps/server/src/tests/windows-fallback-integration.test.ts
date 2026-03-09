@@ -613,7 +613,7 @@ describe("windows fallback integration", () => {
     expect(`${stdoutOutput}\n${stderrOutput}`).toContain("INPUT_FILE is required when INPUT_MODE=file");
   }, 10000);
 
-  itRequiresNodePty("emits ptyError and structured restart failure logs when profile args are invalid", async () => {
+  itRequiresNodePty("restarts PTY for invalid profile command and exits without ptyError", async () => {
     const port = await getFreePort();
     const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "cli-commentator-restart-failure-it-"));
     const xdgConfigHome = path.join(tmpDir, "xdg");
@@ -678,8 +678,8 @@ describe("windows fallback integration", () => {
           kind: "saveProfile",
           profile: {
             name: "restart-failure-it-profile",
-            cmd: process.execPath,
-            args: "invalid-args",
+            cmd: "__definitely_missing_command__",
+            args: [],
             style: "kansai",
             logSource: "auto",
           },
@@ -707,58 +707,53 @@ describe("windows fallback integration", () => {
       );
 
       await waitFor(
-        () => messages.slice(checkpoint).some((m) => m.kind === "ptyError"),
+        () =>
+          messages.slice(checkpoint).some((m) => {
+            if (m.kind !== "event") return false;
+            const ev = (m.ev as Record<string, unknown>) ?? null;
+            return ev?.type === "done";
+          }),
         10000,
         50,
         () =>
-          `Did not receive ptyError after restart with invalid args. kinds=${messages
+          `Did not observe PTY session exit after restart with invalid command. kinds=${messages
             .slice(checkpoint)
             .map((m) => String(m.kind ?? "unknown"))
             .join(",")} stderr_tail=${stderrOutput.slice(-500)}`
       );
+
+      const eventTypesAfterRestart = messages
+        .slice(checkpoint)
+        .filter((m) => m.kind === "event")
+        .map((m) => {
+          const ev = (m.ev as Record<string, unknown>) ?? null;
+          return typeof ev?.type === "string" ? ev.type : "unknown";
+        });
+      expect(eventTypesAfterRestart).toContain("start");
+      expect(eventTypesAfterRestart).toContain("done");
+
       const restartError = messages.slice(checkpoint).find((m) => m.kind === "ptyError");
-      expect(restartError).toBeTruthy();
-      expect(restartError?.error).toBeTypeOf("string");
-      expect(String(restartError?.error ?? "").length).toBeGreaterThan(0);
+      expect(restartError).toBeUndefined();
 
       const ptyUnavailableAfterRestart = messages.slice(checkpoint).find((m) => m.kind === "ptyUnavailable");
       expect(ptyUnavailableAfterRestart).toBeUndefined();
 
-      await waitFor(
-        () =>
-          parseStartupFailureLogs(stderrOutput).some(
-            (log) =>
-              log.context === "restart" &&
-              log.kind === "ptyError" &&
-              log.code !== "node_pty_unavailable" &&
-              log.fallback?.attempted === false &&
-              log.fallback?.activated === false &&
-              log.fallback?.reason === "not_attempted"
-          ),
-        10000,
-        50,
-        "Did not observe structured restart failure log for invalid profile args"
-      );
-
       const restartFailureLog = parseStartupFailureLogs(stderrOutput).find(
-        (log) => log.context === "restart" && log.kind === "ptyError"
+        (log) => log.context === "restart"
       );
-      expect(restartFailureLog?.code).toBe("unknown");
+      expect(restartFailureLog).toBeUndefined();
 
-      await waitFor(
-        () =>
-          parseServerStateLogs(`${stdoutOutput}\n${stderrOutput}`).some(
-            (log) =>
-              log.trigger === "restart_failed" &&
-              log.from === "restarting" &&
-              log.to === "failed" &&
-              typeof log.detail === "string" &&
-              log.detail.includes("kind=ptyError")
-          ),
+      const exitCode = await waitForChildExit(
+        child,
         10000,
-        50,
-        "Did not observe state transition to failed during restart ptyError"
+        "Server did not exit after invalid profile command completed"
       );
+      expect(exitCode).not.toBe(0);
+
+      const restartFailureState = parseServerStateLogs(`${stdoutOutput}\n${stderrOutput}`).find(
+        (log) => log.trigger === "restart_failed"
+      );
+      expect(restartFailureState).toBeUndefined();
 
       const fileFallbackStateAfterRestart = parseServerStateLogs(`${stdoutOutput}\n${stderrOutput}`).find(
         (log) => log.from === "restarting" && log.to === "file_running"
