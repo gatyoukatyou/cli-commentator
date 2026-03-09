@@ -1,8 +1,13 @@
-import { describe, it, expect } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { configFromProfile, configFromEnv, resolveUseConpty } from "../pty/manager.js";
 import type { Profile } from "../profile/types.js";
 
 describe("pty/manager", () => {
+  afterEach(() => {
+    vi.doUnmock("node:module");
+    vi.resetModules();
+  });
+
   describe("configFromProfile", () => {
     it("extracts PTY config from profile", () => {
       const profile: Profile = {
@@ -195,6 +200,50 @@ describe("pty/manager", () => {
 
     it("defaults to true on Windows when no override/debugger is present", () => {
       expect(resolveUseConpty({ platform: "win32", env: {}, execArgv: [] })).toBe(true);
+    });
+  });
+
+  describe("createPTYManager", () => {
+    it("surfaces node-pty spawn failures unchanged", async () => {
+      vi.resetModules();
+      const spawnError = new Error("spawn bash ENOENT");
+      const spawn = vi.fn(() => {
+        throw spawnError;
+      });
+
+      vi.doMock("node:module", () => ({
+        createRequire: () => {
+          return (specifier: string) => {
+            if (specifier === "node-pty") {
+              return { spawn };
+            }
+            throw new Error(`unexpected require: ${specifier}`);
+          };
+        },
+      }));
+
+      const { createPTYManager } = await import("../pty/manager.js");
+      const manager = createPTYManager();
+
+      expect(() =>
+        manager.spawn({
+          cmd: "bash",
+          args: ["-lc", "pwd"],
+          cwd: process.cwd(),
+        })
+      ).toThrow(spawnError);
+
+      expect(spawn).toHaveBeenCalledWith(
+        "bash",
+        ["-lc", "pwd"],
+        expect.objectContaining({
+          name: "xterm-256color",
+          cols: 120,
+          rows: 30,
+          cwd: process.cwd(),
+          env: expect.any(Object),
+        })
+      );
     });
   });
 });
