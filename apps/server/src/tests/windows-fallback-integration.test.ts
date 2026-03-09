@@ -47,6 +47,24 @@ async function getFreePort(): Promise<number> {
   });
 }
 
+async function canBindLoopback(): Promise<boolean> {
+  try {
+    const port = await getFreePort();
+    return port > 0;
+  } catch (error) {
+    if (
+      error instanceof Error &&
+      (error.message.includes("EPERM") || error.message.includes("EACCES"))
+    ) {
+      console.warn("[windows-fallback-integration] Skipping loopback-dependent tests:", error.message);
+      return false;
+    }
+    throw error;
+  }
+}
+
+const LOOPBACK_AVAILABLE = await canBindLoopback();
+
 async function waitFor(
   predicate: () => boolean | Promise<boolean>,
   timeoutMs: number,
@@ -199,11 +217,12 @@ function parseServerStateLogs(output: string): ServerStateLog[] {
 }
 
 describe("windows fallback integration", () => {
+  const itWithLoopback = LOOPBACK_AVAILABLE ? it : it.skip;
   const itRequiresNodePty =
     process.platform === "win32" || process.env.CLI_COMMENTATOR_FORCE_NO_PTY === "1"
       ? it.skip
-      : it;
-  it("emits ptyUnavailable on startup and on profile restart, without ptyError", async () => {
+      : itWithLoopback;
+  itWithLoopback("emits ptyUnavailable on startup and on profile restart, without ptyError", async () => {
     const port = await getFreePort();
     const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "cli-commentator-fallback-it-"));
     const inputFile = path.join(tmpDir, "input.log");
@@ -387,7 +406,7 @@ describe("windows fallback integration", () => {
     }
   }, 30000);
 
-  it("emits ptyUnavailable on startup and restart when file fallback is unavailable", async () => {
+  itWithLoopback("emits ptyUnavailable on startup and restart when file fallback is unavailable", async () => {
     const port = await getFreePort();
     const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "cli-commentator-fallback-no-file-it-"));
     const missingInputFile = path.join(tmpDir, "missing.log");
@@ -570,7 +589,7 @@ describe("windows fallback integration", () => {
     }
   }, 30000);
 
-  it("logs startup_failed and exits when file mode starts without INPUT_FILE", async () => {
+  itWithLoopback("logs startup_failed and exits when file mode starts without INPUT_FILE", async () => {
     const port = await getFreePort();
 
     const child = spawn("node", ["--import", "tsx", "src/index.ts"], {
@@ -716,7 +735,6 @@ describe("windows fallback integration", () => {
         10000,
         50,
         () =>
-          `Did not observe PTY session exit after restart with invalid command. kinds=${messages
           `Did not observe PTY session exit after restart with invalid command. kinds=${messages
             .slice(checkpoint)
             .map((m) => String(m.kind ?? "unknown"))
