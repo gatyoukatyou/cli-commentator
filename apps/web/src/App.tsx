@@ -577,15 +577,15 @@ export default function App() {
     };
   }, []);
 
-  const clearPendingSpeech = () => {
+  const clearPendingSpeech = useCallback(() => {
     if (pendingSpeechTimeoutRef.current) {
       clearTimeout(pendingSpeechTimeoutRef.current);
       pendingSpeechTimeoutRef.current = null;
     }
     pendingSpeechRef.current = null;
-  };
+  }, []);
 
-  const flushPendingSpeech = () => {
+  const flushPendingSpeech = useCallback(() => {
     if (pendingSpeechTimeoutRef.current) {
       clearTimeout(pendingSpeechTimeoutRef.current);
       pendingSpeechTimeoutRef.current = null;
@@ -599,18 +599,18 @@ export default function App() {
     const speechText = buildSpeechText(pending.latest.text, pending.count, rawDetail);
     if (!speechText) return;
     speak(speechText, ttsSettingsRef.current);
-  };
+  }, []);
 
-  const schedulePendingSpeech = () => {
+  const schedulePendingSpeech = useCallback(() => {
     if (pendingSpeechTimeoutRef.current) {
       clearTimeout(pendingSpeechTimeoutRef.current);
     }
     pendingSpeechTimeoutRef.current = setTimeout(() => {
       flushPendingSpeech();
     }, TTS_BATCH_DELAY_MS);
-  };
+  }, [flushPendingSpeech]);
 
-  const queueSpeech = (item: CommentaryItem) => {
+  const queueSpeech = useCallback((item: CommentaryItem) => {
     if (!ttsEnabledRef.current) return;
 
     const groupKey = getCommentaryGroupKey(item);
@@ -632,7 +632,7 @@ export default function App() {
       count: 1,
     };
     schedulePendingSpeech();
-  };
+  }, [flushPendingSpeech, schedulePendingSpeech]);
 
   // Copy feedback cleanup/reset
   useEffect(() => {
@@ -881,7 +881,7 @@ export default function App() {
         wsRef.current.close();
       }
     };
-  }, [wsUrl]);
+  }, [clearPendingSpeech, queueSpeech, wsUrl]);
 
   const sendStyle = (s: Style) => {
     setStyle(s);

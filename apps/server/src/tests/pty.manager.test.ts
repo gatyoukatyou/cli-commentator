@@ -206,44 +206,55 @@ describe("pty/manager", () => {
   describe("createPTYManager", () => {
     it("surfaces node-pty spawn failures unchanged", async () => {
       vi.resetModules();
+      const originalForceNoPty = process.env.CLI_COMMENTATOR_FORCE_NO_PTY;
       const spawnError = new Error("spawn bash ENOENT");
       const spawn = vi.fn(() => {
         throw spawnError;
       });
 
-      vi.doMock("node:module", () => ({
-        createRequire: () => {
-          return (specifier: string) => {
-            if (specifier === "node-pty") {
-              return { spawn };
-            }
-            throw new Error(`unexpected require: ${specifier}`);
-          };
-        },
-      }));
+      delete process.env.CLI_COMMENTATOR_FORCE_NO_PTY;
 
-      const { createPTYManager } = await import("../pty/manager.js");
-      const manager = createPTYManager();
+      try {
+        vi.doMock("node:module", () => ({
+          createRequire: () => {
+            return (specifier: string) => {
+              if (specifier === "node-pty") {
+                return { spawn };
+              }
+              throw new Error(`unexpected require: ${specifier}`);
+            };
+          },
+        }));
 
-      expect(() =>
-        manager.spawn({
-          cmd: "bash",
-          args: ["-lc", "pwd"],
-          cwd: process.cwd(),
-        })
-      ).toThrow(spawnError);
+        const { createPTYManager } = await import("../pty/manager.js");
+        const manager = createPTYManager();
 
-      expect(spawn).toHaveBeenCalledWith(
-        "bash",
-        ["-lc", "pwd"],
-        expect.objectContaining({
-          name: "xterm-256color",
-          cols: 120,
-          rows: 30,
-          cwd: process.cwd(),
-          env: expect.any(Object),
-        })
-      );
+        expect(() =>
+          manager.spawn({
+            cmd: "bash",
+            args: ["-lc", "pwd"],
+            cwd: process.cwd(),
+          })
+        ).toThrow(spawnError);
+
+        expect(spawn).toHaveBeenCalledWith(
+          "bash",
+          ["-lc", "pwd"],
+          expect.objectContaining({
+            name: "xterm-256color",
+            cols: 120,
+            rows: 30,
+            cwd: process.cwd(),
+            env: expect.any(Object),
+          })
+        );
+      } finally {
+        if (originalForceNoPty === undefined) {
+          delete process.env.CLI_COMMENTATOR_FORCE_NO_PTY;
+        } else {
+          process.env.CLI_COMMENTATOR_FORCE_NO_PTY = originalForceNoPty;
+        }
+      }
     });
   });
 });
