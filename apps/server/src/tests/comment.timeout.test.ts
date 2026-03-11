@@ -44,9 +44,9 @@ describe("comment() timeout behavior", () => {
     // comment() は abort されてルールベースにフォールバック
     const result = await comment(ev, "standard");
 
-    // ルール実況の特徴を含む（LLMレスポンスではない）
-    expect(result).toContain("1行メモ");
-    expect(result).not.toBe("should not reach here");
+    expect(result.narration).toBeTruthy();
+    expect(result.explanation).toBeTruthy();
+    expect(result.narration).not.toBe("should not reach here");
 
     // Clean up the mock for next test
     vi.doUnmock("../llm/factory.js");
@@ -69,7 +69,7 @@ describe("comment() timeout behavior", () => {
     const result = await comment(ev, "standard");
 
     // mock アダプタのレスポンス
-    expect(result).toContain("[mock-");
+    expect(result.narration).toContain("[mock-");
   });
 
   it("signal is aborted after timeout", async () => {

@@ -29,8 +29,9 @@ import {
   type CommentaryItem,
   type LogEventTypeFilter,
 } from "./lib/log-filter";
-import { buildSpeechText, splitGlossaryNote } from "./lib/glossary-note";
+import { buildSpeechText, getCommentaryTextParts } from "./lib/glossary-note";
 import type {
+  CommentaryDisplayMode,
   Style,
   SourceState,
   Profile,
@@ -52,6 +53,11 @@ const LOG_AUTO_SCROLL_THRESHOLD_PX = 64;
 const GENERIC_LOG_SUMMARIES = new Set(["ログ更新"]);
 const GROUP_DETAIL_PREVIEW_COUNT = 3;
 const TTS_BATCH_DELAY_MS = 900;
+const COMMENTARY_DISPLAY_MODE_OPTIONS: Array<{ value: CommentaryDisplayMode; label: string }> = [
+  { value: "both", label: "実況＋解説" },
+  { value: "narration", label: "実況のみ" },
+  { value: "explanation", label: "解説のみ" },
+];
 
 type ServerStatusDetail = {
   state: DesktopServerState;
@@ -100,6 +106,12 @@ const getStringField = (obj: Record<string, unknown> | null, key: string): strin
   if (!obj) return undefined;
   const value = obj[key];
   return typeof value === "string" ? value : undefined;
+};
+
+const getStringArrayField = (obj: Record<string, unknown> | null, key: string): string[] | undefined => {
+  if (!obj) return undefined;
+  const value = obj[key];
+  return Array.isArray(value) && value.every((entry) => typeof entry === "string") ? value : undefined;
 };
 
 const normalizeSuggestion = (value?: string): string | undefined => {
@@ -486,6 +498,10 @@ export default function App() {
     const saved = localStorage.getItem("cli-commentator-skin");
     return (saved as Skin) || "standard";
   });
+  const [commentaryDisplayMode, setCommentaryDisplayMode] = useState<CommentaryDisplayMode>(() => {
+    const saved = localStorage.getItem("cli-commentator-display-mode");
+    return saved === "narration" || saved === "explanation" || saved === "both" ? saved : "both";
+  });
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectAttemptRef = useRef(0);
   const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -542,6 +558,10 @@ export default function App() {
     localStorage.setItem("cli-commentator-skin", skin);
   }, [skin]);
 
+  useEffect(() => {
+    localStorage.setItem("cli-commentator-display-mode", commentaryDisplayMode);
+  }, [commentaryDisplayMode]);
+
   // TTS ref sync (to avoid stale closure in WebSocket handler)
   useEffect(() => {
     ttsEnabledRef.current = ttsEnabled;
@@ -596,10 +616,19 @@ export default function App() {
     if (!pending || !ttsEnabledRef.current) return;
 
     const rawDetail = ttsSettingsRef.current.includeRawDetail ? normalizeSuggestion(pending.latest.detail) : undefined;
-    const speechText = buildSpeechText(pending.latest.text, pending.count, rawDetail);
+    const speechText = buildSpeechText(
+      getCommentaryTextParts({
+        narration: pending.latest.narration,
+        explanation: pending.latest.explanation,
+        glossaryNotes: pending.latest.glossaryNotes,
+      }),
+      pending.count,
+      rawDetail,
+      commentaryDisplayMode
+    );
     if (!speechText) return;
     speak(speechText, ttsSettingsRef.current);
-  }, []);
+  }, [commentaryDisplayMode]);
 
   const schedulePendingSpeech = useCallback(() => {
     if (pendingSpeechTimeoutRef.current) {
@@ -735,15 +764,26 @@ export default function App() {
               if (data.source) setSource(data.source as SourceState);
               break;
             case "commentary":
-              if (typeof data.ts === "number" && typeof data.text === "string") {
+              if (typeof data.ts === "number") {
                 const ev = isRecord(data.ev) ? data.ev : null;
                 const eventTypeCandidate = ev?.type;
                 const eventType = isEventType(eventTypeCandidate) ? eventTypeCandidate : "stdout";
                 const summary = typeof ev?.summary === "string" ? ev.summary : undefined;
                 const detail = typeof ev?.detail === "string" ? ev.detail : undefined;
+                const parts = getCommentaryTextParts({
+                  narration: getStringField(data, "narration"),
+                  explanation: getStringField(data, "explanation"),
+                  glossaryNotes: getStringArrayField(data, "glossaryNotes"),
+                  text: getStringField(data, "text"),
+                });
+                if (!parts.narrationText && !parts.explanationText && parts.glossaryNotes.length === 0) {
+                  break;
+                }
                 const nextItem: CommentaryItem = {
                   ts: data.ts as number,
-                  text: data.text as string,
+                  narration: parts.narrationText ?? undefined,
+                  explanation: parts.explanationText ?? undefined,
+                  glossaryNotes: parts.glossaryNotes,
                   eventType,
                   summary,
                   detail,
@@ -1118,6 +1158,23 @@ export default function App() {
         <span style={{ fontSize: "var(--text-sm)", color: "var(--color-fg-tertiary)" }}>（イベント時＋最大2秒に1回）</span>
       </div>
 
+      <div className="control-row">
+        <label className="control-row__label">表示：</label>
+        <select
+          value={commentaryDisplayMode}
+          onChange={(e) => setCommentaryDisplayMode(e.target.value as CommentaryDisplayMode)}
+        >
+          {COMMENTARY_DISPLAY_MODE_OPTIONS.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+        <span style={{ fontSize: "var(--text-sm)", color: "var(--color-fg-tertiary)" }}>
+          用語補足は表示モードに関係なく別枠で表示します
+        </span>
+      </div>
+
       {/* TTS Toggle */}
       <div className="control-row">
         <label className="control-row__label" style={{ cursor: ttsSupported ? "pointer" : "not-allowed" }}>
@@ -1336,8 +1393,12 @@ export default function App() {
         ) : (
           groupedItems.map((group, idx) => {
             const it = group.latest;
-            const parts = splitGlossaryNote(it.text);
-            const notes = parts.noteText?.split(" / ").map((entry) => entry.trim()).filter(Boolean) ?? [];
+            const parts = getCommentaryTextParts({
+              narration: it.narration,
+              explanation: it.explanation,
+              glossaryNotes: it.glossaryNotes,
+            });
+            const notes = parts.glossaryNotes;
             const detailEntries = unique(group.items.map((entry) => entry.detail));
             const summaryEntries = unique(
               group.items
@@ -1352,6 +1413,10 @@ export default function App() {
             const groupHint = isGrouped
               ? `同じ流れのログが ${group.count} 件続いたので、最新の内容を代表で見せています。`
               : null;
+            const showNarration = commentaryDisplayMode !== "explanation" && Boolean(parts.narrationText);
+            const showExplanation = commentaryDisplayMode !== "narration" && Boolean(parts.explanationText);
+            const primaryText = showNarration ? parts.narrationText : showExplanation ? parts.explanationText : null;
+            const showExplanationBody = showNarration && showExplanation;
 
             return (
               <div key={`${group.key}-${idx}`} className="log-item">
@@ -1362,8 +1427,8 @@ export default function App() {
                     {isGrouped && <div className="log-item__group-badge">{group.count}件まとめ</div>}
                   </div>
                 </div>
-                <div className="log-item__text">{parts.mainText}</div>
-                {(groupHint || parts.memoText || notes.length > 0) && (
+                {primaryText && <div className="log-item__text">{primaryText}</div>}
+                {(groupHint || showExplanationBody || notes.length > 0) && (
                   <div className="log-item__explain">
                     {groupHint && (
                       <div className="log-item__explain-body">
@@ -1371,10 +1436,10 @@ export default function App() {
                         <div className="log-item__explain-text">{groupHint}</div>
                       </div>
                     )}
-                    {parts.memoText && (
+                    {showExplanationBody && parts.explanationText && (
                       <div className="log-item__explain-body">
                         <div className="log-item__section-label">やさしい説明</div>
-                        <div className="log-item__explain-text">{parts.memoText}</div>
+                        <div className="log-item__explain-text">{parts.explanationText}</div>
                       </div>
                     )}
                     {notes.length > 0 && (

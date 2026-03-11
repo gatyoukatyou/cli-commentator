@@ -26,7 +26,8 @@ describe("comment() with LLM_PROVIDER=mock", () => {
     };
 
     const out = await comment(ev, "standard");
-    expect(out).toContain("[mock-");
+    expect(out.narration).toContain("[mock-");
+    expect(out.explanation).toBeTruthy();
   });
 
   it("uses rule-based commentary when LLM_PROVIDER is not set", async () => {
@@ -42,9 +43,8 @@ describe("comment() with LLM_PROVIDER=mock", () => {
     };
 
     const out = await comment(ev, "standard");
-    // ルール実況は [mock- を含まない
-    expect(out).not.toContain("[mock-");
-    // ルール実況の1行補足テンプレートを含む
-    expect(out).toContain("1行メモ");
+    expect(out.narration).not.toContain("[mock-");
+    expect(out.explanation).toBeTruthy();
+    expect(out.glossaryNotes).toBeInstanceOf(Array);
   });
 });

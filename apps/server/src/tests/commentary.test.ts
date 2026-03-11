@@ -51,7 +51,7 @@ describe("commentary quality fixtures", () => {
         outputs: await Promise.all(
           styles.map(async (style) => ({
             style,
-            text: await comment(fixture.event, style),
+            commentary: await comment(fixture.event, style),
           }))
         ),
       }))
