@@ -103,6 +103,8 @@ describe("profile/manager", () => {
         inputMode: "file",
         inputFile: "/tmp/claude.log",
         llmProvider: "openai",
+        narrationProvider: "mock",
+        explanationProvider: "anthropic",
       });
 
       expect(profile.name).toBe("Full");
@@ -114,6 +116,8 @@ describe("profile/manager", () => {
       expect(profile.inputMode).toBe("file");
       expect(profile.inputFile).toBe("/tmp/claude.log");
       expect(profile.llmProvider).toBe("openai");
+      expect(profile.narrationProvider).toBe("mock");
+      expect(profile.explanationProvider).toBe("anthropic");
     });
 
     it("requires inputFile for file mode", async () => {
@@ -172,6 +176,8 @@ describe("profile/manager", () => {
         style: "zundamon",
         inputMode: "file",
         inputFile: "/tmp/updated.log",
+        narrationProvider: "openai",
+        explanationProvider: "gemini",
       });
 
       expect(updated.id).toBe(created.id);
@@ -180,6 +186,8 @@ describe("profile/manager", () => {
       expect(updated.style).toBe("zundamon");
       expect(updated.inputMode).toBe("file");
       expect(updated.inputFile).toBe("/tmp/updated.log");
+      expect(updated.narrationProvider).toBe("openai");
+      expect(updated.explanationProvider).toBe("gemini");
       // Use >= to avoid flaky test when operations complete within same millisecond
       expect(updated.updatedAt).toBeGreaterThanOrEqual(created.updatedAt);
     });
@@ -326,6 +334,8 @@ describe("profile/manager", () => {
         inputMode: "file",
         inputFile: "/tmp/profile.log",
         llmProvider: "openai",
+        narrationProvider: undefined,
+        explanationProvider: undefined,
       });
     });
 
@@ -343,6 +353,8 @@ describe("profile/manager", () => {
         inputMode: "pty",
         inputFile: undefined,
         llmProvider: undefined,
+        narrationProvider: undefined,
+        explanationProvider: undefined,
       });
     });
 

@@ -54,6 +54,8 @@ export type Profile = {
   inputMode?: InputMode;
   inputFile?: string;
   llmProvider?: ProviderName;
+  narrationProvider?: ProviderName;
+  explanationProvider?: ProviderName;
   createdAt: number;
   updatedAt: number;
 };
@@ -70,6 +72,8 @@ export type CreateProfileInput = {
   inputMode?: InputMode;
   inputFile?: string;
   llmProvider?: ProviderName;
+  narrationProvider?: ProviderName;
+  explanationProvider?: ProviderName;
 };
 
 export type PtyUnavailablePayload = {

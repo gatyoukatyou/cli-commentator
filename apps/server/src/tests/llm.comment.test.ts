@@ -27,7 +27,9 @@ describe("comment() with LLM_PROVIDER=mock", () => {
 
     const out = await comment(ev, "standard");
     expect(out.narration).toContain("[mock-");
-    expect(out.explanation).toBeTruthy();
+    expect(out.explanation).toContain("[mock-");
+    expect(out.meta?.narrationProvider).toBe("mock");
+    expect(out.meta?.explanationProvider).toBe("mock");
   });
 
   it("uses rule-based commentary when LLM_PROVIDER is not set", async () => {
@@ -46,5 +48,51 @@ describe("comment() with LLM_PROVIDER=mock", () => {
     expect(out.narration).not.toContain("[mock-");
     expect(out.explanation).toBeTruthy();
     expect(out.glossaryNotes).toBeInstanceOf(Array);
+  });
+
+  it("supports new provider fields without legacy llmProvider", async () => {
+    delete process.env.LLM_PROVIDER;
+
+    const { comment } = await import("../styles/index.js");
+
+    const ev: Event = {
+      ts: Date.now(),
+      type: "search",
+      summary: "ファイルを検索中",
+      detail: "rg -n pattern"
+    };
+
+    const out = await comment(ev, "standard", {
+      narrationProvider: "mock",
+      explanationProvider: "mock",
+    });
+
+    expect(out.narration).toContain("[mock-");
+    expect(out.explanation).toContain("[mock-");
+    expect(out.meta?.narrationProvider).toBe("mock");
+    expect(out.meta?.explanationProvider).toBe("mock");
+  });
+
+  it("uses legacy llmProvider as fallback for the side that is still unset", async () => {
+    delete process.env.LLM_PROVIDER;
+
+    const { comment } = await import("../styles/index.js");
+
+    const ev: Event = {
+      ts: Date.now(),
+      type: "search",
+      summary: "ファイルを検索中",
+      detail: "rg -n pattern"
+    };
+
+    const out = await comment(ev, "standard", {
+      llmProvider: "mock",
+      narrationProvider: "disabled",
+    });
+
+    expect(out.narration).not.toContain("[mock-");
+    expect(out.explanation).toContain("[mock-");
+    expect(out.meta?.narrationProvider).toBe("rules");
+    expect(out.meta?.explanationProvider).toBe("mock");
   });
 });

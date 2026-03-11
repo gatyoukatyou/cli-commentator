@@ -281,6 +281,8 @@ describe("profile/store", () => {
             style: "kansai",
             logSource: "claude",
             llmProvider: "openai",
+            narrationProvider: "mock",
+            explanationProvider: "anthropic",
             createdAt: 1234567890,
             updatedAt: 1234567891,
           },

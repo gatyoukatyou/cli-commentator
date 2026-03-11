@@ -1,4 +1,5 @@
 import type { CommentaryMode, CommentaryPayload, Event, Style } from "../types.js";
+import type { ProviderName } from "../llm/types.js";
 import { commentStandard } from "./standard.js";
 import { commentKansai } from "./kansai.js";
 import { commentZundamon } from "./zundamon.js";
@@ -6,9 +7,10 @@ import { createLLMAdapter } from "../llm/factory.js";
 import type { LLMAdapter } from "../llm/adapter.js";
 import { CommentError } from "../errors.js";
 import { withTimeout } from "../utils/timeout.js";
+import type { ProfileLLMProviders } from "../profile/types.js";
 
-const LLM_PROVIDER = (process.env.LLM_PROVIDER ?? "").trim().toLowerCase();
 const COMMENT_TIMEOUT_MS = parseInt(process.env.COMMENT_TIMEOUT_MS ?? "3000", 10);
+const adapterCache = new Map<ProviderName, LLMAdapter | null>();
 
 // --- Logging ---
 type CommentLogMeta = {
@@ -29,16 +31,6 @@ function logComment(
     console.warn(msg);
   }
 }
-
-// 起動時に1回だけ作る（未実装providerでも落とさない）
-const llm: LLMAdapter | null = (() => {
-  if (!LLM_PROVIDER) return null;
-  try {
-    return createLLMAdapter();
-  } catch {
-    return null;
-  }
-})();
 
 const GLOSSARY: Array<{ re: RegExp; note: string }> = [
   { re: /\brg\b/, note: "補足: rg はプロジェクト全体を高速検索するコマンド" },
@@ -574,7 +566,60 @@ function commentByRules(ev: Event, style: Style): CommentaryPayload {
   });
 }
 
-function buildLLMPrompt(ev: Event, style: Style): string {
+function normalizeProviderName(value?: string): ProviderName | undefined {
+  const normalized = (value ?? "").trim().toLowerCase();
+  if (
+    normalized === "disabled" ||
+    normalized === "mock" ||
+    normalized === "openai" ||
+    normalized === "groq" ||
+    normalized === "local" ||
+    normalized === "anthropic" ||
+    normalized === "gemini"
+  ) {
+    return normalized;
+  }
+  return undefined;
+}
+
+function resolveCommentaryProviders(providers: ProfileLLMProviders = {}): {
+  narrationProvider?: ProviderName;
+  explanationProvider?: ProviderName;
+} {
+  const legacyProvider =
+    normalizeProviderName(providers.llmProvider) ??
+    normalizeProviderName(process.env.LLM_PROVIDER);
+
+  return {
+    narrationProvider: normalizeProviderName(providers.narrationProvider) ?? legacyProvider,
+    explanationProvider: normalizeProviderName(providers.explanationProvider) ?? legacyProvider,
+  };
+}
+
+function getAdapter(provider?: ProviderName): LLMAdapter | null {
+  if (!provider || provider === "disabled") {
+    return null;
+  }
+
+  const cached = adapterCache.get(provider);
+  if (cached !== undefined) {
+    return cached;
+  }
+
+  try {
+    const adapter = createLLMAdapter({
+      ...process.env,
+      LLM_PROVIDER: provider,
+    });
+    adapterCache.set(provider, adapter);
+    return adapter;
+  } catch {
+    adapterCache.set(provider, null);
+    return null;
+  }
+}
+
+function buildNarrationPrompt(ev: Event, style: Style): string {
   const styleDesc =
     style === "kansai" ? "関西弁で" :
     style === "zundamon" ? "ずんだもん風（〜なのだ）で" :
@@ -587,53 +632,110 @@ function buildLLMPrompt(ev: Event, style: Style): string {
 回答は実況コメント1文のみ（説明不要）:`;
 }
 
-async function commentInternal(ev: Event, style: Style, signal?: AbortSignal): Promise<CommentaryPayload> {
-  // 1) provider未指定 or disabled → 従来ルール実況
-  if (!LLM_PROVIDER || LLM_PROVIDER === "disabled") {
-    return commentByRules(ev, style);
-  }
+function buildExplanationPrompt(ev: Event, style: Style): string {
+  const styleDesc =
+    style === "kansai" ? "関西弁で" :
+    style === "zundamon" ? "ずんだもん風（〜なのだ）で" :
+    "標準的な日本語で";
 
-  // 2) provider指定あり → LLMを試す（エラーは上位で処理）
-  if (!llm) {
-    return commentByRules(ev, style);
-  }
+  return `あなたはCLI操作の解説者です。${styleDesc}、以下のイベントが何をしているのかを初心者向けに1文で補足してください。
+イベント種別: ${ev.type}
+要約: ${ev.summary}${ev.detail ? `\n詳細: ${ev.detail}` : ""}
 
-  const prompt = buildLLMPrompt(ev, style);
-  const res = await llm.generateText({
+回答は補足説明1文のみ（実況不要）:`;
+}
+
+async function generateLLMText(
+  adapter: LLMAdapter,
+  prompt: string,
+  signal?: AbortSignal
+): Promise<string> {
+  const res = await adapter.generateText({
     messages: [{ role: "user", content: prompt }],
     signal,
   });
 
-  const rules = commentByRules(ev, style);
-  if (res.text && res.text.trim()) {
-    return withCommentaryMode({
-      narration: res.text.trim(),
-      explanation: rules.explanation,
-      glossaryNotes: rules.glossaryNotes,
-      meta: {
-        narrationProvider: llm.name,
-        explanationProvider: rules.meta?.explanationProvider ?? "rules",
-      },
-    });
+  const text = res.text?.trim();
+  if (!text) {
+    throw new CommentError("comment_llm_error", "Empty LLM response");
   }
 
-  // 空レスポンス → LLMエラーとして扱う
-  throw new CommentError("comment_llm_error", "Empty LLM response");
+  return text;
+}
+
+function providerLabel(narrationProvider?: ProviderName, explanationProvider?: ProviderName): string {
+  return `${narrationProvider ?? "disabled"}/${explanationProvider ?? "disabled"}`;
+}
+
+async function commentInternal(
+  ev: Event,
+  style: Style,
+  providers: ProfileLLMProviders = {},
+  signal?: AbortSignal
+): Promise<CommentaryPayload> {
+  const rules = commentByRules(ev, style);
+  const resolvedProviders = resolveCommentaryProviders(providers);
+  const narrationAdapter = getAdapter(resolvedProviders.narrationProvider);
+  const explanationAdapter = getAdapter(resolvedProviders.explanationProvider);
+
+  if (!narrationAdapter && !explanationAdapter) {
+    return rules;
+  }
+
+  const [narration, explanation] = await Promise.all([
+    narrationAdapter
+      ? generateLLMText(narrationAdapter, buildNarrationPrompt(ev, style), signal)
+          .then((text) => ({ text, provider: narrationAdapter.name }))
+          .catch(() => null)
+      : Promise.resolve(null),
+    explanationAdapter
+      ? generateLLMText(explanationAdapter, buildExplanationPrompt(ev, style), signal)
+          .then((text) => ({
+            text: stripMemoPrefix(text),
+            provider: explanationAdapter.name,
+          }))
+          .catch(() => null)
+      : Promise.resolve(null),
+  ]);
+
+  if ((!narrationAdapter || !narration) && (!explanationAdapter || !explanation)) {
+    throw new CommentError("comment_llm_error", "All configured commentary providers failed");
+  }
+
+  return withCommentaryMode({
+    narration: narration?.text ?? rules.narration,
+    explanation: explanation?.text ?? rules.explanation,
+    glossaryNotes: rules.glossaryNotes,
+    meta: {
+      narrationProvider: narration?.provider ?? rules.meta?.narrationProvider ?? "rules",
+      explanationProvider: explanation?.provider ?? rules.meta?.explanationProvider ?? "rules",
+    },
+  });
 }
 
 /**
  * comment() with timeout protection and logging.
  * If LLM call takes longer than COMMENT_TIMEOUT_MS, abort and fallback to rules.
  */
-export async function comment(ev: Event, style: Style): Promise<CommentaryPayload> {
+export async function comment(
+  ev: Event,
+  style: Style,
+  providers: ProfileLLMProviders = {}
+): Promise<CommentaryPayload> {
+  const resolvedProviders = resolveCommentaryProviders(providers);
+  const narrationAdapter = getAdapter(resolvedProviders.narrationProvider);
+  const explanationAdapter = getAdapter(resolvedProviders.explanationProvider);
   const meta: CommentLogMeta = {
-    provider: LLM_PROVIDER || "disabled",
+    provider: providerLabel(
+      resolvedProviders.narrationProvider,
+      resolvedProviders.explanationProvider
+    ),
     style,
     eventType: ev.type,
   };
 
   // ルールベースのみの場合はタイムアウト不要
-  if (!LLM_PROVIDER || LLM_PROVIDER === "disabled" || !llm) {
+  if (!narrationAdapter && !explanationAdapter) {
     return commentByRules(ev, style);
   }
 
@@ -642,7 +744,7 @@ export async function comment(ev: Event, style: Style): Promise<CommentaryPayloa
 
   try {
     const result = await withTimeout(
-      commentInternal(ev, style, controller.signal),
+      commentInternal(ev, style, providers, controller.signal),
       {
         ms: COMMENT_TIMEOUT_MS,
         timeoutError: () => new CommentError("comment_timeout"),

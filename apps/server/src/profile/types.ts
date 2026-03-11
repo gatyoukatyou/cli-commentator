@@ -1,10 +1,16 @@
 import type { Style, SourceMode, InputMode } from "../types.js";
 import type { ProviderName } from "../llm/types.js";
 
+export type ProfileLLMProviders = {
+  llmProvider?: ProviderName;
+  narrationProvider?: ProviderName;
+  explanationProvider?: ProviderName;
+};
+
 /**
  * Full profile definition with all settings
  */
-export type Profile = {
+export type Profile = ProfileLLMProviders & {
   id: string;
   name: string;
   cmd: string;
@@ -14,7 +20,6 @@ export type Profile = {
   logSource: SourceMode;
   inputMode?: InputMode;
   inputFile?: string;
-  llmProvider?: ProviderName;
   createdAt: number;
   updatedAt: number;
 };
@@ -36,7 +41,7 @@ export type ProfileStore = {
 /**
  * Input for creating a new profile (id/timestamps auto-generated)
  */
-export type CreateProfileInput = {
+export type CreateProfileInput = ProfileLLMProviders & {
   name: string;
   cmd: string;
   args?: string[];
@@ -45,7 +50,6 @@ export type CreateProfileInput = {
   logSource?: SourceMode;
   inputMode?: InputMode;
   inputFile?: string;
-  llmProvider?: ProviderName;
 };
 
 /**
