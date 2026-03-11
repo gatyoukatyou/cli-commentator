@@ -7,8 +7,10 @@ export type RecoveryGuidance = {
 
 type FailureContext = {
   source: string;
+  normalizedSource: string;
   category: string | null;
   fields: Record<string, string>;
+  normalizedFields: Record<string, string>;
 };
 
 function normalize(text: string | null | undefined): string {
@@ -17,44 +19,52 @@ function normalize(text: string | null | undefined): string {
 
 function parseFailureContext(source: string): FailureContext {
   const fields: Record<string, string> = {};
-  for (const segment of source.split("|").map((part) => part.trim())) {
+  const normalizedFields: Record<string, string> = {};
+  const trimmedSource = source.trim();
+
+  for (const segment of trimmedSource.split("|").map((part) => part.trim())) {
     const separator = segment.indexOf("=");
     if (separator <= 0) continue;
     const key = segment.slice(0, separator).trim();
     const value = segment.slice(separator + 1).trim();
     if (!key || !value) continue;
     fields[key] = value;
+    normalizedFields[normalize(key)] = normalize(value);
   }
 
-  const categoryMatch = source.match(/\[([a-z0-9_]+)\]/);
+  const normalizedSource = normalize(trimmedSource);
+  const categoryMatch = normalizedSource.match(/\[([a-z0-9_]+)\]/);
   return {
-    source,
+    source: trimmedSource,
+    normalizedSource,
     category: categoryMatch?.[1] ?? null,
     fields,
+    normalizedFields,
   };
 }
 
 function hasCategory(context: FailureContext, category: string): boolean {
-  return context.category === category || context.source.includes(`[${category}]`);
+  return context.category === category || context.normalizedSource.includes(`[${category}]`);
 }
 
 function isPortConflict(context: FailureContext): boolean {
   return (
-    (hasCategory(context, "unexpected_exit") && context.source.includes("port_in_use=true")) ||
-    (context.source.includes("port") && (context.source.includes("in use") || context.source.includes("already")))
+    (hasCategory(context, "unexpected_exit") && context.normalizedFields.port_in_use === "true") ||
+    (context.normalizedSource.includes("port") &&
+      (context.normalizedSource.includes("in use") || context.normalizedSource.includes("already")))
   );
 }
 
 function isProjectRootError(context: FailureContext): boolean {
   return (
     hasCategory(context, "project_root") ||
-    context.source.includes("failed to get project root") ||
-    context.source.includes("canonicalize")
+    context.normalizedSource.includes("failed to get project root") ||
+    context.normalizedSource.includes("canonicalize")
   );
 }
 
 function isPortResolveError(context: FailureContext): boolean {
-  return hasCategory(context, "port_resolve") || context.source.includes("no available server port was found");
+  return hasCategory(context, "port_resolve") || context.normalizedSource.includes("no available server port was found");
 }
 
 function isSidecarRuntimeError(context: FailureContext): boolean {
@@ -67,15 +77,18 @@ function isSidecarRuntimeError(context: FailureContext): boolean {
     hasCategory(context, "sidecar_node_missing") ||
     hasCategory(context, "sidecar_server_entry_missing") ||
     hasCategory(context, "sidecar_server_root_missing") ||
-    context.source.includes("sidecar manifest") ||
-    context.source.includes("bundled node binary") ||
-    context.source.includes("bundled server entry") ||
-    context.source.includes("bundled server root")
+    context.normalizedSource.includes("sidecar manifest") ||
+    context.normalizedSource.includes("bundled node binary") ||
+    context.normalizedSource.includes("bundled server entry") ||
+    context.normalizedSource.includes("bundled server root")
   );
 }
 
 function isPermissionError(context: FailureContext): boolean {
-  return context.source.includes("permission denied") || context.source.includes("operation not permitted");
+  return (
+    context.normalizedSource.includes("permission denied") ||
+    context.normalizedSource.includes("operation not permitted")
+  );
 }
 
 function isStopFlowError(context: FailureContext): boolean {
@@ -83,9 +96,9 @@ function isStopFlowError(context: FailureContext): boolean {
     hasCategory(context, "stop_process") ||
     hasCategory(context, "wait_shutdown") ||
     hasCategory(context, "inspect_before_stop") ||
-    context.source.includes("failed to stop server process") ||
-    context.source.includes("failed to wait for server shutdown") ||
-    context.source.includes("failed to inspect server process before stop")
+    context.normalizedSource.includes("failed to stop server process") ||
+    context.normalizedSource.includes("failed to wait for server shutdown") ||
+    context.normalizedSource.includes("failed to inspect server process before stop")
   );
 }
 
@@ -94,10 +107,15 @@ function isUnexpectedExit(context: FailureContext): boolean {
     hasCategory(context, "unexpected_exit") ||
     hasCategory(context, "process_state") ||
     hasCategory(context, "missing_process_handle") ||
-    context.source.includes("exited unexpectedly") ||
-    context.source.includes("process handle is missing") ||
-    context.source.includes("failed to read server process state")
+    context.normalizedSource.includes("exited unexpectedly") ||
+    context.normalizedSource.includes("process handle is missing") ||
+    context.normalizedSource.includes("failed to read server process state")
   );
+}
+
+function addDiagnosticHint(hints: string[], label: string, value: string | undefined) {
+  if (!value) return;
+  hints.push(`検出情報: ${label}=${value}`);
 }
 
 export function getDesktopFailureGuidance(
@@ -109,7 +127,7 @@ export function getDesktopFailureGuidance(
     return null;
   }
 
-  const context = parseFailureContext(normalize(`${statusError ?? ""} ${invokeError ?? ""}`));
+  const context = parseFailureContext(`${statusError ?? ""} ${invokeError ?? ""}`);
 
   if (isPortConflict(context) || isPortResolveError(context)) {
     const hints = [
@@ -122,9 +140,10 @@ export function getDesktopFailureGuidance(
     if (preferred || attempts) {
       hints.push(`検出情報: preferred=${preferred ?? "?"}, attempts=${attempts ?? "?"}`);
     }
-    if (context.fields.port && context.fields.port_in_use === "true") {
+    if (context.fields.port && context.normalizedFields.port_in_use === "true") {
       hints.push(`検出情報: port=${context.fields.port} が使用中です。`);
     }
+    addDiagnosticHint(hints, "port", context.fields.port);
 
     return {
       category: "ポート解決エラー",
@@ -143,12 +162,17 @@ export function getDesktopFailureGuidance(
   }
 
   if (isPermissionError(context)) {
+    const hints = [
+      "実行権限と作業ディレクトリの権限を確認してください。",
+      "権限修正後に Start を押して再試行してください。",
+    ];
+    addDiagnosticHint(hints, "cwd", context.fields.cwd);
+    addDiagnosticHint(hints, "node", context.fields.node);
+    addDiagnosticHint(hints, "entry", context.fields.entry);
+
     return {
       category: "権限エラー",
-      hints: [
-        "実行権限と作業ディレクトリの権限を確認してください。",
-        "権限修正後に Start を押して再試行してください。",
-      ],
+      hints,
     };
   }
 
@@ -164,6 +188,11 @@ export function getDesktopFailureGuidance(
     if (hasCategory(context, "sidecar_manifest_parent")) {
       hints.unshift("Desktopアプリの配置先（`Contents/Resources`）が壊れていないか確認してください。");
     }
+    addDiagnosticHint(hints, "manifest", context.fields.manifest);
+    addDiagnosticHint(hints, "node_binary", context.fields.node_binary);
+    addDiagnosticHint(hints, "server_entry", context.fields.server_entry);
+    addDiagnosticHint(hints, "server_root", context.fields.server_root);
+    addDiagnosticHint(hints, "candidates", context.fields.candidates);
 
     return {
       category: "同梱ランタイムエラー",
@@ -191,6 +220,7 @@ export function getDesktopFailureGuidance(
     if (context.fields.exit_code) {
       hints.push(`検出情報: exit_code=${context.fields.exit_code}`);
     }
+    addDiagnosticHint(hints, "port", context.fields.port);
 
     return {
       category: "サーバープロセス異常終了",
