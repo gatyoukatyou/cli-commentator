@@ -1,53 +1,83 @@
 import { describe, expect, it } from "vitest";
-import { buildSpeechText, splitGlossaryNote } from "./glossary-note";
+import { buildCombinedCommentaryText, buildSpeechText, getCommentaryTextParts } from "./glossary-note";
 
-describe("splitGlossaryNote", () => {
-  it("splits memo and trailing glossary note", () => {
-    const text = "原因を検索しています。 1行メモ: 調査中です。 （補足: rg は高速検索コマンド / 補足: git は履歴管理）";
-    const result = splitGlossaryNote(text);
-    expect(result.mainText).toBe("原因を検索しています。");
-    expect(result.memoText).toBe("調査中です。");
-    expect(result.noteText).toBe("補足: rg は高速検索コマンド / 補足: git は履歴管理");
+describe("getCommentaryTextParts", () => {
+  it("uses structured payload as the primary source", () => {
+    const result = getCommentaryTextParts({
+      narration: "原因を検索しています。",
+      explanation: "TODO を手がかりに調べています。",
+      glossaryNotes: ["補足: rg は高速検索コマンド", "補足: git は履歴管理"],
+    });
+
+    expect(result.narrationText).toBe("原因を検索しています。");
+    expect(result.explanationText).toBe("TODO を手がかりに調べています。");
+    expect(result.glossaryNotes).toEqual(["補足: rg は高速検索コマンド", "補足: git は履歴管理"]);
   });
 
-  it("keeps text unchanged when note is absent", () => {
-    const text = "通常の実況テキストです。";
-    const result = splitGlossaryNote(text);
-    expect(result.mainText).toBe("通常の実況テキストです。");
-    expect(result.memoText).toBeNull();
-    expect(result.noteText).toBeNull();
+  it("falls back to legacy commentary text", () => {
+    const result = getCommentaryTextParts({
+      text: "原因を検索しています。 1行メモ: 調査中です。 （補足: rg は高速検索コマンド / 補足: git は履歴管理）",
+    });
+
+    expect(result.narrationText).toBe("原因を検索しています。");
+    expect(result.explanationText).toBe("調査中です。");
+    expect(result.glossaryNotes).toEqual(["補足: rg は高速検索コマンド", "補足: git は履歴管理"]);
   });
 
-  it("keeps text unchanged when parentheses are in the middle", () => {
-    const text = "説明（補足）を含む実況です。次へ進みます。";
-    const result = splitGlossaryNote(text);
-    expect(result.mainText).toBe(text);
-    expect(result.memoText).toBeNull();
-    expect(result.noteText).toBeNull();
+  it("merges structured fields with legacy fallback when partial payload is received", () => {
+    const result = getCommentaryTextParts({
+      narration: "構造化された実況です。",
+      text: "旧形式の実況です。 1行メモ: 旧形式の解説です。 （補足: rg は高速検索コマンド）",
+    });
+
+    expect(result.narrationText).toBe("構造化された実況です。");
+    expect(result.explanationText).toBe("旧形式の解説です。");
+    expect(result.glossaryNotes).toEqual(["補足: rg は高速検索コマンド"]);
+  });
+});
+
+describe("buildCombinedCommentaryText", () => {
+  it("combines narration and explanation for search/filter use", () => {
+    expect(
+      buildCombinedCommentaryText({
+        narrationText: "関連箇所を探しています。",
+        explanationText: "TODO を手がかりに見ています。",
+        glossaryNotes: [],
+      })
+    ).toBe("関連箇所を探しています。 TODO を手がかりに見ています。");
+  });
+});
+
+describe("buildSpeechText", () => {
+  const parts = {
+    narrationText: "原因を検索しています。",
+    explanationText: "TODO を手がかりに調べています。",
+    glossaryNotes: ["補足: rg は高速検索コマンド"],
+  };
+
+  it("reads both narration and explanation by default", () => {
+    expect(buildSpeechText(parts)).toBe("原因を検索しています。 TODO を手がかりに調べています。");
   });
 
-  it("splits memo even when glossary note is absent", () => {
-    const text = "ファイルを読んで状況確認しています。 1行メモ: README を読んで前提を確認しています。";
-    const result = splitGlossaryNote(text);
-    expect(result.mainText).toBe("ファイルを読んで状況確認しています。");
-    expect(result.memoText).toBe("README を読んで前提を確認しています。");
-    expect(result.noteText).toBeNull();
+  it("reads only narration for repeated grouped items in both mode", () => {
+    expect(buildSpeechText(parts, 3)).toBe("原因を検索しています。");
   });
 
-  it("builds speech text without glossary notes", () => {
-    const text = "原因を検索しています。 1行メモ: TODO を手がかりに調べています。 （補足: rg は高速検索コマンド）";
-    expect(buildSpeechText(text)).toBe("原因を検索しています。 TODO を手がかりに調べています。");
+  it("supports narration-only mode", () => {
+    expect(buildSpeechText(parts, 1, undefined, "narration")).toBe("原因を検索しています。");
   });
 
-  it("uses only the main commentary for repeated items", () => {
-    const text = "関連箇所を探しています。 1行メモ: キーワードを変えながら確認しています。";
-    expect(buildSpeechText(text, 3)).toBe("関連箇所を探しています。");
+  it("supports explanation-only mode", () => {
+    expect(buildSpeechText(parts, 1, undefined, "explanation")).toBe("TODO を手がかりに調べています。");
+  });
+
+  it("keeps explanation in explanation-only mode even for repeated groups", () => {
+    expect(buildSpeechText(parts, 3, undefined, "explanation")).toBe("TODO を手がかりに調べています。");
   });
 
   it("appends raw detail when requested", () => {
-    const text = "関連箇所を探しています。 1行メモ: TODO を手がかりに見ています。";
-    expect(buildSpeechText(text, 1, 'rg -n "TODO" src')).toBe(
-      '関連箇所を探しています。 TODO を手がかりに見ています。 原文 rg -n "TODO" src'
+    expect(buildSpeechText(parts, 1, 'rg -n "TODO" src')).toBe(
+      '原因を検索しています。 TODO を手がかりに調べています。 原文 rg -n "TODO" src'
     );
   });
 });

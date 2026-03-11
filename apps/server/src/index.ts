@@ -3,7 +3,7 @@ import fs from "node:fs";
 import http from "node:http";
 import { WebSocketServer } from "ws";
 
-import type { Event, InputMode, SourceMode, SourceState, Style, WsIncoming, WsOutgoing } from "./types.js";
+import type { CommentaryPayload, Event, InputMode, SourceMode, SourceState, Style, WsIncoming, WsOutgoing } from "./types.js";
 import { redact } from "./redact.js";
 import { extractEvents } from "./extract.js";
 import { comment } from "./styles/index.js";
@@ -191,8 +191,8 @@ function processInputData(data: string, writeToStdout: boolean = true): void {
     if (ev.type === "error" || shouldEmitNow()) {
       // comment() is async - fire and forget, errors are handled inside
       void comment(ev, currentStyle)
-        .then((text) => {
-          broadcast({ kind: "commentary", ts: ev.ts, text, ev });
+        .then((payload) => {
+          broadcastCommentary(ev.ts, ev, payload);
         })
         .catch(() => {});
     }
@@ -204,6 +204,10 @@ function broadcast(msg: WsOutgoing) {
   for (const client of wss.clients) {
     if (client.readyState === 1) client.send(data);
   }
+}
+
+function broadcastCommentary(ts: number, ev: Event, payload: CommentaryPayload): void {
+  broadcast({ kind: "commentary", ts, ev, ...payload });
 }
 
 function broadcastSource(nextDetected: SourceState["detected"]) {
@@ -262,8 +266,8 @@ function setupPTY(config: PTYConfig, profileId: string | null): void {
     const hardTimeout = setTimeout(safeCleanup, COMMENT_EXIT_TIMEOUT_MS);
 
     void comment(ev, currentStyle)
-      .then((text) => {
-        broadcast({ kind: "commentary", ts: ev.ts, text, ev });
+      .then((payload) => {
+        broadcastCommentary(ev.ts, ev, payload);
       })
       .catch(() => {})
       .finally(() => {
@@ -283,16 +287,14 @@ function setupPTY(config: PTYConfig, profileId: string | null): void {
 
   // Send commentary for start event
   void comment(startEvent, currentStyle)
-    .then((text) => {
-      broadcast({ kind: "commentary", ts: Date.now(), text, ev: startEvent });
+    .then((payload) => {
+      broadcastCommentary(Date.now(), startEvent, payload);
     })
     .catch((err) => {
       // Fallback: show basic start message if LLM fails
-      broadcast({
-        kind: "commentary",
-        ts: Date.now(),
-        text: `開始: ${startEvent.detail}`,
-        ev: startEvent,
+      broadcastCommentary(Date.now(), startEvent, {
+        narration: `開始: ${startEvent.detail}`,
+        meta: { narrationProvider: "fallback", mode: "narration" },
       });
       console.error("start commentary failed:", err);
     });
@@ -635,8 +637,8 @@ function setupFileTail(filePath: string, options?: { fatal?: boolean }): void {
     broadcast({ kind: "event", ev });
 
     void comment(ev, currentStyle)
-      .then((text) => {
-        broadcast({ kind: "commentary", ts: ev.ts, text, ev });
+      .then((payload) => {
+        broadcastCommentary(ev.ts, ev, payload);
       })
       .catch(() => {})
       .finally(() => {
@@ -662,15 +664,13 @@ function setupFileTail(filePath: string, options?: { fatal?: boolean }): void {
     broadcast({ kind: "event", ev: startEvent });
 
     void comment(startEvent, currentStyle)
-      .then((text) => {
-        broadcast({ kind: "commentary", ts: Date.now(), text, ev: startEvent });
+      .then((payload) => {
+        broadcastCommentary(Date.now(), startEvent, payload);
       })
       .catch((err) => {
-        broadcast({
-          kind: "commentary",
-          ts: Date.now(),
-          text: `ファイル監視開始: ${filePath}`,
-          ev: startEvent,
+        broadcastCommentary(Date.now(), startEvent, {
+          narration: `ファイル監視開始: ${filePath}`,
+          meta: { narrationProvider: "fallback", mode: "narration" },
         });
         console.error("start commentary failed:", err);
       });

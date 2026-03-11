@@ -7,16 +7,52 @@ exports[`commentary quality fixtures > renders styles consistently 1`] = `
     "intent": "検索系の実況で rg/pnpm 注釈を維持する",
     "outputs": [
       {
+        "commentary": {
+          "explanation": "「TODO」を手がかりにプロジェクト全体を横断検索して、関係する場所を絞っています。",
+          "glossaryNotes": [
+            "補足: rg はプロジェクト全体を高速検索するコマンド",
+            "補足: pnpm/npm/yarn は依存関係やスクリプト実行に使う",
+          ],
+          "meta": {
+            "explanationProvider": "rules",
+            "mode": "both",
+            "narrationProvider": "rules",
+          },
+          "narration": "原因になりそうな箇所を検索しています。",
+        },
         "style": "standard",
-        "text": "原因になりそうな箇所を検索しています。 1行メモ: 「TODO」を手がかりにプロジェクト全体を横断検索して、関係する場所を絞っています。 （補足: rg はプロジェクト全体を高速検索するコマンド / 補足: pnpm/npm/yarn は依存関係やスクリプト実行に使う）",
       },
       {
+        "commentary": {
+          "explanation": "「TODO」を手がかりにプロジェクト全体を横断検索して、関係ある場所しぼってるで。",
+          "glossaryNotes": [
+            "補足: rg はプロジェクト全体を高速検索するコマンド",
+            "補足: pnpm/npm/yarn は依存関係やスクリプト実行に使う",
+          ],
+          "meta": {
+            "explanationProvider": "rules",
+            "mode": "both",
+            "narrationProvider": "rules",
+          },
+          "narration": "原因っぽいとこ探してるで。",
+        },
         "style": "kansai",
-        "text": "原因っぽいとこ探してるで。 1行メモ: 「TODO」を手がかりにプロジェクト全体を横断検索して、関係ある場所しぼってるで。 （補足: rg はプロジェクト全体を高速検索するコマンド / 補足: pnpm/npm/yarn は依存関係やスクリプト実行に使う）",
       },
       {
+        "commentary": {
+          "explanation": "「TODO」を手がかりにプロジェクト全体を横断検索して、関係ある場所をしぼってるのだ。",
+          "glossaryNotes": [
+            "補足: rg はプロジェクト全体を高速検索するコマンド",
+            "補足: pnpm/npm/yarn は依存関係やスクリプト実行に使う",
+          ],
+          "meta": {
+            "explanationProvider": "rules",
+            "mode": "both",
+            "narrationProvider": "rules",
+          },
+          "narration": "原因になりそうな所を探してるのだ。",
+        },
         "style": "zundamon",
-        "text": "原因になりそうな所を探してるのだ。 1行メモ: 「TODO」を手がかりにプロジェクト全体を横断検索して、関係ある場所をしぼってるのだ。 （補足: rg はプロジェクト全体を高速検索するコマンド / 補足: pnpm/npm/yarn は依存関係やスクリプト実行に使う）",
       },
     ],
   },
@@ -25,16 +61,52 @@ exports[`commentary quality fixtures > renders styles consistently 1`] = `
     "intent": "更新系の実況で pty/websocket 注釈を維持する",
     "outputs": [
       {
+        "commentary": {
+          "explanation": "問題を直すために内容を更新しています。",
+          "glossaryNotes": [
+            "補足: pty は CLI を仮想端末として包んで動かす仕組み",
+            "補足: WebSocket は画面とサーバーをつなぐ常時接続",
+          ],
+          "meta": {
+            "explanationProvider": "rules",
+            "mode": "both",
+            "narrationProvider": "rules",
+          },
+          "narration": "ファイルを書き換えて修正を反映しています。",
+        },
         "style": "standard",
-        "text": "ファイルを書き換えて修正を反映しています。 1行メモ: 問題を直すために内容を更新しています。 （補足: pty は CLI を仮想端末として包んで動かす仕組み / 補足: WebSocket は画面とサーバーをつなぐ常時接続）",
       },
       {
+        "commentary": {
+          "explanation": "問題直すために中身を更新してるで。",
+          "glossaryNotes": [
+            "補足: pty は CLI を仮想端末として包んで動かす仕組み",
+            "補足: WebSocket は画面とサーバーをつなぐ常時接続",
+          ],
+          "meta": {
+            "explanationProvider": "rules",
+            "mode": "both",
+            "narrationProvider": "rules",
+          },
+          "narration": "ファイル書き換えて修正反映してるで。",
+        },
         "style": "kansai",
-        "text": "ファイル書き換えて修正反映してるで。 1行メモ: 問題直すために中身を更新してるで。 （補足: pty は CLI を仮想端末として包んで動かす仕組み / 補足: WebSocket は画面とサーバーをつなぐ常時接続）",
       },
       {
+        "commentary": {
+          "explanation": "問題を直すために中身を更新してるのだ。",
+          "glossaryNotes": [
+            "補足: pty は CLI を仮想端末として包んで動かす仕組み",
+            "補足: WebSocket は画面とサーバーをつなぐ常時接続",
+          ],
+          "meta": {
+            "explanationProvider": "rules",
+            "mode": "both",
+            "narrationProvider": "rules",
+          },
+          "narration": "修正を反映して書き換えてるのだ。",
+        },
         "style": "zundamon",
-        "text": "修正を反映して書き換えてるのだ。 1行メモ: 問題を直すために中身を更新してるのだ。 （補足: pty は CLI を仮想端末として包んで動かす仕組み / 補足: WebSocket は画面とサーバーをつなぐ常時接続）",
       },
     ],
   },
@@ -43,16 +115,52 @@ exports[`commentary quality fixtures > renders styles consistently 1`] = `
     "intent": "GitHub運用の実況で gh/git 注釈を維持する",
     "outputs": [
       {
+        "commentary": {
+          "explanation": "PRの自動チェック結果を見て、公開前の安全確認をしています。",
+          "glossaryNotes": [
+            "補足: gh は GitHub を操作する公式CLI",
+            "補足: git は変更履歴を管理する仕組み",
+          ],
+          "meta": {
+            "explanationProvider": "rules",
+            "mode": "both",
+            "narrationProvider": "rules",
+          },
+          "narration": "GitHub上のIssue/PRを操作しています。",
+        },
         "style": "standard",
-        "text": "GitHub上のIssue/PRを操作しています。 1行メモ: PRの自動チェック結果を見て、公開前の安全確認をしています。 （補足: gh は GitHub を操作する公式CLI / 補足: git は変更履歴を管理する仕組み）",
       },
       {
+        "commentary": {
+          "explanation": "PRの自動チェック結果見て、公開前の安全確認してるで。",
+          "glossaryNotes": [
+            "補足: gh は GitHub を操作する公式CLI",
+            "補足: git は変更履歴を管理する仕組み",
+          ],
+          "meta": {
+            "explanationProvider": "rules",
+            "mode": "both",
+            "narrationProvider": "rules",
+          },
+          "narration": "GitHubのIssue/PR触ってるで。",
+        },
         "style": "kansai",
-        "text": "GitHubのIssue/PR触ってるで。 1行メモ: PRの自動チェック結果見て、公開前の安全確認してるで。 （補足: gh は GitHub を操作する公式CLI / 補足: git は変更履歴を管理する仕組み）",
       },
       {
+        "commentary": {
+          "explanation": "PRの自動チェック結果を見て、公開前の安全確認をしてるのだ。",
+          "glossaryNotes": [
+            "補足: gh は GitHub を操作する公式CLI",
+            "補足: git は変更履歴を管理する仕組み",
+          ],
+          "meta": {
+            "explanationProvider": "rules",
+            "mode": "both",
+            "narrationProvider": "rules",
+          },
+          "narration": "GitHubのIssue/PRを操作してるのだ。",
+        },
         "style": "zundamon",
-        "text": "GitHubのIssue/PRを操作してるのだ。 1行メモ: PRの自動チェック結果を見て、公開前の安全確認をしてるのだ。 （補足: gh は GitHub を操作する公式CLI / 補足: git は変更履歴を管理する仕組み）",
       },
     ],
   },
@@ -61,16 +169,49 @@ exports[`commentary quality fixtures > renders styles consistently 1`] = `
     "intent": "失敗系の実況で tsc/typecheck 注釈を維持する",
     "outputs": [
       {
+        "commentary": {
+          "explanation": "TypeScript が『データや部品のつながりが合っていない』箇所を知らせています。",
+          "glossaryNotes": [
+            "補足: tsc/typecheck は型の整合性を自動確認するチェック",
+          ],
+          "meta": {
+            "explanationProvider": "rules",
+            "mode": "both",
+            "narrationProvider": "rules",
+          },
+          "narration": "エラーが出ています。原因特定→修正の流れになりそうです。 引っかかっている行は「error TS2322 in src/index.ts during tsc -p tsconfig.json」です。",
+        },
         "style": "standard",
-        "text": "エラーが出ています。原因特定→修正の流れになりそうです。 引っかかっている行は「error TS2322 in src/index.ts during tsc -p tsconfig.json」です。 1行メモ: TypeScript が『データや部品のつながりが合っていない』箇所を知らせています。 （補足: tsc/typecheck は型の整合性を自動確認するチェック）",
       },
       {
+        "commentary": {
+          "explanation": "TypeScript が『データや部品のつながり合ってへん』場所を知らせてるで。",
+          "glossaryNotes": [
+            "補足: tsc/typecheck は型の整合性を自動確認するチェック",
+          ],
+          "meta": {
+            "explanationProvider": "rules",
+            "mode": "both",
+            "narrationProvider": "rules",
+          },
+          "narration": "エラーや。原因特定して直す流れやな。 引っかかってる行は「error TS2322 in src/index.ts during tsc -p tsconfig.json」や。",
+        },
         "style": "kansai",
-        "text": "エラーや。原因特定して直す流れやな。 引っかかってる行は「error TS2322 in src/index.ts during tsc -p tsconfig.json」や。 1行メモ: TypeScript が『データや部品のつながり合ってへん』場所を知らせてるで。 （補足: tsc/typecheck は型の整合性を自動確認するチェック）",
       },
       {
+        "commentary": {
+          "explanation": "TypeScript が『データや部品のつながりが合ってない』場所を知らせてるのだ。",
+          "glossaryNotes": [
+            "補足: tsc/typecheck は型の整合性を自動確認するチェック",
+          ],
+          "meta": {
+            "explanationProvider": "rules",
+            "mode": "both",
+            "narrationProvider": "rules",
+          },
+          "narration": "エラーなのだ…原因を見つけて直すのだ。 引っかかってる行は「error TS2322 in src/index.ts during tsc -p tsconfig.json」なのだ。",
+        },
         "style": "zundamon",
-        "text": "エラーなのだ…原因を見つけて直すのだ。 引っかかってる行は「error TS2322 in src/index.ts during tsc -p tsconfig.json」なのだ。 1行メモ: TypeScript が『データや部品のつながりが合ってない』場所を知らせてるのだ。 （補足: tsc/typecheck は型の整合性を自動確認するチェック）",
       },
     ],
   },
@@ -79,16 +220,43 @@ exports[`commentary quality fixtures > renders styles consistently 1`] = `
     "intent": "通常出力でも見えている行の中身が少し分かる",
     "outputs": [
       {
+        "commentary": {
+          "explanation": "README.md を読んで、手順や前提を確認しています。",
+          "glossaryNotes": [],
+          "meta": {
+            "explanationProvider": "rules",
+            "mode": "both",
+            "narrationProvider": "rules",
+          },
+          "narration": "ログが進んでいます。 今見えている出力は「⏺ Read(/Users/demo/project/README.md)」です。",
+        },
         "style": "standard",
-        "text": "ログが進んでいます。 今見えている出力は「⏺ Read(/Users/demo/project/README.md)」です。 1行メモ: README.md を読んで、手順や前提を確認しています。",
       },
       {
+        "commentary": {
+          "explanation": "README.md を読んで、手順や前提を確認してるで。",
+          "glossaryNotes": [],
+          "meta": {
+            "explanationProvider": "rules",
+            "mode": "both",
+            "narrationProvider": "rules",
+          },
+          "narration": "ログ進んでるで。 今見えてる出力は「⏺ Read(/Users/demo/project/README.md)」や。",
+        },
         "style": "kansai",
-        "text": "ログ進んでるで。 今見えてる出力は「⏺ Read(/Users/demo/project/README.md)」や。 1行メモ: README.md を読んで、手順や前提を確認してるで。",
       },
       {
+        "commentary": {
+          "explanation": "README.md を読んで、手順や前提を確認してるのだ。",
+          "glossaryNotes": [],
+          "meta": {
+            "explanationProvider": "rules",
+            "mode": "both",
+            "narrationProvider": "rules",
+          },
+          "narration": "ログが進んでるのだ。 今見えてる出力は「⏺ Read(/Users/demo/project/README.md)」なのだ。",
+        },
         "style": "zundamon",
-        "text": "ログが進んでるのだ。 今見えてる出力は「⏺ Read(/Users/demo/project/README.md)」なのだ。 1行メモ: README.md を読んで、手順や前提を確認してるのだ。",
       },
     ],
   },
@@ -97,16 +265,49 @@ exports[`commentary quality fixtures > renders styles consistently 1`] = `
     "intent": "git status の一行メモを具体化する",
     "outputs": [
       {
+        "commentary": {
+          "explanation": "変更されたファイル一覧を見て、今どこまで触ったか確認しています。",
+          "glossaryNotes": [
+            "補足: git は変更履歴を管理する仕組み",
+          ],
+          "meta": {
+            "explanationProvider": "rules",
+            "mode": "both",
+            "narrationProvider": "rules",
+          },
+          "narration": "Gitで変更履歴を整理しています。",
+        },
         "style": "standard",
-        "text": "Gitで変更履歴を整理しています。 1行メモ: 変更されたファイル一覧を見て、今どこまで触ったか確認しています。 （補足: git は変更履歴を管理する仕組み）",
       },
       {
+        "commentary": {
+          "explanation": "変更されたファイル一覧を見て、今どこまで触ったか確認してるで。",
+          "glossaryNotes": [
+            "補足: git は変更履歴を管理する仕組み",
+          ],
+          "meta": {
+            "explanationProvider": "rules",
+            "mode": "both",
+            "narrationProvider": "rules",
+          },
+          "narration": "Gitで変更まとめてるで。",
+        },
         "style": "kansai",
-        "text": "Gitで変更まとめてるで。 1行メモ: 変更されたファイル一覧を見て、今どこまで触ったか確認してるで。 （補足: git は変更履歴を管理する仕組み）",
       },
       {
+        "commentary": {
+          "explanation": "変更されたファイル一覧を見て、今どこまで触ったか確認してるのだ。",
+          "glossaryNotes": [
+            "補足: git は変更履歴を管理する仕組み",
+          ],
+          "meta": {
+            "explanationProvider": "rules",
+            "mode": "both",
+            "narrationProvider": "rules",
+          },
+          "narration": "Gitで変更を整理してるのだ。",
+        },
         "style": "zundamon",
-        "text": "Gitで変更を整理してるのだ。 1行メモ: 変更されたファイル一覧を見て、今どこまで触ったか確認してるのだ。 （補足: git は変更履歴を管理する仕組み）",
       },
     ],
   },
@@ -115,16 +316,43 @@ exports[`commentary quality fixtures > renders styles consistently 1`] = `
     "intent": "apply_patch の一行メモを差分適用として伝える",
     "outputs": [
       {
+        "commentary": {
+          "explanation": "変更差分をまとめて当てて、複数箇所を一気に更新しています。",
+          "glossaryNotes": [],
+          "meta": {
+            "explanationProvider": "rules",
+            "mode": "both",
+            "narrationProvider": "rules",
+          },
+          "narration": "ファイルを書き換えて修正を反映しています。",
+        },
         "style": "standard",
-        "text": "ファイルを書き換えて修正を反映しています。 1行メモ: 変更差分をまとめて当てて、複数箇所を一気に更新しています。",
       },
       {
+        "commentary": {
+          "explanation": "変更差分まとめて当てて、複数箇所を一気に更新してるで。",
+          "glossaryNotes": [],
+          "meta": {
+            "explanationProvider": "rules",
+            "mode": "both",
+            "narrationProvider": "rules",
+          },
+          "narration": "ファイル書き換えて修正反映してるで。",
+        },
         "style": "kansai",
-        "text": "ファイル書き換えて修正反映してるで。 1行メモ: 変更差分まとめて当てて、複数箇所を一気に更新してるで。",
       },
       {
+        "commentary": {
+          "explanation": "変更差分をまとめて当てて、複数箇所を一気に更新してるのだ。",
+          "glossaryNotes": [],
+          "meta": {
+            "explanationProvider": "rules",
+            "mode": "both",
+            "narrationProvider": "rules",
+          },
+          "narration": "修正を反映して書き換えてるのだ。",
+        },
         "style": "zundamon",
-        "text": "修正を反映して書き換えてるのだ。 1行メモ: 変更差分をまとめて当てて、複数箇所を一気に更新してるのだ。",
       },
     ],
   },
@@ -133,16 +361,43 @@ exports[`commentary quality fixtures > renders styles consistently 1`] = `
     "intent": "Read の一行メモで前提確認だと伝える",
     "outputs": [
       {
+        "commentary": {
+          "explanation": "README.md を読んで、手順や前提を確認しています。",
+          "glossaryNotes": [],
+          "meta": {
+            "explanationProvider": "rules",
+            "mode": "both",
+            "narrationProvider": "rules",
+          },
+          "narration": "ファイルを読んで状況を確認しています。",
+        },
         "style": "standard",
-        "text": "ファイルを読んで状況を確認しています。 1行メモ: README.md を読んで、手順や前提を確認しています。",
       },
       {
+        "commentary": {
+          "explanation": "README.md を読んで、手順や前提を確認してるで。",
+          "glossaryNotes": [],
+          "meta": {
+            "explanationProvider": "rules",
+            "mode": "both",
+            "narrationProvider": "rules",
+          },
+          "narration": "ファイル読んで状況確認してるで。",
+        },
         "style": "kansai",
-        "text": "ファイル読んで状況確認してるで。 1行メモ: README.md を読んで、手順や前提を確認してるで。",
       },
       {
+        "commentary": {
+          "explanation": "README.md を読んで、手順や前提を確認してるのだ。",
+          "glossaryNotes": [],
+          "meta": {
+            "explanationProvider": "rules",
+            "mode": "both",
+            "narrationProvider": "rules",
+          },
+          "narration": "ファイルを読んで状況確認してるのだ。",
+        },
         "style": "zundamon",
-        "text": "ファイルを読んで状況確認してるのだ。 1行メモ: README.md を読んで、手順や前提を確認してるのだ。",
       },
     ],
   },
@@ -151,16 +406,43 @@ exports[`commentary quality fixtures > renders styles consistently 1`] = `
     "intent": "長い Bash コマンドを人間向けの意味で要約する",
     "outputs": [
       {
+        "commentary": {
+          "explanation": "接続先が正しいかを確かめつつ、サーバー上で今どのサービスが動いているか棚卸ししています。",
+          "glossaryNotes": [],
+          "meta": {
+            "explanationProvider": "rules",
+            "mode": "both",
+            "narrationProvider": "rules",
+          },
+          "narration": "ログが進んでいます。 いまやっているのは、リモートサーバーに接続して Docker コンテナの稼働状況を確認する作業です。",
+        },
         "style": "standard",
-        "text": "ログが進んでいます。 いまやっているのは、リモートサーバーに接続して Docker コンテナの稼働状況を確認する作業です。 1行メモ: 接続先が正しいかを確かめつつ、サーバー上で今どのサービスが動いているか棚卸ししています。",
       },
       {
+        "commentary": {
+          "explanation": "接続先が合ってるか確かめつつ、サーバー上で今どのサービス動いてるか棚卸ししてるで。",
+          "glossaryNotes": [],
+          "meta": {
+            "explanationProvider": "rules",
+            "mode": "both",
+            "narrationProvider": "rules",
+          },
+          "narration": "ログ進んでるで。 今やってるのは、リモートサーバー入って Docker コンテナの動作状況を確認する作業や。",
+        },
         "style": "kansai",
-        "text": "ログ進んでるで。 今やってるのは、リモートサーバー入って Docker コンテナの動作状況を確認する作業や。 1行メモ: 接続先が合ってるか確かめつつ、サーバー上で今どのサービス動いてるか棚卸ししてるで。",
       },
       {
+        "commentary": {
+          "explanation": "接続先が合ってるか確かめつつ、サーバー上で今どのサービスが動いてるか棚卸ししてるのだ。",
+          "glossaryNotes": [],
+          "meta": {
+            "explanationProvider": "rules",
+            "mode": "both",
+            "narrationProvider": "rules",
+          },
+          "narration": "ログが進んでるのだ。 今やってるのは、リモートサーバーに入って Docker コンテナの動作状況を確認する作業なのだ。",
+        },
         "style": "zundamon",
-        "text": "ログが進んでるのだ。 今やってるのは、リモートサーバーに入って Docker コンテナの動作状況を確認する作業なのだ。 1行メモ: 接続先が合ってるか確かめつつ、サーバー上で今どのサービスが動いてるか棚卸ししてるのだ。",
       },
     ],
   },
@@ -169,16 +451,43 @@ exports[`commentary quality fixtures > renders styles consistently 1`] = `
     "intent": "詳細なし完了時でも口調差分を維持する",
     "outputs": [
       {
+        "commentary": {
+          "explanation": "作業がひと区切りで、結果を確認しています。",
+          "glossaryNotes": [],
+          "meta": {
+            "explanationProvider": "rules",
+            "mode": "both",
+            "narrationProvider": "rules",
+          },
+          "narration": "いったん区切りです。おつかれさまでした。",
+        },
         "style": "standard",
-        "text": "いったん区切りです。おつかれさまでした。 1行メモ: 作業がひと区切りで、結果を確認しています。",
       },
       {
+        "commentary": {
+          "explanation": "ひと区切りついたから結果を確認してるで。",
+          "glossaryNotes": [],
+          "meta": {
+            "explanationProvider": "rules",
+            "mode": "both",
+            "narrationProvider": "rules",
+          },
+          "narration": "ひとまず区切りや。おつかれさん。",
+        },
         "style": "kansai",
-        "text": "ひとまず区切りや。おつかれさん。 1行メモ: ひと区切りついたから結果を確認してるで。",
       },
       {
+        "commentary": {
+          "explanation": "ひと区切りついたので結果を確認してるのだ。",
+          "glossaryNotes": [],
+          "meta": {
+            "explanationProvider": "rules",
+            "mode": "both",
+            "narrationProvider": "rules",
+          },
+          "narration": "いったん区切りなのだ。おつかれさまなのだ。",
+        },
         "style": "zundamon",
-        "text": "いったん区切りなのだ。おつかれさまなのだ。 1行メモ: ひと区切りついたので結果を確認してるのだ。",
       },
     ],
   },

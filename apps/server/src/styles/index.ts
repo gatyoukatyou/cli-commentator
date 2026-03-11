@@ -1,4 +1,4 @@
-import type { Event, Style } from "../types.js";
+import type { CommentaryMode, CommentaryPayload, Event, Style } from "../types.js";
 import { commentStandard } from "./standard.js";
 import { commentKansai } from "./kansai.js";
 import { commentZundamon } from "./zundamon.js";
@@ -54,10 +54,9 @@ const GLOSSARY: Array<{ re: RegExp; note: string }> = [
   { re: /\bgit\b/i, note: "補足: git は変更履歴を管理する仕組み" }
 ];
 
-function annotate(detail?: string): string {
-  if (!detail) return "";
-  const hits = GLOSSARY.filter((g) => g.re.test(detail)).map((g) => g.note);
-  return hits.length ? `（${Array.from(new Set(hits)).join(" / ")}）` : "";
+function getGlossaryNotes(detail?: string): string[] {
+  if (!detail) return [];
+  return Array.from(new Set(GLOSSARY.filter((g) => g.re.test(detail)).map((g) => g.note)));
 }
 
 const DETAIL_PREVIEW_MAX = 96;
@@ -534,9 +533,29 @@ function beginnerOneLine(ev: Event, style: Style): string {
   return table[ev.type] ?? table.default;
 }
 
-function commentByRules(ev: Event, style: Style): string {
-  const beginner = beginnerOneLine(ev, style);
-  const note = annotate(ev.detail);
+function stripMemoPrefix(text: string): string {
+  return text.replace(/^1行メモ:\s*/u, "").trim();
+}
+
+function inferCommentaryMode(payload: CommentaryPayload): CommentaryMode {
+  if (payload.narration && payload.explanation) return "both";
+  if (payload.explanation) return "explanation";
+  return "narration";
+}
+
+function withCommentaryMode(payload: CommentaryPayload): CommentaryPayload {
+  return {
+    ...payload,
+    meta: {
+      ...payload.meta,
+      mode: payload.meta?.mode ?? inferCommentaryMode(payload),
+    },
+  };
+}
+
+function commentByRules(ev: Event, style: Style): CommentaryPayload {
+  const beginner = stripMemoPrefix(beginnerOneLine(ev, style));
+  const glossaryNotes = getGlossaryNotes(ev.detail);
   const spotlight = detailSpotlight(ev, style);
 
   const core =
@@ -544,7 +563,15 @@ function commentByRules(ev: Event, style: Style): string {
     style === "zundamon" ? commentZundamon(ev) :
     commentStandard(ev);
 
-  return [core, spotlight, beginner, note].filter(Boolean).join(" ");
+  return withCommentaryMode({
+    narration: [core, spotlight].filter(Boolean).join(" "),
+    explanation: beginner || undefined,
+    glossaryNotes,
+    meta: {
+      narrationProvider: "rules",
+      explanationProvider: "rules",
+    },
+  });
 }
 
 function buildLLMPrompt(ev: Event, style: Style): string {
@@ -560,7 +587,7 @@ function buildLLMPrompt(ev: Event, style: Style): string {
 回答は実況コメント1文のみ（説明不要）:`;
 }
 
-async function commentInternal(ev: Event, style: Style, signal?: AbortSignal): Promise<string> {
+async function commentInternal(ev: Event, style: Style, signal?: AbortSignal): Promise<CommentaryPayload> {
   // 1) provider未指定 or disabled → 従来ルール実況
   if (!LLM_PROVIDER || LLM_PROVIDER === "disabled") {
     return commentByRules(ev, style);
@@ -577,8 +604,17 @@ async function commentInternal(ev: Event, style: Style, signal?: AbortSignal): P
     signal,
   });
 
+  const rules = commentByRules(ev, style);
   if (res.text && res.text.trim()) {
-    return res.text.trim();
+    return withCommentaryMode({
+      narration: res.text.trim(),
+      explanation: rules.explanation,
+      glossaryNotes: rules.glossaryNotes,
+      meta: {
+        narrationProvider: llm.name,
+        explanationProvider: rules.meta?.explanationProvider ?? "rules",
+      },
+    });
   }
 
   // 空レスポンス → LLMエラーとして扱う
@@ -589,7 +625,7 @@ async function commentInternal(ev: Event, style: Style, signal?: AbortSignal): P
  * comment() with timeout protection and logging.
  * If LLM call takes longer than COMMENT_TIMEOUT_MS, abort and fallback to rules.
  */
-export async function comment(ev: Event, style: Style): Promise<string> {
+export async function comment(ev: Event, style: Style): Promise<CommentaryPayload> {
   const meta: CommentLogMeta = {
     provider: LLM_PROVIDER || "disabled",
     style,

@@ -28,6 +28,21 @@ export type Event = {
 
 export type ProviderName = "disabled" | "mock" | "openai" | "groq" | "local" | "anthropic" | "gemini";
 
+export type CommentaryDisplayMode = "narration" | "explanation" | "both";
+
+export type CommentaryMeta = {
+  narrationProvider?: string;
+  explanationProvider?: string;
+  mode?: CommentaryDisplayMode;
+};
+
+export type CommentaryPayload = {
+  narration?: string;
+  explanation?: string;
+  glossaryNotes?: string[];
+  meta?: CommentaryMeta;
+};
+
 export type Profile = {
   id: string;
   name: string;
@@ -66,7 +81,7 @@ export type ServerToClientMessage =
   | { kind: "hello"; style: Style; source: SourceState }
   | { kind: "style"; style: Style }
   | { kind: "source"; source: SourceState }
-  | { kind: "commentary"; ts: number; text: string; ev?: Event }
+  | ({ kind: "commentary"; ts: number; ev?: Event; text?: string } & CommentaryPayload)
   | { kind: "profiles"; profiles: ProfileSummary[]; activeId: string | null }
   | { kind: "profileSaved"; profile: ProfileSummary; activeId: string | null }
   | { kind: "profileDeleted"; id: string; activeId: string | null }

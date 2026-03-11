@@ -30,13 +30,28 @@ export type Event = {
   detail?: string;
 };
 
+export type CommentaryMode = "narration" | "explanation" | "both";
+
+export type CommentaryMeta = {
+  narrationProvider?: string;
+  explanationProvider?: string;
+  mode?: CommentaryMode;
+};
+
+export type CommentaryPayload = {
+  narration?: string;
+  explanation?: string;
+  glossaryNotes?: string[];
+  meta?: CommentaryMeta;
+};
+
 export type WsOutgoing =
   | { kind: "hello"; style: Style; source: SourceState }
   | { kind: "style"; style: Style }
   | { kind: "source"; source: SourceState }
   | { kind: "raw"; data: string }
   | { kind: "event"; ev: Event }
-  | { kind: "commentary"; ts: number; text: string; ev: Event }
+  | ({ kind: "commentary"; ts: number; ev: Event } & CommentaryPayload)
   // Profile messages
   | { kind: "profiles"; profiles: ProfileSummary[]; activeId: string | null }
   | { kind: "profileSaved"; profile: ProfileSummary; activeId: string | null }

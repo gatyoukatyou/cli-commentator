@@ -1,11 +1,13 @@
 import type { EventType } from "../types";
-import { splitGlossaryNote } from "./glossary-note";
+import { buildCombinedCommentaryText } from "./glossary-note";
 
 export type LogEventTypeFilter = "all" | EventType;
 
 export type CommentaryItem = {
   ts: number;
-  text: string;
+  narration?: string;
+  explanation?: string;
+  glossaryNotes?: string[];
   eventType: EventType;
   summary?: string;
   detail?: string;
@@ -72,16 +74,21 @@ const GROUPABLE_EVENT_TYPES = new Set<EventType>([
 ]);
 const GROUP_WINDOW_MS = 15000;
 
-const normalizeGroupText = (text: string): string =>
-  splitGlossaryNote(text)
-    .mainText.toLowerCase()
+const normalizeGroupText = (item: CommentaryItem): string =>
+  (item.narration ||
+    buildCombinedCommentaryText({
+      narrationText: item.narration ?? null,
+      explanationText: item.explanation ?? null,
+      glossaryNotes: item.glossaryNotes ?? [],
+    }))
+    .toLowerCase()
     .replace(/\s+/g, " ")
     .replace(/[「」『』“”"]/g, "")
     .trim();
 
 export const getCommentaryGroupKey = (item: CommentaryItem): string | null => {
   if (!GROUPABLE_EVENT_TYPES.has(item.eventType)) return null;
-  const textKey = normalizeGroupText(item.text);
+  const textKey = normalizeGroupText(item);
   if (!textKey) return null;
   return `${item.eventType}:${textKey}`;
 };
@@ -101,7 +108,9 @@ export function filterCommentaryItems(
     if (!query) return true;
 
     const haystack = [
-      item.text,
+      item.narration ?? "",
+      item.explanation ?? "",
+      item.glossaryNotes?.join(" ") ?? "",
       item.summary ?? "",
       item.detail ?? "",
       item.eventType,
