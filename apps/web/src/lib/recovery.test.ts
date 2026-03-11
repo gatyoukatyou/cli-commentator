@@ -44,6 +44,18 @@ describe("getDesktopFailureGuidance", () => {
     expect(result?.hints.join(" ")).toContain("prepare:desktop-sidecar");
   });
 
+  it("preserves raw diagnostic paths for sidecar runtime errors", () => {
+    const result = getDesktopFailureGuidance(
+      "failed",
+      "[sidecar_manifest_read] Failed to read sidecar manifest | manifest=/Applications/CLI Commentator/Contents/Resources/sidecar-manifest.json",
+      null
+    );
+    expect(result?.category).toBe("同梱ランタイムエラー");
+    expect(result?.hints.join(" ")).toContain(
+      "manifest=/Applications/CLI Commentator/Contents/Resources/sidecar-manifest.json"
+    );
+  });
+
   it("classifies sidecar manifest parent errors", () => {
     const result = getDesktopFailureGuidance(
       "failed",
@@ -57,6 +69,19 @@ describe("getDesktopFailureGuidance", () => {
   it("classifies permission errors", () => {
     const result = getDesktopFailureGuidance("failed", "Failed to start server: permission denied", null);
     expect(result?.category).toBe("権限エラー");
+  });
+
+  it("adds structured diagnostics for permission errors", () => {
+    const result = getDesktopFailureGuidance(
+      "failed",
+      "[spawn] Failed to spawn server process | error=permission denied | cwd=/Users/home/AION_Project/repos/cli-commentator/apps/server | entry=/Users/home/AION_Project/repos/cli-commentator/apps/server/dist/index.js",
+      null
+    );
+    expect(result?.category).toBe("権限エラー");
+    expect(result?.hints.join(" ")).toContain("cwd=/Users/home/AION_Project/repos/cli-commentator/apps/server");
+    expect(result?.hints.join(" ")).toContain(
+      "entry=/Users/home/AION_Project/repos/cli-commentator/apps/server/dist/index.js"
+    );
   });
 
   it("classifies stop flow errors", () => {
@@ -94,6 +119,19 @@ describe("getDesktopFailureGuidance", () => {
     );
     expect(result?.category).toBe("サーバープロセス異常終了");
     expect(result?.hints.join(" ")).toContain("exit_code=signal_or_unknown");
+  });
+
+  it("adds missing sidecar file diagnostics when available", () => {
+    const result = getDesktopFailureGuidance(
+      "failed",
+      "[sidecar_node_missing] Bundled node binary is missing | node_binary=/Applications/CLI Commentator.app/Contents/Resources/binaries/node-aarch64-apple-darwin | candidates=/Applications/CLI Commentator.app/Contents/Resources/binaries/node-aarch64-apple-darwin,/Applications/CLI Commentator.app/Contents/MacOS/node",
+      null
+    );
+    expect(result?.category).toBe("同梱ランタイムエラー");
+    expect(result?.hints.join(" ")).toContain(
+      "node_binary=/Applications/CLI Commentator.app/Contents/Resources/binaries/node-aarch64-apple-darwin"
+    );
+    expect(result?.hints.join(" ")).toContain("candidates=/Applications/CLI Commentator.app/Contents/Resources");
   });
 
   it("falls back to generic guidance for unknown errors", () => {
