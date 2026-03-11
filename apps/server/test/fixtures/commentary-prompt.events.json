@@ -1,0 +1,41 @@
+[
+  {
+    "id": "fast-stdout",
+    "intent": "高速進行イベントでは実況の即時性を強める",
+    "event": {
+      "ts": 1735689600000,
+      "type": "stdout",
+      "summary": "ログ更新",
+      "detail": "PASS src/lib/recovery.test.ts"
+    }
+  },
+  {
+    "id": "tactical-read",
+    "intent": "確認系イベントでは解説の意味づけを強める",
+    "event": {
+      "ts": 1735689600000,
+      "type": "read",
+      "summary": "設定ファイルを読み込んでいる",
+      "detail": "⏺ Read(/Users/demo/project/AGENTS.md)"
+    }
+  },
+  {
+    "id": "ambiguous-status",
+    "intent": "曖昧なイベントでは断定を避ける指示を含める",
+    "event": {
+      "ts": 1735689600000,
+      "type": "stdout",
+      "summary": "ログ更新"
+    }
+  },
+  {
+    "id": "error-tsc",
+    "intent": "失敗イベントでは次の確認点を補足する",
+    "event": {
+      "ts": 1735689600000,
+      "type": "error",
+      "summary": "型チェックに失敗している",
+      "detail": "error TS2322 in src/index.ts during tsc -p tsconfig.json"
+    }
+  }
+]
