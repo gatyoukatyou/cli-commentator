@@ -9,6 +9,7 @@ import { extractEvents } from "./extract.js";
 import { comment } from "./styles/index.js";
 import { getAutoDetectedSource, resetAutoDetection } from "./rulesets/index.js";
 import * as profileManager from "./profile/manager.js";
+import type { ProfileLLMProviders } from "./profile/types.js";
 import {
   createPTYManager,
   configFromProfile,
@@ -60,6 +61,9 @@ function normalizeSource(value?: string): SourceMode {
 // --- Mutable state ---
 let currentStyle: Style = "kansai";
 let currentSourceMode: SourceMode = normalizeSource(process.env.LOG_SOURCE);
+let currentCommentaryProviders: ProfileLLMProviders = {
+  llmProvider: (process.env.LLM_PROVIDER as ProfileLLMProviders["llmProvider"]) ?? undefined,
+};
 let sourceState: SourceState = {
   mode: currentSourceMode,
   detected: currentSourceMode === "auto" ? null : currentSourceMode,
@@ -190,7 +194,7 @@ function processInputData(data: string, writeToStdout: boolean = true): void {
     broadcast({ kind: "event", ev });
     if (ev.type === "error" || shouldEmitNow()) {
       // comment() is async - fire and forget, errors are handled inside
-      void comment(ev, currentStyle)
+      void comment(ev, currentStyle, currentCommentaryProviders)
         .then((payload) => {
           broadcastCommentary(ev.ts, ev, payload);
         })
@@ -265,7 +269,7 @@ function setupPTY(config: PTYConfig, profileId: string | null): void {
     // COMMENT_EXIT_TIMEOUT_MS後に強制cleanup（comment()がハングしても確実に終了）
     const hardTimeout = setTimeout(safeCleanup, COMMENT_EXIT_TIMEOUT_MS);
 
-    void comment(ev, currentStyle)
+    void comment(ev, currentStyle, currentCommentaryProviders)
       .then((payload) => {
         broadcastCommentary(ev.ts, ev, payload);
       })
@@ -286,7 +290,7 @@ function setupPTY(config: PTYConfig, profileId: string | null): void {
   broadcast({ kind: "event", ev: startEvent });
 
   // Send commentary for start event
-  void comment(startEvent, currentStyle)
+  void comment(startEvent, currentStyle, currentCommentaryProviders)
     .then((payload) => {
       broadcastCommentary(Date.now(), startEvent, payload);
     })
@@ -326,6 +330,7 @@ async function restartPTY(profileId: string | null, force = false): Promise<void
     let filePath: string | null = null;
     let newStyle = currentStyle;
     let newSourceMode = currentSourceMode;
+    let newCommentaryProviders = currentCommentaryProviders;
 
     if (profileId) {
       const profile = await profileManager.get(profileId);
@@ -336,6 +341,11 @@ async function restartPTY(profileId: string | null, force = false): Promise<void
       nextInputMode = profile.inputMode ?? "pty";
       newStyle = profile.style;
       newSourceMode = profile.logSource;
+      newCommentaryProviders = {
+        llmProvider: profile.llmProvider,
+        narrationProvider: profile.narrationProvider,
+        explanationProvider: profile.explanationProvider,
+      };
       if (nextInputMode === "file") {
         filePath = (profile.inputFile ?? "").trim();
         if (!filePath) {
@@ -349,6 +359,9 @@ async function restartPTY(profileId: string | null, force = false): Promise<void
       nextInputMode = INPUT_MODE;
       newStyle = (process.env.STYLE as Style) ?? "kansai";
       newSourceMode = normalizeSource(process.env.LOG_SOURCE);
+      newCommentaryProviders = {
+        llmProvider: (process.env.LLM_PROVIDER as ProfileLLMProviders["llmProvider"]) ?? undefined,
+      };
       if (nextInputMode === "file") {
         filePath = INPUT_FILE.trim();
         if (!filePath) {
@@ -367,6 +380,7 @@ async function restartPTY(profileId: string | null, force = false): Promise<void
     // Update current state
     currentStyle = newStyle;
     currentSourceMode = newSourceMode;
+    currentCommentaryProviders = newCommentaryProviders;
     sourceState = {
       mode: newSourceMode,
       detected: newSourceMode === "auto" ? null : newSourceMode,
@@ -636,7 +650,7 @@ function setupFileTail(filePath: string, options?: { fatal?: boolean }): void {
     const ev: Event = { ts: Date.now(), type: "done", summary: `ファイル監視終了 code=${code}` };
     broadcast({ kind: "event", ev });
 
-    void comment(ev, currentStyle)
+    void comment(ev, currentStyle, currentCommentaryProviders)
       .then((payload) => {
         broadcastCommentary(ev.ts, ev, payload);
       })
@@ -663,7 +677,7 @@ function setupFileTail(filePath: string, options?: { fatal?: boolean }): void {
     };
     broadcast({ kind: "event", ev: startEvent });
 
-    void comment(startEvent, currentStyle)
+    void comment(startEvent, currentStyle, currentCommentaryProviders)
       .then((payload) => {
         broadcastCommentary(Date.now(), startEvent, payload);
       })

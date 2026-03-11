@@ -34,6 +34,12 @@ function normalizeInputMode(value?: InputMode): InputMode | undefined {
   return value === "file" ? "file" : "pty";
 }
 
+function normalizeOptionalProvider(value?: ProviderName): ProviderName | undefined {
+  if (value === undefined) return undefined;
+  const trimmed = value.trim() as ProviderName;
+  return trimmed ? trimmed : undefined;
+}
+
 function normalizeCommand(value: string, inputMode?: InputMode): string {
   const trimmed = value.trim();
   if (trimmed) return trimmed;
@@ -50,6 +56,9 @@ function normalizeCreateInput(input: CreateProfileInput): CreateProfileInput {
     cwd: normalizeOptionalString(input.cwd),
     inputMode,
     inputFile: normalizeOptionalString(input.inputFile),
+    llmProvider: normalizeOptionalProvider(input.llmProvider),
+    narrationProvider: normalizeOptionalProvider(input.narrationProvider),
+    explanationProvider: normalizeOptionalProvider(input.explanationProvider),
   };
 }
 
@@ -63,7 +72,18 @@ function normalizeUpdateInput(input: UpdateProfileInput): UpdateProfileInput {
     ...(input.cwd !== undefined && { cwd: normalizeOptionalString(input.cwd) }),
     ...(input.inputMode !== undefined && { inputMode }),
     ...(input.inputFile !== undefined && { inputFile: normalizeOptionalString(input.inputFile) }),
+    ...(input.llmProvider !== undefined && { llmProvider: normalizeOptionalProvider(input.llmProvider) }),
+    ...(input.narrationProvider !== undefined && {
+      narrationProvider: normalizeOptionalProvider(input.narrationProvider),
+    }),
+    ...(input.explanationProvider !== undefined && {
+      explanationProvider: normalizeOptionalProvider(input.explanationProvider),
+    }),
   };
+}
+
+function hasOwn(input: object, key: string): boolean {
+  return Object.prototype.hasOwnProperty.call(input, key);
 }
 
 function displayCommand(profile: Profile): string {
@@ -79,6 +99,9 @@ function hydrateProfile(profile: Profile): Profile {
     ...profile,
     inputMode: profile.inputMode ?? "pty",
     inputFile: normalizeOptionalString(profile.inputFile),
+    llmProvider: normalizeOptionalProvider(profile.llmProvider),
+    narrationProvider: normalizeOptionalProvider(profile.narrationProvider),
+    explanationProvider: normalizeOptionalProvider(profile.explanationProvider),
   };
 }
 
@@ -190,6 +213,8 @@ export async function create(input: CreateProfileInput): Promise<Profile> {
     inputMode: normalized.inputMode ?? "pty",
     inputFile: normalized.inputFile,
     llmProvider: normalized.llmProvider,
+    narrationProvider: normalized.narrationProvider,
+    explanationProvider: normalized.explanationProvider,
     createdAt: now,
     updatedAt: now,
   };
@@ -236,7 +261,13 @@ export async function update(
     ...(normalized.logSource !== undefined && { logSource: normalized.logSource }),
     ...(normalized.inputMode !== undefined && { inputMode: normalized.inputMode }),
     ...(normalized.inputFile !== undefined && { inputFile: normalized.inputFile }),
-    ...(normalized.llmProvider !== undefined && { llmProvider: normalized.llmProvider }),
+    ...(hasOwn(normalized, "llmProvider") && { llmProvider: normalized.llmProvider }),
+    ...(hasOwn(normalized, "narrationProvider") && {
+      narrationProvider: normalized.narrationProvider,
+    }),
+    ...(hasOwn(normalized, "explanationProvider") && {
+      explanationProvider: normalized.explanationProvider,
+    }),
     updatedAt: Date.now(),
   };
 
@@ -340,6 +371,8 @@ export function createFromEnv(
     inputMode,
     inputFile,
     llmProvider,
+    narrationProvider: undefined,
+    explanationProvider: undefined,
   };
 }
 

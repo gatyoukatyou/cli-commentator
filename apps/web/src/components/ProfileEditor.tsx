@@ -11,7 +11,8 @@ type ProfileInput = {
   logSource: SourceMode;
   inputMode: InputMode;
   inputFile: string;
-  llmProvider: ProviderName | "";
+  narrationProvider: ProviderName | "";
+  explanationProvider: ProviderName | "";
 };
 
 type Props = {
@@ -61,11 +62,13 @@ function createEmptyInput(): ProfileInput {
     logSource: "auto",
     inputMode: "pty",
     inputFile: "",
-    llmProvider: "",
+    narrationProvider: "",
+    explanationProvider: "",
   };
 }
 
 function profileToInput(profile: Profile): ProfileInput {
+  const fallbackProvider = profile.llmProvider ?? "";
   return {
     id: profile.id,
     name: profile.name,
@@ -76,7 +79,8 @@ function profileToInput(profile: Profile): ProfileInput {
     logSource: profile.logSource,
     inputMode: profile.inputMode ?? "pty",
     inputFile: profile.inputFile ?? "",
-    llmProvider: profile.llmProvider ?? "",
+    narrationProvider: profile.narrationProvider ?? fallbackProvider,
+    explanationProvider: profile.explanationProvider ?? fallbackProvider,
   };
 }
 
@@ -252,15 +256,32 @@ export function ProfileEditor({ profile, error, isWsOpen = true, onSave, onCance
 
           <div className="form-field" style={{ marginBottom: "var(--space-6)" }}>
             <label className="form-field__label">
-              LLMプロバイダー
+              実況 LLMプロバイダー
             </label>
             <select
-              value={input.llmProvider}
-              onChange={(e) => setInput({ ...input, llmProvider: e.target.value as ProviderName | "" })}
+              value={input.narrationProvider}
+              onChange={(e) => setInput({ ...input, narrationProvider: e.target.value as ProviderName | "" })}
               className="form-field__input"
             >
               {LLM_PROVIDERS.map((p) => (
-                <option key={p.value} value={p.value}>
+                <option key={`narration-${p.value}`} value={p.value}>
+                  {p.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="form-field" style={{ marginBottom: "var(--space-6)" }}>
+            <label className="form-field__label">
+              解説 LLMプロバイダー
+            </label>
+            <select
+              value={input.explanationProvider}
+              onChange={(e) => setInput({ ...input, explanationProvider: e.target.value as ProviderName | "" })}
+              className="form-field__input"
+            >
+              {LLM_PROVIDERS.map((p) => (
+                <option key={`explanation-${p.value}`} value={p.value}>
                   {p.label}
                 </option>
               ))}

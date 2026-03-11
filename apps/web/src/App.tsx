@@ -976,7 +976,8 @@ export default function App() {
     logSource: SourceState["mode"];
     inputMode: InputMode;
     inputFile: string;
-    llmProvider: string;
+    narrationProvider: string;
+    explanationProvider: string;
   }) => {
     setProfileError(null);
     if (wsRef.current?.readyState !== WebSocket.OPEN) {
@@ -997,7 +998,12 @@ export default function App() {
       logSource: input.logSource,
       inputMode: input.inputMode,
       inputFile: normalizedInputFile || undefined,
-      llmProvider: input.llmProvider as CreateProfileInput["llmProvider"],
+      narrationProvider: input.narrationProvider
+        ? (input.narrationProvider as CreateProfileInput["narrationProvider"])
+        : ("" as CreateProfileInput["narrationProvider"]),
+      explanationProvider: input.explanationProvider
+        ? (input.explanationProvider as CreateProfileInput["explanationProvider"])
+        : ("" as CreateProfileInput["explanationProvider"]),
     };
     wsRef.current.send(JSON.stringify({ kind: "saveProfile", profile }));
   };
