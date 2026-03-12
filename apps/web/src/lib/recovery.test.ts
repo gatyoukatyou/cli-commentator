@@ -10,6 +10,8 @@ describe("getDesktopFailureGuidance", () => {
   it("classifies port conflict errors", () => {
     const result = getDesktopFailureGuidance("failed", "Server exited unexpectedly; port 8787 is already in use", null);
     expect(result?.category).toBe("ポート解決エラー");
+    expect(result?.summary).toContain("ポート");
+    expect(result?.primaryAction).toContain("Retry Start");
     expect(result?.hints[0]).toContain("自動退避");
   });
 
@@ -30,7 +32,7 @@ describe("getDesktopFailureGuidance", () => {
   it("classifies project root errors", () => {
     const result = getDesktopFailureGuidance("failed", "Failed to get project root: canonicalize failed", null);
     expect(result?.category).toBe("起動ディレクトリエラー");
-    expect(result?.hints.join(" ")).toContain("dev:desktop:managed");
+    expect(result?.primaryAction).toContain("dev:desktop:managed");
   });
 
   it("classifies structured project root errors", () => {
@@ -41,7 +43,7 @@ describe("getDesktopFailureGuidance", () => {
   it("classifies sidecar runtime errors", () => {
     const result = getDesktopFailureGuidance("failed", "[sidecar_manifest_missing] No sidecar manifest was found", null);
     expect(result?.category).toBe("同梱ランタイムエラー");
-    expect(result?.hints.join(" ")).toContain("prepare:desktop-sidecar");
+    expect(result?.primaryAction).toContain("prepare:desktop-sidecar");
   });
 
   it("preserves raw diagnostic paths for sidecar runtime errors", () => {
@@ -51,7 +53,7 @@ describe("getDesktopFailureGuidance", () => {
       null
     );
     expect(result?.category).toBe("同梱ランタイムエラー");
-    expect(result?.hints.join(" ")).toContain(
+    expect(result?.diagnostics.join(" ")).toContain(
       "manifest=/Applications/CLI Commentator/Contents/Resources/sidecar-manifest.json"
     );
   });
@@ -78,8 +80,9 @@ describe("getDesktopFailureGuidance", () => {
       null
     );
     expect(result?.category).toBe("権限エラー");
-    expect(result?.hints.join(" ")).toContain("cwd=/Users/home/AION_Project/repos/cli-commentator/apps/server");
-    expect(result?.hints.join(" ")).toContain(
+    expect(result?.primaryAction).toContain("Retry Start");
+    expect(result?.diagnostics.join(" ")).toContain("cwd=/Users/home/AION_Project/repos/cli-commentator/apps/server");
+    expect(result?.diagnostics.join(" ")).toContain(
       "entry=/Users/home/AION_Project/repos/cli-commentator/apps/server/dist/index.js"
     );
   });
@@ -92,12 +95,14 @@ describe("getDesktopFailureGuidance", () => {
     );
     expect(result?.category).toBe("停止処理エラー");
     expect(result?.hints.join(" ")).toContain("desktop/server-event");
+    expect(result?.primaryAction).toContain("Desktop を再起動");
   });
 
   it("classifies unexpected exit errors", () => {
     const result = getDesktopFailureGuidance("failed", "Server exited unexpectedly with code 1", null);
     expect(result?.category).toBe("サーバープロセス異常終了");
     expect(result?.hints.join(" ")).toContain("resources/server/dist/index.js");
+    expect(result?.primaryAction).toContain("Retry Start");
   });
 
   it("adds structured port diagnostics when available", () => {
@@ -107,8 +112,8 @@ describe("getDesktopFailureGuidance", () => {
       null
     );
     expect(result?.category).toBe("ポート解決エラー");
-    expect(result?.hints.join(" ")).toContain("preferred=8787");
-    expect(result?.hints.join(" ")).toContain("attempts=64");
+    expect(result?.diagnostics.join(" ")).toContain("preferred=8787");
+    expect(result?.diagnostics.join(" ")).toContain("attempts=64");
   });
 
   it("adds exit code diagnostics for structured unexpected exit", () => {
@@ -118,7 +123,7 @@ describe("getDesktopFailureGuidance", () => {
       null
     );
     expect(result?.category).toBe("サーバープロセス異常終了");
-    expect(result?.hints.join(" ")).toContain("exit_code=signal_or_unknown");
+    expect(result?.diagnostics.join(" ")).toContain("exit_code=signal_or_unknown");
   });
 
   it("adds missing sidecar file diagnostics when available", () => {
@@ -128,15 +133,17 @@ describe("getDesktopFailureGuidance", () => {
       null
     );
     expect(result?.category).toBe("同梱ランタイムエラー");
-    expect(result?.hints.join(" ")).toContain(
+    expect(result?.diagnostics.join(" ")).toContain(
       "node_binary=/Applications/CLI Commentator.app/Contents/Resources/binaries/node-aarch64-apple-darwin"
     );
-    expect(result?.hints.join(" ")).toContain("candidates=/Applications/CLI Commentator.app/Contents/Resources");
+    expect(result?.diagnostics.join(" ")).toContain("candidates=/Applications/CLI Commentator.app/Contents/Resources");
   });
 
   it("falls back to generic guidance for unknown errors", () => {
     const result = getDesktopFailureGuidance("failed", "some unknown failure", null);
     expect(result?.category).toBe("要確認");
+    expect(result?.summary).toContain("既知分類");
     expect(result?.hints).toHaveLength(1);
+    expect(result?.diagnostics).toHaveLength(0);
   });
 });

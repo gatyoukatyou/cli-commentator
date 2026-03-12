@@ -2,7 +2,10 @@ export type DesktopServerState = "stopped" | "starting" | "running" | "stopping"
 
 export type RecoveryGuidance = {
   category: string;
+  summary: string;
+  primaryAction: string;
   hints: string[];
+  diagnostics: string[];
 };
 
 type FailureContext = {
@@ -113,9 +116,9 @@ function isUnexpectedExit(context: FailureContext): boolean {
   );
 }
 
-function addDiagnosticHint(hints: string[], label: string, value: string | undefined) {
+function addDiagnosticHint(diagnostics: string[], label: string, value: string | undefined) {
   if (!value) return;
-  hints.push(`検出情報: ${label}=${value}`);
+  diagnostics.push(`${label}=${value}`);
 }
 
 export function getDesktopFailureGuidance(
@@ -130,106 +133,140 @@ export function getDesktopFailureGuidance(
   const context = parseFailureContext(`${statusError ?? ""} ${invokeError ?? ""}`);
 
   if (isPortConflict(context) || isPortResolveError(context)) {
+    const diagnostics: string[] = [];
     const hints = [
       "Desktop は既定 8787 から、使用中なら 8788 以降へ自動退避します。",
       "多数のポートが占有されていないか確認してください（必要に応じて `lsof -i :8787-:8850`）。",
-      "必要なら `CLI_COMMENTATOR_PORT` で開始ポートを指定して Start を再試行してください。",
+      "固定ポートで再現したいときだけ `CLI_COMMENTATOR_PORT` を指定してください。",
     ];
     const preferred = context.fields.preferred;
     const attempts = context.fields.attempts;
     if (preferred || attempts) {
-      hints.push(`検出情報: preferred=${preferred ?? "?"}, attempts=${attempts ?? "?"}`);
+      diagnostics.push(`preferred=${preferred ?? "?"}, attempts=${attempts ?? "?"}`);
     }
     if (context.fields.port && context.normalizedFields.port_in_use === "true") {
-      hints.push(`検出情報: port=${context.fields.port} が使用中です。`);
+      diagnostics.push(`port=${context.fields.port} is already in use`);
     }
-    addDiagnosticHint(hints, "port", context.fields.port);
+    addDiagnosticHint(diagnostics, "port", context.fields.port);
 
     return {
       category: "ポート解決エラー",
+      summary: "既定ポートが使用中か、起動に使えるポートを確保できていません。",
+      primaryAction: "ポート競合を解消してから Retry Start を押してください。",
       hints,
+      diagnostics,
     };
   }
 
   if (isProjectRootError(context)) {
     return {
       category: "起動ディレクトリエラー",
+      summary: "Desktop がサーバー起動に必要なプロジェクトルートを解決できていません。",
+      primaryAction: "リポジトリルートから `pnpm dev:desktop:managed` を起動し直してください。",
       hints: [
         "アプリの起動ディレクトリがリポジトリ外になっていないか確認してください。",
-        "リポジトリルートから `pnpm dev:desktop:managed` を実行してください。",
+        "シンボリックリンク越しのパスや削除済みディレクトリを指していないか確認してください。",
       ],
+      diagnostics: [],
     };
   }
 
   if (isPermissionError(context)) {
+    const diagnostics: string[] = [];
     const hints = [
       "実行権限と作業ディレクトリの権限を確認してください。",
-      "権限修正後に Start を押して再試行してください。",
+      "配布アプリなら quarantine / 権限設定、開発環境なら `resources` と `binaries` の権限を確認してください。",
     ];
-    addDiagnosticHint(hints, "cwd", context.fields.cwd);
-    addDiagnosticHint(hints, "node", context.fields.node);
-    addDiagnosticHint(hints, "entry", context.fields.entry);
+    addDiagnosticHint(diagnostics, "cwd", context.fields.cwd);
+    addDiagnosticHint(diagnostics, "node", context.fields.node);
+    addDiagnosticHint(diagnostics, "entry", context.fields.entry);
 
     return {
       category: "権限エラー",
+      summary: "Desktop は起動対象に到達できていますが、実行または読み取り権限で失敗しています。",
+      primaryAction: "権限を修正してから Retry Start を押してください。",
       hints,
+      diagnostics,
     };
   }
 
   if (isSidecarRuntimeError(context)) {
+    const diagnostics: string[] = [];
     const hints = [
       "Desktop 同梱物（`resources/server` / `sidecar-manifest.json` / `binaries/node-*`）の存在を確認してください。",
-      "開発環境では `pnpm prepare:desktop-sidecar` を再実行して同梱物を作り直してください。",
-      "修正後に Start を押して再試行してください。",
+      "配布物なら再インストール、開発環境なら `pnpm prepare:desktop-sidecar` の再実行を優先してください。",
     ];
+    let summary = "Desktop が bundled sidecar の構成ファイルまたは実行物を見つけられていません。";
+    let primaryAction = "sidecar 同梱物を作り直してから Retry Start を押してください。";
     if (hasCategory(context, "sidecar_manifest_parse")) {
-      hints.unshift("`sidecar-manifest.json` のJSON形式が壊れていないか確認してください。");
+      summary = "sidecar-manifest.json は見つかっていますが、内容の読み取りに失敗しています。";
+      primaryAction = "`sidecar-manifest.json` の JSON 形式を修正してから Retry Start を押してください。";
+      hints.unshift("manifest のキー名や JSON 末尾カンマ崩れを確認してください。");
     }
     if (hasCategory(context, "sidecar_manifest_parent")) {
+      summary = "Desktop アプリの `Contents/Resources` 配置が期待どおりに解決できていません。";
+      primaryAction = "アプリ配置を確認するか、開発環境なら sidecar 配置を作り直してください。";
       hints.unshift("Desktopアプリの配置先（`Contents/Resources`）が壊れていないか確認してください。");
     }
-    addDiagnosticHint(hints, "manifest", context.fields.manifest);
-    addDiagnosticHint(hints, "node_binary", context.fields.node_binary);
-    addDiagnosticHint(hints, "server_entry", context.fields.server_entry);
-    addDiagnosticHint(hints, "server_root", context.fields.server_root);
-    addDiagnosticHint(hints, "candidates", context.fields.candidates);
+    if (hasCategory(context, "sidecar_manifest_missing")) {
+      primaryAction = "開発環境なら `pnpm prepare:desktop-sidecar` を実行し、配布物なら再インストールしてください。";
+    }
+    addDiagnosticHint(diagnostics, "manifest", context.fields.manifest);
+    addDiagnosticHint(diagnostics, "node_binary", context.fields.node_binary);
+    addDiagnosticHint(diagnostics, "server_entry", context.fields.server_entry);
+    addDiagnosticHint(diagnostics, "server_root", context.fields.server_root);
+    addDiagnosticHint(diagnostics, "candidates", context.fields.candidates);
 
     return {
       category: "同梱ランタイムエラー",
+      summary,
+      primaryAction,
       hints,
+      diagnostics,
     };
   }
 
   if (isStopFlowError(context)) {
+    const diagnostics: string[] = [];
+    addDiagnosticHint(diagnostics, "error", context.fields.error);
     return {
       category: "停止処理エラー",
+      summary: "既存プロセスの停止または状態確認で失敗しており、内部状態が中途半端な可能性があります。",
+      primaryAction: "Desktop を再起動して状態をリセットしてから Stop / Start を再試行してください。",
       hints: [
-        "停止処理中にプロセス制御で失敗しています。",
-        "Desktop を再起動して状態をリセットしてから Stop / Start を再試行してください。",
         "再現する場合は `desktop/server-event` ログを添えて報告してください。",
+        "連続操作で起きる場合は Stop 完了表示を待ってから次の Start を押してください。",
       ],
+      diagnostics,
     };
   }
 
   if (isUnexpectedExit(context)) {
+    const diagnostics: string[] = [];
     const hints = [
-      "サーバープロセスが起動後すぐに終了しています。",
       "同梱 server entry（`resources/server/dist/index.js`）の実行ログを確認してください。",
-      "原因解消後に Retry Start を実行してください。",
+      "直前の `desktop/server-event` に `unexpected_exit` / `process_state` が出ていないか確認してください。",
     ];
-    if (context.fields.exit_code) {
-      hints.push(`検出情報: exit_code=${context.fields.exit_code}`);
-    }
-    addDiagnosticHint(hints, "port", context.fields.port);
+    addDiagnosticHint(diagnostics, "exit_code", context.fields.exit_code);
+    addDiagnosticHint(diagnostics, "port", context.fields.port);
+    addDiagnosticHint(diagnostics, "port_in_use", context.fields.port_in_use);
 
     return {
       category: "サーバープロセス異常終了",
+      summary: "サーバープロセスは起動開始まで進んでいますが、ヘルス安定前に終了しています。",
+      primaryAction: "原因ログを確認してから Retry Start を実行してください。",
       hints,
+      diagnostics,
     };
   }
 
   return {
     category: "要確認",
-    hints: ["エラーメッセージを確認して原因を解消し、Start で再試行してください。"],
+    summary: "既知分類に当てはまらないため、エラーメッセージ全体の確認が必要です。",
+    primaryAction: "表示中のエラー本文を確認し、原因を解消してから Start を再試行してください。",
+    hints: [
+      "再現する場合は `desktop/server-event` ログとあわせて確認してください。",
+    ],
+    diagnostics: [],
   };
 }
