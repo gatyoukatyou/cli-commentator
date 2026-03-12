@@ -18,10 +18,13 @@ export {
 
 export {
   classifyPtyStartupFailureCode,
+  classifyInputStartupFailureCode,
   buildPtyStartupFailureLog,
+  buildInputStartupFailureLog,
   formatPtyStartupFailureLog,
   type PtyFailureContext,
   type PtyFailureCode,
+  type StartupFailureKind,
   type FileFallbackResult,
   type PtyStartupFailureLog,
 } from "./startup-failure.js";

@@ -12,6 +12,12 @@ type StartupFailureLog = {
   context?: string;
   kind?: string;
   code?: string;
+  target?: {
+    cmd?: string;
+    args?: string[];
+    cwd?: string;
+    inputFile?: string;
+  };
   fallback?: {
     attempted?: boolean;
     activated?: boolean;
@@ -302,6 +308,8 @@ describe("windows fallback integration", () => {
               log.context === "startup" &&
               log.kind === "ptyUnavailable" &&
               log.code === "node_pty_unavailable" &&
+              typeof log.target?.cmd === "string" &&
+              typeof log.target?.cwd === "string" &&
               log.fallback?.reason === "activated" &&
               log.fallback?.activated === true
           ),
@@ -374,6 +382,8 @@ describe("windows fallback integration", () => {
               log.context === "restart" &&
               log.kind === "ptyUnavailable" &&
               log.code === "node_pty_unavailable" &&
+              typeof log.target?.cmd === "string" &&
+              typeof log.target?.cwd === "string" &&
               log.fallback?.reason === "activated" &&
               log.fallback?.activated === true
           ),
@@ -629,6 +639,11 @@ describe("windows fallback integration", () => {
     );
     expect(startupFailure).toBeTruthy();
     expect(String(startupFailure?.detail ?? "")).toContain("file_mode_invalid_config=missing_input_file");
+    const structuredFailure = parseStartupFailureLogs(stderrOutput).find(
+      (log) => log.context === "startup" && log.kind === "configError"
+    );
+    expect(structuredFailure?.code).toBe("input_file_missing");
+    expect(structuredFailure?.target?.inputFile).toBeUndefined();
     expect(`${stdoutOutput}\n${stderrOutput}`).toContain("INPUT_FILE is required when INPUT_MODE=file");
   }, 10000);
 

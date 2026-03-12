@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildInputStartupFailureLog,
   buildPtyStartupFailureLog,
+  classifyInputStartupFailureCode,
   classifyPtyStartupFailureCode,
   formatPtyStartupFailureLog,
   type FileFallbackResult,
@@ -64,6 +66,22 @@ describe("pty/startup-failure", () => {
     });
   });
 
+  describe("classifyInputStartupFailureCode", () => {
+    it("classifies missing INPUT_FILE errors", () => {
+      expect(classifyInputStartupFailureCode("INPUT_FILE is required when INPUT_MODE=file")).toBe("input_file_missing");
+    });
+
+    it("classifies missing file paths", () => {
+      expect(classifyInputStartupFailureCode("INPUT_FILE not found: /tmp/missing.log")).toBe("input_file_not_found");
+    });
+
+    it("classifies permission errors", () => {
+      expect(classifyInputStartupFailureCode("Failed to open INPUT_FILE: permission denied")).toBe(
+        "input_file_permission_denied"
+      );
+    });
+  });
+
   it("builds and formats structured startup failure logs", () => {
     const failure: PtyFailure = {
       kind: "ptyError",
@@ -83,11 +101,36 @@ describe("pty/startup-failure", () => {
       error: "spawn bash ENOENT",
       inputMode: "pty",
       fallback: NO_FALLBACK,
+      target: undefined,
     });
 
     const line = formatPtyStartupFailureLog(payload);
     expect(line.startsWith("[startup/failure] ")).toBe(true);
     const parsed = JSON.parse(line.replace("[startup/failure] ", ""));
     expect(parsed).toEqual(payload);
+  });
+
+  it("builds input-mode startup failure logs with input file context", () => {
+    const payload = buildInputStartupFailureLog({
+      context: "startup",
+      error: "INPUT_FILE not found: /tmp/missing.log",
+      inputMode: "file",
+      fallback: NO_FALLBACK,
+      target: {
+        inputFile: "/tmp/missing.log",
+      },
+    });
+
+    expect(payload).toEqual({
+      context: "startup",
+      kind: "configError",
+      code: "input_file_not_found",
+      error: "INPUT_FILE not found: /tmp/missing.log",
+      inputMode: "file",
+      fallback: NO_FALLBACK,
+      target: {
+        inputFile: "/tmp/missing.log",
+      },
+    });
   });
 });

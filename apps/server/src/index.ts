@@ -16,6 +16,7 @@ import {
   configFromEnv,
   getNodePtyError,
   classifyPtyFailure,
+  buildInputStartupFailureLog,
   buildPtyStartupFailureLog,
   formatPtyStartupFailureLog,
   createPtyUnavailableMessage,
@@ -157,12 +158,23 @@ function transitionServerState(
   console.log(line);
 }
 
-function logPtyStartupFailure(context: "startup" | "restart", failure: PtyFailure, fallback: FileFallbackResult): void {
+function logPtyStartupFailure(
+  context: "startup" | "restart",
+  failure: PtyFailure,
+  fallback: FileFallbackResult,
+  target?: {
+    cmd?: string;
+    args?: string[];
+    cwd?: string;
+    inputFile?: string;
+  }
+): void {
   const payload = buildPtyStartupFailureLog({
     context,
     failure,
     inputMode: runtimeInputMode,
     fallback,
+    target,
   });
   const line = formatPtyStartupFailureLog(payload);
   if (failure.kind === "ptyUnavailable") {
@@ -170,6 +182,23 @@ function logPtyStartupFailure(context: "startup" | "restart", failure: PtyFailur
     return;
   }
   console.error(line);
+}
+
+function logInputStartupFailure(
+  context: "startup" | "restart",
+  error: string,
+  inputFile?: string | null
+): void {
+  const payload = buildInputStartupFailureLog({
+    context,
+    error,
+    inputMode: "file",
+    fallback: NO_FILE_FALLBACK,
+    target: {
+      inputFile: inputFile?.trim() || undefined,
+    },
+  });
+  console.error(formatPtyStartupFailureLog(payload));
 }
 
 /**
@@ -324,10 +353,10 @@ async function restartPTY(profileId: string | null, force = false): Promise<void
   restartInFlight = true;
   transitionServerState("restart_begin", "restarting", { profileId });
   let nextInputMode: InputMode = INPUT_MODE;
+  let config: PTYConfig | null = null;
+  let filePath: string | null = null;
 
   try {
-    let config: PTYConfig | null = null;
-    let filePath: string | null = null;
     let newStyle = currentStyle;
     let newSourceMode = currentSourceMode;
     let newCommentaryProviders = currentCommentaryProviders;
@@ -410,6 +439,7 @@ async function restartPTY(profileId: string | null, force = false): Promise<void
   } catch (err) {
     if (nextInputMode === "file") {
       const message = err instanceof Error ? err.message : String(err);
+      logInputStartupFailure("restart", message, filePath);
       transitionServerState("restart_failed", "failed", {
         level: "error",
         inputMode: "file",
@@ -426,7 +456,12 @@ async function restartPTY(profileId: string | null, force = false): Promise<void
       markPtyUnavailable(failure.error);
       broadcast(createPtyUnavailableMessage(failure.error));
       const fallback = tryStartFileFallback("restart");
-      logPtyStartupFailure("restart", failure, fallback);
+      logPtyStartupFailure("restart", failure, fallback, {
+        cmd: config?.cmd,
+        args: config?.args,
+        cwd: config?.cwd,
+        inputFile: INPUT_FILE.trim() || undefined,
+      });
       if (!fallback.activated) {
         transitionServerState("restart_failed", "failed", {
           level: "warn",
@@ -448,7 +483,11 @@ async function restartPTY(profileId: string | null, force = false): Promise<void
       return;
     }
 
-    logPtyStartupFailure("restart", failure, NO_FILE_FALLBACK);
+    logPtyStartupFailure("restart", failure, NO_FILE_FALLBACK, {
+      cmd: config?.cmd,
+      args: config?.args,
+      cwd: config?.cwd,
+    });
     transitionServerState("restart_failed", "failed", {
       level: "error",
       detail: `kind=${failure.kind}; error=${failure.error}`,
@@ -778,7 +817,12 @@ if (INPUT_MODE === "pty") {
     if (failure.kind === "ptyUnavailable") {
       markPtyUnavailable(failure.error);
       const fallback = tryStartFileFallback("startup");
-      logPtyStartupFailure("startup", failure, fallback);
+      logPtyStartupFailure("startup", failure, fallback, {
+        cmd: initialConfig.cmd,
+        args: initialConfig.args,
+        cwd: initialConfig.cwd,
+        inputFile: INPUT_FILE.trim() || undefined,
+      });
       if (!fallback.activated) {
         transitionServerState("startup_failed", "failed", {
           level: "warn",
@@ -791,7 +835,11 @@ if (INPUT_MODE === "pty") {
       console.error("[WARN] PTY initialization failed:", ptyInitError);
       console.error("[INFO] Server will continue without PTY. Use INPUT_MODE=file for file monitoring.");
     } else {
-      logPtyStartupFailure("startup", failure, NO_FILE_FALLBACK);
+      logPtyStartupFailure("startup", failure, NO_FILE_FALLBACK, {
+        cmd: initialConfig.cmd,
+        args: initialConfig.args,
+        cwd: initialConfig.cwd,
+      });
       transitionServerState("startup_failed", "failed", {
         level: "error",
         detail: `kind=${failure.kind}; error=${failure.error}`,
@@ -803,6 +851,11 @@ if (INPUT_MODE === "pty") {
   // File mode: early validation before setupFileTail
   const decision = resolveFileFallback(INPUT_FILE, (filePath) => fs.existsSync(filePath));
   if (!decision.enabled) {
+    const startupError =
+      decision.reason === "missing_input_file"
+        ? "INPUT_FILE is required when INPUT_MODE=file"
+        : `INPUT_FILE not found: ${INPUT_FILE}`;
+    logInputStartupFailure("startup", startupError, INPUT_FILE);
     transitionServerState("startup_failed", "failed", {
       level: "error",
       inputMode: "file",
