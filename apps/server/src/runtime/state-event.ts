@@ -8,6 +8,10 @@ export type ServerRuntimeState =
   | "shutting_down"
   | "stopped";
 
+export type ServerStateEventContextValue = string | number | boolean | null | string[];
+export type ServerStateEventContext = Record<string, ServerStateEventContextValue>;
+export type ServerStateEventContextInput = Record<string, ServerStateEventContextValue | undefined>;
+
 export type ServerStateEvent = {
   ts: number;
   trigger: string;
@@ -16,6 +20,7 @@ export type ServerStateEvent = {
   inputMode: "pty" | "file";
   profileId: string | null;
   detail: string | null;
+  context: ServerStateEventContext | null;
 };
 
 export function buildServerStateEvent(params: {
@@ -25,7 +30,10 @@ export function buildServerStateEvent(params: {
   inputMode: "pty" | "file";
   profileId: string | null;
   detail?: string | null;
+  context?: ServerStateEventContextInput | null;
 }): ServerStateEvent {
+  const entries = Object.entries(params.context ?? {}).filter(([, value]) => value !== undefined);
+  const context = entries.length > 0 ? (Object.fromEntries(entries) as ServerStateEventContext) : null;
   return {
     ts: Date.now(),
     trigger: params.trigger,
@@ -34,6 +42,7 @@ export function buildServerStateEvent(params: {
     inputMode: params.inputMode,
     profileId: params.profileId,
     detail: params.detail ?? null,
+    context,
   };
 }
 
