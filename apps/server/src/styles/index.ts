@@ -8,6 +8,11 @@ import type { LLMAdapter } from "../llm/adapter.js";
 import { CommentError } from "../errors.js";
 import { withTimeout } from "../utils/timeout.js";
 import type { ProfileLLMProviders } from "../profile/types.js";
+import {
+  buildExplanationPrompt,
+  buildNarrationPrompt,
+  normalizeGeneratedCommentaryText,
+} from "./prompt.js";
 
 const COMMENT_TIMEOUT_MS = parseInt(process.env.COMMENT_TIMEOUT_MS ?? "3000", 10);
 const adapterCache = new Map<ProviderName, LLMAdapter | null>();
@@ -619,32 +624,6 @@ function getAdapter(provider?: ProviderName): LLMAdapter | null {
   }
 }
 
-function buildNarrationPrompt(ev: Event, style: Style): string {
-  const styleDesc =
-    style === "kansai" ? "関西弁で" :
-    style === "zundamon" ? "ずんだもん風（〜なのだ）で" :
-    "標準的な日本語で";
-
-  return `あなたはCLI操作の実況者です。${styleDesc}、以下のイベントを1文で実況してください。
-イベント種別: ${ev.type}
-要約: ${ev.summary}${ev.detail ? `\n詳細: ${ev.detail}` : ""}
-
-回答は実況コメント1文のみ（説明不要）:`;
-}
-
-function buildExplanationPrompt(ev: Event, style: Style): string {
-  const styleDesc =
-    style === "kansai" ? "関西弁で" :
-    style === "zundamon" ? "ずんだもん風（〜なのだ）で" :
-    "標準的な日本語で";
-
-  return `あなたはCLI操作の解説者です。${styleDesc}、以下のイベントが何をしているのかを初心者向けに1文で補足してください。
-イベント種別: ${ev.type}
-要約: ${ev.summary}${ev.detail ? `\n詳細: ${ev.detail}` : ""}
-
-回答は補足説明1文のみ（実況不要）:`;
-}
-
 async function generateLLMText(
   adapter: LLMAdapter,
   prompt: string,
@@ -685,13 +664,16 @@ async function commentInternal(
   const [narration, explanation] = await Promise.all([
     narrationAdapter
       ? generateLLMText(narrationAdapter, buildNarrationPrompt(ev, style), signal)
-          .then((text) => ({ text, provider: narrationAdapter.name }))
+          .then((text) => ({
+            text: normalizeGeneratedCommentaryText(text, "narration"),
+            provider: narrationAdapter.name,
+          }))
           .catch(() => null)
       : Promise.resolve(null),
     explanationAdapter
       ? generateLLMText(explanationAdapter, buildExplanationPrompt(ev, style), signal)
           .then((text) => ({
-            text: stripMemoPrefix(text),
+            text: normalizeGeneratedCommentaryText(text, "explanation"),
             provider: explanationAdapter.name,
           }))
           .catch(() => null)
