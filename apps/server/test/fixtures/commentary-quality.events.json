@@ -97,5 +97,84 @@
       "type": "done",
       "summary": "作業完了"
     }
+  },
+  {
+    "id": "start-no-detail",
+    "intent": "開始イベントでも3スタイルで導入コメントを維持する",
+    "event": {
+      "ts": 1735689600000,
+      "type": "start",
+      "summary": "レビュー前の確認を開始している"
+    }
+  },
+  {
+    "id": "stderr-port-collision",
+    "intent": "stderr イベントでは問題の行を添えて内容確認中だと伝える",
+    "event": {
+      "ts": 1735689600000,
+      "type": "stderr",
+      "summary": "開発サーバーが警告を出している",
+      "detail": "Error: listen EADDRINUSE: address already in use :::8787"
+    }
+  },
+  {
+    "id": "test-vitest-command",
+    "intent": "vitest 実行では自動テスト確認の一行メモを出す",
+    "event": {
+      "ts": 1735689600000,
+      "type": "test",
+      "summary": "実況品質の回帰テストを実行している",
+      "detail": "pnpm -C apps/server exec vitest run src/tests/commentary.test.ts"
+    }
+  },
+  {
+    "id": "test-typecheck-command",
+    "intent": "typecheck 実行では型ルール確認の一行メモを出す",
+    "event": {
+      "ts": 1735689600000,
+      "type": "test",
+      "summary": "サーバーの型チェックを実行している",
+      "detail": "pnpm -C apps/server exec tsc --noEmit"
+    }
+  },
+  {
+    "id": "lint-eslint-command",
+    "intent": "lint 実行では品質ルール確認と pnpm 注釈を維持する",
+    "event": {
+      "ts": 1735689600000,
+      "type": "lint",
+      "summary": "web lint を実行している",
+      "detail": "pnpm -C apps/web lint"
+    }
+  },
+  {
+    "id": "build-vite-command",
+    "intent": "build 実行では配布向けにまとめる説明と pnpm 注釈を維持する",
+    "event": {
+      "ts": 1735689600000,
+      "type": "build",
+      "summary": "web build を実行している",
+      "detail": "pnpm -C apps/web build"
+    }
+  },
+  {
+    "id": "server-dev-command",
+    "intent": "server 起動では実行環境を立ち上げる説明と pnpm 注釈を維持する",
+    "event": {
+      "ts": 1735689600000,
+      "type": "server",
+      "summary": "開発サーバーを起動している",
+      "detail": "pnpm dev:server"
+    }
+  },
+  {
+    "id": "install-pnpm-add",
+    "intent": "install 実行では依存追加の説明と pnpm 注釈を維持する",
+    "event": {
+      "ts": 1735689600000,
+      "type": "install",
+      "summary": "依存関係を追加している",
+      "detail": "pnpm add -D eslint-plugin-react"
+    }
   }
 ]

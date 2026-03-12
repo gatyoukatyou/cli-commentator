@@ -24,6 +24,18 @@ async function loadFixtures(): Promise<CommentaryFixture[]> {
     throw new Error("commentary-quality fixtures must be a non-empty array");
   }
 
+  const ids = new Set<string>();
+  for (const entry of parsed) {
+    const fixture = entry as Partial<CommentaryFixture>;
+    if (!fixture.id || !fixture.intent?.trim()) {
+      throw new Error("commentary-quality fixtures require non-empty id and intent");
+    }
+    if (ids.has(fixture.id)) {
+      throw new Error(`duplicate commentary-quality fixture id: ${fixture.id}`);
+    }
+    ids.add(fixture.id);
+  }
+
   return parsed as CommentaryFixture[];
 }
 

@@ -4,6 +4,7 @@ export function commentZundamon(ev: Event): string {
   return ev.type === "read" ? "ファイルを読んで状況確認してるのだ。" :
     ev.type === "write" ? "修正を反映して書き換えてるのだ。" :
     ev.type === "search" ? "原因になりそうな所を探してるのだ。" :
+    ev.type === "stderr" ? "エラー出力が出てるので内容を確認してるのだ。" :
     ev.type === "test" ? "テスト/型チェックで確認してるのだ。" :
     ev.type === "build" ? "ビルドを実行してるのだ。" :
     ev.type === "lint" ? "コードチェック/整形してるのだ。" :

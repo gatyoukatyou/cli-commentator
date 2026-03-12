@@ -491,5 +491,407 @@ exports[`commentary quality fixtures > renders styles consistently 1`] = `
       },
     ],
   },
+  {
+    "id": "start-no-detail",
+    "intent": "開始イベントでも3スタイルで導入コメントを維持する",
+    "outputs": [
+      {
+        "commentary": {
+          "explanation": "これから作業の流れを順に追います。",
+          "glossaryNotes": [],
+          "meta": {
+            "explanationProvider": "rules",
+            "mode": "both",
+            "narrationProvider": "rules",
+          },
+          "narration": "開始しました。これから作業の流れを実況します。",
+        },
+        "style": "standard",
+      },
+      {
+        "commentary": {
+          "explanation": "これから作業の流れを順に追うで。",
+          "glossaryNotes": [],
+          "meta": {
+            "explanationProvider": "rules",
+            "mode": "both",
+            "narrationProvider": "rules",
+          },
+          "narration": "開始や。実況いくで。",
+        },
+        "style": "kansai",
+      },
+      {
+        "commentary": {
+          "explanation": "これから作業の流れを順に追うのだ。",
+          "glossaryNotes": [],
+          "meta": {
+            "explanationProvider": "rules",
+            "mode": "both",
+            "narrationProvider": "rules",
+          },
+          "narration": "開始なのだ！実況していくのだ。",
+        },
+        "style": "zundamon",
+      },
+    ],
+  },
+  {
+    "id": "stderr-port-collision",
+    "intent": "stderr イベントでは問題の行を添えて内容確認中だと伝える",
+    "outputs": [
+      {
+        "commentary": {
+          "explanation": "エラー出力を確認して原因を絞っています。",
+          "glossaryNotes": [],
+          "meta": {
+            "explanationProvider": "rules",
+            "mode": "both",
+            "narrationProvider": "rules",
+          },
+          "narration": "エラー出力が出ているので内容を確認しています。 引っかかっている行は「Error: listen EADDRINUSE: address already in use :::8787」です。",
+        },
+        "style": "standard",
+      },
+      {
+        "commentary": {
+          "explanation": "エラー出力を見て原因しぼってるで。",
+          "glossaryNotes": [],
+          "meta": {
+            "explanationProvider": "rules",
+            "mode": "both",
+            "narrationProvider": "rules",
+          },
+          "narration": "エラー出力が出てるから内容確認してるで。 引っかかってる行は「Error: listen EADDRINUSE: address already in use :::8787」や。",
+        },
+        "style": "kansai",
+      },
+      {
+        "commentary": {
+          "explanation": "エラー出力を見て原因をしぼってるのだ。",
+          "glossaryNotes": [],
+          "meta": {
+            "explanationProvider": "rules",
+            "mode": "both",
+            "narrationProvider": "rules",
+          },
+          "narration": "エラー出力が出てるので内容を確認してるのだ。 引っかかってる行は「Error: listen EADDRINUSE: address already in use :::8787」なのだ。",
+        },
+        "style": "zundamon",
+      },
+    ],
+  },
+  {
+    "id": "test-vitest-command",
+    "intent": "vitest 実行では自動テスト確認の一行メモを出す",
+    "outputs": [
+      {
+        "commentary": {
+          "explanation": "変更の副作用がないか、自動テストで機械的に確認しています。",
+          "glossaryNotes": [
+            "補足: pnpm/npm/yarn は依存関係やスクリプト実行に使う",
+            "補足: Vitest/Jest は自動テストを走らせる仕組み",
+          ],
+          "meta": {
+            "explanationProvider": "rules",
+            "mode": "both",
+            "narrationProvider": "rules",
+          },
+          "narration": "テスト/型チェックで壊れていないか確認しています。",
+        },
+        "style": "standard",
+      },
+      {
+        "commentary": {
+          "explanation": "変更の副作用ないか、自動テストで機械的に確認してるで。",
+          "glossaryNotes": [
+            "補足: pnpm/npm/yarn は依存関係やスクリプト実行に使う",
+            "補足: Vitest/Jest は自動テストを走らせる仕組み",
+          ],
+          "meta": {
+            "explanationProvider": "rules",
+            "mode": "both",
+            "narrationProvider": "rules",
+          },
+          "narration": "テスト/型チェック回して確認中や。",
+        },
+        "style": "kansai",
+      },
+      {
+        "commentary": {
+          "explanation": "変更の副作用がないか、自動テストで機械的に確認してるのだ。",
+          "glossaryNotes": [
+            "補足: pnpm/npm/yarn は依存関係やスクリプト実行に使う",
+            "補足: Vitest/Jest は自動テストを走らせる仕組み",
+          ],
+          "meta": {
+            "explanationProvider": "rules",
+            "mode": "both",
+            "narrationProvider": "rules",
+          },
+          "narration": "テスト/型チェックで確認してるのだ。",
+        },
+        "style": "zundamon",
+      },
+    ],
+  },
+  {
+    "id": "test-typecheck-command",
+    "intent": "typecheck 実行では型ルール確認の一行メモを出す",
+    "outputs": [
+      {
+        "commentary": {
+          "explanation": "プログラム同士のつながりが噛み合っているか、型ルールで機械確認しています。",
+          "glossaryNotes": [
+            "補足: tsc/typecheck は型の整合性を自動確認するチェック",
+            "補足: pnpm/npm/yarn は依存関係やスクリプト実行に使う",
+          ],
+          "meta": {
+            "explanationProvider": "rules",
+            "mode": "both",
+            "narrationProvider": "rules",
+          },
+          "narration": "テスト/型チェックで壊れていないか確認しています。",
+        },
+        "style": "standard",
+      },
+      {
+        "commentary": {
+          "explanation": "プログラム同士のつながり合ってるか、型ルールで機械確認してるで。",
+          "glossaryNotes": [
+            "補足: tsc/typecheck は型の整合性を自動確認するチェック",
+            "補足: pnpm/npm/yarn は依存関係やスクリプト実行に使う",
+          ],
+          "meta": {
+            "explanationProvider": "rules",
+            "mode": "both",
+            "narrationProvider": "rules",
+          },
+          "narration": "テスト/型チェック回して確認中や。",
+        },
+        "style": "kansai",
+      },
+      {
+        "commentary": {
+          "explanation": "プログラム同士のつながりが合ってるか、型ルールで機械確認してるのだ。",
+          "glossaryNotes": [
+            "補足: tsc/typecheck は型の整合性を自動確認するチェック",
+            "補足: pnpm/npm/yarn は依存関係やスクリプト実行に使う",
+          ],
+          "meta": {
+            "explanationProvider": "rules",
+            "mode": "both",
+            "narrationProvider": "rules",
+          },
+          "narration": "テスト/型チェックで確認してるのだ。",
+        },
+        "style": "zundamon",
+      },
+    ],
+  },
+  {
+    "id": "lint-eslint-command",
+    "intent": "lint 実行では品質ルール確認と pnpm 注釈を維持する",
+    "outputs": [
+      {
+        "commentary": {
+          "explanation": "読みやすさと品質ルールを確認しています。",
+          "glossaryNotes": [
+            "補足: pnpm/npm/yarn は依存関係やスクリプト実行に使う",
+          ],
+          "meta": {
+            "explanationProvider": "rules",
+            "mode": "both",
+            "narrationProvider": "rules",
+          },
+          "narration": "コードの品質チェック/整形を行っています。",
+        },
+        "style": "standard",
+      },
+      {
+        "commentary": {
+          "explanation": "読みやすさと品質ルールを確認してるで。",
+          "glossaryNotes": [
+            "補足: pnpm/npm/yarn は依存関係やスクリプト実行に使う",
+          ],
+          "meta": {
+            "explanationProvider": "rules",
+            "mode": "both",
+            "narrationProvider": "rules",
+          },
+          "narration": "コードチェック/整形してるで。",
+        },
+        "style": "kansai",
+      },
+      {
+        "commentary": {
+          "explanation": "読みやすさと品質ルールを確認してるのだ。",
+          "glossaryNotes": [
+            "補足: pnpm/npm/yarn は依存関係やスクリプト実行に使う",
+          ],
+          "meta": {
+            "explanationProvider": "rules",
+            "mode": "both",
+            "narrationProvider": "rules",
+          },
+          "narration": "コードチェック/整形してるのだ。",
+        },
+        "style": "zundamon",
+      },
+    ],
+  },
+  {
+    "id": "build-vite-command",
+    "intent": "build 実行では配布向けにまとめる説明と pnpm 注釈を維持する",
+    "outputs": [
+      {
+        "commentary": {
+          "explanation": "実行・配布できる形にまとめています。",
+          "glossaryNotes": [
+            "補足: pnpm/npm/yarn は依存関係やスクリプト実行に使う",
+          ],
+          "meta": {
+            "explanationProvider": "rules",
+            "mode": "both",
+            "narrationProvider": "rules",
+          },
+          "narration": "ビルド処理を実行しています。",
+        },
+        "style": "standard",
+      },
+      {
+        "commentary": {
+          "explanation": "実行・配布できる形にまとめてるで。",
+          "glossaryNotes": [
+            "補足: pnpm/npm/yarn は依存関係やスクリプト実行に使う",
+          ],
+          "meta": {
+            "explanationProvider": "rules",
+            "mode": "both",
+            "narrationProvider": "rules",
+          },
+          "narration": "ビルド走らせてるで。",
+        },
+        "style": "kansai",
+      },
+      {
+        "commentary": {
+          "explanation": "実行・配布できる形にまとめてるのだ。",
+          "glossaryNotes": [
+            "補足: pnpm/npm/yarn は依存関係やスクリプト実行に使う",
+          ],
+          "meta": {
+            "explanationProvider": "rules",
+            "mode": "both",
+            "narrationProvider": "rules",
+          },
+          "narration": "ビルドを実行してるのだ。",
+        },
+        "style": "zundamon",
+      },
+    ],
+  },
+  {
+    "id": "server-dev-command",
+    "intent": "server 起動では実行環境を立ち上げる説明と pnpm 注釈を維持する",
+    "outputs": [
+      {
+        "commentary": {
+          "explanation": "動作確認のため実行環境を立ち上げています。",
+          "glossaryNotes": [
+            "補足: pnpm/npm/yarn は依存関係やスクリプト実行に使う",
+          ],
+          "meta": {
+            "explanationProvider": "rules",
+            "mode": "both",
+            "narrationProvider": "rules",
+          },
+          "narration": "開発サーバーを起動・確認しています。",
+        },
+        "style": "standard",
+      },
+      {
+        "commentary": {
+          "explanation": "動作確認のため実行環境を立ち上げてるで。",
+          "glossaryNotes": [
+            "補足: pnpm/npm/yarn は依存関係やスクリプト実行に使う",
+          ],
+          "meta": {
+            "explanationProvider": "rules",
+            "mode": "both",
+            "narrationProvider": "rules",
+          },
+          "narration": "開発サーバー立ち上げてるで。",
+        },
+        "style": "kansai",
+      },
+      {
+        "commentary": {
+          "explanation": "動作確認のため実行環境を立ち上げてるのだ。",
+          "glossaryNotes": [
+            "補足: pnpm/npm/yarn は依存関係やスクリプト実行に使う",
+          ],
+          "meta": {
+            "explanationProvider": "rules",
+            "mode": "both",
+            "narrationProvider": "rules",
+          },
+          "narration": "開発サーバーを立ち上げてるのだ。",
+        },
+        "style": "zundamon",
+      },
+    ],
+  },
+  {
+    "id": "install-pnpm-add",
+    "intent": "install 実行では依存追加の説明と pnpm 注釈を維持する",
+    "outputs": [
+      {
+        "commentary": {
+          "explanation": "必要なツールや依存を揃えています。",
+          "glossaryNotes": [
+            "補足: pnpm/npm/yarn は依存関係やスクリプト実行に使う",
+          ],
+          "meta": {
+            "explanationProvider": "rules",
+            "mode": "both",
+            "narrationProvider": "rules",
+          },
+          "narration": "依存関係の追加やスクリプト実行をしています。",
+        },
+        "style": "standard",
+      },
+      {
+        "commentary": {
+          "explanation": "必要なツールや依存をそろえてるで。",
+          "glossaryNotes": [
+            "補足: pnpm/npm/yarn は依存関係やスクリプト実行に使う",
+          ],
+          "meta": {
+            "explanationProvider": "rules",
+            "mode": "both",
+            "narrationProvider": "rules",
+          },
+          "narration": "依存関係やスクリプト処理してるで。",
+        },
+        "style": "kansai",
+      },
+      {
+        "commentary": {
+          "explanation": "必要なツールや依存をそろえてるのだ。",
+          "glossaryNotes": [
+            "補足: pnpm/npm/yarn は依存関係やスクリプト実行に使う",
+          ],
+          "meta": {
+            "explanationProvider": "rules",
+            "mode": "both",
+            "narrationProvider": "rules",
+          },
+          "narration": "依存関係やスクリプトを処理してるのだ。",
+        },
+        "style": "zundamon",
+      },
+    ],
+  },
 ]
 `;

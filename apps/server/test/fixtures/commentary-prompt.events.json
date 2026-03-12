@@ -37,5 +37,83 @@
       "summary": "型チェックに失敗している",
       "detail": "error TS2322 in src/index.ts during tsc -p tsconfig.json"
     }
+  },
+  {
+    "id": "start-session",
+    "intent": "開始イベントでは始まった対象だけを先に言う指示を含める",
+    "event": {
+      "ts": 1735689600000,
+      "type": "start",
+      "summary": "PR前の確認作業を開始している"
+    }
+  },
+  {
+    "id": "stderr-port-collision",
+    "intent": "stderr イベントでは問題発生を先に伝える指示を含める",
+    "event": {
+      "ts": 1735689600000,
+      "type": "stderr",
+      "summary": "開発サーバーが警告を出している",
+      "detail": "Error: listen EADDRINUSE: address already in use :::8787"
+    }
+  },
+  {
+    "id": "test-vitest",
+    "intent": "test イベントでは実行中の確認名を先に言う指示を含める",
+    "event": {
+      "ts": 1735689600000,
+      "type": "test",
+      "summary": "実況品質の回帰テストを実行している",
+      "detail": "pnpm -C apps/server exec vitest run src/tests/commentary.test.ts"
+    }
+  },
+  {
+    "id": "lint-eslint",
+    "intent": "lint イベントでは品質ルール確認の意味づけを補足する",
+    "event": {
+      "ts": 1735689600000,
+      "type": "lint",
+      "summary": "web lint を実行している",
+      "detail": "pnpm -C apps/web lint"
+    }
+  },
+  {
+    "id": "build-web",
+    "intent": "build イベントでは実行・配布向けにまとめる段階だと補足する",
+    "event": {
+      "ts": 1735689600000,
+      "type": "build",
+      "summary": "web build を実行している",
+      "detail": "pnpm -C apps/web build"
+    }
+  },
+  {
+    "id": "server-dev",
+    "intent": "server イベントではサーバー状態の変化を簡潔に述べる指示を含める",
+    "event": {
+      "ts": 1735689600000,
+      "type": "server",
+      "summary": "開発サーバーを起動している",
+      "detail": "pnpm dev:server"
+    }
+  },
+  {
+    "id": "install-deps",
+    "intent": "install イベントでは入れているものを短く述べる指示を含める",
+    "event": {
+      "ts": 1735689600000,
+      "type": "install",
+      "summary": "依存関係を追加している",
+      "detail": "pnpm add -D eslint-plugin-react"
+    }
+  },
+  {
+    "id": "done-handoff",
+    "intent": "done イベントではひと区切りついた事実だけを短く伝える指示を含める",
+    "event": {
+      "ts": 1735689600000,
+      "type": "done",
+      "summary": "PR作成まで完了した"
+    }
   }
 ]
