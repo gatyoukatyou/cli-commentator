@@ -29,6 +29,7 @@ import {
   buildServerStateEvent,
   formatServerStateEvent,
   type ServerRuntimeState,
+  type ServerStateEventContextInput,
 } from "./runtime/state-event.js";
 
 const PORT = Number(process.env.CLI_COMMENTATOR_PORT ?? process.env.PORT ?? 8787);
@@ -130,6 +131,7 @@ function transitionServerState(
   next: ServerRuntimeState,
   options?: {
     detail?: string;
+    context?: ServerStateEventContextInput;
     level?: "log" | "warn" | "error";
     inputMode?: InputMode;
     profileId?: string | null;
@@ -143,6 +145,7 @@ function transitionServerState(
     inputMode: options?.inputMode ?? runtimeInputMode,
     profileId: options?.profileId ?? currentlyRunningProfileId,
     detail: options?.detail,
+    context: options?.context,
   });
   lifecycleState = next;
   const line = formatServerStateEvent(event);
@@ -156,6 +159,20 @@ function transitionServerState(
     return;
   }
   console.log(line);
+}
+
+function buildTargetContext(target: {
+  cmd?: string;
+  args?: string[];
+  cwd?: string;
+  inputFile?: string | null;
+}): ServerStateEventContextInput {
+  return {
+    cmd: target.cmd,
+    args: target.args,
+    cwd: target.cwd,
+    inputFile: target.inputFile?.trim() || undefined,
+  };
 }
 
 function logPtyStartupFailure(
@@ -259,6 +276,11 @@ function setupPTY(config: PTYConfig, profileId: string | null): void {
     inputMode: "pty",
     profileId,
     detail: `${config.cmd} ${config.args.join(" ")}`.trim(),
+    context: buildTargetContext({
+      cmd: config.cmd,
+      args: config.args,
+      cwd: config.cwd,
+    }),
   });
 
   // Reset auto-detection when spawning new PTY
@@ -351,7 +373,12 @@ async function restartPTY(profileId: string | null, force = false): Promise<void
   }
 
   restartInFlight = true;
-  transitionServerState("restart_begin", "restarting", { profileId });
+  transitionServerState("restart_begin", "restarting", {
+    profileId,
+    context: {
+      requestedProfileId: profileId,
+    },
+  });
   let nextInputMode: InputMode = INPUT_MODE;
   let config: PTYConfig | null = null;
   let filePath: string | null = null;
@@ -445,6 +472,10 @@ async function restartPTY(profileId: string | null, force = false): Promise<void
         inputMode: "file",
         detail: message,
         profileId,
+        context: {
+          reason: message,
+          inputFile: filePath ?? undefined,
+        },
       });
       broadcast({ kind: "ptyError", error: message });
       console.error("Failed to restart file monitoring:", err);
@@ -467,6 +498,17 @@ async function restartPTY(profileId: string | null, force = false): Promise<void
           level: "warn",
           detail: `kind=${failure.kind}; fallback_reason=${fallback.reason}; error=${failure.error}`,
           profileId,
+          context: {
+            failureKind: failure.kind,
+            fallbackReason: fallback.reason,
+            error: failure.error,
+            ...buildTargetContext({
+              cmd: config?.cmd,
+              args: config?.args,
+              cwd: config?.cwd,
+              inputFile: INPUT_FILE,
+            }),
+          },
         });
       } else {
         transitionServerState("restart_fallback_file", "file_running", {
@@ -474,6 +516,10 @@ async function restartPTY(profileId: string | null, force = false): Promise<void
           inputMode: "file",
           detail: `fallback_reason=${fallback.reason}`,
           profileId,
+          context: {
+            fallbackReason: fallback.reason,
+            inputFile: INPUT_FILE.trim() || undefined,
+          },
         });
       }
       if (fallback.activated) {
@@ -492,6 +538,15 @@ async function restartPTY(profileId: string | null, force = false): Promise<void
       level: "error",
       detail: `kind=${failure.kind}; error=${failure.error}`,
       profileId,
+      context: {
+        failureKind: failure.kind,
+        error: failure.error,
+        ...buildTargetContext({
+          cmd: config?.cmd,
+          args: config?.args,
+          cwd: config?.cwd,
+        }),
+      },
     });
     broadcast({ kind: "ptyError", error: failure.error });
     console.error("Failed to restart PTY:", err);
@@ -639,6 +694,9 @@ function setupFileTail(filePath: string, options?: { fatal?: boolean }): void {
       level: "error",
       inputMode: "file",
       detail: "INPUT_FILE is required",
+      context: {
+        reason: "missing_input_file",
+      },
     });
     console.error("INPUT_FILE is required when INPUT_MODE=file");
     if (fatal) {
@@ -705,6 +763,9 @@ function setupFileTail(filePath: string, options?: { fatal?: boolean }): void {
     transitionServerState("file_tail_started", "file_running", {
       inputMode: "file",
       detail: filePath,
+      context: {
+        inputFile: filePath,
+      },
     });
 
     // Broadcast start event
@@ -732,6 +793,10 @@ function setupFileTail(filePath: string, options?: { fatal?: boolean }): void {
       level: "error",
       inputMode: "file",
       detail: err instanceof Error ? err.message : String(err),
+      context: {
+        inputFile: filePath,
+        error: err instanceof Error ? err.message : String(err),
+      },
     });
     console.error("Failed to start file tail:", err);
     if (fatal) {
@@ -803,7 +868,12 @@ function tryStartFileFallback(context: "startup" | "restart"): FileFallbackResul
   }
 }
 
-transitionServerState("bootstrap", "starting", { inputMode: INPUT_MODE });
+transitionServerState("bootstrap", "starting", {
+  inputMode: INPUT_MODE,
+  context: {
+    configuredInputMode: INPUT_MODE,
+  },
+});
 
 if (INPUT_MODE === "pty") {
   // PTY mode: launch PTY first, then enable stdin passthrough when spawn succeeds
@@ -827,6 +897,17 @@ if (INPUT_MODE === "pty") {
         transitionServerState("startup_failed", "failed", {
           level: "warn",
           detail: `kind=${failure.kind}; fallback_reason=${fallback.reason}; error=${failure.error}`,
+          context: {
+            failureKind: failure.kind,
+            fallbackReason: fallback.reason,
+            error: failure.error,
+            ...buildTargetContext({
+              cmd: initialConfig.cmd,
+              args: initialConfig.args,
+              cwd: initialConfig.cwd,
+              inputFile: INPUT_FILE,
+            }),
+          },
         });
       }
       if (fallback.activated) {
@@ -843,6 +924,15 @@ if (INPUT_MODE === "pty") {
       transitionServerState("startup_failed", "failed", {
         level: "error",
         detail: `kind=${failure.kind}; error=${failure.error}`,
+        context: {
+          failureKind: failure.kind,
+          error: failure.error,
+          ...buildTargetContext({
+            cmd: initialConfig.cmd,
+            args: initialConfig.args,
+            cwd: initialConfig.cwd,
+          }),
+        },
       });
       console.error("[ERROR] PTY initialization failed:", failure.error);
     }
@@ -860,6 +950,10 @@ if (INPUT_MODE === "pty") {
       level: "error",
       inputMode: "file",
       detail: `file_mode_invalid_config=${decision.reason}`,
+      context: {
+        reason: decision.reason,
+        inputFile: INPUT_FILE.trim() || undefined,
+      },
     });
     if (decision.reason === "missing_input_file") {
       console.error("[ERROR] INPUT_FILE is required when INPUT_MODE=file");
@@ -911,7 +1005,12 @@ server.listen(PORT, () => {
 function cleanup(exitCode: number = 0): void {
   if (isCleaningUp) return;
   isCleaningUp = true;
-  transitionServerState("cleanup_begin", "shutting_down", { detail: `exit_code=${exitCode}` });
+  transitionServerState("cleanup_begin", "shutting_down", {
+    detail: `exit_code=${exitCode}`,
+    context: {
+      exitCode,
+    },
+  });
   console.log("\nCleaning up...");
 
   // 1. stdin passthrough cleanup
@@ -936,6 +1035,9 @@ function cleanup(exitCode: number = 0): void {
     transitionServerState("cleanup_timeout_force_exit", "stopped", {
       level: "warn",
       detail: `exit_code=${exitCode}`,
+      context: {
+        exitCode,
+      },
     });
     process.exit(exitCode);
   }, 3000);
@@ -944,7 +1046,12 @@ function cleanup(exitCode: number = 0): void {
     closed++;
     if (closed >= 2) {
       clearTimeout(fallbackTimer);
-      transitionServerState("cleanup_complete", "stopped", { detail: `exit_code=${exitCode}` });
+      transitionServerState("cleanup_complete", "stopped", {
+        detail: `exit_code=${exitCode}`,
+        context: {
+          exitCode,
+        },
+      });
       process.exit(exitCode);
     }
   };
@@ -968,6 +1075,9 @@ process.on("uncaughtException", (err) => {
   transitionServerState("uncaught_exception", "failed", {
     level: "error",
     detail: err instanceof Error ? err.message : String(err),
+    context: {
+      error: err instanceof Error ? err.message : String(err),
+    },
   });
   console.error("Uncaught Exception:", err);
   cleanup(1);
@@ -977,6 +1087,9 @@ process.on("unhandledRejection", (reason) => {
   transitionServerState("unhandled_rejection", "failed", {
     level: "error",
     detail: reason instanceof Error ? reason.message : String(reason),
+    context: {
+      error: reason instanceof Error ? reason.message : String(reason),
+    },
   });
   console.error("Unhandled Rejection:", reason);
   cleanup(1);

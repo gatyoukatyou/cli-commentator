@@ -31,6 +31,7 @@ type ServerStateLog = {
   inputMode?: string;
   profileId?: string | null;
   detail?: string | null;
+  context?: Record<string, unknown> | null;
 };
 
 function sleep(ms: number): Promise<void> {
@@ -330,6 +331,10 @@ describe("windows fallback integration", () => {
         50,
         "Did not observe state transition to file_running during startup fallback"
       );
+      const startupFallbackState = parseServerStateLogs(`${stdoutOutput}\n${stderrOutput}`).find(
+        (log) => log.trigger === "file_tail_started" && log.from === "starting" && log.to === "file_running"
+      );
+      expect(startupFallbackState?.context?.inputFile).toBe(inputFile);
 
       ws.send(
         JSON.stringify({
@@ -404,6 +409,16 @@ describe("windows fallback integration", () => {
         50,
         "Did not observe state transition to file_running during restart fallback"
       );
+      const restartFallbackState = parseServerStateLogs(`${stdoutOutput}\n${stderrOutput}`).find(
+        (log) =>
+          (log.trigger === "restart_fallback_file" || log.trigger === "file_tail_started") &&
+          log.from === "restarting" &&
+          log.to === "file_running"
+      );
+      if (restartFallbackState?.trigger === "restart_fallback_file") {
+        expect(restartFallbackState?.context?.fallbackReason).toMatch(/^(already_active|activated)$/);
+      }
+      expect(restartFallbackState?.context?.inputFile).toBe(inputFile);
 
       const ptyErrorAfterRestart = messages.slice(checkpoint).find((m) => m.kind === "ptyError");
       expect(ptyErrorAfterRestart).toBeUndefined();
@@ -511,6 +526,12 @@ describe("windows fallback integration", () => {
         50,
         "Did not observe state transition to failed during startup without fallback"
       );
+      const startupFailedState = parseServerStateLogs(`${stdoutOutput}\n${stderrOutput}`).find(
+        (log) => log.trigger === "startup_failed" && log.from === "starting" && log.to === "failed"
+      );
+      expect(startupFailedState?.context?.failureKind).toBe("ptyUnavailable");
+      expect(startupFailedState?.context?.fallbackReason).toBe("file_not_found");
+      expect(startupFailedState?.context?.inputFile).toBe(missingInputFile);
 
       const startupPtyError = messages.find((m) => m.kind === "ptyError");
       expect(startupPtyError).toBeUndefined();
@@ -583,6 +604,12 @@ describe("windows fallback integration", () => {
         50,
         "Did not observe state transition to failed during restart without fallback"
       );
+      const restartFailedState = parseServerStateLogs(`${stdoutOutput}\n${stderrOutput}`).find(
+        (log) => log.trigger === "restart_failed" && log.from === "restarting" && log.to === "failed"
+      );
+      expect(restartFailedState?.context?.failureKind).toBe("ptyUnavailable");
+      expect(restartFailedState?.context?.fallbackReason).toBe("file_not_found");
+      expect(restartFailedState?.context?.inputFile).toBe(missingInputFile);
 
       const fileTailStartAfterRestart = messages.slice(checkpoint).find((m) => {
         if (m.kind !== "event") return false;
@@ -639,6 +666,8 @@ describe("windows fallback integration", () => {
     );
     expect(startupFailure).toBeTruthy();
     expect(String(startupFailure?.detail ?? "")).toContain("file_mode_invalid_config=missing_input_file");
+    expect(startupFailure?.context?.reason).toBe("missing_input_file");
+    expect(startupFailure?.context?.inputFile).toBeUndefined();
     const structuredFailure = parseStartupFailureLogs(stderrOutput).find(
       (log) => log.context === "startup" && log.kind === "configError"
     );
