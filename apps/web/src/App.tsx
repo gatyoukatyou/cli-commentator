@@ -449,14 +449,38 @@ function TauriStatusPanel({ onStatusChange }: TauriStatusPanelProps) {
         </div>
       )}
       {failureGuidance && (
-        <>
-          <div className="debug-panel__meta">想定原因: {failureGuidance.category}</div>
-          <ul className="debug-panel__recovery">
-            {failureGuidance.hints.map((hint) => (
-              <li key={hint}>{hint}</li>
-            ))}
-          </ul>
-        </>
+        <section className="debug-panel__recovery-card" aria-label="startup recovery guidance">
+          <div className="debug-panel__recovery-header">
+            <div className="debug-panel__meta">想定原因: {failureGuidance.category}</div>
+            <div className="debug-panel__recovery-summary">{failureGuidance.summary}</div>
+          </div>
+          <div className="debug-panel__recovery-primary">
+            <span className="debug-panel__recovery-label">最初のアクション</span>
+            <p>{failureGuidance.primaryAction}</p>
+          </div>
+          {failureGuidance.hints.length > 0 && (
+            <div className="debug-panel__recovery-section">
+              <span className="debug-panel__recovery-label">確認ポイント</span>
+              <ul className="debug-panel__recovery">
+                {failureGuidance.hints.map((hint) => (
+                  <li key={hint}>{hint}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {failureGuidance.diagnostics.length > 0 && (
+            <div className="debug-panel__recovery-section">
+              <span className="debug-panel__recovery-label">診断情報</span>
+              <ul className="debug-panel__diagnostics">
+                {failureGuidance.diagnostics.map((diagnostic) => (
+                  <li key={diagnostic}>
+                    <code>{diagnostic}</code>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </section>
       )}
 
       <div className="debug-panel__actions">
