@@ -676,6 +676,169 @@ describe("windows fallback integration", () => {
     expect(`${stdoutOutput}\n${stderrOutput}`).toContain("INPUT_FILE is required when INPUT_MODE=file");
   }, 10000);
 
+  itWithLoopback("switches to an explicit file profile without re-emitting ptyUnavailable", async () => {
+    const port = await getFreePort();
+    const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "cli-commentator-file-profile-it-"));
+    const startupInputFile = path.join(tmpDir, "startup.log");
+    const profileInputFile = path.join(tmpDir, "profile.log");
+    const xdgConfigHome = path.join(tmpDir, "xdg");
+    await fs.mkdir(xdgConfigHome, { recursive: true });
+    await fs.writeFile(startupInputFile, "startup seed\n", "utf-8");
+    await fs.writeFile(profileInputFile, "profile seed\n", "utf-8");
+
+    const child = spawn("node", ["--import", "tsx", "src/index.ts"], {
+      cwd: process.cwd(),
+      env: {
+        ...process.env,
+        CLI_COMMENTATOR_FORCE_NO_PTY: "1",
+        INPUT_MODE: "pty",
+        INPUT_FILE: startupInputFile,
+        CLI_COMMENTATOR_PORT: String(port),
+        XDG_CONFIG_HOME: xdgConfigHome,
+        LLM_PROVIDER: "disabled",
+      },
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+    let spawnError: Error | null = null;
+    child.on("error", (err) => {
+      spawnError = err;
+    });
+    let stdoutOutput = "";
+    child.stdout?.on("data", (chunk) => {
+      stdoutOutput += chunk.toString();
+    });
+    let stderrOutput = "";
+    child.stderr?.on("data", (chunk) => {
+      stderrOutput += chunk.toString();
+    });
+
+    const messages: WsMessage[] = [];
+    let ws: WebSocket | null = null;
+
+    try {
+      await waitForHealth(port, child, () => spawnError);
+      ws = new WebSocket(`ws://127.0.0.1:${port}`);
+      ws.on("message", (raw) => {
+        try {
+          messages.push(JSON.parse(raw.toString()) as WsMessage);
+        } catch {
+          // Ignore malformed message
+        }
+      });
+      await new Promise<void>((resolve, reject) => {
+        const timer = setTimeout(() => {
+          ws?.close();
+          reject(new Error("WebSocket connection timeout"));
+        }, 5000);
+        ws?.on("open", () => {
+          clearTimeout(timer);
+          resolve();
+        });
+        ws?.on("error", (err) => {
+          clearTimeout(timer);
+          reject(err);
+        });
+      });
+
+      await waitForMessage(
+        messages,
+        (m) => m.kind === "ptyUnavailable",
+        10000,
+        "Did not receive startup ptyUnavailable message"
+      );
+
+      ws.send(
+        JSON.stringify({
+          kind: "saveProfile",
+          profile: {
+            name: "explicit-file-profile",
+            cmd: "file",
+            args: [],
+            style: "kansai",
+            logSource: "auto",
+            inputMode: "file",
+            inputFile: profileInputFile,
+          },
+        })
+      );
+
+      const saved = await waitForMessage(
+        messages,
+        (m) => m.kind === "profileSaved",
+        10000,
+        "Did not receive file profileSaved message"
+      );
+      const profile = (saved.profile as Record<string, unknown>) ?? null;
+      const profileId = typeof profile?.id === "string" ? profile.id : null;
+      expect(profileId).toBeTruthy();
+
+      const checkpoint = messages.length;
+      const restartFailureCountBefore = parseStartupFailureLogs(stderrOutput).filter(
+        (log) => log.context === "restart"
+      ).length;
+
+      ws.send(JSON.stringify({ kind: "setActiveProfile", id: profileId }));
+
+      await waitFor(
+        () => messages.slice(checkpoint).some((m) => m.kind === "ptyRestart"),
+        10000,
+        50,
+        "Did not receive ptyRestart for explicit file profile"
+      );
+      const restartMessage = messages.slice(checkpoint).find((m) => m.kind === "ptyRestart");
+      if (!restartMessage) {
+        throw new Error("ptyRestart message disappeared before assertion");
+      }
+      expect(restartMessage.cmd).toBe("file");
+      expect(restartMessage.args).toEqual([profileInputFile]);
+
+      await waitFor(
+        () =>
+          parseServerStateLogs(`${stdoutOutput}\n${stderrOutput}`).some(
+            (log) =>
+              log.trigger === "file_tail_started" &&
+              log.from === "restarting" &&
+              log.to === "file_running" &&
+              log.inputMode === "file" &&
+              log.context?.inputFile === profileInputFile
+          ),
+        10000,
+        50,
+        "Did not observe explicit file profile transition to file_running"
+      );
+
+      await fs.appendFile(profileInputFile, "profile switched line\n", "utf-8");
+
+      await waitFor(
+        () =>
+          messages.slice(checkpoint).some((m) => {
+            if (m.kind !== "raw") return false;
+            return String(m.data ?? "").includes("profile switched line");
+          }),
+        10000,
+        50,
+        "Did not observe raw message from explicit file profile"
+      );
+
+      const restartFailureCountAfter = parseStartupFailureLogs(stderrOutput).filter(
+        (log) => log.context === "restart"
+      ).length;
+      expect(restartFailureCountAfter).toBe(restartFailureCountBefore);
+
+      const ptyUnavailableAfterRestart = messages.slice(checkpoint).find((m) => m.kind === "ptyUnavailable");
+      expect(ptyUnavailableAfterRestart).toBeUndefined();
+
+      const ptyErrorAfterRestart = messages.slice(checkpoint).find((m) => m.kind === "ptyError");
+      expect(ptyErrorAfterRestart).toBeUndefined();
+    } finally {
+      if (ws) {
+        ws.close();
+      }
+      await stopChild(child);
+      await fs.rm(tmpDir, { recursive: true, force: true });
+    }
+  }, 30000);
+
   itRequiresNodePty("restarts PTY for invalid profile command and exits without ptyError", async () => {
     const port = await getFreePort();
     const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "cli-commentator-restart-failure-it-"));
