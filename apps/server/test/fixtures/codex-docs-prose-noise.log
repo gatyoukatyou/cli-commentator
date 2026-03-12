@@ -1,0 +1,6 @@
+Codex getting started guide
+This document explains how codex can stream logs into cli-commentator.
+If you use the .codex directory for saved examples, keep it out of version control.
+The phrase codex appears more than once here, but this file is still prose.
+Example command: codex --no-alt-screen -C /Users/demo/project
+Review the documentation before running anything.

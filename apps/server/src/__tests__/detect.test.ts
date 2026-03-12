@@ -20,7 +20,9 @@ const cases = [
   { name: "mixed-claude-codex-strong.log", expected: "generic" },
   { name: "ignore-strong-signal-after-50-lines.log", expected: "generic" },
   { name: "codex-keyword-exit-noise.log", expected: "generic" },
-  { name: "claude-tail-symbol-noise.log", expected: "generic" }
+  { name: "claude-tail-symbol-noise.log", expected: "generic" },
+  { name: "codex-docs-prose-noise.log", expected: "generic" },
+  { name: "codex-quoted-toolcall-noise.log", expected: "generic" }
 ] as const;
 
 describe("ruleset auto detect", () => {
