@@ -23,7 +23,25 @@ const styles: Style[] = ["standard", "kansai", "zundamon"];
 
 async function loadFixtures(): Promise<PromptFixture[]> {
   const raw = await fs.readFile(fixturesPath, "utf8");
-  return JSON.parse(raw) as PromptFixture[];
+  const parsed = JSON.parse(raw) as unknown;
+
+  if (!Array.isArray(parsed) || parsed.length === 0) {
+    throw new Error("commentary-prompt fixtures must be a non-empty array");
+  }
+
+  const ids = new Set<string>();
+  for (const entry of parsed) {
+    const fixture = entry as Partial<PromptFixture>;
+    if (!fixture.id || !fixture.intent?.trim()) {
+      throw new Error("commentary-prompt fixtures require non-empty id and intent");
+    }
+    if (ids.has(fixture.id)) {
+      throw new Error(`duplicate commentary-prompt fixture id: ${fixture.id}`);
+    }
+    ids.add(fixture.id);
+  }
+
+  return parsed as PromptFixture[];
 }
 
 describe("commentary prompt fixtures", () => {

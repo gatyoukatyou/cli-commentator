@@ -4,6 +4,7 @@ export function commentStandard(ev: Event): string {
   return ev.type === "read" ? "ファイルを読んで状況を確認しています。" :
     ev.type === "write" ? "ファイルを書き換えて修正を反映しています。" :
     ev.type === "search" ? "原因になりそうな箇所を検索しています。" :
+    ev.type === "stderr" ? "エラー出力が出ているので内容を確認しています。" :
     ev.type === "test" ? "テスト/型チェックで壊れていないか確認しています。" :
     ev.type === "build" ? "ビルド処理を実行しています。" :
     ev.type === "lint" ? "コードの品質チェック/整形を行っています。" :
