@@ -21,10 +21,11 @@ const CLAUDE_MEDIUM = [/AskUserQuestion/i, /read[-\s]?only/i, /⎿/];
 const CODEX_STRONG = [
   /would you like to run the following command\?/i,
   /you approved .* to run/i,
-  /\bapply_patch\b|apply patch/i,
-  /\bToolCall:\b/i
+  /^(apply_patch|apply patch|\*\*\* Begin Patch\b)/i,
+  /(?:^|\s)codex_core::.*\bToolCall:\s*(?:exec_command|write_stdin|apply_patch|read_mcp_resource|update_plan)\b/i,
+  /^ToolCall:\s*(?:exec_command|write_stdin|apply_patch|read_mcp_resource|update_plan)\b/i
 ];
-const CODEX_MEDIUM = [/\bcodex\b/i];
+const CODEX_MEDIUM = [/^codex$/i, /\bcodex_core::/i];
 const CODEX_WEAK = [/\bELIFECYCLE\b/i, /exit code/i];
 
 function scoreLine(line: string): Scores {

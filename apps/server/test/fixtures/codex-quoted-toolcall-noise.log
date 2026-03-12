@@ -1,0 +1,5 @@
+Documentation excerpt:
+The sample line "ToolCall: exec_command" is shown below for explanation only.
+When editing docs, mention apply_patch in prose instead of executing it.
+Another example string is "ToolCall: apply_patch *** Begin Patch".
+This page is still generic text, not a runtime transcript.
