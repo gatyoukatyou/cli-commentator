@@ -3,7 +3,7 @@ use std::env;
 use std::fs;
 use std::io::{Read as IoRead, Write as IoWrite};
 use std::net::TcpStream;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::Stdio;
 use std::sync::{Arc, Mutex};
 use std::thread;
@@ -30,6 +30,8 @@ struct SidecarManifest {
 }
 
 struct SidecarRuntimePaths {
+    manifest_path: PathBuf,
+    sidecar_root: PathBuf,
     node_binary_path: PathBuf,
     server_entry_path: PathBuf,
     server_working_dir: PathBuf,
@@ -224,6 +226,63 @@ fn stringify_paths(paths: &[PathBuf]) -> String {
         .join(",")
 }
 
+fn format_sidecar_node_missing_failure(
+    manifest_path: &Path,
+    sidecar_root: &Path,
+    expected: &Path,
+    candidates: &[PathBuf],
+    executable_dir: Option<&PathBuf>,
+) -> String {
+    format_failure(
+        "sidecar_node_missing",
+        "Bundled node binary is missing",
+        &[
+            ("manifest", manifest_path.display().to_string()),
+            ("sidecar_root", sidecar_root.display().to_string()),
+            ("node_binary", expected.display().to_string()),
+            ("candidates", stringify_paths(candidates)),
+            (
+                "executable_dir",
+                executable_dir
+                    .map(|path| path.display().to_string())
+                    .unwrap_or_default(),
+            ),
+        ],
+    )
+}
+
+fn format_sidecar_server_entry_missing_failure(
+    manifest_path: &Path,
+    sidecar_root: &Path,
+    server_entry_path: &Path,
+) -> String {
+    format_failure(
+        "sidecar_server_entry_missing",
+        "Bundled server entry is missing",
+        &[
+            ("manifest", manifest_path.display().to_string()),
+            ("sidecar_root", sidecar_root.display().to_string()),
+            ("server_entry", server_entry_path.display().to_string()),
+        ],
+    )
+}
+
+fn format_sidecar_server_root_missing_failure(
+    manifest_path: &Path,
+    sidecar_root: &Path,
+    server_root_path: &Path,
+) -> String {
+    format_failure(
+        "sidecar_server_root_missing",
+        "Bundled server root is missing",
+        &[
+            ("manifest", manifest_path.display().to_string()),
+            ("sidecar_root", sidecar_root.display().to_string()),
+            ("server_root", server_root_path.display().to_string()),
+        ],
+    )
+}
+
 fn resolve_node_binary_path(
     sidecar_root: &PathBuf,
     manifest_node_binary: &str,
@@ -335,54 +394,46 @@ fn resolve_sidecar_runtime_paths(app: &tauri::AppHandle) -> Result<SidecarRuntim
         Ok(path) => path,
         Err(candidates) => {
             let expected = sidecar_root.join(&manifest.node_binary);
-            let candidates_text = stringify_paths(&candidates);
-            return Err(format_failure(
-                "sidecar_node_missing",
-                "Bundled node binary is missing",
-                &[
-                    ("manifest", manifest_path.display().to_string()),
-                    ("node_binary", expected.display().to_string()),
-                    ("candidates", candidates_text),
-                ],
+            return Err(format_sidecar_node_missing_failure(
+                &manifest_path,
+                &sidecar_root,
+                &expected,
+                &candidates,
+                executable_dir.as_ref(),
             ));
         }
     };
     if !node_binary_path.exists() {
-        return Err(format_failure(
-            "sidecar_node_missing",
-            "Bundled node binary is missing",
-            &[
-                ("manifest", manifest_path.display().to_string()),
-                ("node_binary", node_binary_path.display().to_string()),
-            ],
+        return Err(format_sidecar_node_missing_failure(
+            &manifest_path,
+            &sidecar_root,
+            &node_binary_path,
+            &[],
+            executable_dir.as_ref(),
         ));
     }
 
     let server_entry_path = sidecar_root.join(&manifest.server_entry);
     if !server_entry_path.exists() {
-        return Err(format_failure(
-            "sidecar_server_entry_missing",
-            "Bundled server entry is missing",
-            &[
-                ("manifest", manifest_path.display().to_string()),
-                ("server_entry", server_entry_path.display().to_string()),
-            ],
+        return Err(format_sidecar_server_entry_missing_failure(
+            &manifest_path,
+            &sidecar_root,
+            &server_entry_path,
         ));
     }
 
     let server_working_dir = sidecar_root.join(&manifest.server_root);
     if !server_working_dir.exists() {
-        return Err(format_failure(
-            "sidecar_server_root_missing",
-            "Bundled server root is missing",
-            &[
-                ("manifest", manifest_path.display().to_string()),
-                ("server_root", server_working_dir.display().to_string()),
-            ],
+        return Err(format_sidecar_server_root_missing_failure(
+            &manifest_path,
+            &sidecar_root,
+            &server_working_dir,
         ));
     }
 
     Ok(SidecarRuntimePaths {
+        manifest_path,
+        sidecar_root,
         node_binary_path,
         server_entry_path,
         server_working_dir,
@@ -394,6 +445,8 @@ fn spawn_server_process(
     port: u16,
 ) -> Result<Box<dyn ChildWrapper>, String> {
     let sidecar_paths = resolve_sidecar_runtime_paths(app)?;
+    let manifest_for_error = sidecar_paths.manifest_path.display().to_string();
+    let sidecar_root_for_error = sidecar_paths.sidecar_root.display().to_string();
     let node_binary = sidecar_paths.node_binary_path;
     let server_entry = sidecar_paths.server_entry_path;
     let server_working_dir = sidecar_paths.server_working_dir;
@@ -422,6 +475,8 @@ fn spawn_server_process(
             &[
                 ("error", e.to_string()),
                 ("port", port.to_string()),
+                ("manifest", manifest_for_error),
+                ("sidecar_root", sidecar_root_for_error),
                 ("node", node_for_error),
                 ("entry", entry_for_error),
                 ("cwd", cwd_for_error),
@@ -1269,5 +1324,54 @@ mod tests {
         assert_eq!(resolved, fallback_node);
 
         fs::remove_dir_all(root).ok();
+    }
+
+    #[test]
+    fn sidecar_missing_errors_include_sidecar_root_context() {
+        let manifest_path = PathBuf::from(
+            "/Applications/CLI Commentator.app/Contents/Resources/sidecar-manifest.json",
+        );
+        let sidecar_root = PathBuf::from("/Applications/CLI Commentator.app/Contents/Resources");
+        let server_entry = sidecar_root.join("server/dist/index.js");
+        let server_root = sidecar_root.join("server");
+
+        let entry_error = format_sidecar_server_entry_missing_failure(
+            &manifest_path,
+            &sidecar_root,
+            &server_entry,
+        );
+        let root_error =
+            format_sidecar_server_root_missing_failure(&manifest_path, &sidecar_root, &server_root);
+
+        assert!(entry_error.contains("[sidecar_server_entry_missing]"));
+        assert!(entry_error.contains("sidecar_root=/Applications/CLI Commentator.app/Contents/Resources"));
+        assert!(entry_error.contains("server_entry=/Applications/CLI Commentator.app/Contents/Resources/server/dist/index.js"));
+        assert!(root_error.contains("[sidecar_server_root_missing]"));
+        assert!(root_error.contains("sidecar_root=/Applications/CLI Commentator.app/Contents/Resources"));
+        assert!(root_error.contains("server_root=/Applications/CLI Commentator.app/Contents/Resources/server"));
+    }
+
+    #[test]
+    fn sidecar_node_missing_error_includes_candidate_context() {
+        let manifest_path = PathBuf::from(
+            "/Applications/CLI Commentator.app/Contents/Resources/sidecar-manifest.json",
+        );
+        let sidecar_root = PathBuf::from("/Applications/CLI Commentator.app/Contents/Resources");
+        let expected = sidecar_root.join("binaries/node-aarch64-apple-darwin");
+        let executable_dir = PathBuf::from("/Applications/CLI Commentator.app/Contents/MacOS");
+        let candidates = vec![expected.clone(), executable_dir.join("node")];
+
+        let error = format_sidecar_node_missing_failure(
+            &manifest_path,
+            &sidecar_root,
+            &expected,
+            &candidates,
+            Some(&executable_dir),
+        );
+
+        assert!(error.contains("[sidecar_node_missing]"));
+        assert!(error.contains("sidecar_root=/Applications/CLI Commentator.app/Contents/Resources"));
+        assert!(error.contains("candidates=/Applications/CLI Commentator.app/Contents/Resources/binaries/node-aarch64-apple-darwin,/Applications/CLI Commentator.app/Contents/MacOS/node"));
+        assert!(error.contains("executable_dir=/Applications/CLI Commentator.app/Contents/MacOS"));
     }
 }

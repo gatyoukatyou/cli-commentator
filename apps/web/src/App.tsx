@@ -1,5 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import "./App.css";
+import "xterm/css/xterm.css";
+import { Terminal } from "xterm";
+import { FitAddon } from "xterm-addon-fit";
 import { ProfileSelector } from "./components/ProfileSelector";
 import { ProfileEditor } from "./components/ProfileEditor";
 import {
@@ -30,6 +33,13 @@ import {
   type LogEventTypeFilter,
 } from "./lib/log-filter";
 import { buildSpeechText, getCommentaryTextParts } from "./lib/glossary-note";
+import {
+  LAUNCH_PRESETS,
+  buildLaunchDraft,
+  buildLaunchSessionInput,
+  type LaunchDraft,
+  type LaunchPresetId,
+} from "./lib/session-launcher";
 import type {
   CommentaryDisplayMode,
   Style,
@@ -42,7 +52,7 @@ import type {
   PtyUnavailablePayload,
 } from "./types";
 
-export type Skin = "standard" | "brutalism" | "paper";
+export type Skin = "standard" | "cli";
 
 type LegacyHello = { type: "hello"; style: Style };
 type PayloadMessage = { type?: string; payload?: PtyUnavailablePayload | Record<string, unknown> };
@@ -52,12 +62,35 @@ type ConnectionStatus = "connecting" | "connected" | "disconnected" | "reconnect
 const LOG_AUTO_SCROLL_THRESHOLD_PX = 64;
 const GENERIC_LOG_SUMMARIES = new Set(["ログ更新"]);
 const GROUP_DETAIL_PREVIEW_COUNT = 3;
+const TERMINAL_OUTPUT_MAX_CHARS = 24000;
 const TTS_BATCH_DELAY_MS = 900;
 const COMMENTARY_DISPLAY_MODE_OPTIONS: Array<{ value: CommentaryDisplayMode; label: string }> = [
   { value: "both", label: "実況＋解説" },
   { value: "narration", label: "実況のみ" },
   { value: "explanation", label: "解説のみ" },
 ];
+
+function isSkin(value: string | null): value is Skin {
+  return value === "standard" || value === "cli";
+}
+
+function getTerminalTheme(skin: Skin) {
+  if (skin === "cli") {
+    return {
+      background: "#081019",
+      foreground: "#d8f3dc",
+      cursor: "#38bdf8",
+      selectionBackground: "rgba(56, 189, 248, 0.24)",
+    };
+  }
+
+  return {
+    background: "#f8fafc",
+    foreground: "#213547",
+    cursor: "#2563eb",
+    selectionBackground: "rgba(37, 99, 235, 0.18)",
+  };
+}
 
 type ServerStatusDetail = {
   state: DesktopServerState;
@@ -208,6 +241,7 @@ function TauriStatusPanel({ onStatusChange }: TauriStatusPanelProps) {
   const [autostartLoading, setAutostartLoading] = useState(false);
   const [updaterStatus, setUpdaterStatus] = useState<UpdaterCheckStatus | null>(null);
   const [updaterLoading, setUpdaterLoading] = useState(false);
+  const [copiedRecoveryCommand, setCopiedRecoveryCommand] = useState<string | null>(null);
 
   // Polling (1.5 second interval)
   useEffect(() => {
@@ -384,6 +418,18 @@ function TauriStatusPanel({ onStatusChange }: TauriStatusPanelProps) {
       ? `現在のバージョン v${updaterStatus.currentVersion} は最新です。`
       : null;
 
+  const handleCopyRecoveryCommand = async (command: string) => {
+    const copied = await copyWithFallback(command);
+    if (!copied) {
+      setInvokeError("復旧コマンドのコピーに失敗しました。");
+      return;
+    }
+    setCopiedRecoveryCommand(command);
+    window.setTimeout(() => {
+      setCopiedRecoveryCommand((current) => (current === command ? null : current));
+    }, 1600);
+  };
+
   return (
     <div className="debug-panel">
       <div className="debug-panel__title">Desktop Server</div>
@@ -480,6 +526,28 @@ function TauriStatusPanel({ onStatusChange }: TauriStatusPanelProps) {
               </ul>
             </div>
           )}
+          {failureGuidance.commands.length > 0 && (
+            <div className="debug-panel__recovery-section">
+              <span className="debug-panel__recovery-label">試すコマンド</span>
+              <div className="debug-panel__command-list">
+                {failureGuidance.commands.map((command) => (
+                  <div className="debug-panel__command" key={command.command}>
+                    <div className="debug-panel__command-meta">{command.label}</div>
+                    <code className="debug-panel__command-code">{command.command}</code>
+                    <button
+                      type="button"
+                      className="debug-panel__copy-btn"
+                      onClick={() => {
+                        void handleCopyRecoveryCommand(command.command);
+                      }}
+                    >
+                      {copiedRecoveryCommand === command.command ? "Copied" : "Copy"}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </section>
       )}
 
@@ -517,10 +585,12 @@ export default function App() {
   const [style, setStyle] = useState<Style>("kansai");
   const [source, setSource] = useState<SourceState>({ mode: "auto", detected: null });
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>("connecting");
+  const [launchDraft, setLaunchDraft] = useState<LaunchDraft>(() => buildLaunchDraft("bash", "kansai"));
+  const [currentSessionLabel, setCurrentSessionLabel] = useState("bash");
   const [tauriServerPort, setTauriServerPort] = useState<number | null>(null);
   const [skin, setSkin] = useState<Skin>(() => {
     const saved = localStorage.getItem("cli-commentator-skin");
-    return (saved as Skin) || "standard";
+    return isSkin(saved) ? saved : "standard";
   });
   const [commentaryDisplayMode, setCommentaryDisplayMode] = useState<CommentaryDisplayMode>(() => {
     const saved = localStorage.getItem("cli-commentator-display-mode");
@@ -531,6 +601,10 @@ export default function App() {
   const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingEditIdRef = useRef<string | null>(null);
   const logContainerRef = useRef<HTMLDivElement | null>(null);
+  const terminalContainerRef = useRef<HTMLDivElement | null>(null);
+  const terminalRef = useRef<Terminal | null>(null);
+  const fitAddonRef = useRef<FitAddon | null>(null);
+  const terminalBacklogRef = useRef("");
   const shouldStickLogRef = useRef(true);
 
   // Profile state
@@ -576,6 +650,15 @@ export default function App() {
     return `ws://localhost:${port}`;
   }, [defaultWsPort, isTauriRuntime, tauriServerPort]);
 
+  const sendTerminalInput = useCallback((data: string) => {
+    if (!data) return;
+    if (wsRef.current?.readyState !== WebSocket.OPEN) {
+      setPtyError("サーバーに接続されていません");
+      return;
+    }
+    wsRef.current.send(JSON.stringify({ kind: "writeInput", data }));
+  }, []);
+
   // Apply skin to document
   useEffect(() => {
     document.documentElement.setAttribute("data-skin", skin);
@@ -608,6 +691,84 @@ export default function App() {
       setVoicesLoaded(true);
     });
   }, [ttsSupported]);
+
+  useEffect(() => {
+    const host = terminalContainerRef.current;
+    if (!host || terminalRef.current) return;
+    let disposed = false;
+    let frameId: number | null = null;
+
+    const fitAddon = new FitAddon();
+    const terminal = new Terminal({
+      convertEol: true,
+      cursorBlink: true,
+      fontFamily: "var(--font-mono)",
+      fontSize: 13,
+      lineHeight: 1.35,
+      scrollback: 5000,
+      theme: getTerminalTheme(skin),
+    });
+
+    terminal.loadAddon(fitAddon);
+    terminal.open(host);
+    const scheduleFit = () => {
+      if (disposed) return;
+      if (frameId !== null) {
+        window.cancelAnimationFrame(frameId);
+      }
+      frameId = window.requestAnimationFrame(() => {
+        frameId = null;
+        if (disposed) return;
+        try {
+          fitAddon.fit();
+          terminal.focus();
+        } catch (error) {
+          if (import.meta.env.DEV) {
+            console.debug("xterm fit skipped", error);
+          }
+        }
+      });
+    };
+
+    scheduleFit();
+    terminal.onData((data) => {
+      sendTerminalInput(data);
+    });
+
+    if (terminalBacklogRef.current) {
+      terminal.write(terminalBacklogRef.current);
+      terminalBacklogRef.current = "";
+    }
+
+    terminalRef.current = terminal;
+    fitAddonRef.current = fitAddon;
+
+    const resizeObserver =
+      typeof ResizeObserver === "function"
+        ? new ResizeObserver(() => {
+            scheduleFit();
+          })
+        : null;
+    resizeObserver?.observe(host);
+
+    return () => {
+      disposed = true;
+      if (frameId !== null) {
+        window.cancelAnimationFrame(frameId);
+      }
+      resizeObserver?.disconnect();
+      terminal.dispose();
+      terminalRef.current = null;
+      fitAddonRef.current = null;
+    };
+  }, [sendTerminalInput, skin]);
+
+  useEffect(() => {
+    const terminal = terminalRef.current;
+    if (!terminal) return;
+    terminal.options.theme = getTerminalTheme(skin);
+    fitAddonRef.current?.fit();
+  }, [skin]);
 
   // TTS cleanup on unmount (prevent orphan speech on reload/navigation)
   useEffect(() => {
@@ -714,6 +875,24 @@ export default function App() {
     setTTSSettings(newSettings);
   };
 
+  const writeToTerminal = useCallback((data: string) => {
+    if (!data) return;
+    const terminal = terminalRef.current;
+    if (!terminal) {
+      terminalBacklogRef.current += data;
+      if (terminalBacklogRef.current.length > TERMINAL_OUTPUT_MAX_CHARS) {
+        terminalBacklogRef.current = terminalBacklogRef.current.slice(-TERMINAL_OUTPUT_MAX_CHARS);
+      }
+      return;
+    }
+    terminal.write(data);
+  }, []);
+
+  const clearTerminal = useCallback(() => {
+    terminalBacklogRef.current = "";
+    terminalRef.current?.clear();
+  }, []);
+
   const handleTTSPresetChange = (presetId: TTSPresetSelectValue) => {
     if (presetId === "custom") return;
     handleTTSSettingsChange(applyTTSPreset(ttsSettings, presetId));
@@ -786,6 +965,11 @@ export default function App() {
               break;
             case "source":
               if (data.source) setSource(data.source as SourceState);
+              break;
+            case "raw":
+              if (typeof data.data === "string") {
+                writeToTerminal(data.data);
+              }
               break;
             case "commentary":
               if (typeof data.ts === "number") {
@@ -878,10 +1062,16 @@ export default function App() {
             case "ptyRestart":
               // Clear commentary items when PTY restarts
               setItems([]);
+              clearTerminal();
               clearPendingSpeech();
               stopSpeech();
               setProfileError(null);
               setPtyError(null);
+              setCurrentSessionLabel(
+                [typeof data.cmd === "string" ? data.cmd : "", ...(Array.isArray(data.args) ? (data.args as string[]) : [])]
+                  .filter(Boolean)
+                  .join(" ") || "session"
+              );
               break;
             case "ptyError":
               if (typeof data.error === "string") {
@@ -945,7 +1135,7 @@ export default function App() {
         wsRef.current.close();
       }
     };
-  }, [clearPendingSpeech, queueSpeech, wsUrl]);
+  }, [clearPendingSpeech, clearTerminal, queueSpeech, writeToTerminal, wsUrl]);
 
   const sendStyle = (s: Style) => {
     setStyle(s);
@@ -953,6 +1143,44 @@ export default function App() {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
       wsRef.current.send(JSON.stringify({ kind: "setStyle", style: s }));
     }
+  };
+
+  const handleSelectLaunchPreset = (presetId: LaunchPresetId) => {
+    setLaunchDraft((prev) => {
+      const next = buildLaunchDraft(presetId, style, prev.cwd);
+      if (presetId === "custom") {
+        return {
+          ...next,
+          cmd: prev.presetId === "custom" ? prev.cmd : next.cmd,
+          args: prev.presetId === "custom" ? prev.args : next.args,
+        };
+      }
+      return next;
+    });
+  };
+
+  const handleLaunchSession = () => {
+    setProfileError(null);
+    setPtyError(null);
+    if (wsRef.current?.readyState !== WebSocket.OPEN) {
+      setProfileError("サーバーに接続されていません。再接続を待ってください。");
+      return;
+    }
+
+    const session = buildLaunchSessionInput({
+      ...launchDraft,
+      style,
+    });
+    if (!session.cmd) {
+      setProfileError("起動コマンドを入力してください。");
+      return;
+    }
+
+    setCurrentSessionLabel(session.name?.trim() || session.cmd);
+    wsRef.current.send(JSON.stringify({ kind: "launchSession", session }));
+    window.setTimeout(() => {
+      terminalRef.current?.focus();
+    }, 0);
   };
 
   // Profile handlers
@@ -1093,7 +1321,7 @@ export default function App() {
   };
 
   return (
-    <div style={{ maxWidth: 900, margin: "0 auto", padding: "var(--space-4)" }}>
+    <div className="app-shell">
       <TauriStatusPanel onStatusChange={handleDesktopStatusChange} />
       {hasNotices && (
         <div className="notices">
@@ -1146,8 +1374,7 @@ export default function App() {
         <span className="skin-selector__label">スキン：</span>
         <select value={skin} onChange={(e) => setSkin(e.target.value as Skin)}>
           <option value="standard">Standard</option>
-          <option value="brutalism">Brutalism</option>
-          <option value="paper">Paper</option>
+          <option value="cli">CLI</option>
         </select>
       </div>
 
@@ -1161,267 +1388,357 @@ export default function App() {
           {connectionStatus === "disconnected" && "切断"}
         </span>
       </div>
-
-      {/* Profile Selector */}
-      <div className="panel" style={{ margin: "var(--space-3) 0" }}>
-        <ProfileSelector
-          profiles={profiles}
-          activeId={activeProfileId}
-          disabled={connectionStatus !== "connected"}
-          onSelect={handleSelectProfile}
-          onEdit={handleEditProfile}
-          onCreate={handleCreateProfile}
-          onDelete={handleDeleteProfile}
-        />
-        {connectionStatus !== "connected" && (
-          <div className="hint-text">サーバー未接続のためプロファイル操作は無効です</div>
-        )}
-      </div>
-
-      <div className="control-row">
-        <label className="control-row__label">口調：</label>
-        <select value={style} onChange={(e) => sendStyle(e.target.value as Style)}>
-          <option value="standard">標準</option>
-          <option value="kansai">関西弁</option>
-          <option value="zundamon">ずんだもん風（テキスト）</option>
-        </select>
-        <span style={{ fontSize: "var(--text-sm)", color: "var(--color-fg-tertiary)" }}>（イベント時＋最大2秒に1回）</span>
-      </div>
-
-      <div className="control-row">
-        <label className="control-row__label">表示：</label>
-        <select
-          value={commentaryDisplayMode}
-          onChange={(e) => setCommentaryDisplayMode(e.target.value as CommentaryDisplayMode)}
-        >
-          {COMMENTARY_DISPLAY_MODE_OPTIONS.map((option) => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </select>
-        <span style={{ fontSize: "var(--text-sm)", color: "var(--color-fg-tertiary)" }}>
-          用語補足は表示モードに関係なく別枠で表示します
-        </span>
-      </div>
-
-      {/* TTS Toggle */}
-      <div className="control-row">
-        <label className="control-row__label" style={{ cursor: ttsSupported ? "pointer" : "not-allowed" }}>
-          <input
-            type="checkbox"
-            checked={ttsEnabled}
-            onChange={(e) => handleTTSToggle(e.target.checked)}
-            disabled={!ttsSupported}
-            style={{ marginRight: "var(--space-2)" }}
-          />
-          読み上げ（TTS）
-        </label>
-        {ttsSupported && ttsEnabled && (
-          <button
-            onClick={() => setTtsSettingsOpen((prev) => !prev)}
-            className={`settings-toggle ${ttsSettingsOpen ? "settings-toggle--active" : ""}`}
-          >
-            {ttsSettingsOpen ? "▼ 設定" : "▶ 設定"}
-          </button>
-        )}
-        {!ttsSupported && (
-          <span style={{ fontSize: "var(--text-sm)", color: "var(--color-danger)" }}>
-            ※ このブラウザはTTS非対応です
-          </span>
-        )}
-      </div>
-
-      {/* TTS Settings Panel */}
-      {ttsSupported && ttsEnabled && ttsSettingsOpen && (
-        <div className="tts-settings">
-          {/* Preset Select */}
-          <div className="tts-settings__field">
-            <label className="tts-settings__label">プリセット:</label>
-            <select
-              value={ttsPresetValue}
-              onChange={(e) => handleTTSPresetChange(e.target.value as TTSPresetSelectValue)}
-              style={{ width: "100%", padding: "var(--space-1)" }}
-            >
-              {TTS_PRESETS.map((preset) => (
-                <option key={preset.id} value={preset.id}>
-                  {preset.label}（{preset.description}）
-                </option>
-              ))}
-              <option value="custom">カスタム（手動調整）</option>
-            </select>
+      <div className="workspace-layout">
+        <div className="workspace-column workspace-column--left">
+          <div className="panel launcher-panel">
+            <div className="launcher-panel__header">
+              <div className="launcher-panel__title">Quick Launch</div>
+              <div className="launcher-panel__hint">ここから直接 CLI を起動します。</div>
+            </div>
+            <div className="launcher-panel__toolbar">
+              <div className="launcher-panel__presets" role="tablist" aria-label="launch presets">
+                {LAUNCH_PRESETS.map((preset) => (
+                  <button
+                    key={preset.id}
+                    type="button"
+                    className={`launcher-panel__preset ${launchDraft.presetId === preset.id ? "launcher-panel__preset--active" : ""}`}
+                    onClick={() => handleSelectLaunchPreset(preset.id)}
+                    title={preset.description}
+                  >
+                    {preset.label}
+                  </button>
+                ))}
+              </div>
+              <label className="launcher-panel__field launcher-panel__field--cwd">
+                <span>作業ディレクトリ</span>
+                <input
+                  value={launchDraft.cwd}
+                  onChange={(e) => setLaunchDraft((prev) => ({ ...prev, cwd: e.target.value }))}
+                  placeholder="/path/to/repo"
+                />
+              </label>
+              <label className="launcher-panel__field launcher-panel__field--cmd">
+                <span>コマンド</span>
+                <input
+                  value={launchDraft.cmd}
+                  onChange={(e) =>
+                    setLaunchDraft((prev) => ({
+                      ...prev,
+                      cmd: e.target.value,
+                      presetId: "custom",
+                      name: prev.presetId === "custom" ? prev.name : "Custom",
+                    }))
+                  }
+                  placeholder="bash / codex / claude"
+                />
+              </label>
+              <label className="launcher-panel__field launcher-panel__field--args">
+                <span>引数</span>
+                <input
+                  value={launchDraft.args}
+                  onChange={(e) => setLaunchDraft((prev) => ({ ...prev, args: e.target.value }))}
+                  placeholder="--no-alt-screen"
+                />
+              </label>
+              <button
+                type="button"
+                className="debug-panel__btn debug-panel__btn--primary launcher-panel__launch-btn"
+                onClick={handleLaunchSession}
+                disabled={connectionStatus !== "connected"}
+              >
+                起動
+              </button>
+            </div>
+            <div className="launcher-panel__meta">
+              口調 `{style}` / source `{launchDraft.logSource}` で起動します。
+            </div>
           </div>
 
-          {/* Voice Select */}
-          <div className="tts-settings__field">
-            <label className="tts-settings__label">音声:</label>
-            {voices.length > 0 ? (
+          <div className="panel terminal-panel">
+            <div className="terminal-panel__header">
+              <div>
+                <div className="terminal-panel__title">Managed Terminal</div>
+                <div className="terminal-panel__hint">
+                  現在のセッション: {currentSessionLabel} {connectionStatus === "connected" ? " / 直接入力できます" : ""}
+                </div>
+              </div>
+              <div className="terminal-panel__actions">
+                <button
+                  type="button"
+                  className="debug-panel__btn debug-panel__btn--secondary"
+                  onClick={clearTerminal}
+                >
+                  クリア
+                </button>
+                <button
+                  type="button"
+                  className="debug-panel__btn debug-panel__btn--secondary"
+                  onClick={() => sendTerminalInput("\u0003")}
+                >
+                  Ctrl+C
+                </button>
+              </div>
+            </div>
+            <div
+              ref={terminalContainerRef}
+              className="terminal-panel__screen terminal-panel__screen--xterm"
+              onClick={() => terminalRef.current?.focus()}
+              role="presentation"
+            />
+          </div>
+
+          <div className="panel workspace-subpanel">
+            <ProfileSelector
+              profiles={profiles}
+              activeId={activeProfileId}
+              disabled={connectionStatus !== "connected"}
+              onSelect={handleSelectProfile}
+              onEdit={handleEditProfile}
+              onCreate={handleCreateProfile}
+              onDelete={handleDeleteProfile}
+            />
+            {connectionStatus !== "connected" && (
+              <div className="hint-text">サーバー未接続のためプロファイル操作は無効です</div>
+            )}
+          </div>
+        </div>
+
+        <div className="workspace-column workspace-column--right">
+          <div className="panel commentary-panel">
+            <div className="commentary-panel__header">
+              <div>
+                <div className="commentary-panel__title">実況と解説</div>
+                <div className="commentary-panel__hint">現在の CLI 出力を整理して右側に表示します。</div>
+              </div>
+              <div className="commentary-panel__status">Ruleset: {sourceLabel}</div>
+            </div>
+
+            <div className="control-row">
+              <label className="control-row__label">口調：</label>
+              <select value={style} onChange={(e) => sendStyle(e.target.value as Style)}>
+                <option value="standard">標準</option>
+                <option value="kansai">関西弁</option>
+                <option value="zundamon">ずんだもん風（テキスト）</option>
+              </select>
+              <span style={{ fontSize: "var(--text-sm)", color: "var(--color-fg-tertiary)" }}>（イベント時＋最大2秒に1回）</span>
+            </div>
+
+            <div className="control-row">
+              <label className="control-row__label">表示：</label>
               <select
-                value={ttsSettings.voiceURI ?? ""}
-                onChange={(e) =>
-                  handleTTSSettingsChange({
-                    ...ttsSettings,
-                    voiceURI: e.target.value || null,
-                  })
-                }
-                style={{ width: "100%", padding: "var(--space-1)" }}
+                value={commentaryDisplayMode}
+                onChange={(e) => setCommentaryDisplayMode(e.target.value as CommentaryDisplayMode)}
               >
-                <option value="">デフォルト</option>
-                {voices.map((v) => (
-                  <option key={v.voiceURI} value={v.voiceURI}>
-                    {v.name} ({v.lang})
+                {COMMENTARY_DISPLAY_MODE_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
                   </option>
                 ))}
               </select>
-            ) : voicesLoaded ? (
-              <span className="tts-settings__helper">音声一覧は取得できません（デフォルト音声のみ）</span>
-            ) : (
-              <span className="tts-settings__helper">音声リストを読み込み中...</span>
+              <span style={{ fontSize: "var(--text-sm)", color: "var(--color-fg-tertiary)" }}>
+                用語補足は表示モードに関係なく別枠で表示します
+              </span>
+            </div>
+
+            <div className="control-row">
+              <label className="control-row__label" style={{ cursor: ttsSupported ? "pointer" : "not-allowed" }}>
+                <input
+                  type="checkbox"
+                  checked={ttsEnabled}
+                  onChange={(e) => handleTTSToggle(e.target.checked)}
+                  disabled={!ttsSupported}
+                  style={{ marginRight: "var(--space-2)" }}
+                />
+                読み上げ（TTS）
+              </label>
+              {ttsSupported && ttsEnabled && (
+                <button
+                  onClick={() => setTtsSettingsOpen((prev) => !prev)}
+                  className={`settings-toggle ${ttsSettingsOpen ? "settings-toggle--active" : ""}`}
+                >
+                  {ttsSettingsOpen ? "▼ 設定" : "▶ 設定"}
+                </button>
+              )}
+              {!ttsSupported && (
+                <span style={{ fontSize: "var(--text-sm)", color: "var(--color-danger)" }}>
+                  ※ このブラウザはTTS非対応です
+                </span>
+              )}
+            </div>
+
+            {ttsSupported && ttsEnabled && ttsSettingsOpen && (
+              <div className="tts-settings">
+                <div className="tts-settings__field">
+                  <label className="tts-settings__label">プリセット:</label>
+                  <select
+                    value={ttsPresetValue}
+                    onChange={(e) => handleTTSPresetChange(e.target.value as TTSPresetSelectValue)}
+                    style={{ width: "100%", padding: "var(--space-1)" }}
+                  >
+                    {TTS_PRESETS.map((preset) => (
+                      <option key={preset.id} value={preset.id}>
+                        {preset.label}（{preset.description}）
+                      </option>
+                    ))}
+                    <option value="custom">カスタム（手動調整）</option>
+                  </select>
+                </div>
+
+                <div className="tts-settings__field">
+                  <label className="tts-settings__label">音声:</label>
+                  {voices.length > 0 ? (
+                    <select
+                      value={ttsSettings.voiceURI ?? ""}
+                      onChange={(e) =>
+                        handleTTSSettingsChange({
+                          ...ttsSettings,
+                          voiceURI: e.target.value || null,
+                        })
+                      }
+                      style={{ width: "100%", padding: "var(--space-1)" }}
+                    >
+                      <option value="">デフォルト</option>
+                      {voices.map((v) => (
+                        <option key={v.voiceURI} value={v.voiceURI}>
+                          {v.name} ({v.lang})
+                        </option>
+                      ))}
+                    </select>
+                  ) : voicesLoaded ? (
+                    <span className="tts-settings__helper">音声一覧は取得できません（デフォルト音声のみ）</span>
+                  ) : (
+                    <span className="tts-settings__helper">音声リストを読み込み中...</span>
+                  )}
+                </div>
+
+                <div className="tts-settings__field">
+                  <label className="tts-settings__label">速度: {ttsSettings.rate.toFixed(1)}</label>
+                  <input
+                    type="range"
+                    min="0.5"
+                    max="2"
+                    step="0.1"
+                    value={ttsSettings.rate}
+                    onChange={(e) =>
+                      handleTTSSettingsChange({
+                        ...ttsSettings,
+                        rate: parseFloat(e.target.value),
+                      })
+                    }
+                    style={{ width: "100%" }}
+                  />
+                  <div className="tts-settings__range-labels">
+                    <span>遅い (0.5)</span>
+                    <span>速い (2.0)</span>
+                  </div>
+                </div>
+
+                <div className="tts-settings__field">
+                  <label className="tts-settings__label">音程: {ttsSettings.pitch.toFixed(1)}</label>
+                  <input
+                    type="range"
+                    min="0.5"
+                    max="2"
+                    step="0.1"
+                    value={ttsSettings.pitch}
+                    onChange={(e) =>
+                      handleTTSSettingsChange({
+                        ...ttsSettings,
+                        pitch: parseFloat(e.target.value),
+                      })
+                    }
+                    style={{ width: "100%" }}
+                  />
+                  <div className="tts-settings__range-labels">
+                    <span>低い (0.5)</span>
+                    <span>高い (2.0)</span>
+                  </div>
+                </div>
+
+                <div className="tts-settings__field">
+                  <label className="tts-settings__label">音量: {Math.round(ttsSettings.volume * 100)}%</label>
+                  <input
+                    type="range"
+                    min="0"
+                    max="1"
+                    step="0.1"
+                    value={ttsSettings.volume}
+                    onChange={(e) =>
+                      handleTTSSettingsChange({
+                        ...ttsSettings,
+                        volume: parseFloat(e.target.value),
+                      })
+                    }
+                    style={{ width: "100%" }}
+                  />
+                  <div className="tts-settings__range-labels">
+                    <span>0%</span>
+                    <span>100%</span>
+                  </div>
+                </div>
+
+                <div className="tts-settings__field">
+                  <label className="tts-settings__checkbox">
+                    <input
+                      type="checkbox"
+                      checked={ttsSettings.includeRawDetail}
+                      onChange={(e) =>
+                        handleTTSSettingsChange({
+                          ...ttsSettings,
+                          includeRawDetail: e.target.checked,
+                        })
+                      }
+                    />
+                    <span>原文も読む</span>
+                  </label>
+                  <div className="tts-settings__helper">
+                    オフ: 実況中心で短く読みます。オン: 検出した原文も続けて読みます。
+                  </div>
+                </div>
+
+                <div className="tts-settings__actions">
+                  <button onClick={handleTestSpeak} className="btn-primary">
+                    テスト読み上げ
+                  </button>
+                  <button onClick={() => handleTTSSettingsChange(DEFAULT_TTS_SETTINGS)} className="btn-secondary">
+                    リセット
+                  </button>
+                </div>
+              </div>
             )}
-          </div>
 
-          {/* Rate Slider */}
-          <div className="tts-settings__field">
-            <label className="tts-settings__label">
-              速度: {ttsSettings.rate.toFixed(1)}
-            </label>
-            <input
-              type="range"
-              min="0.5"
-              max="2"
-              step="0.1"
-              value={ttsSettings.rate}
-              onChange={(e) =>
-                handleTTSSettingsChange({
-                  ...ttsSettings,
-                  rate: parseFloat(e.target.value),
-                })
-              }
-              style={{ width: "100%" }}
-            />
-            <div className="tts-settings__range-labels">
-              <span>遅い (0.5)</span>
-              <span>速い (2.0)</span>
+            <div className="log-toolbar panel">
+              <div className="log-toolbar__controls">
+                <input
+                  className="log-toolbar__search"
+                  type="text"
+                  value={logQuery}
+                  onChange={(e) => setLogQuery(e.target.value)}
+                  placeholder="ログを検索（本文/詳細/種別）"
+                />
+                <select
+                  className="log-toolbar__type"
+                  value={logEventType}
+                  onChange={(e) => setLogEventType(e.target.value as LogEventTypeFilter)}
+                >
+                  {EVENT_TYPE_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="log-toolbar__meta">
+                {filteredItems.length} / {items.length} 件
+                {groupedItems.length !== filteredItems.length && `（表示 ${groupedItems.length} カード）`}
+              </div>
             </div>
-          </div>
 
-          {/* Pitch Slider */}
-          <div className="tts-settings__field">
-            <label className="tts-settings__label">
-              音程: {ttsSettings.pitch.toFixed(1)}
-            </label>
-            <input
-              type="range"
-              min="0.5"
-              max="2"
-              step="0.1"
-              value={ttsSettings.pitch}
-              onChange={(e) =>
-                handleTTSSettingsChange({
-                  ...ttsSettings,
-                  pitch: parseFloat(e.target.value),
-                })
-              }
-              style={{ width: "100%" }}
-            />
-            <div className="tts-settings__range-labels">
-              <span>低い (0.5)</span>
-              <span>高い (2.0)</span>
-            </div>
-          </div>
-
-          {/* Volume Slider */}
-          <div className="tts-settings__field">
-            <label className="tts-settings__label">
-              音量: {Math.round(ttsSettings.volume * 100)}%
-            </label>
-            <input
-              type="range"
-              min="0"
-              max="1"
-              step="0.1"
-              value={ttsSettings.volume}
-              onChange={(e) =>
-                handleTTSSettingsChange({
-                  ...ttsSettings,
-                  volume: parseFloat(e.target.value),
-                })
-              }
-              style={{ width: "100%" }}
-            />
-            <div className="tts-settings__range-labels">
-              <span>0%</span>
-              <span>100%</span>
-            </div>
-          </div>
-
-          <div className="tts-settings__field">
-            <label className="tts-settings__checkbox">
-              <input
-                type="checkbox"
-                checked={ttsSettings.includeRawDetail}
-                onChange={(e) =>
-                  handleTTSSettingsChange({
-                    ...ttsSettings,
-                    includeRawDetail: e.target.checked,
-                  })
-                }
-              />
-              <span>原文も読む</span>
-            </label>
-            <div className="tts-settings__helper">
-              オフ: 実況中心で短く読みます。オン: 検出した原文も続けて読みます。
-            </div>
-          </div>
-
-          {/* Test & Reset Buttons */}
-          <div className="tts-settings__actions">
-            <button onClick={handleTestSpeak} className="btn-primary">
-              テスト読み上げ
-            </button>
-            <button onClick={() => handleTTSSettingsChange(DEFAULT_TTS_SETTINGS)} className="btn-secondary">
-              リセット
-            </button>
-          </div>
-        </div>
-      )}
-
-      <div style={{ fontSize: "var(--text-sm)", color: "var(--color-fg-secondary)", marginBottom: "var(--space-2)" }}>
-        Ruleset: {sourceLabel}
-      </div>
-
-      <div className="log-toolbar panel">
-        <div className="log-toolbar__controls">
-          <input
-            className="log-toolbar__search"
-            type="text"
-            value={logQuery}
-            onChange={(e) => setLogQuery(e.target.value)}
-            placeholder="ログを検索（本文/詳細/種別）"
-          />
-          <select
-            className="log-toolbar__type"
-            value={logEventType}
-            onChange={(e) => setLogEventType(e.target.value as LogEventTypeFilter)}
-          >
-            {EVENT_TYPE_OPTIONS.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="log-toolbar__meta">
-          {filteredItems.length} / {items.length} 件
-          {groupedItems.length !== filteredItems.length && `（表示 ${groupedItems.length} カード）`}
-        </div>
-      </div>
-
-      <div ref={logContainerRef} className="log-container" onScroll={handleLogScroll}>
-        {filteredItems.length === 0 ? (
-          <div className="log-empty">条件に一致するログはありません。</div>
-        ) : (
-          groupedItems.map((group, idx) => {
+            <div ref={logContainerRef} className="log-container" onScroll={handleLogScroll}>
+              {filteredItems.length === 0 ? (
+                <div className="log-empty">条件に一致するログはありません。</div>
+              ) : (
+                groupedItems.map((group, idx) => {
             const it = group.latest;
             const parts = getCommentaryTextParts({
               narration: it.narration,
@@ -1449,82 +1766,85 @@ export default function App() {
             const showExplanationBody = showNarration && showExplanation;
 
             return (
-              <div key={`${group.key}-${idx}`} className="log-item">
-                <div className="log-item__header">
-                  <div className="log-item__time">{formatLogTimeRange(group.startTs, group.endTs)}</div>
-                  <div className="log-item__header-meta">
-                    <div className="log-item__type">{EVENT_TYPE_LABELS[it.eventType]}</div>
-                    {isGrouped && <div className="log-item__group-badge">{group.count}件まとめ</div>}
-                  </div>
-                </div>
-                {primaryText && <div className="log-item__text">{primaryText}</div>}
-                {(groupHint || showExplanationBody || notes.length > 0) && (
-                  <div className="log-item__explain">
-                    {groupHint && (
-                      <div className="log-item__explain-body">
-                        <div className="log-item__section-label">まとめ表示</div>
-                        <div className="log-item__explain-text">{groupHint}</div>
+                  <div key={`${group.key}-${idx}`} className="log-item">
+                    <div className="log-item__header">
+                      <div className="log-item__time">{formatLogTimeRange(group.startTs, group.endTs)}</div>
+                      <div className="log-item__header-meta">
+                        <div className="log-item__type">{EVENT_TYPE_LABELS[it.eventType]}</div>
+                        {isGrouped && <div className="log-item__group-badge">{group.count}件まとめ</div>}
                       </div>
-                    )}
-                    {showExplanationBody && parts.explanationText && (
-                      <div className="log-item__explain-body">
-                        <div className="log-item__section-label">やさしい説明</div>
-                        <div className="log-item__explain-text">{parts.explanationText}</div>
-                      </div>
-                    )}
-                    {notes.length > 0 && (
-                      <div className="log-item__note-block" aria-label="用語注釈">
-                        <div className="log-item__section-label">用語補足</div>
-                        <div className="log-item__note">
-                          {notes.map((note) => (
-                            <span key={note} className="log-item__note-chip">
-                              {note}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
-                {(hasUsefulSummary || detailPreview.length > 0) && (
-                  <div className="log-item__raw">
-                    {hasUsefulSummary && (
-                      <div className="log-item__meta-row">
-                        <div className="log-item__section-label">検出イベント</div>
-                        {summaryEntries.length === 1 ? (
-                          <div className="log-item__summary">{latestSummary}</div>
-                        ) : (
-                          <div className="log-item__summary-list">
-                            {summaryEntries.map((entry) => (
-                              <div key={entry} className="log-item__summary">
-                                {entry}
-                              </div>
-                            ))}
+                    </div>
+                    {primaryText && <div className="log-item__text">{primaryText}</div>}
+                    {(groupHint || showExplanationBody || notes.length > 0) && (
+                      <div className="log-item__explain">
+                        {groupHint && (
+                          <div className="log-item__explain-body">
+                            <div className="log-item__section-label">まとめ表示</div>
+                            <div className="log-item__explain-text">{groupHint}</div>
+                          </div>
+                        )}
+                        {showExplanationBody && parts.explanationText && (
+                          <div className="log-item__explain-body">
+                            <div className="log-item__section-label">やさしい説明</div>
+                            <div className="log-item__explain-text">{parts.explanationText}</div>
+                          </div>
+                        )}
+                        {notes.length > 0 && (
+                          <div className="log-item__note-block" aria-label="用語注釈">
+                            <div className="log-item__section-label">用語補足</div>
+                            <div className="log-item__note">
+                              {notes.map((note) => (
+                                <span key={note} className="log-item__note-chip">
+                                  {note}
+                                </span>
+                              ))}
+                            </div>
                           </div>
                         )}
                       </div>
                     )}
-                    {detailPreview.length > 0 && (
-                      <div className="log-item__meta-row">
-                        <div className="log-item__section-label">{isGrouped ? "原文プレビュー" : "原文"}</div>
-                        <div className="log-item__detail-stack">
-                          {detailPreview.map((entry, previewIndex) => (
-                            <pre key={`${group.key}-detail-${previewIndex}`} className="log-item__detail">
-                              {entry}
-                            </pre>
-                          ))}
-                        </div>
-                        {hiddenDetailCount > 0 && (
-                          <div className="log-item__detail-more">さらに {hiddenDetailCount} 件の近いログがあります。</div>
+                    {(hasUsefulSummary || detailPreview.length > 0) && (
+                      <div className="log-item__raw">
+                        {hasUsefulSummary && (
+                          <div className="log-item__meta-row">
+                            <div className="log-item__section-label">検出イベント</div>
+                            {summaryEntries.length === 1 ? (
+                              <div className="log-item__summary">{latestSummary}</div>
+                            ) : (
+                              <div className="log-item__summary-list">
+                                {summaryEntries.map((entry) => (
+                                  <div key={entry} className="log-item__summary">
+                                    {entry}
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                        {detailPreview.length > 0 && (
+                          <div className="log-item__meta-row">
+                            <div className="log-item__section-label">{isGrouped ? "原文プレビュー" : "原文"}</div>
+                            <div className="log-item__detail-stack">
+                              {detailPreview.map((entry, previewIndex) => (
+                                <pre key={`${group.key}-detail-${previewIndex}`} className="log-item__detail">
+                                  {entry}
+                                </pre>
+                              ))}
+                            </div>
+                            {hiddenDetailCount > 0 && (
+                              <div className="log-item__detail-more">さらに {hiddenDetailCount} 件の近いログがあります。</div>
+                            )}
+                          </div>
                         )}
                       </div>
                     )}
                   </div>
-                )}
-              </div>
-            );
-          })
-        )}
+                );
+              })
+            )}
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Profile Editor Modal */}

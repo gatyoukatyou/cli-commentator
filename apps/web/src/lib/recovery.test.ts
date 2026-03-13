@@ -13,6 +13,7 @@ describe("getDesktopFailureGuidance", () => {
     expect(result?.summary).toContain("ポート");
     expect(result?.primaryAction).toContain("Retry Start");
     expect(result?.hints[0]).toContain("自動退避");
+    expect(result?.commands[0]?.command).toBe("lsof -i :8787");
   });
 
   it("classifies structured unexpected-exit port conflicts", () => {
@@ -44,18 +45,21 @@ describe("getDesktopFailureGuidance", () => {
     const result = getDesktopFailureGuidance("failed", "[sidecar_manifest_missing] No sidecar manifest was found", null);
     expect(result?.category).toBe("同梱ランタイムエラー");
     expect(result?.primaryAction).toContain("prepare:desktop-sidecar");
+    expect(result?.commands.map((item) => item.command)).toContain("pnpm prepare:desktop-sidecar");
   });
 
   it("preserves raw diagnostic paths for sidecar runtime errors", () => {
     const result = getDesktopFailureGuidance(
       "failed",
-      "[sidecar_manifest_read] Failed to read sidecar manifest | manifest=/Applications/CLI Commentator/Contents/Resources/sidecar-manifest.json",
+      "[sidecar_manifest_read] Failed to read sidecar manifest | manifest=/Applications/CLI Commentator/Contents/Resources/sidecar-manifest.json | error=permission denied",
       null
     );
     expect(result?.category).toBe("同梱ランタイムエラー");
     expect(result?.diagnostics.join(" ")).toContain(
       "manifest=/Applications/CLI Commentator/Contents/Resources/sidecar-manifest.json"
     );
+    expect(result?.summary).toContain("読み取り時に失敗");
+    expect(result?.diagnostics.join(" ")).toContain("error=permission denied");
   });
 
   it("classifies sidecar manifest parent errors", () => {
@@ -71,6 +75,7 @@ describe("getDesktopFailureGuidance", () => {
   it("classifies permission errors", () => {
     const result = getDesktopFailureGuidance("failed", "Failed to start server: permission denied", null);
     expect(result?.category).toBe("権限エラー");
+    expect(result?.commands[0]?.command).toBe("pnpm verify:internal-release");
   });
 
   it("adds structured diagnostics for permission errors", () => {
@@ -85,6 +90,7 @@ describe("getDesktopFailureGuidance", () => {
     expect(result?.diagnostics.join(" ")).toContain(
       "entry=/Users/home/AION_Project/repos/cli-commentator/apps/server/dist/index.js"
     );
+    expect(result?.commands[0]?.command).toContain("ls -l");
   });
 
   it("classifies stop flow errors", () => {
@@ -124,12 +130,13 @@ describe("getDesktopFailureGuidance", () => {
     );
     expect(result?.category).toBe("サーバープロセス異常終了");
     expect(result?.diagnostics.join(" ")).toContain("exit_code=signal_or_unknown");
+    expect(result?.commands[0]?.command).toBe("pnpm verify:internal-release");
   });
 
   it("adds missing sidecar file diagnostics when available", () => {
     const result = getDesktopFailureGuidance(
       "failed",
-      "[sidecar_node_missing] Bundled node binary is missing | node_binary=/Applications/CLI Commentator.app/Contents/Resources/binaries/node-aarch64-apple-darwin | candidates=/Applications/CLI Commentator.app/Contents/Resources/binaries/node-aarch64-apple-darwin,/Applications/CLI Commentator.app/Contents/MacOS/node",
+      "[sidecar_node_missing] Bundled node binary is missing | sidecar_root=/Applications/CLI Commentator.app/Contents/Resources | node_binary=/Applications/CLI Commentator.app/Contents/Resources/binaries/node-aarch64-apple-darwin | candidates=/Applications/CLI Commentator.app/Contents/Resources/binaries/node-aarch64-apple-darwin,/Applications/CLI Commentator.app/Contents/MacOS/node",
       null
     );
     expect(result?.category).toBe("同梱ランタイムエラー");
@@ -137,6 +144,20 @@ describe("getDesktopFailureGuidance", () => {
       "node_binary=/Applications/CLI Commentator.app/Contents/Resources/binaries/node-aarch64-apple-darwin"
     );
     expect(result?.diagnostics.join(" ")).toContain("candidates=/Applications/CLI Commentator.app/Contents/Resources");
+    expect(result?.diagnostics.join(" ")).toContain("sidecar_root=/Applications/CLI Commentator.app/Contents/Resources");
+    expect(result?.summary).toContain("bundled Node");
+  });
+
+  it("surfaces sidecar server entry guidance", () => {
+    const result = getDesktopFailureGuidance(
+      "failed",
+      "[sidecar_server_entry_missing] Bundled server entry is missing | manifest=/Applications/CLI Commentator.app/Contents/Resources/sidecar-manifest.json | sidecar_root=/Applications/CLI Commentator.app/Contents/Resources | server_entry=/Applications/CLI Commentator.app/Contents/Resources/server/dist/index.js",
+      null
+    );
+    expect(result?.category).toBe("同梱ランタイムエラー");
+    expect(result?.summary).toContain("bundled server entry");
+    expect(result?.primaryAction).toContain("resources/server/dist/index.js");
+    expect(result?.commands.map((item) => item.command)).toContain("pnpm verify:internal-release");
   });
 
   it("falls back to generic guidance for unknown errors", () => {
@@ -145,5 +166,6 @@ describe("getDesktopFailureGuidance", () => {
     expect(result?.summary).toContain("既知分類");
     expect(result?.hints).toHaveLength(1);
     expect(result?.diagnostics).toHaveLength(0);
+    expect(result?.commands).toHaveLength(0);
   });
 });

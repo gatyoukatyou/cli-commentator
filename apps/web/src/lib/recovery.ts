@@ -1,11 +1,17 @@
 export type DesktopServerState = "stopped" | "starting" | "running" | "stopping" | "failed";
 
+export type RecoveryCommand = {
+  label: string;
+  command: string;
+};
+
 export type RecoveryGuidance = {
   category: string;
   summary: string;
   primaryAction: string;
   hints: string[];
   diagnostics: string[];
+  commands: RecoveryCommand[];
 };
 
 type FailureContext = {
@@ -72,7 +78,6 @@ function isPortResolveError(context: FailureContext): boolean {
 
 function isSidecarRuntimeError(context: FailureContext): boolean {
   return (
-    hasCategory(context, "spawn") ||
     hasCategory(context, "sidecar_manifest_parent") ||
     hasCategory(context, "sidecar_manifest_missing") ||
     hasCategory(context, "sidecar_manifest_read") ||
@@ -121,6 +126,25 @@ function addDiagnosticHint(diagnostics: string[], label: string, value: string |
   diagnostics.push(`${label}=${value}`);
 }
 
+function quoteShellArg(value: string): string {
+  return JSON.stringify(value);
+}
+
+function uniqueCommands(commands: RecoveryCommand[]): RecoveryCommand[] {
+  const seen = new Set<string>();
+  const result: RecoveryCommand[] = [];
+  for (const command of commands) {
+    if (!command.command || seen.has(command.command)) continue;
+    seen.add(command.command);
+    result.push(command);
+  }
+  return result;
+}
+
+function getPortProbe(context: FailureContext): string {
+  return context.fields.port ?? context.fields.preferred ?? "8787";
+}
+
 export function getDesktopFailureGuidance(
   state: DesktopServerState,
   statusError: string | null | undefined,
@@ -155,6 +179,12 @@ export function getDesktopFailureGuidance(
       primaryAction: "ポート競合を解消してから Retry Start を押してください。",
       hints,
       diagnostics,
+      commands: uniqueCommands([
+        {
+          label: "ポート使用状況を確認",
+          command: `lsof -i :${getPortProbe(context)}`,
+        },
+      ]),
     };
   }
 
@@ -168,25 +198,12 @@ export function getDesktopFailureGuidance(
         "シンボリックリンク越しのパスや削除済みディレクトリを指していないか確認してください。",
       ],
       diagnostics: [],
-    };
-  }
-
-  if (isPermissionError(context)) {
-    const diagnostics: string[] = [];
-    const hints = [
-      "実行権限と作業ディレクトリの権限を確認してください。",
-      "配布アプリなら quarantine / 権限設定、開発環境なら `resources` と `binaries` の権限を確認してください。",
-    ];
-    addDiagnosticHint(diagnostics, "cwd", context.fields.cwd);
-    addDiagnosticHint(diagnostics, "node", context.fields.node);
-    addDiagnosticHint(diagnostics, "entry", context.fields.entry);
-
-    return {
-      category: "権限エラー",
-      summary: "Desktop は起動対象に到達できていますが、実行または読み取り権限で失敗しています。",
-      primaryAction: "権限を修正してから Retry Start を押してください。",
-      hints,
-      diagnostics,
+      commands: [
+        {
+          label: "managed 起動をやり直す",
+          command: "pnpm dev:desktop:managed",
+        },
+      ],
     };
   }
 
@@ -203,6 +220,10 @@ export function getDesktopFailureGuidance(
       primaryAction = "`sidecar-manifest.json` の JSON 形式を修正してから Retry Start を押してください。";
       hints.unshift("manifest のキー名や JSON 末尾カンマ崩れを確認してください。");
     }
+    if (hasCategory(context, "sidecar_manifest_read")) {
+      summary = "sidecar-manifest.json は存在しますが、読み取り時に失敗しています。";
+      primaryAction = "manifest の権限と配置を確認してから Retry Start を押してください。";
+    }
     if (hasCategory(context, "sidecar_manifest_parent")) {
       summary = "Desktop アプリの `Contents/Resources` 配置が期待どおりに解決できていません。";
       primaryAction = "アプリ配置を確認するか、開発環境なら sidecar 配置を作り直してください。";
@@ -211,11 +232,25 @@ export function getDesktopFailureGuidance(
     if (hasCategory(context, "sidecar_manifest_missing")) {
       primaryAction = "開発環境なら `pnpm prepare:desktop-sidecar` を実行し、配布物なら再インストールしてください。";
     }
+    if (hasCategory(context, "sidecar_node_missing")) {
+      summary = "bundled Node 実行ファイルが見つからず、Desktop が server を起動できていません。";
+      primaryAction = "開発環境なら `pnpm prepare:desktop-sidecar` を再実行してください。";
+    }
+    if (hasCategory(context, "sidecar_server_entry_missing")) {
+      summary = "bundled server entry が不足しており、Desktop が起動対象を解決できていません。";
+      primaryAction = "`resources/server/dist/index.js` を含む sidecar を作り直してから Retry Start を押してください。";
+    }
+    if (hasCategory(context, "sidecar_server_root_missing")) {
+      summary = "bundled server root が不足しており、server の作業ディレクトリを解決できていません。";
+      primaryAction = "`resources/server` を含む sidecar を再生成してから Retry Start を押してください。";
+    }
     addDiagnosticHint(diagnostics, "manifest", context.fields.manifest);
+    addDiagnosticHint(diagnostics, "sidecar_root", context.fields.sidecar_root);
     addDiagnosticHint(diagnostics, "node_binary", context.fields.node_binary);
     addDiagnosticHint(diagnostics, "server_entry", context.fields.server_entry);
     addDiagnosticHint(diagnostics, "server_root", context.fields.server_root);
     addDiagnosticHint(diagnostics, "candidates", context.fields.candidates);
+    addDiagnosticHint(diagnostics, "error", context.fields.error);
 
     return {
       category: "同梱ランタイムエラー",
@@ -223,6 +258,49 @@ export function getDesktopFailureGuidance(
       primaryAction,
       hints,
       diagnostics,
+      commands: uniqueCommands([
+        {
+          label: "sidecar を再生成",
+          command: "pnpm prepare:desktop-sidecar",
+        },
+        {
+          label: "配布前検証を再実行",
+          command: "pnpm verify:internal-release",
+        },
+      ]),
+    };
+  }
+
+  if (isPermissionError(context)) {
+    const diagnostics: string[] = [];
+    const hints = [
+      "実行権限と作業ディレクトリの権限を確認してください。",
+      "配布アプリなら quarantine / 権限設定、開発環境なら `resources` と `binaries` の権限を確認してください。",
+    ];
+    addDiagnosticHint(diagnostics, "cwd", context.fields.cwd);
+    addDiagnosticHint(diagnostics, "node", context.fields.node);
+    addDiagnosticHint(diagnostics, "entry", context.fields.entry);
+    addDiagnosticHint(diagnostics, "error", context.fields.error);
+
+    const permissionTarget = context.fields.entry ?? context.fields.node ?? context.fields.cwd;
+
+    return {
+      category: "権限エラー",
+      summary: "Desktop は起動対象に到達できていますが、実行または読み取り権限で失敗しています。",
+      primaryAction: "権限を修正してから Retry Start を押してください。",
+      hints,
+      diagnostics,
+      commands: uniqueCommands([
+        permissionTarget
+          ? {
+              label: "対象ファイルの権限を確認",
+              command: `ls -l ${quoteShellArg(permissionTarget)}`,
+            }
+          : {
+              label: "配布物の事前検証を再実行",
+              command: "pnpm verify:internal-release",
+            },
+      ]),
     };
   }
 
@@ -238,6 +316,7 @@ export function getDesktopFailureGuidance(
         "連続操作で起きる場合は Stop 完了表示を待ってから次の Start を押してください。",
       ],
       diagnostics,
+      commands: [],
     };
   }
 
@@ -250,6 +329,7 @@ export function getDesktopFailureGuidance(
     addDiagnosticHint(diagnostics, "exit_code", context.fields.exit_code);
     addDiagnosticHint(diagnostics, "port", context.fields.port);
     addDiagnosticHint(diagnostics, "port_in_use", context.fields.port_in_use);
+    addDiagnosticHint(diagnostics, "error", context.fields.error);
 
     return {
       category: "サーバープロセス異常終了",
@@ -257,6 +337,12 @@ export function getDesktopFailureGuidance(
       primaryAction: "原因ログを確認してから Retry Start を実行してください。",
       hints,
       diagnostics,
+      commands: [
+        {
+          label: "内部検証を再実行",
+          command: "pnpm verify:internal-release",
+        },
+      ],
     };
   }
 
@@ -268,5 +354,6 @@ export function getDesktopFailureGuidance(
       "再現する場合は `desktop/server-event` ログとあわせて確認してください。",
     ],
     diagnostics: [],
+    commands: [],
   };
 }
