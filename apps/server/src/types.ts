@@ -45,6 +45,15 @@ export type CommentaryPayload = {
   meta?: CommentaryMeta;
 };
 
+export type LaunchSessionInput = {
+  name?: string;
+  cmd: string;
+  args?: string[];
+  cwd?: string;
+  style?: Style;
+  logSource?: SourceMode;
+};
+
 export type WsOutgoing =
   | { kind: "hello"; style: Style; source: SourceState }
   | { kind: "style"; style: Style }
@@ -65,6 +74,8 @@ export type WsOutgoing =
 
 export type WsIncoming =
   | { kind: "setStyle"; style: Style }
+  | { kind: "launchSession"; session: LaunchSessionInput }
+  | { kind: "writeInput"; data: string }
   // Profile messages
   | { kind: "getProfiles" }
   | { kind: "getProfile"; id: string }

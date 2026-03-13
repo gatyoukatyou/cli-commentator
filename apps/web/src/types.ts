@@ -43,6 +43,15 @@ export type CommentaryPayload = {
   meta?: CommentaryMeta;
 };
 
+export type LaunchSessionInput = {
+  name?: string;
+  cmd: string;
+  args?: string[];
+  cwd?: string;
+  style?: Style;
+  logSource?: SourceMode;
+};
+
 export type Profile = {
   id: string;
   name: string;
@@ -85,6 +94,7 @@ export type ServerToClientMessage =
   | { kind: "hello"; style: Style; source: SourceState }
   | { kind: "style"; style: Style }
   | { kind: "source"; source: SourceState }
+  | { kind: "raw"; data: string }
   | ({ kind: "commentary"; ts: number; ev?: Event; text?: string } & CommentaryPayload)
   | { kind: "profiles"; profiles: ProfileSummary[]; activeId: string | null }
   | { kind: "profileSaved"; profile: ProfileSummary; activeId: string | null }

@@ -3,7 +3,17 @@ import fs from "node:fs";
 import http from "node:http";
 import { WebSocketServer } from "ws";
 
-import type { CommentaryPayload, Event, InputMode, SourceMode, SourceState, Style, WsIncoming, WsOutgoing } from "./types.js";
+import type {
+  CommentaryPayload,
+  Event,
+  InputMode,
+  LaunchSessionInput,
+  SourceMode,
+  SourceState,
+  Style,
+  WsIncoming,
+  WsOutgoing,
+} from "./types.js";
 import { redact } from "./redact.js";
 import { extractEvents } from "./extract.js";
 import { comment } from "./styles/index.js";
@@ -216,6 +226,93 @@ function logInputStartupFailure(
     },
   });
   console.error(formatPtyStartupFailureLog(payload));
+}
+
+function createAdHocPTYConfig(input: LaunchSessionInput): PTYConfig {
+  const cmd = (input.cmd ?? "").trim();
+  if (!cmd) {
+    throw new Error("cmd is required");
+  }
+
+  const args = Array.isArray(input.args)
+    ? input.args.map((value) => value.trim()).filter(Boolean)
+    : [];
+  const cwd = (input.cwd ?? "").trim() || process.cwd();
+
+  return { cmd, args, cwd };
+}
+
+async function launchAdHocSession(input: LaunchSessionInput): Promise<void> {
+  const config = createAdHocPTYConfig(input);
+  const nextStyle = isStyle(input.style) ? input.style : currentStyle;
+  const nextSourceMode = normalizeSource(input.logSource);
+
+  transitionServerState("launch_session_begin", "restarting", {
+    profileId: null,
+    context: {
+      presetName: input.name?.trim() || undefined,
+      ...buildTargetContext({
+        cmd: config.cmd,
+        args: config.args,
+        cwd: config.cwd,
+      }),
+    },
+  });
+
+  try {
+    ptyManager.kill();
+    stopFileTail(true);
+    disableStdinPassthrough();
+
+    currentStyle = nextStyle;
+    currentSourceMode = nextSourceMode;
+    sourceState = {
+      mode: nextSourceMode,
+      detected: nextSourceMode === "auto" ? null : nextSourceMode,
+    };
+    runtimeInputMode = "pty";
+
+    broadcast({
+      kind: "ptyRestart",
+      cmd: config.cmd,
+      args: config.args,
+      profileId: null,
+    });
+    broadcast({ kind: "style", style: currentStyle });
+    broadcast({ kind: "source", source: sourceState });
+
+    setupPTY(config, null);
+    enableStdinPassthrough();
+    currentlyRunningProfileId = null;
+  } catch (err) {
+    const failure = classifyPtyFailure(err, getNodePtyError());
+    if (failure.kind === "ptyUnavailable") {
+      markPtyUnavailable(failure.error);
+      broadcast(createPtyUnavailableMessage(failure.error));
+    }
+
+    logPtyStartupFailure("restart", failure, NO_FILE_FALLBACK, {
+      cmd: config.cmd,
+      args: config.args,
+      cwd: config.cwd,
+    });
+    transitionServerState("launch_session_failed", "failed", {
+      level: failure.kind === "ptyUnavailable" ? "warn" : "error",
+      detail: `kind=${failure.kind}; error=${failure.error}`,
+      profileId: null,
+      context: {
+        failureKind: failure.kind,
+        error: failure.error,
+        presetName: input.name?.trim() || undefined,
+        ...buildTargetContext({
+          cmd: config.cmd,
+          args: config.args,
+          cwd: config.cwd,
+        }),
+      },
+    });
+    broadcast({ kind: "ptyError", error: failure.error });
+  }
 }
 
 /**
@@ -594,6 +691,25 @@ wss.on("connection", async (ws) => {
           if (isStyle(msg.style)) {
             currentStyle = msg.style;
             broadcast({ kind: "style", style: currentStyle });
+          }
+          break;
+
+        case "launchSession": {
+          try {
+            const input = msg.session;
+            if (!input || typeof input.cmd !== "string") {
+              throw new Error("Missing session launch payload");
+            }
+            await launchAdHocSession(input);
+          } catch (err) {
+            ws.send(JSON.stringify({ kind: "profileError", error: String(err) }));
+          }
+          break;
+        }
+
+        case "writeInput":
+          if (typeof msg.data === "string") {
+            ptyManager.write(msg.data);
           }
           break;
 
