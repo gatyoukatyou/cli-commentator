@@ -50,6 +50,8 @@ export type LaunchSessionInput = {
   cwd?: string;
   style?: Style;
   logSource?: SourceMode;
+  narrationProvider?: ProviderName;
+  explanationProvider?: ProviderName;
 };
 
 export type Profile = {

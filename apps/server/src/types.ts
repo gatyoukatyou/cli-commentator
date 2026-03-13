@@ -52,6 +52,8 @@ export type LaunchSessionInput = {
   cwd?: string;
   style?: Style;
   logSource?: SourceMode;
+  narrationProvider?: Profile["narrationProvider"];
+  explanationProvider?: Profile["explanationProvider"];
 };
 
 export type WsOutgoing =

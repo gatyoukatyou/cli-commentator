@@ -1,4 +1,4 @@
-import type { LaunchSessionInput, SourceState, Style } from "../types";
+import type { LaunchSessionInput, ProviderName, SourceState, Style } from "../types";
 
 export type LaunchPresetId = "bash" | "codex" | "claude" | "custom";
 
@@ -10,6 +10,8 @@ export type LaunchDraft = {
   cwd: string;
   style: Style;
   logSource: SourceState["mode"];
+  narrationProvider?: ProviderName;
+  explanationProvider?: ProviderName;
 };
 
 export type LaunchPreset = {
@@ -85,5 +87,7 @@ export function buildLaunchSessionInput(draft: LaunchDraft): LaunchSessionInput 
     cwd: draft.cwd.trim() || undefined,
     style: draft.style,
     logSource: draft.logSource,
+    narrationProvider: draft.narrationProvider,
+    explanationProvider: draft.explanationProvider,
   };
 }

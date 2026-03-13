@@ -23,6 +23,8 @@ describe("session-launcher", () => {
       cwd: " /tmp/project ",
       style: "standard",
       logSource: "auto",
+      narrationProvider: "local",
+      explanationProvider: "openai",
     });
 
     expect(input).toEqual({
@@ -32,6 +34,8 @@ describe("session-launcher", () => {
       cwd: "/tmp/project",
       style: "standard",
       logSource: "auto",
+      narrationProvider: "local",
+      explanationProvider: "openai",
     });
   });
 });

@@ -18,6 +18,7 @@ import {
   DEFAULT_TTS_SETTINGS,
   applyTTSPreset,
   detectTTSPreset,
+  type TTSEngine,
   type TTSPresetId,
   type TTSSettings,
 } from "./lib/tts";
@@ -33,6 +34,9 @@ import {
   type LogEventTypeFilter,
 } from "./lib/log-filter";
 import { buildSpeechText, getCommentaryTextParts } from "./lib/glossary-note";
+import { getLaunchFailureGuidance, type LaunchAttemptContext } from "./lib/launch-failure";
+import { addRecentPath, normalizeRecentPath } from "./lib/recent-paths";
+import { shouldSuppressDuplicateTerminalInput } from "./lib/terminal-input";
 import {
   LAUNCH_PRESETS,
   buildLaunchDraft,
@@ -42,6 +46,7 @@ import {
 } from "./lib/session-launcher";
 import type {
   CommentaryDisplayMode,
+  ProviderName,
   Style,
   SourceState,
   Profile,
@@ -57,6 +62,7 @@ export type Skin = "standard" | "cli";
 type LegacyHello = { type: "hello"; style: Style };
 type PayloadMessage = { type?: string; payload?: PtyUnavailablePayload | Record<string, unknown> };
 type TTSPresetSelectValue = TTSPresetId | "custom";
+type CommentaryProviderChoice = "rules" | ProviderName;
 
 type ConnectionStatus = "connecting" | "connected" | "disconnected" | "reconnecting";
 const LOG_AUTO_SCROLL_THRESHOLD_PX = 64;
@@ -69,6 +75,44 @@ const COMMENTARY_DISPLAY_MODE_OPTIONS: Array<{ value: CommentaryDisplayMode; lab
   { value: "narration", label: "実況のみ" },
   { value: "explanation", label: "解説のみ" },
 ];
+const TTS_SILENT_EVENT_TYPES = new Set(["read", "write", "search"]);
+const RECENT_LAUNCH_CWDS_KEY = "cli-commentator-recent-launch-cwds";
+const COMMENTARY_PROVIDER_OPTIONS: Array<{ value: CommentaryProviderChoice; label: string }> = [
+  { value: "rules", label: "Rules" },
+  { value: "local", label: "Local LLM" },
+  { value: "openai", label: "OpenAI" },
+  { value: "anthropic", label: "Anthropic" },
+  { value: "gemini", label: "Gemini" },
+  { value: "groq", label: "Groq" },
+  { value: "mock", label: "Mock" },
+];
+const SPEECH_ENGINE_OPTIONS: Array<{ value: TTSEngine; label: string }> = [
+  { value: "browser", label: "Browser TTS" },
+  { value: "voicevox", label: "VOICEVOX" },
+];
+
+function isCommentaryProviderChoice(value: string | null): value is CommentaryProviderChoice {
+  return value === "rules" || value === "mock" || value === "openai" || value === "groq" || value === "local" || value === "anthropic" || value === "gemini";
+}
+
+function toProviderValue(choice: CommentaryProviderChoice): ProviderName | undefined {
+  return choice === "rules" ? undefined : choice;
+}
+
+function loadRecentLaunchCwds(): string[] {
+  if (typeof localStorage === "undefined") return [];
+  try {
+    const raw = localStorage.getItem(RECENT_LAUNCH_CWDS_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .map((value) => (typeof value === "string" ? normalizeRecentPath(value) : null))
+      .filter((value): value is string => Boolean(value));
+  } catch {
+    return [];
+  }
+}
 
 function isSkin(value: string | null): value is Skin {
   return value === "standard" || value === "cli";
@@ -596,6 +640,16 @@ export default function App() {
     const saved = localStorage.getItem("cli-commentator-display-mode");
     return saved === "narration" || saved === "explanation" || saved === "both" ? saved : "both";
   });
+  const [launchNarrationProvider, setLaunchNarrationProvider] = useState<CommentaryProviderChoice>(() => {
+    const saved = localStorage.getItem("cli-commentator-launch-narration-provider");
+    return isCommentaryProviderChoice(saved) ? saved : "rules";
+  });
+  const [launchExplanationProvider, setLaunchExplanationProvider] = useState<CommentaryProviderChoice>(() => {
+    const saved = localStorage.getItem("cli-commentator-launch-explanation-provider");
+    return isCommentaryProviderChoice(saved) ? saved : "rules";
+  });
+  const [recentLaunchCwds, setRecentLaunchCwds] = useState<string[]>(() => loadRecentLaunchCwds());
+  const [lastLaunchAttempt, setLastLaunchAttempt] = useState<LaunchAttemptContext | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectAttemptRef = useRef(0);
   const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -605,6 +659,8 @@ export default function App() {
   const terminalRef = useRef<Terminal | null>(null);
   const fitAddonRef = useRef<FitAddon | null>(null);
   const terminalBacklogRef = useRef("");
+  const lastTerminalInputRef = useRef<{ data: string; at: number } | null>(null);
+  const skinRef = useRef(skin);
   const shouldStickLogRef = useRef(true);
 
   // Profile state
@@ -652,11 +708,16 @@ export default function App() {
 
   const sendTerminalInput = useCallback((data: string) => {
     if (!data) return;
+    const now = typeof performance !== "undefined" ? performance.now() : Date.now();
+    if (shouldSuppressDuplicateTerminalInput(lastTerminalInputRef.current, data, now)) {
+      return;
+    }
     if (wsRef.current?.readyState !== WebSocket.OPEN) {
       setPtyError("サーバーに接続されていません");
       return;
     }
     wsRef.current.send(JSON.stringify({ kind: "writeInput", data }));
+    lastTerminalInputRef.current = { data, at: now };
   }, []);
 
   // Apply skin to document
@@ -668,6 +729,22 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem("cli-commentator-display-mode", commentaryDisplayMode);
   }, [commentaryDisplayMode]);
+
+  useEffect(() => {
+    localStorage.setItem("cli-commentator-launch-narration-provider", launchNarrationProvider);
+  }, [launchNarrationProvider]);
+
+  useEffect(() => {
+    localStorage.setItem("cli-commentator-launch-explanation-provider", launchExplanationProvider);
+  }, [launchExplanationProvider]);
+
+  useEffect(() => {
+    skinRef.current = skin;
+  }, [skin]);
+
+  useEffect(() => {
+    localStorage.setItem(RECENT_LAUNCH_CWDS_KEY, JSON.stringify(recentLaunchCwds));
+  }, [recentLaunchCwds]);
 
   // TTS ref sync (to avoid stale closure in WebSocket handler)
   useEffect(() => {
@@ -706,7 +783,7 @@ export default function App() {
       fontSize: 13,
       lineHeight: 1.35,
       scrollback: 5000,
-      theme: getTerminalTheme(skin),
+      theme: getTerminalTheme(skinRef.current),
     });
 
     terminal.loadAddon(fitAddon);
@@ -731,7 +808,7 @@ export default function App() {
     };
 
     scheduleFit();
-    terminal.onData((data) => {
+    const inputDisposable = terminal.onData((data) => {
       sendTerminalInput(data);
     });
 
@@ -757,11 +834,12 @@ export default function App() {
         window.cancelAnimationFrame(frameId);
       }
       resizeObserver?.disconnect();
+      inputDisposable.dispose();
       terminal.dispose();
       terminalRef.current = null;
       fitAddonRef.current = null;
     };
-  }, [sendTerminalInput, skin]);
+  }, [sendTerminalInput]);
 
   useEffect(() => {
     const terminal = terminalRef.current;
@@ -826,6 +904,7 @@ export default function App() {
 
   const queueSpeech = useCallback((item: CommentaryItem) => {
     if (!ttsEnabledRef.current) return;
+    if (TTS_SILENT_EVENT_TYPES.has(item.eventType)) return;
 
     const groupKey = getCommentaryGroupKey(item);
     const pending = pendingSpeechRef.current;
@@ -1170,12 +1249,22 @@ export default function App() {
     const session = buildLaunchSessionInput({
       ...launchDraft,
       style,
+      narrationProvider: toProviderValue(launchNarrationProvider),
+      explanationProvider: toProviderValue(launchExplanationProvider),
     });
     if (!session.cmd) {
       setProfileError("起動コマンドを入力してください。");
       return;
     }
 
+    setLastLaunchAttempt({
+      cmd: session.cmd,
+      args: session.args ?? [],
+      cwd: session.cwd,
+    });
+    if (session.cwd) {
+      setRecentLaunchCwds((prev) => addRecentPath(prev, session.cwd ?? ""));
+    }
     setCurrentSessionLabel(session.name?.trim() || session.cmd);
     wsRef.current.send(JSON.stringify({ kind: "launchSession", session }));
     window.setTimeout(() => {
@@ -1284,6 +1373,13 @@ export default function App() {
         : "auto (detecting)"
       : source.mode;
   const ttsPresetValue: TTSPresetSelectValue = detectTTSPreset(ttsSettings) ?? "custom";
+  const selectedSpeechEngine = ttsSettings.engine;
+  const speechReady = selectedSpeechEngine === "voicevox" || ttsSupported;
+  const narrationProviderLabel =
+    COMMENTARY_PROVIDER_OPTIONS.find((option) => option.value === launchNarrationProvider)?.label ?? "Rules";
+  const explanationProviderLabel =
+    COMMENTARY_PROVIDER_OPTIONS.find((option) => option.value === launchExplanationProvider)?.label ?? "Rules";
+  const launchFailureGuidance = ptyError ? getLaunchFailureGuidance(ptyError, lastLaunchAttempt) : null;
   const filteredItems = useMemo(
     () => filterCommentaryItems(items, { query: logQuery, eventType: logEventType }),
     [items, logEventType, logQuery]
@@ -1362,7 +1458,23 @@ export default function App() {
           {ptyError && (
             <div className="notice notice--error panel">
               <div className="notice__title">PTYエラー</div>
-              <div className="notice__body">{ptyError}</div>
+              <div className="notice__body">
+                <p>{launchFailureGuidance?.summary ?? ptyError}</p>
+                {launchFailureGuidance && (
+                  <>
+                    <ul className="notice__list">
+                      {launchFailureGuidance.hints.map((hint) => (
+                        <li key={hint}>{hint}</li>
+                      ))}
+                    </ul>
+                    <div className="notice__diagnostics">
+                      {launchFailureGuidance.diagnostics.map((diagnostic) => (
+                        <code key={diagnostic}>{diagnostic}</code>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
             </div>
           )}
         </div>
@@ -1415,7 +1527,13 @@ export default function App() {
                   value={launchDraft.cwd}
                   onChange={(e) => setLaunchDraft((prev) => ({ ...prev, cwd: e.target.value }))}
                   placeholder="/path/to/repo"
+                  list="launch-cwd-history"
                 />
+                <datalist id="launch-cwd-history">
+                  {recentLaunchCwds.map((path) => (
+                    <option key={path} value={path} />
+                  ))}
+                </datalist>
               </label>
               <label className="launcher-panel__field launcher-panel__field--cmd">
                 <span>コマンド</span>
@@ -1449,8 +1567,23 @@ export default function App() {
                 起動
               </button>
             </div>
+            {recentLaunchCwds.length > 0 && (
+              <div className="launcher-panel__history" aria-label="recent working directories">
+                {recentLaunchCwds.map((path) => (
+                  <button
+                    key={path}
+                    type="button"
+                    className="launcher-panel__history-chip"
+                    onClick={() => setLaunchDraft((prev) => ({ ...prev, cwd: path }))}
+                    title={path}
+                  >
+                    {path}
+                  </button>
+                ))}
+              </div>
+            )}
             <div className="launcher-panel__meta">
-              口調 `{style}` / source `{launchDraft.logSource}` で起動します。
+              口調 `{style}` / source `{launchDraft.logSource}` / 実況 `{narrationProviderLabel}` / 解説 `{explanationProviderLabel}` で起動します。
             </div>
           </div>
 
@@ -1541,17 +1674,45 @@ export default function App() {
             </div>
 
             <div className="control-row">
-              <label className="control-row__label" style={{ cursor: ttsSupported ? "pointer" : "not-allowed" }}>
+              <label className="control-row__label">実況エンジン：</label>
+              <select
+                value={launchNarrationProvider}
+                onChange={(e) => setLaunchNarrationProvider(e.target.value as CommentaryProviderChoice)}
+              >
+                {COMMENTARY_PROVIDER_OPTIONS.map((option) => (
+                  <option key={`narration-${option.value}`} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+              <label className="control-row__label">解説：</label>
+              <select
+                value={launchExplanationProvider}
+                onChange={(e) => setLaunchExplanationProvider(e.target.value as CommentaryProviderChoice)}
+              >
+                {COMMENTARY_PROVIDER_OPTIONS.map((option) => (
+                  <option key={`explanation-${option.value}`} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+              <span style={{ fontSize: "var(--text-sm)", color: "var(--color-fg-tertiary)" }}>
+                次の Quick Launch から反映
+              </span>
+            </div>
+
+            <div className="control-row">
+              <label className="control-row__label" style={{ cursor: speechReady ? "pointer" : "not-allowed" }}>
                 <input
                   type="checkbox"
                   checked={ttsEnabled}
                   onChange={(e) => handleTTSToggle(e.target.checked)}
-                  disabled={!ttsSupported}
+                  disabled={!speechReady}
                   style={{ marginRight: "var(--space-2)" }}
                 />
                 読み上げ（TTS）
               </label>
-              {ttsSupported && ttsEnabled && (
+              {speechReady && ttsEnabled && (
                 <button
                   onClick={() => setTtsSettingsOpen((prev) => !prev)}
                   className={`settings-toggle ${ttsSettingsOpen ? "settings-toggle--active" : ""}`}
@@ -1559,15 +1720,38 @@ export default function App() {
                   {ttsSettingsOpen ? "▼ 設定" : "▶ 設定"}
                 </button>
               )}
-              {!ttsSupported && (
+              {!speechReady && (
                 <span style={{ fontSize: "var(--text-sm)", color: "var(--color-danger)" }}>
-                  ※ このブラウザはTTS非対応です
+                  ※ Browser TTS 非対応です
                 </span>
               )}
             </div>
 
-            {ttsSupported && ttsEnabled && ttsSettingsOpen && (
+            {ttsEnabled && ttsSettingsOpen && (
               <div className="tts-settings">
+                <div className="tts-settings__field">
+                  <label className="tts-settings__label">エンジン:</label>
+                  <select
+                    value={ttsSettings.engine}
+                    onChange={(e) =>
+                      handleTTSSettingsChange({
+                        ...ttsSettings,
+                        engine: e.target.value as TTSEngine,
+                      })
+                    }
+                    style={{ width: "100%", padding: "var(--space-1)" }}
+                  >
+                    {SPEECH_ENGINE_OPTIONS.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                  <div className="tts-settings__helper">
+                    Browser は無料の組み込み音声、VOICEVOX はローカル API を利用します。
+                  </div>
+                </div>
+
                 <div className="tts-settings__field">
                   <label className="tts-settings__label">プリセット:</label>
                   <select
@@ -1584,32 +1768,67 @@ export default function App() {
                   </select>
                 </div>
 
-                <div className="tts-settings__field">
-                  <label className="tts-settings__label">音声:</label>
-                  {voices.length > 0 ? (
-                    <select
-                      value={ttsSettings.voiceURI ?? ""}
-                      onChange={(e) =>
-                        handleTTSSettingsChange({
-                          ...ttsSettings,
-                          voiceURI: e.target.value || null,
-                        })
-                      }
-                      style={{ width: "100%", padding: "var(--space-1)" }}
-                    >
-                      <option value="">デフォルト</option>
-                      {voices.map((v) => (
-                        <option key={v.voiceURI} value={v.voiceURI}>
-                          {v.name} ({v.lang})
-                        </option>
-                      ))}
-                    </select>
-                  ) : voicesLoaded ? (
-                    <span className="tts-settings__helper">音声一覧は取得できません（デフォルト音声のみ）</span>
-                  ) : (
-                    <span className="tts-settings__helper">音声リストを読み込み中...</span>
-                  )}
-                </div>
+                {ttsSettings.engine === "browser" ? (
+                  <div className="tts-settings__field">
+                    <label className="tts-settings__label">音声:</label>
+                    {voices.length > 0 ? (
+                      <select
+                        value={ttsSettings.voiceURI ?? ""}
+                        onChange={(e) =>
+                          handleTTSSettingsChange({
+                            ...ttsSettings,
+                            voiceURI: e.target.value || null,
+                          })
+                        }
+                        style={{ width: "100%", padding: "var(--space-1)" }}
+                      >
+                        <option value="">デフォルト</option>
+                        {voices.map((v) => (
+                          <option key={v.voiceURI} value={v.voiceURI}>
+                            {v.name} ({v.lang})
+                          </option>
+                        ))}
+                      </select>
+                    ) : voicesLoaded ? (
+                      <span className="tts-settings__helper">音声一覧は取得できません（デフォルト音声のみ）</span>
+                    ) : (
+                      <span className="tts-settings__helper">音声リストを読み込み中...</span>
+                    )}
+                  </div>
+                ) : (
+                  <>
+                    <div className="tts-settings__field">
+                      <label className="tts-settings__label">VOICEVOX Base URL:</label>
+                      <input
+                        type="text"
+                        value={ttsSettings.voicevoxBaseUrl}
+                        onChange={(e) =>
+                          handleTTSSettingsChange({
+                            ...ttsSettings,
+                            voicevoxBaseUrl: e.target.value,
+                          })
+                        }
+                        className="form-field__input"
+                      />
+                    </div>
+                    <div className="tts-settings__field">
+                      <label className="tts-settings__label">VOICEVOX Speaker ID:</label>
+                      <input
+                        type="number"
+                        min="0"
+                        step="1"
+                        value={ttsSettings.voicevoxSpeaker}
+                        onChange={(e) =>
+                          handleTTSSettingsChange({
+                            ...ttsSettings,
+                            voicevoxSpeaker: Number.parseInt(e.target.value || "0", 10),
+                          })
+                        }
+                        className="form-field__input"
+                      />
+                    </div>
+                  </>
+                )}
 
                 <div className="tts-settings__field">
                   <label className="tts-settings__label">速度: {ttsSettings.rate.toFixed(1)}</label>

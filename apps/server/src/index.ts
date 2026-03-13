@@ -17,6 +17,7 @@ import type {
 import { redact } from "./redact.js";
 import { extractEvents } from "./extract.js";
 import { comment } from "./styles/index.js";
+import { consumeCompleteLines } from "./line-buffer.js";
 import { getAutoDetectedSource, resetAutoDetection } from "./rulesets/index.js";
 import * as profileManager from "./profile/manager.js";
 import type { ProfileLLMProviders } from "./profile/types.js";
@@ -76,6 +77,7 @@ let currentSourceMode: SourceMode = normalizeSource(process.env.LOG_SOURCE);
 let currentCommentaryProviders: ProfileLLMProviders = {
   llmProvider: (process.env.LLM_PROVIDER as ProfileLLMProviders["llmProvider"]) ?? undefined,
 };
+let commentaryLineBuffer = "";
 let sourceState: SourceState = {
   mode: currentSourceMode,
   detected: currentSourceMode === "auto" ? null : currentSourceMode,
@@ -238,6 +240,12 @@ function createAdHocPTYConfig(input: LaunchSessionInput): PTYConfig {
     ? input.args.map((value) => value.trim()).filter(Boolean)
     : [];
   const cwd = (input.cwd ?? "").trim() || process.cwd();
+  if (!fs.existsSync(cwd)) {
+    throw new Error(`Working directory not found: ${cwd}`);
+  }
+  if (!fs.statSync(cwd).isDirectory()) {
+    throw new Error(`Working directory is not a directory: ${cwd}`);
+  }
 
   return { cmd, args, cwd };
 }
@@ -246,6 +254,10 @@ async function launchAdHocSession(input: LaunchSessionInput): Promise<void> {
   const config = createAdHocPTYConfig(input);
   const nextStyle = isStyle(input.style) ? input.style : currentStyle;
   const nextSourceMode = normalizeSource(input.logSource);
+  const nextCommentaryProviders: ProfileLLMProviders = {
+    narrationProvider: input.narrationProvider,
+    explanationProvider: input.explanationProvider,
+  };
 
   transitionServerState("launch_session_begin", "restarting", {
     profileId: null,
@@ -263,9 +275,11 @@ async function launchAdHocSession(input: LaunchSessionInput): Promise<void> {
     ptyManager.kill();
     stopFileTail(true);
     disableStdinPassthrough();
+    commentaryLineBuffer = "";
 
     currentStyle = nextStyle;
     currentSourceMode = nextSourceMode;
+    currentCommentaryProviders = nextCommentaryProviders;
     sourceState = {
       mode: nextSourceMode,
       detected: nextSourceMode === "auto" ? null : nextSourceMode,
@@ -326,12 +340,19 @@ function processInputData(data: string, writeToStdout: boolean = true): void {
   }
 
   const clean = redact(data);
-  const evs = extractEvents(clean);
   const detected = getAutoDetectedSource();
   if (detected) broadcastSource(detected);
 
   // raw は "マスク後" を送る（MVP）
   broadcast({ kind: "raw", data: clean });
+
+  const { completeChunk, pending } = consumeCompleteLines(commentaryLineBuffer, clean);
+  commentaryLineBuffer = pending;
+  if (!completeChunk) {
+    return;
+  }
+
+  const evs = extractEvents(completeChunk);
 
   for (const ev of evs) {
     broadcast({ kind: "event", ev });
@@ -529,6 +550,7 @@ async function restartPTY(profileId: string | null, force = false): Promise<void
     ptyManager.kill();
     stopFileTail(true);
     disableStdinPassthrough();
+    commentaryLineBuffer = "";
 
     // Update current state
     currentStyle = newStyle;
