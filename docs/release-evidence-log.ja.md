@@ -267,3 +267,68 @@
 - [ ] 証明書未導入期間は `v0.0.0-smoke.*` で unsigned internal 検証を継続
 - Owner: maintainers
 - Due: 2026-02-27
+
+## RC Evidence Record: 2026-03-14（Sprint 16 起動復旧整合バッチ）
+
+### Metadata
+- Candidate: `main` after PR #219
+- Commit: `82388a0`（`fix(web): reduce input chatter and tts lag (#219)`）
+- Reviewer: Codex
+- Decision Meeting: `2026-03-14`
+- Decision: Conditional Go（起動復旧整合 + CI green）
+
+### CI Evidence
+- Required checks run:
+  - PR #213 checks (`https://github.com/gatyoukatyou/cli-commentator/pull/213/checks`)
+  - PR #217 checks (`https://github.com/gatyoukatyou/cli-commentator/pull/217/checks`)
+  - PR #218 checks (`https://github.com/gatyoukatyou/cli-commentator/pull/218/checks`)
+  - PR #219 checks (`https://github.com/gatyoukatyou/cli-commentator/pull/219/checks`)
+- Core checks:
+  - `failure_regression`: Pass（#213 / #217 / #218 / #219）
+  - `desktop_distribution_smoke`: Pass（#213 / #217 / #218 / #219）
+  - `desktop_check`: Pass（#213 / #217 / #218 / #219）
+  - `test`: Pass（#213 / #217 / #218 / #219）
+  - `test_windows`: Pass（#213 / #217 / #218 / #219）
+  - `docs_drift_guard`: Pass（#213 / #217 / #218 / #219）
+
+### Runtime/Recovery Evidence
+- PR #213（merge commit `e62109b`）:
+  - `apps/server` の `[startup/failure]`、Desktop の startup error、Web recovery bucket、distribution smoke の negative path を end-to-end で整合
+  - `desktop_distribution_smoke` / `failure_regression` / `desktop_check` / `test_windows` がPass
+- PR #217（merge commit `077fb2e`）:
+  - recovery guidance の既知カテゴリ test coverage を追加（`sidecar_manifest_parse`, `sidecar_server_root_missing`, `inspect_before_stop`, `process_state`, `missing_process_handle`）
+- PR #218（merge commit `9e0cea1`）:
+  - Codex progress-only 断片を commentary へ流さないように抑止
+  - runtime source を使う filtering に修正し、意味のない「開始/進捗」カード蓄積を抑制
+- PR #219（merge commit `82388a0`）:
+  - IME/paste 近傍の duplicate input を抑止
+  - TTS batching delay を短縮（通常 `900ms -> 320ms`、`done/error` `120ms`）
+  - explanation prompt を強化し、「何を見ていて何が分かるか」を出しやすく調整
+- Startup failure classification checked: Yes（PR #213 + `failure_regression`）
+- Recovery guidance known categories checked: Yes（PR #217 + `apps/web/src/lib/recovery.test.ts`）
+- Commentary noise suppression checked: Yes（PR #218 + `apps/server/src/__tests__/extract.test.ts` / `apps/server/src/tests/comment.errors.test.ts`）
+- Input/TTS UX regression checked: Yes（PR #219 + `apps/web` test/build/lint）
+
+### Cross-Platform Smoke Evidence
+- macOS desktop distribution smoke: Pass（PR #213 / #217 / #218 / #219）
+- Windows desktop cargo/test path: Pass（PR #213 / #217 / #218 / #219 の `desktop_check`）
+- Windows server/web path: Pass（PR #213 / #217 / #218 / #219 の `test_windows`）
+- Local note:
+  - 途中の手元環境では Rust toolchain 不在により bundle build / local smoke 未実施の時点があった
+  - 最終判断は GitHub Actions 上の `desktop_distribution_smoke` / `desktop_check` Pass を証跡として採用
+
+### Risks and Exceptions
+- Open P0/P1: None known at this record point
+- Accepted risk:
+  - signed/notarized release readiness は `#138` 未解消のため未達
+  - clean internal 実機証跡は CI 証跡とは別管理
+- Remaining gap:
+  - `spawn` の細分類（`spawn_node_missing` など）は次の残件候補
+
+### Follow-up
+- [x] Sprint 16 の起動復旧整合と UX 修正の証跡を evidence log へ追記
+- [ ] `#215` の `要確認` 実例棚卸しと `spawn` 細分類判断メモを整理
+- [ ] `#214` として ROADMAP / roadmap-issues の `done / remaining / blocked` を更新
+- [ ] `#138` を解消し signed/notarized release readiness を再開
+- Owner: maintainers
+- Due: 2026-03-18

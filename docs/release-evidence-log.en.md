@@ -267,3 +267,68 @@ Related docs:
 - [ ] While paid Apple certificate setup is deferred, continue unsigned internal validation with `v0.0.0-smoke.*`
 - Owner: maintainers
 - Due: 2026-02-27
+
+## RC Evidence Record: 2026-03-14 (Sprint 16 startup recovery alignment batch)
+
+### Metadata
+- Candidate: `main` after PR #219
+- Commit: `82388a0` (`fix(web): reduce input chatter and tts lag (#219)`)
+- Reviewer: Codex
+- Decision Meeting: `2026-03-14`
+- Decision: Conditional Go (startup recovery alignment + CI green)
+
+### CI Evidence
+- Required checks run:
+  - PR #213 checks (`https://github.com/gatyoukatyou/cli-commentator/pull/213/checks`)
+  - PR #217 checks (`https://github.com/gatyoukatyou/cli-commentator/pull/217/checks`)
+  - PR #218 checks (`https://github.com/gatyoukatyou/cli-commentator/pull/218/checks`)
+  - PR #219 checks (`https://github.com/gatyoukatyou/cli-commentator/pull/219/checks`)
+- Core checks:
+  - `failure_regression`: Pass (#213 / #217 / #218 / #219)
+  - `desktop_distribution_smoke`: Pass (#213 / #217 / #218 / #219)
+  - `desktop_check`: Pass (#213 / #217 / #218 / #219)
+  - `test`: Pass (#213 / #217 / #218 / #219)
+  - `test_windows`: Pass (#213 / #217 / #218 / #219)
+  - `docs_drift_guard`: Pass (#213 / #217 / #218 / #219)
+
+### Runtime/Recovery Evidence
+- PR #213 (merge commit `e62109b`):
+  - aligned `apps/server` `[startup/failure]`, Desktop startup errors, Web recovery buckets, and distribution negative-path smoke end-to-end
+  - `desktop_distribution_smoke` / `failure_regression` / `desktop_check` / `test_windows` all passed
+- PR #217 (merge commit `077fb2e`):
+  - added recovery guidance test coverage for known categories (`sidecar_manifest_parse`, `sidecar_server_root_missing`, `inspect_before_stop`, `process_state`, `missing_process_handle`)
+- PR #218 (merge commit `9e0cea1`):
+  - suppressed Codex progress-only fragments from commentary
+  - switched filtering to runtime source-aware handling to avoid meaningless "started/progress" commentary cards
+- PR #219 (merge commit `82388a0`):
+  - suppressed duplicate terminal input around IME/paste cases
+  - shortened TTS batching delay (normal `900ms -> 320ms`, `done/error` `120ms`)
+  - strengthened explanation prompts so commentary more consistently answers "what is being checked" and "what can be inferred next"
+- Startup failure classification checked: Yes (PR #213 + `failure_regression`)
+- Recovery guidance known categories checked: Yes (PR #217 + `apps/web/src/lib/recovery.test.ts`)
+- Commentary noise suppression checked: Yes (PR #218 + `apps/server/src/__tests__/extract.test.ts` / `apps/server/src/tests/comment.errors.test.ts`)
+- Input/TTS UX regression checked: Yes (PR #219 + `apps/web` test/build/lint)
+
+### Cross-Platform Smoke Evidence
+- macOS desktop distribution smoke: Pass (PR #213 / #217 / #218 / #219)
+- Windows desktop cargo/test path: Pass (`desktop_check` on PR #213 / #217 / #218 / #219)
+- Windows server/web path: Pass (`test_windows` on PR #213 / #217 / #218 / #219)
+- Local note:
+  - during early implementation, the local environment did not have the Rust toolchain, so bundle build / local smoke was temporarily not reproducible there
+  - final evidence relies on GitHub Actions `desktop_distribution_smoke` / `desktop_check` passing
+
+### Risks and Exceptions
+- Open P0/P1: None known at this record point
+- Accepted risk:
+  - signed/notarized release readiness remains blocked by `#138`
+  - clean internal physical-machine evidence is tracked separately from CI evidence
+- Remaining gap:
+  - deeper `spawn` sub-classification (`spawn_node_missing`, etc.) remains a follow-up candidate
+
+### Follow-up
+- [x] Record Sprint 16 startup recovery alignment and UX evidence in the evidence log
+- [ ] Re-audit `#215` remaining `needs manual review` cases and document the `spawn` sub-classification decision
+- [ ] Update ROADMAP / roadmap-issues `done / remaining / blocked` as `#214`
+- [ ] Resolve `#138` and resume signed/notarized release readiness work
+- Owner: maintainers
+- Due: 2026-03-18
