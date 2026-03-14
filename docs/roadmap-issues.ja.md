@@ -152,6 +152,18 @@ notarizationのsubmit/staple手順を自動化し、配布前作業を定常運�
 
 ## Sprint 16（2026-03-12 〜 2026-03-25）
 
+**Status（2026-03-15）**
+- Done
+  - `server: 起動失敗の原因分類ログを強化` は main 反映済み（PR #213）
+  - `qa: クリーン環境向け配布物スモークテストを追加` は CI 反映済み。negative path を含む `desktop_distribution_smoke` が green
+  - recovery guidance の既知カテゴリ coverage、commentary noise 抑止、入力/TTS UX 改善も main 反映済み（PR #217-#219）
+- Remaining
+  - `desktop: 起動失敗時の復旧ガイドUIを改善` のうち、`要確認` に落ちる実例棚卸し
+  - `spawn` 細分類を今 Sprint に含めるかの判断メモ
+- Blocked / Deferred
+  - signed/notarized 配布 readiness は `#138` 依存
+  - clean internal 実機証跡は CI 証跡とは別管理
+
 ### 16-1
 **Title**
 `qa: クリーン環境向け配布物スモークテストを追加`
@@ -166,9 +178,9 @@ notarizationのsubmit/staple手順を自動化し、配布前作業を定常運�
 - 初回起動と実況開始確認
 
 ## Tasks
-- [ ] テスト手順を定義
-- [ ] 代表環境で実行
-- [ ] 失敗パターンを記録
+- [x] テスト手順を定義
+- [x] 代表環境で実行（GitHub CI `desktop_distribution_smoke`）
+- [x] 失敗パターンを記録（negative path: `sidecar_server_entry_missing`）
 
 ## Definition of Done
 - install -> launch -> commentary start が再現できる
@@ -189,9 +201,11 @@ notarizationのsubmit/staple手順を自動化し、配布前作業を定常運�
 - 復旧手順の即時提示
 
 ## Tasks
-- [ ] エラー文言を分類
-- [ ] 復旧ガイド文言を更新
-- [ ] UI表示の回帰テストを追加
+- [x] エラー文言を分類
+- [x] 復旧ガイド文言を更新
+- [x] 既知カテゴリの回帰テストを追加
+- [ ] `要確認` に落ちる実例を棚卸しする
+- [ ] `spawn` 細分類を次 Sprint に送るか判断メモを残す
 
 ## Definition of Done
 - 主要失敗ケースで復旧手順を提示できる
@@ -212,9 +226,9 @@ notarizationのsubmit/staple手順を自動化し、配布前作業を定常運�
 - 復旧に必要なコンテキスト出力
 
 ## Tasks
-- [ ] ログ項目を設計
-- [ ] 分類ロジックを実装
-- [ ] テストを追加
+- [x] ログ項目を設計
+- [x] 分類ロジックを実装
+- [x] テストを追加
 
 ## Definition of Done
 - 代表障害の原因をログのみで判別できる

@@ -89,7 +89,7 @@ CLI Commentator は「ターミナルの作業ログを見て、別ウィンド�
 
 ---
 
-## 現在地（2026-02-18 時点）
+## 現在地（2026-03-15 時点）
 **Done**
 - PR #1：detect 境界テスト（混在→generic、50行制限、重要定数export）
 - PR #2：ロードマップ docs 追加（日英＋docs/READMEからリンク）
@@ -124,23 +124,22 @@ CLI Commentator は「ターミナルの作業ログを見て、別ウィンド�
 - PR #174：server起動失敗分類ログを構造化（分類コード + fallback結果 + 回帰テスト）
 - PR #175：server状態遷移ログを構造化（`[server/state-event]` + 統合テスト検証）
 - PR #178：v0.2.0 RC判定証跡テンプレートを追加（RC checklist / runbook / docs indexの導線を統一）
+- PR #213：起動失敗分類を server / desktop / web / distribution smoke / runbook で整合
+- PR #217：recovery guidance の既知カテゴリ test coverage を拡張
+- PR #218：Codex progress commentary noise を抑止
+- PR #219：入力重複抑止・TTS遅延短縮・explanation prompt 改善
+- PR #220：Sprint 16 起動復旧整合の証跡を release evidence log へ反映
 
 **Now**
-- 2026-02-18 のローカル事前検証を実施（`verify:updater` / web lint+build / `CLI_COMMENTATOR_FORCE_NO_PTY=1` server test / failure regression 34/34 / desktop distribution smoke がPass）
-- `CLI_COMMENTATOR_FORCE_NO_PTY=1` 実行時に node-pty 必須ケースを skip するテスト前提を補強し、Runbook のローカル検証コマンドを再現可能化
-- `release-desktop` の smoke 実行を再開し、`smoke.01` / `smoke.02` の失敗要因（sidecar node不足、runner unsupported、release作成権限）を証跡へ反映
-- `.github/workflows/release-desktop.yml` に sidecar 準備/検証ステップを追加し、x86 runner を `macos-15-intel` へ修正（`smoke.03` で arm64/x64 両bundle生成を確認）
-- `docs/release-runbook.*` / `docs/release-evidence-log.*` を当日証跡で更新
-- PR #186（`fix(release): preflight release write permissions`）をマージし、`Verify release publish permissions` を導入
-- `v0.0.0-smoke.20260219-test`（`release-desktop` run `22185152032`）で preflight + token fallback 経路の成功を確認
-- `GH_RELEASE_TOKEN` を設定し、`v0.0.0-smoke.20260220-211548`（run `22223734792`）で Draft Release 復旧を確認
-- docs drift guard と smoke matrix を運用し、v0.2.0 RC 判断材料を継続蓄積
-- `#138`（Apple certificate/secrets）未解消のため signed 配布判定は保留
+- Sprint 16 の主戦場はほぼ収束し、起動失敗分類 / recovery guidance / distribution smoke / evidence log の main 反映が完了
+- GitHub CI では `desktop_distribution_smoke` / `desktop_check` / `failure_regression` を含む主要 checks が green
+- 残件は `#214`（Sprint 16 の done / remaining / blocked 再整理）と `#215`（`要確認` 実例棚卸し、`spawn` 細分類判断）に圧縮
+- signed 配布 readiness は `#138`（Apple certificate/secrets）未解消のため継続保留
 
 **Next**
-- `#138` を解消し、`APPLE_CERTIFICATE` を登録したうえで `pnpm verify:apple-signing` をPassさせる
-- Apple有償証明書を導入しない期間は `v0.0.0-smoke.*` タグで unsigned internal 検証を継続する
-- 起動障害系の回帰ケースを継続拡張（配布物起動/署名モード差分を含む）
+- `#214` として Sprint 16 を `done / remaining / blocked` で再整理し、持ち越し候補を 1-2 件へ圧縮する
+- `#215` として `要確認` に落ちる残件を棚卸しし、`spawn` 細分類を今 Sprint でやるか次 Sprint に送るか判断する
+- `#138` を解消し、signed/notarized release readiness を再開する
 
 ---
 
@@ -175,6 +174,18 @@ CLI Commentator は「ターミナルの作業ログを見て、別ウィンド�
 **完了条件**
 - クリーン環境で「インストール→起動→実況開始」が通る
 - 主要な起動失敗パターンの一次切り分けが可能
+
+**現状整理（2026-03-15）**
+- Done
+  - server / desktop / web / smoke / runbook の起動失敗分類整合を main へ反映
+  - distribution smoke に negative path を追加し、GitHub CI 上で `desktop_distribution_smoke` を継続運用
+  - recovery guidance の既知カテゴリ coverage、commentary noise suppression、入力/TTS UX 改善を main へ反映
+- Remaining
+  - `要確認` に落ちる残件棚卸し
+  - `spawn` 細分類を今 Sprint に含めるかの判断メモ
+- Blocked / Deferred
+  - signed/notarized release readiness は `#138` 依存
+  - clean internal 実機証跡は CI 証跡とは別管理
 
 ### Sprint 17（2026-03-26 〜 2026-04-08）: 可観測性とフォールバック強化
 **Issue案**
