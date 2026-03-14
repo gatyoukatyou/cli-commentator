@@ -8,7 +8,12 @@ type RecentChunk = {
 };
 
 function hasNonAscii(text: string): boolean {
-  return /[^\u0000-\u007f]/u.test(text);
+  for (const char of text) {
+    if (char.charCodeAt(0) > 0x7f) {
+      return true;
+    }
+  }
+  return false;
 }
 
 function looksLikeCompositeChunk(data: string): boolean {
