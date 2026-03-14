@@ -40,6 +40,7 @@ import {
   type LaunchDraft,
   type LaunchPresetId,
 } from "./lib/session-launcher";
+import { createTerminalInputGate } from "./lib/terminal-input";
 import type {
   CommentaryDisplayMode,
   Style,
@@ -63,7 +64,8 @@ const LOG_AUTO_SCROLL_THRESHOLD_PX = 64;
 const GENERIC_LOG_SUMMARIES = new Set(["ログ更新"]);
 const GROUP_DETAIL_PREVIEW_COUNT = 3;
 const TERMINAL_OUTPUT_MAX_CHARS = 24000;
-const TTS_BATCH_DELAY_MS = 900;
+const TTS_BATCH_DELAY_MS = 320;
+const TTS_PRIORITY_BATCH_DELAY_MS = 120;
 const COMMENTARY_DISPLAY_MODE_OPTIONS: Array<{ value: CommentaryDisplayMode; label: string }> = [
   { value: "both", label: "実況＋解説" },
   { value: "narration", label: "実況のみ" },
@@ -605,6 +607,7 @@ export default function App() {
   const terminalRef = useRef<Terminal | null>(null);
   const fitAddonRef = useRef<FitAddon | null>(null);
   const terminalBacklogRef = useRef("");
+  const terminalInputGateRef = useRef(createTerminalInputGate());
   const shouldStickLogRef = useRef(true);
 
   // Profile state
@@ -652,6 +655,7 @@ export default function App() {
 
   const sendTerminalInput = useCallback((data: string) => {
     if (!data) return;
+    if (!terminalInputGateRef.current.shouldForward(data)) return;
     if (wsRef.current?.readyState !== WebSocket.OPEN) {
       setPtyError("サーバーに接続されていません");
       return;
@@ -735,6 +739,20 @@ export default function App() {
       sendTerminalInput(data);
     });
 
+    const textarea = terminal.textarea;
+    const handleCompositionStart = () => {
+      terminalInputGateRef.current.noteCompositionStart();
+    };
+    const handleCompositionEnd = () => {
+      terminalInputGateRef.current.noteCompositionEnd();
+    };
+    const handlePaste = () => {
+      terminalInputGateRef.current.notePaste();
+    };
+    textarea?.addEventListener("compositionstart", handleCompositionStart);
+    textarea?.addEventListener("compositionend", handleCompositionEnd);
+    textarea?.addEventListener("paste", handlePaste);
+
     if (terminalBacklogRef.current) {
       terminal.write(terminalBacklogRef.current);
       terminalBacklogRef.current = "";
@@ -757,6 +775,9 @@ export default function App() {
         window.cancelAnimationFrame(frameId);
       }
       resizeObserver?.disconnect();
+      textarea?.removeEventListener("compositionstart", handleCompositionStart);
+      textarea?.removeEventListener("compositionend", handleCompositionEnd);
+      textarea?.removeEventListener("paste", handlePaste);
       terminal.dispose();
       terminalRef.current = null;
       fitAddonRef.current = null;
@@ -819,9 +840,14 @@ export default function App() {
     if (pendingSpeechTimeoutRef.current) {
       clearTimeout(pendingSpeechTimeoutRef.current);
     }
+    const pending = pendingSpeechRef.current;
+    const delay =
+      pending && (pending.latest.eventType === "error" || pending.latest.eventType === "done")
+        ? TTS_PRIORITY_BATCH_DELAY_MS
+        : TTS_BATCH_DELAY_MS;
     pendingSpeechTimeoutRef.current = setTimeout(() => {
       flushPendingSpeech();
-    }, TTS_BATCH_DELAY_MS);
+    }, delay);
   }, [flushPendingSpeech]);
 
   const queueSpeech = useCallback((item: CommentaryItem) => {
@@ -1063,6 +1089,7 @@ export default function App() {
               // Clear commentary items when PTY restarts
               setItems([]);
               clearTerminal();
+              terminalInputGateRef.current.reset();
               clearPendingSpeech();
               stopSpeech();
               setProfileError(null);

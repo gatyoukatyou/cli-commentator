@@ -54,28 +54,44 @@ function narrationGuidance(ev: Event): string {
 function explanationGuidance(ev: Event): string {
   switch (ev.type) {
     case "read":
-      return "何を確認するための読み込みかを初心者向けに補足する。";
+      return "何を確認するための読み込みかと、そのファイルを読むと何が分かるかを初心者向けに補足する。";
     case "search":
-      return "何を手がかりに確認範囲を絞っているかを補足する。";
+      return "何を手がかりに確認範囲を絞っているかと、その検索で次に何を判断したいかを補足する。";
     case "write":
-      return "何を変える段階なのか、なぜ更新しているかを補足する。";
+      return "何を変える段階なのか、なぜ更新していて更新後に何を確かめたいかを補足する。";
     case "test":
     case "lint":
     case "build":
-      return "その確認や処理で何が分かるのかを補足する。";
+      return "その確認や処理で何が分かるのか、通れば何を前に進められるかを補足する。";
     case "stderr":
     case "error":
-      return "どこが詰まっていて、次に何を確認すると前に進めるかを補足する。";
+      return "どこが詰まっていて、ログから言える範囲で次に何を確認すると前に進めるかを補足する。";
     case "git":
     case "github":
-      return "変更確認や公開前確認として何を見る場面かを補足する。";
+      return "変更確認や公開前確認として何を見る場面かと、その確認結果で何を決めるかを補足する。";
     case "stdout":
-      return "実況の言い換えではなく、表示の意味や今の段階を補足する。";
+      return "実況の言い換えではなく、表示の意味・今の段階・この表示から次に判断できることを補足する。";
     case "done":
-      return "区切り後に何を確認する段階かを補足する。";
+      return "区切り後に何を確認する段階か、次の一手が何かを補足する。";
     default:
-      return "実況の言い換えを避け、今の作業の意味を初心者向けに補足する。";
+      return "実況の言い換えを避け、今の作業の意味と次に見える判断材料を初心者向けに補足する。";
   }
+}
+
+function explanationStructureHint(ev: Event): string {
+  if (ev.type === "stderr" || ev.type === "error") {
+    return "『いま何が詰まっているか』を先に述べ、そのあとに『次に確認する対象』を短く添える。";
+  }
+
+  if (ev.type === "stdout" || ev.type === "read" || ev.type === "search") {
+    return "『いま見ているもの』と『それで何が分かるか』を1文でつなぐ。";
+  }
+
+  if (ev.type === "test" || ev.type === "lint" || ev.type === "build") {
+    return "『この確認で何が分かるか』を中心に述べ、通過/失敗後の判断に結びつける。";
+  }
+
+  return "『いまの作業』と『それで何が分かるか』を1文でつなぐ。";
 }
 
 function ambiguityGuidance(ev: Event, role: CommentaryRole): string {
@@ -118,6 +134,7 @@ function buildPrompt(
           "初心者向けの補足にする。",
           "実況の言い換えだけで終わらせない。",
           "観測できる事実から外れる推測はしない。",
+          "できるだけ『何を見ていて』『それで何が分かるか』を一文にまとめる。",
         ];
   const eventGuidance =
     role === "narration" ? narrationGuidance(ev) : explanationGuidance(ev);
@@ -132,6 +149,7 @@ function buildPrompt(
     "品質ルール:",
     ...qualityRules.map((rule) => `- ${rule}`),
     `イベント別の指示: ${eventGuidance}`,
+    ...(role === "explanation" ? [`説明の組み立て: ${explanationStructureHint(ev)}`] : []),
     ...(ambiguity ? [`曖昧さの扱い: ${ambiguity}`] : []),
     buildCommonEventSection(ev),
     answerLine,
