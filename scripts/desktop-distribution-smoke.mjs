@@ -67,7 +67,32 @@ function uniquePaths(candidates) {
   return [...new Set(candidates.map((candidate) => path.normalize(candidate)))];
 }
 
-function resolveNodeBinaryPath(sidecarRoot, manifestNodeBinary, appBundlePath) {
+function formatFailure(category, summary, contextEntries) {
+  let message = `[${category}] ${summary}`;
+  for (const [key, value] of contextEntries) {
+    if (!value) continue;
+    message += ` | ${key}=${value}`;
+  }
+  return message;
+}
+
+function resolveManifestPath(resourcesDir) {
+  const manifestCandidates = [
+    path.join(resourcesDir, "resources", "sidecar-manifest.json"),
+    path.join(resourcesDir, "sidecar-manifest.json"),
+  ];
+  const manifestPath = manifestCandidates.find((candidate) => existsSync(candidate));
+  if (!manifestPath) {
+    throw new Error(
+      formatFailure("sidecar_manifest_missing", "No sidecar manifest was found", [
+        ["candidates", manifestCandidates.join(",")],
+      ])
+    );
+  }
+  return manifestPath;
+}
+
+function resolveNodeBinaryPath(sidecarRoot, manifestNodeBinary, appBundlePath, manifestPath) {
   const macOsDir = path.join(appBundlePath, "Contents", "MacOS");
   const manifestNodeName = path.basename(manifestNodeBinary);
   const fallbackNodeName = process.platform === "win32" ? "node.exe" : "node";
@@ -78,9 +103,84 @@ function resolveNodeBinaryPath(sidecarRoot, manifestNodeBinary, appBundlePath) {
   ]);
   const existing = candidates.find((candidate) => existsSync(candidate));
   if (!existing) {
-    throw new Error(`Bundled node binary is missing. candidates=${candidates.join(",")}`);
+    const expected = path.join(sidecarRoot, manifestNodeBinary);
+    throw new Error(
+      formatFailure("sidecar_node_missing", "Bundled node binary is missing", [
+        ["manifest", manifestPath],
+        ["sidecar_root", sidecarRoot],
+        ["node_binary", expected],
+        ["candidates", candidates.join(",")],
+        ["executable_dir", macOsDir],
+      ])
+    );
   }
   return existing;
+}
+
+function resolveBundledRuntimePaths(appBundlePath) {
+  const resourcesDir = path.join(appBundlePath, "Contents", "Resources");
+  const manifestPath = resolveManifestPath(resourcesDir);
+
+  let rawManifest;
+  try {
+    rawManifest = readFileSync(manifestPath, "utf8");
+  } catch (error) {
+    throw new Error(
+      formatFailure("sidecar_manifest_read", "Failed to read sidecar manifest", [
+        ["manifest", manifestPath],
+        ["error", error instanceof Error ? error.message : String(error)],
+      ])
+    );
+  }
+
+  let manifest;
+  try {
+    manifest = JSON.parse(rawManifest);
+  } catch (error) {
+    throw new Error(
+      formatFailure("sidecar_manifest_parse", "Failed to parse sidecar manifest", [
+        ["manifest", manifestPath],
+        ["error", error instanceof Error ? error.message : String(error)],
+      ])
+    );
+  }
+
+  const sidecarRoot = sidecarRootFromManifest(manifestPath);
+  const serverEntryPath = path.join(sidecarRoot, manifest.serverEntry);
+  const serverRootPath = path.join(sidecarRoot, manifest.serverRoot);
+  const nodeBinaryPath = resolveNodeBinaryPath(
+    sidecarRoot,
+    manifest.nodeBinary,
+    appBundlePath,
+    manifestPath
+  );
+
+  if (!existsSync(serverEntryPath)) {
+    throw new Error(
+      formatFailure("sidecar_server_entry_missing", "Bundled server entry is missing", [
+        ["manifest", manifestPath],
+        ["sidecar_root", sidecarRoot],
+        ["server_entry", serverEntryPath],
+      ])
+    );
+  }
+  if (!existsSync(serverRootPath)) {
+    throw new Error(
+      formatFailure("sidecar_server_root_missing", "Bundled server root is missing", [
+        ["manifest", manifestPath],
+        ["sidecar_root", sidecarRoot],
+        ["server_root", serverRootPath],
+      ])
+    );
+  }
+
+  return {
+    manifestPath,
+    sidecarRoot,
+    nodeBinaryPath,
+    serverEntryPath,
+    serverRootPath,
+  };
 }
 
 async function reservePort() {
@@ -141,49 +241,16 @@ async function stopChild(child) {
   }
 }
 
-async function main() {
-  if (!existsSync(bundleRoot)) {
-    throw new Error(`Desktop bundle directory is missing: ${bundleRoot}`);
-  }
-
-  const appBundles = walkAppBundles(bundleRoot);
-  if (appBundles.length === 0) {
-    throw new Error(`No .app bundle found under: ${bundleRoot}`);
-  }
-  const sourceAppBundle = appBundles[0];
-  log(`Found app bundle: ${path.relative(repoRoot, sourceAppBundle)}`);
-
-  const tempRoot = mkdtempSync(path.join(os.tmpdir(), "cli-commentator-desktop-smoke-"));
-  const installRoot = path.join(tempRoot, "Applications");
+function installAppBundle(sourceAppBundle, tempRoot, installDirName) {
+  const installRoot = path.join(tempRoot, installDirName);
   mkdirSync(installRoot, { recursive: true });
   const installedAppBundle = path.join(installRoot, path.basename(sourceAppBundle));
   cpSync(sourceAppBundle, installedAppBundle, { recursive: true });
-  log(`Installed app bundle into temp root: ${installedAppBundle}`);
+  return installedAppBundle;
+}
 
-  const resourcesDir = path.join(installedAppBundle, "Contents", "Resources");
-  const manifestCandidates = [
-    path.join(resourcesDir, "resources", "sidecar-manifest.json"),
-    path.join(resourcesDir, "sidecar-manifest.json"),
-  ];
-  const manifestPath = manifestCandidates.find((candidate) => existsSync(candidate));
-  if (!manifestPath) {
-    throw new Error(`sidecar-manifest.json is missing. candidates=${manifestCandidates.join(",")}`);
-  }
-
-  const rawManifest = readFileSync(manifestPath, "utf8");
-  const manifest = JSON.parse(rawManifest);
-  const sidecarRoot = sidecarRootFromManifest(manifestPath);
-  const serverEntryPath = path.join(sidecarRoot, manifest.serverEntry);
-  const serverRootPath = path.join(sidecarRoot, manifest.serverRoot);
-  const nodeBinaryPath = resolveNodeBinaryPath(sidecarRoot, manifest.nodeBinary, installedAppBundle);
-
-  if (!existsSync(serverEntryPath)) {
-    throw new Error(`Bundled server entry is missing: ${serverEntryPath}`);
-  }
-  if (!existsSync(serverRootPath)) {
-    throw new Error(`Bundled server root is missing: ${serverRootPath}`);
-  }
-
+async function runHealthyBundleScenario(appBundlePath, tempRoot) {
+  const { nodeBinaryPath, serverEntryPath, serverRootPath } = resolveBundledRuntimePaths(appBundlePath);
   const homeDir = path.join(tempRoot, "home");
   mkdirSync(homeDir, { recursive: true });
   const smokeInputFile = path.join(tempRoot, "smoke-input.log");
@@ -238,6 +305,52 @@ async function main() {
     throw error;
   } finally {
     await stopChild(child);
+  }
+}
+
+function runMissingServerEntryScenario(appBundlePath) {
+  const { serverEntryPath } = resolveBundledRuntimePaths(appBundlePath);
+  rmSync(serverEntryPath, { force: true });
+
+  try {
+    resolveBundledRuntimePaths(appBundlePath);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    if (!message.includes("[sidecar_server_entry_missing]")) {
+      throw error;
+    }
+    if (!message.includes(`server_entry=${serverEntryPath}`)) {
+      throw new Error(`Missing server_entry diagnostic in failure: ${message}`);
+    }
+    log(`Verified failure path: ${message}`);
+    return;
+  }
+
+  throw new Error("Expected sidecar_server_entry_missing failure after removing bundled server entry");
+}
+
+async function main() {
+  if (!existsSync(bundleRoot)) {
+    throw new Error(`Desktop bundle directory is missing: ${bundleRoot}`);
+  }
+
+  const appBundles = walkAppBundles(bundleRoot);
+  if (appBundles.length === 0) {
+    throw new Error(`No .app bundle found under: ${bundleRoot}`);
+  }
+  const sourceAppBundle = appBundles[0];
+  log(`Found app bundle: ${path.relative(repoRoot, sourceAppBundle)}`);
+
+  const tempRoot = mkdtempSync(path.join(os.tmpdir(), "cli-commentator-desktop-smoke-"));
+  try {
+    const healthyAppBundle = installAppBundle(sourceAppBundle, tempRoot, "Applications-success");
+    log(`Installed app bundle into temp root: ${healthyAppBundle}`);
+    await runHealthyBundleScenario(healthyAppBundle, path.join(tempRoot, "success-scenario"));
+
+    const missingEntryAppBundle = installAppBundle(sourceAppBundle, tempRoot, "Applications-missing-entry");
+    log(`Installed failure-path app bundle into temp root: ${missingEntryAppBundle}`);
+    runMissingServerEntryScenario(missingEntryAppBundle);
+  } finally {
     rmSync(tempRoot, { recursive: true, force: true });
   }
 

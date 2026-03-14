@@ -12,6 +12,7 @@ type StartupFailureLog = {
   context?: string;
   kind?: string;
   code?: string;
+  port?: number;
   target?: {
     cmd?: string;
     args?: string[];
@@ -346,6 +347,10 @@ describe("windows fallback integration", () => {
         50,
         "Did not observe structured startup failure log for startup fallback"
       );
+      const startupFailureLog = parseStartupFailureLogs(stderrOutput).find(
+        (log) => log.context === "startup" && log.kind === "ptyUnavailable"
+      );
+      expect(startupFailureLog?.port).toBe(port);
       await waitFor(
         () =>
           parseServerStateLogs(`${stdoutOutput}\n${stderrOutput}`).some(
@@ -424,6 +429,10 @@ describe("windows fallback integration", () => {
         50,
         "Did not observe structured startup failure log for restart fallback"
       );
+      const restartFailureLog = parseStartupFailureLogs(stderrOutput).find(
+        (log) => log.context === "restart" && log.kind === "ptyUnavailable"
+      );
+      expect(restartFailureLog?.port).toBe(port);
       await waitFor(
         () =>
           parseServerStateLogs(`${stdoutOutput}\n${stderrOutput}`).some(
@@ -547,6 +556,10 @@ describe("windows fallback integration", () => {
         50,
         "Did not observe structured startup failure log for missing INPUT_FILE on startup"
       );
+      const startupFailureLog = parseStartupFailureLogs(stderrOutput).find(
+        (log) => log.context === "startup" && log.kind === "ptyUnavailable"
+      );
+      expect(startupFailureLog?.port).toBe(port);
       await waitFor(
         () =>
           parseServerStateLogs(`${stdoutOutput}\n${stderrOutput}`).some(
@@ -625,6 +638,10 @@ describe("windows fallback integration", () => {
         50,
         "Did not observe structured startup failure log for missing INPUT_FILE on restart"
       );
+      const restartFailureLog = parseStartupFailureLogs(stderrOutput).find(
+        (log) => log.context === "restart" && log.kind === "ptyUnavailable"
+      );
+      expect(restartFailureLog?.port).toBe(port);
       await waitFor(
         () =>
           parseServerStateLogs(`${stdoutOutput}\n${stderrOutput}`).some(
@@ -710,6 +727,7 @@ describe("windows fallback integration", () => {
       (log) => log.context === "startup" && log.kind === "configError"
     );
     expect(structuredFailure?.code).toBe("input_file_missing");
+    expect(structuredFailure?.port).toBe(port);
     expect(structuredFailure?.target?.inputFile).toBeUndefined();
     expect(`${stdoutOutput}\n${stderrOutput}`).toContain("INPUT_FILE is required when INPUT_MODE=file");
     await writeStructuredLogCapture("file_mode_missing_input_file", stdoutOutput, stderrOutput);

@@ -32,6 +32,7 @@ export type PtyStartupFailureLog = {
   code: PtyFailureCode;
   error: string;
   inputMode: "pty" | "file";
+  port?: number;
   fallback: FileFallbackResult;
   target?: {
     cmd?: string;
@@ -83,6 +84,7 @@ export function buildPtyStartupFailureLog(params: {
   context: PtyFailureContext;
   failure: PtyFailure;
   inputMode: "pty" | "file";
+  port?: number;
   fallback: FileFallbackResult;
   target?: PtyStartupFailureLog["target"];
 }): PtyStartupFailureLog {
@@ -92,6 +94,7 @@ export function buildPtyStartupFailureLog(params: {
     code: classifyPtyStartupFailureCode(params.failure),
     error: params.failure.error,
     inputMode: params.inputMode,
+    port: params.port,
     fallback: params.fallback,
     target: params.target,
   };
@@ -101,6 +104,7 @@ export function buildInputStartupFailureLog(params: {
   context: PtyFailureContext;
   error: string;
   inputMode: "file";
+  port?: number;
   fallback: FileFallbackResult;
   target?: PtyStartupFailureLog["target"];
 }): PtyStartupFailureLog {
@@ -110,6 +114,7 @@ export function buildInputStartupFailureLog(params: {
     code: classifyInputStartupFailureCode(params.error),
     error: params.error,
     inputMode: params.inputMode,
+    port: params.port,
     fallback: params.fallback,
     target: params.target,
   };
