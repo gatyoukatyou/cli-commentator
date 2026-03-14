@@ -93,6 +93,21 @@ describe("getDesktopFailureGuidance", () => {
     expect(result?.commands[0]?.command).toContain("ls -l");
   });
 
+  it("classifies non-permission spawn errors with runtime diagnostics", () => {
+    const result = getDesktopFailureGuidance(
+      "failed",
+      "[spawn] Failed to start server | error=exec format error | port=8787 | node=/Applications/CLI Commentator.app/Contents/MacOS/node | entry=/Applications/CLI Commentator.app/Contents/Resources/server/dist/index.js | cwd=/Applications/CLI Commentator.app/Contents/Resources/server",
+      null
+    );
+    expect(result?.category).toBe("起動プロセス生成エラー");
+    expect(result?.summary).toContain("server プロセス");
+    expect(result?.primaryAction).toContain("node");
+    expect(result?.diagnostics.join(" ")).toContain("port=8787");
+    expect(result?.diagnostics.join(" ")).toContain("error=exec format error");
+    expect(result?.commands[0]?.command).toContain("/Applications/CLI Commentator.app/Contents/MacOS/node");
+    expect(result?.commands.map((item) => item.command)).toContain("pnpm verify:internal-release");
+  });
+
   it("classifies stop flow errors", () => {
     const result = getDesktopFailureGuidance(
       "failed",

@@ -91,6 +91,7 @@ describe("pty/startup-failure", () => {
       context: "startup",
       failure,
       inputMode: "pty",
+      port: 8787,
       fallback: NO_FALLBACK,
     });
 
@@ -100,6 +101,7 @@ describe("pty/startup-failure", () => {
       code: "target_command_not_found",
       error: "spawn bash ENOENT",
       inputMode: "pty",
+      port: 8787,
       fallback: NO_FALLBACK,
       target: undefined,
     });
@@ -115,6 +117,7 @@ describe("pty/startup-failure", () => {
       context: "startup",
       error: "INPUT_FILE not found: /tmp/missing.log",
       inputMode: "file",
+      port: 8799,
       fallback: NO_FALLBACK,
       target: {
         inputFile: "/tmp/missing.log",
@@ -127,6 +130,7 @@ describe("pty/startup-failure", () => {
       code: "input_file_not_found",
       error: "INPUT_FILE not found: /tmp/missing.log",
       inputMode: "file",
+      port: 8799,
       fallback: NO_FALLBACK,
       target: {
         inputFile: "/tmp/missing.log",

@@ -1344,11 +1344,23 @@ mod tests {
             format_sidecar_server_root_missing_failure(&manifest_path, &sidecar_root, &server_root);
 
         assert!(entry_error.contains("[sidecar_server_entry_missing]"));
-        assert!(entry_error.contains("sidecar_root=/Applications/CLI Commentator.app/Contents/Resources"));
-        assert!(entry_error.contains("server_entry=/Applications/CLI Commentator.app/Contents/Resources/server/dist/index.js"));
+        assert!(entry_error.contains(&format!(
+            "sidecar_root={}",
+            sidecar_root.display()
+        )));
+        assert!(entry_error.contains(&format!(
+            "server_entry={}",
+            server_entry.display()
+        )));
         assert!(root_error.contains("[sidecar_server_root_missing]"));
-        assert!(root_error.contains("sidecar_root=/Applications/CLI Commentator.app/Contents/Resources"));
-        assert!(root_error.contains("server_root=/Applications/CLI Commentator.app/Contents/Resources/server"));
+        assert!(root_error.contains(&format!(
+            "sidecar_root={}",
+            sidecar_root.display()
+        )));
+        assert!(root_error.contains(&format!(
+            "server_root={}",
+            server_root.display()
+        )));
     }
 
     #[test]
@@ -1370,8 +1382,18 @@ mod tests {
         );
 
         assert!(error.contains("[sidecar_node_missing]"));
-        assert!(error.contains("sidecar_root=/Applications/CLI Commentator.app/Contents/Resources"));
-        assert!(error.contains("candidates=/Applications/CLI Commentator.app/Contents/Resources/binaries/node-aarch64-apple-darwin,/Applications/CLI Commentator.app/Contents/MacOS/node"));
-        assert!(error.contains("executable_dir=/Applications/CLI Commentator.app/Contents/MacOS"));
+        assert!(error.contains(&format!(
+            "sidecar_root={}",
+            sidecar_root.display()
+        )));
+        assert!(error.contains(&format!(
+            "candidates={},{}",
+            expected.display(),
+            executable_dir.join("node").display()
+        )));
+        assert!(error.contains(&format!(
+            "executable_dir={}",
+            executable_dir.display()
+        )));
     }
 }

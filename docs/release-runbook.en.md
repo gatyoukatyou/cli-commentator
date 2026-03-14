@@ -130,6 +130,7 @@ Notes:
 - `verify:internal-release` is a wrapper that executes the unsigned-internal runbook checklist in order.
 - If `GH_RELEASE_TOKEN` is not set, it automatically uses `gh auth token`.
 - With `CLI_COMMENTATOR_FORCE_NO_PTY=1`, node-pty-required coverage (`windows-fallback-integration` restart `ptyError` scenario) is intentionally skipped.
+- `pnpm smoke:desktop-distribution` now checks both the healthy bundle path and a broken `.app` copy that must fail with `[sidecar_server_entry_missing]`.
 - `verify:release-token` prefers `GH_RELEASE_TOKEN` and falls back to `GITHUB_TOKEN`, then probes release-write capability via GitHub API.
 - If local `GITHUB_TOKEN` is unavailable, export `GH_RELEASE_TOKEN` temporarily before running the check.
 - `verify:apple-signing:detect` reports missing Apple secrets and exits 0 (useful for unsigned-internal operation).
@@ -260,6 +261,7 @@ Actions:
 - Root cause + remediation notes (if incident occurred)
 - RC decision evidence record (format from `docs/release-evidence-template.en.md`)
 - `failure_regression` summary (`failure-regression-logs/summary.md`)
+- `failure_regression` structured log aggregates (`failure-regression-logs/structured-log-summary.json` and `failure-regression-logs/structured-log-captures/*.log`)
 
 Keeping these five points makes later incidents much easier to reproduce and fix.
 
@@ -310,5 +312,20 @@ rg '^\[(startup/failure|server/state-event|desktop/server-event)\] ' <log-file>
 ```
 
 Notes:
-- Use `<log-file>` as either an Actions artifact log (for example: `artifacts/failure-regression/console.log`) or local stdout/stderr capture
+- In CI, `failure-regression-logs/summary.md` now includes aggregated `startup/failure` and `server/state-event` coverage, while raw details are available in `failure-regression-logs/structured-log-summary.json` and `failure-regression-logs/structured-log-captures/*.log`
+- Use `<log-file>` as either an Actions artifact log (for example: `failure-regression-logs/structured-log-captures/startup-and-restart-fallback-activated.log` or `artifacts/failure-regression/console.log`) or local stdout/stderr capture
 - For incident triage, start with `startup/failure` and then correlate `server/state-event` and `desktop/server-event` in timeline order
+
+### 6-4. Failure Mapping
+
+`apps/server` `[startup/failure]` and Desktop `status.error` / `[desktop/server-event]` are different layers. The former describes bundled server startup failures, while the latter describes Tauri launcher failures. The Web recovery UI primarily classifies the latter.
+
+| Layer | Primary signal | Representative categories | How to use it |
+| --- | --- | --- | --- |
+| `apps/server` | `[startup/failure]` `code` | `node_pty_unavailable`, `target_command_not_found`, `target_cwd_not_found`, `target_permission_denied`, `invalid_target_args_json`, `input_file_missing`, `input_file_not_found`, `input_file_permission_denied` | Inspect `target.cmd`, `target.cwd`, `target.inputFile`, `port`, and `fallback.reason` to understand bundled server startup preconditions |
+| `apps/desktop` | `status.error` / `[desktop/server-event] detail` | `port_resolve`, `sidecar_manifest_*`, `sidecar_node_missing`, `sidecar_server_entry_missing`, `sidecar_server_root_missing`, `spawn`, `unexpected_exit`, `process_state`, `stop_process`, `wait_shutdown`, `inspect_before_stop` | Separate missing bundle contents from process creation failures and post-launch exits |
+| `apps/web` | recovery UI category | `Port resolution error`, `Bundled runtime error`, `Process spawn error`, `Permission error`, `Unexpected server exit`, `Stop flow error`, `Project root error` | Present the first operator action and suggested verification commands |
+
+Operational notes:
+- `spawn` with `permission denied` maps to `Permission error`; other `spawn` failures map to `Process spawn error` and should point operators to `node`, `entry`, and `cwd`.
+- `desktop_distribution_smoke` keeps `[sidecar_server_entry_missing]` as its negative-path check so smoke coverage stays aligned with the Web-side bundled-runtime guidance.

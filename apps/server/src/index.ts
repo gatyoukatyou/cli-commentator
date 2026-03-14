@@ -200,6 +200,7 @@ function logPtyStartupFailure(
     context,
     failure,
     inputMode: runtimeInputMode,
+    port: PORT,
     fallback,
     target,
   });
@@ -220,6 +221,7 @@ function logInputStartupFailure(
     context,
     error,
     inputMode: "file",
+    port: PORT,
     fallback: NO_FILE_FALLBACK,
     target: {
       inputFile: inputFile?.trim() || undefined,

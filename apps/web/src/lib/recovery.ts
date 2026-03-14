@@ -92,6 +92,14 @@ function isSidecarRuntimeError(context: FailureContext): boolean {
   );
 }
 
+function isSpawnStartError(context: FailureContext): boolean {
+  return (
+    hasCategory(context, "spawn") ||
+    context.normalizedSource.includes("failed to start server") ||
+    context.normalizedSource.includes("failed to spawn server process")
+  );
+}
+
 function isPermissionError(context: FailureContext): boolean {
   return (
     context.normalizedSource.includes("permission denied") ||
@@ -300,6 +308,53 @@ export function getDesktopFailureGuidance(
               label: "配布物の事前検証を再実行",
               command: "pnpm verify:internal-release",
             },
+      ]),
+    };
+  }
+
+  if (isSpawnStartError(context)) {
+    const diagnostics: string[] = [];
+    const hints = [
+      "sidecar 配置は見つかっているため、`node` / `entry` / `cwd` のどこでプロセス生成に失敗したかを診断情報から確認してください。",
+      "配布物の破損や CPU アーキテクチャ不一致が疑わしい場合は、再インストールまたは `pnpm prepare:desktop-sidecar` の再実行を優先してください。",
+    ];
+    addDiagnosticHint(diagnostics, "manifest", context.fields.manifest);
+    addDiagnosticHint(diagnostics, "sidecar_root", context.fields.sidecar_root);
+    addDiagnosticHint(diagnostics, "node", context.fields.node);
+    addDiagnosticHint(diagnostics, "entry", context.fields.entry);
+    addDiagnosticHint(diagnostics, "cwd", context.fields.cwd);
+    addDiagnosticHint(diagnostics, "port", context.fields.port);
+    addDiagnosticHint(diagnostics, "error", context.fields.error);
+
+    return {
+      category: "起動プロセス生成エラー",
+      summary: "Desktop は sidecar を解決できていますが、server プロセスの生成に失敗しています。",
+      primaryAction: "診断情報の `node` / `entry` / `cwd` を確認し、sidecar を作り直してから Retry Start を押してください。",
+      hints,
+      diagnostics,
+      commands: uniqueCommands([
+        context.fields.node
+          ? {
+              label: "node 実行ファイルを確認",
+              command: `ls -l ${quoteShellArg(context.fields.node)}`,
+            }
+          : {
+              label: "配布前検証を再実行",
+              command: "pnpm verify:internal-release",
+            },
+        context.fields.entry
+          ? {
+              label: "server entry を確認",
+              command: `ls -l ${quoteShellArg(context.fields.entry)}`,
+            }
+          : {
+              label: "sidecar を再生成",
+              command: "pnpm prepare:desktop-sidecar",
+            },
+        {
+          label: "配布前検証を再実行",
+          command: "pnpm verify:internal-release",
+        },
       ]),
     };
   }

@@ -51,7 +51,9 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p artifacts/failure-regression
+          export FAILURE_REGRESSION_CAPTURE_DIR="$PWD/artifacts/failure-regression/structured-log-captures"
           pnpm -C apps/server exec vitest run \
+            src/tests/failure-regression-summary.test.ts \
             src/tests/state-event.test.ts \
             src/tests/startup.failure.test.ts \
             src/tests/windows-fallback-integration.test.ts \
@@ -68,7 +70,8 @@ jobs:
         run: |
           node ./scripts/summarize-failure-regression.mjs \
             artifacts/failure-regression/vitest-results.json \
-            artifacts/failure-regression/summary.md
+            artifacts/failure-regression/summary.md \
+            artifacts/failure-regression/structured-log-captures
 
       - name: Upload failure regression logs
         if: always()

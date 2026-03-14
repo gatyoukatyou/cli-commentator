@@ -130,6 +130,7 @@ pnpm smoke:desktop-distribution
 - `verify:internal-release` は Runbook の unsigned internal 検証手順を順番に実行するラッパー。
 - `GH_RELEASE_TOKEN` 未設定時は `gh auth token` を自動利用する。
 - `CLI_COMMENTATOR_FORCE_NO_PTY=1` では node-pty 必須ケース（`windows-fallback-integration` の restart `ptyError` 検証）は意図的に skip される。
+- `pnpm smoke:desktop-distribution` は success path に加え、壊した `.app` コピーで `[sidecar_server_entry_missing]` が想定どおり検出されることも確認する。
 - `verify:release-token` は `GH_RELEASE_TOKEN` 優先・未設定時は `GITHUB_TOKEN` を使用し、release write 権限を API で判定する。
 - ローカルで `GITHUB_TOKEN` が無い場合は、`GH_RELEASE_TOKEN` を一時exportして実行する。
 - `verify:apple-signing:detect` は不足Secretsを表示して 0 で終了する（無償期間の unsigned internal 運用向け）。
@@ -261,6 +262,7 @@ pnpm smoke:desktop-distribution
 - 異常時の原因と対応内容
 - RC判定証跡レコード（`docs/release-evidence-template.ja.md` 形式）
 - `failure_regression` の要約（`failure-regression-logs/summary.md`）
+- `failure_regression` の structured log 集計（`failure-regression-logs/structured-log-summary.json` と `failure-regression-logs/structured-log-captures/*.log`）
 
 この5点を残すと、次回の再現性が上がります。
 
@@ -311,5 +313,20 @@ rg '^\[(startup/failure|server/state-event|desktop/server-event)\] ' <log-file>
 ```
 
 メモ:
-- `<log-file>` には Actions artifact（例: `artifacts/failure-regression/console.log`）またはローカル実行のstdout/stderrログを指定
+- CI では `failure-regression-logs/summary.md` が `startup/failure` / `server/state-event` の集計を含み、詳細は `failure-regression-logs/structured-log-summary.json` と `failure-regression-logs/structured-log-captures/*.log` に出力される
+- `<log-file>` には Actions artifact（例: `failure-regression-logs/structured-log-captures/startup-and-restart-fallback-activated.log` または `artifacts/failure-regression/console.log`）またはローカル実行のstdout/stderrログを指定
 - まず `startup/failure` を見てから `server/state-event` / `desktop/server-event` を時系列で追うと切り分けしやすい
+
+### 6-4) 失敗分類の対応表
+
+`apps/server` の `[startup/failure]` と Desktop の `status.error` / `[desktop/server-event]` は別レイヤーです。前者は bundled server 自体の起動失敗ログ、後者は Tauri launcher の失敗文字列で、Web の recovery UI は主に後者を分類します。
+
+| レイヤー | 主信号 | 代表カテゴリ | 使い方 |
+| --- | --- | --- | --- |
+| `apps/server` | `[startup/failure]` `code` | `node_pty_unavailable`, `target_command_not_found`, `target_cwd_not_found`, `target_permission_denied`, `invalid_target_args_json`, `input_file_missing`, `input_file_not_found`, `input_file_permission_denied` | `target.cmd` / `target.cwd` / `target.inputFile` / `port` / `fallback.reason` を見て server 側の再現条件を切り分ける |
+| `apps/desktop` | `status.error` / `[desktop/server-event] detail` | `port_resolve`, `sidecar_manifest_*`, `sidecar_node_missing`, `sidecar_server_entry_missing`, `sidecar_server_root_missing`, `spawn`, `unexpected_exit`, `process_state`, `stop_process`, `wait_shutdown`, `inspect_before_stop` | 同梱物不足か、起動プロセス生成失敗か、起動後異常終了かを切り分ける |
+| `apps/web` | recovery UI category | `ポート解決エラー`, `同梱ランタイムエラー`, `起動プロセス生成エラー`, `権限エラー`, `サーバープロセス異常終了`, `停止処理エラー`, `起動ディレクトリエラー` | 最初のアクションと確認コマンドをオペレータ向けに提示する |
+
+運用メモ:
+- `spawn` のうち `permission denied` は `権限エラー` に寄せ、それ以外の `spawn` は `起動プロセス生成エラー` として `node` / `entry` / `cwd` の確認に誘導する。
+- `desktop_distribution_smoke` の failure path は `[sidecar_server_entry_missing]` を固定観点として持ち、UI の「同梱ランタイムエラー」分類と揃える。
