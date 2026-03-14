@@ -260,6 +260,7 @@ Actions:
 - Root cause + remediation notes (if incident occurred)
 - RC decision evidence record (format from `docs/release-evidence-template.en.md`)
 - `failure_regression` summary (`failure-regression-logs/summary.md`)
+- `failure_regression` structured log aggregates (`failure-regression-logs/structured-log-summary.json` and `failure-regression-logs/structured-log-captures/*.log`)
 
 Keeping these five points makes later incidents much easier to reproduce and fix.
 
@@ -310,5 +311,6 @@ rg '^\[(startup/failure|server/state-event|desktop/server-event)\] ' <log-file>
 ```
 
 Notes:
-- Use `<log-file>` as either an Actions artifact log (for example: `artifacts/failure-regression/console.log`) or local stdout/stderr capture
+- In CI, `failure-regression-logs/summary.md` now includes aggregated `startup/failure` and `server/state-event` coverage, while raw details are available in `failure-regression-logs/structured-log-summary.json` and `failure-regression-logs/structured-log-captures/*.log`
+- Use `<log-file>` as either an Actions artifact log (for example: `failure-regression-logs/structured-log-captures/startup-and-restart-fallback-activated.log` or `artifacts/failure-regression/console.log`) or local stdout/stderr capture
 - For incident triage, start with `startup/failure` and then correlate `server/state-event` and `desktop/server-event` in timeline order

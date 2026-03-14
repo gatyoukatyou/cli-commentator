@@ -261,6 +261,7 @@ pnpm smoke:desktop-distribution
 - 異常時の原因と対応内容
 - RC判定証跡レコード（`docs/release-evidence-template.ja.md` 形式）
 - `failure_regression` の要約（`failure-regression-logs/summary.md`）
+- `failure_regression` の structured log 集計（`failure-regression-logs/structured-log-summary.json` と `failure-regression-logs/structured-log-captures/*.log`）
 
 この5点を残すと、次回の再現性が上がります。
 
@@ -311,5 +312,6 @@ rg '^\[(startup/failure|server/state-event|desktop/server-event)\] ' <log-file>
 ```
 
 メモ:
-- `<log-file>` には Actions artifact（例: `artifacts/failure-regression/console.log`）またはローカル実行のstdout/stderrログを指定
+- CI では `failure-regression-logs/summary.md` が `startup/failure` / `server/state-event` の集計を含み、詳細は `failure-regression-logs/structured-log-summary.json` と `failure-regression-logs/structured-log-captures/*.log` に出力される
+- `<log-file>` には Actions artifact（例: `failure-regression-logs/structured-log-captures/startup-and-restart-fallback-activated.log` または `artifacts/failure-regression/console.log`）またはローカル実行のstdout/stderrログを指定
 - まず `startup/failure` を見てから `server/state-event` / `desktop/server-event` を時系列で追うと切り分けしやすい
