@@ -72,6 +72,18 @@ describe("getDesktopFailureGuidance", () => {
     expect(result?.hints[0]).toContain("Contents/Resources");
   });
 
+  it("classifies sidecar manifest parse errors", () => {
+    const result = getDesktopFailureGuidance(
+      "failed",
+      "[sidecar_manifest_parse] Failed to parse sidecar manifest | manifest=/Applications/CLI Commentator/Contents/Resources/sidecar-manifest.json | error=expected value at line 1 column 1",
+      null
+    );
+    expect(result?.category).toBe("同梱ランタイムエラー");
+    expect(result?.summary).toContain("内容の読み取りに失敗");
+    expect(result?.primaryAction).toContain("JSON 形式");
+    expect(result?.diagnostics.join(" ")).toContain("error=expected value at line 1 column 1");
+  });
+
   it("classifies permission errors", () => {
     const result = getDesktopFailureGuidance("failed", "Failed to start server: permission denied", null);
     expect(result?.category).toBe("権限エラー");
@@ -119,11 +131,41 @@ describe("getDesktopFailureGuidance", () => {
     expect(result?.primaryAction).toContain("Desktop を再起動");
   });
 
+  it("classifies inspect-before-stop errors as stop flow errors", () => {
+    const result = getDesktopFailureGuidance(
+      "failed",
+      "[inspect_before_stop] Failed to inspect server process before stop | error=access denied",
+      null
+    );
+    expect(result?.category).toBe("停止処理エラー");
+    expect(result?.diagnostics.join(" ")).toContain("error=access denied");
+  });
+
   it("classifies unexpected exit errors", () => {
     const result = getDesktopFailureGuidance("failed", "Server exited unexpectedly with code 1", null);
     expect(result?.category).toBe("サーバープロセス異常終了");
     expect(result?.hints.join(" ")).toContain("resources/server/dist/index.js");
     expect(result?.primaryAction).toContain("Retry Start");
+  });
+
+  it("classifies process state errors as unexpected exits", () => {
+    const result = getDesktopFailureGuidance(
+      "failed",
+      "[process_state] Failed to read server process state | error=io failure",
+      null
+    );
+    expect(result?.category).toBe("サーバープロセス異常終了");
+    expect(result?.diagnostics.join(" ")).toContain("error=io failure");
+  });
+
+  it("classifies missing process handle errors as unexpected exits", () => {
+    const result = getDesktopFailureGuidance(
+      "failed",
+      "[missing_process_handle] Server process handle is missing while running | port=8787",
+      null
+    );
+    expect(result?.category).toBe("サーバープロセス異常終了");
+    expect(result?.diagnostics.join(" ")).toContain("port=8787");
   });
 
   it("adds structured port diagnostics when available", () => {
@@ -173,6 +215,18 @@ describe("getDesktopFailureGuidance", () => {
     expect(result?.summary).toContain("bundled server entry");
     expect(result?.primaryAction).toContain("resources/server/dist/index.js");
     expect(result?.commands.map((item) => item.command)).toContain("pnpm verify:internal-release");
+  });
+
+  it("surfaces sidecar server root guidance", () => {
+    const result = getDesktopFailureGuidance(
+      "failed",
+      "[sidecar_server_root_missing] Bundled server root is missing | manifest=/Applications/CLI Commentator.app/Contents/Resources/sidecar-manifest.json | sidecar_root=/Applications/CLI Commentator.app/Contents/Resources | server_root=/Applications/CLI Commentator.app/Contents/Resources/server",
+      null
+    );
+    expect(result?.category).toBe("同梱ランタイムエラー");
+    expect(result?.summary).toContain("bundled server root");
+    expect(result?.primaryAction).toContain("resources/server");
+    expect(result?.diagnostics.join(" ")).toContain("server_root=/Applications/CLI Commentator.app/Contents/Resources/server");
   });
 
   it("falls back to generic guidance for unknown errors", () => {
