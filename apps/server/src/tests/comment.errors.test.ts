@@ -158,4 +158,20 @@ describe("comment() error classification", () => {
 
     logSpy.mockRestore();
   });
+
+  it("suppresses commentary for generic log-update stdout events", async () => {
+    const { comment } = await import("../styles/index.js");
+
+    const ev: Event = {
+      ts: Date.now(),
+      type: "stdout",
+      summary: "ログ更新",
+      detail: "10s • esc to interrupt)",
+    };
+
+    const result = await comment(ev, "zundamon");
+    expect(result.narration).toBeUndefined();
+    expect(result.explanation).toBeUndefined();
+    expect(result.glossaryNotes).toBeUndefined();
+  });
 });
