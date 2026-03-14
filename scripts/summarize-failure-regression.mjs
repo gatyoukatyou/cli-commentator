@@ -2,6 +2,10 @@
 
 import fs from "node:fs/promises";
 import path from "node:path";
+import { pathToFileURL } from "node:url";
+
+const STARTUP_FAILURE_PREFIX = "[startup/failure] ";
+const SERVER_STATE_EVENT_PREFIX = "[server/state-event] ";
 
 async function fileExists(filePath) {
   try {
@@ -44,7 +48,203 @@ function collectFailures(report) {
   return failures;
 }
 
-function renderSummary(reportPath, report, failures) {
+function incrementCounter(counter, key) {
+  const normalizedKey = key && String(key).trim().length > 0 ? String(key) : "(unknown)";
+  counter.set(normalizedKey, (counter.get(normalizedKey) ?? 0) + 1);
+}
+
+function toSortedCountList(counter) {
+  return [...counter.entries()]
+    .sort((a, b) => {
+      if (b[1] !== a[1]) return b[1] - a[1];
+      return a[0].localeCompare(b[0]);
+    })
+    .map(([value, count]) => ({ value, count }));
+}
+
+function formatCountList(items, limit = 5) {
+  if (!items || items.length === 0) return "none";
+  return items
+    .slice(0, limit)
+    .map((item) => `\`${item.value}\` x${item.count}`)
+    .join(", ");
+}
+
+function parseStructuredLogLine(line) {
+  if (line.startsWith(STARTUP_FAILURE_PREFIX)) {
+    return {
+      type: "startupFailure",
+      payload: JSON.parse(line.slice(STARTUP_FAILURE_PREFIX.length)),
+    };
+  }
+  if (line.startsWith(SERVER_STATE_EVENT_PREFIX)) {
+    return {
+      type: "serverStateEvent",
+      payload: JSON.parse(line.slice(SERVER_STATE_EVENT_PREFIX.length)),
+    };
+  }
+  return null;
+}
+
+export function parseStructuredLogLines(raw) {
+  const startupFailures = [];
+  const serverStateEvents = [];
+  const parseErrors = [];
+
+  for (const [index, line] of String(raw ?? "").split(/\r?\n/).entries()) {
+    if (!line.startsWith(STARTUP_FAILURE_PREFIX) && !line.startsWith(SERVER_STATE_EVENT_PREFIX)) continue;
+    try {
+      const parsed = parseStructuredLogLine(line);
+      if (!parsed) continue;
+      if (parsed.type === "startupFailure") startupFailures.push(parsed.payload);
+      else serverStateEvents.push(parsed.payload);
+    } catch (error) {
+      parseErrors.push({
+        lineNumber: index + 1,
+        message: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+
+  return { startupFailures, serverStateEvents, parseErrors };
+}
+
+function summarizeScenario(fileName, parsed) {
+  const startupCodes = new Set();
+  const startupFallbackReasons = new Set();
+  const startupContexts = new Set();
+  const stateTriggers = new Set();
+
+  for (const failure of parsed.startupFailures) {
+    if (failure?.code) startupCodes.add(String(failure.code));
+    if (failure?.fallback?.reason) startupFallbackReasons.add(String(failure.fallback.reason));
+    if (failure?.context) startupContexts.add(String(failure.context));
+  }
+
+  for (const event of parsed.serverStateEvents) {
+    if (event?.trigger) stateTriggers.add(String(event.trigger));
+  }
+
+  return {
+    scenario: path.basename(fileName, path.extname(fileName)),
+    fileName,
+    startupFailureCount: parsed.startupFailures.length,
+    serverStateEventCount: parsed.serverStateEvents.length,
+    startupCodes: [...startupCodes],
+    startupFallbackReasons: [...startupFallbackReasons],
+    startupContexts: [...startupContexts],
+    stateTriggers: [...stateTriggers],
+    parseErrors: parsed.parseErrors,
+  };
+}
+
+export async function collectStructuredLogCaptureSummary(captureDir) {
+  const summary = {
+    found: false,
+    captureDir,
+    captureFiles: [],
+    scenarioCount: 0,
+    startupFailureCount: 0,
+    serverStateEventCount: 0,
+    startupFailureCodes: [],
+    fallbackReasons: [],
+    serverStateTriggers: [],
+    scenarios: [],
+    parseErrors: [],
+  };
+
+  if (!captureDir || !(await fileExists(captureDir))) {
+    return summary;
+  }
+
+  const entries = await fs.readdir(captureDir, { withFileTypes: true });
+  const logFiles = entries
+    .filter((entry) => entry.isFile() && entry.name.endsWith(".log"))
+    .map((entry) => entry.name)
+    .sort((a, b) => a.localeCompare(b));
+
+  summary.found = true;
+  summary.captureFiles = logFiles;
+  summary.scenarioCount = logFiles.length;
+
+  const startupCodeCounts = new Map();
+  const fallbackReasonCounts = new Map();
+  const stateTriggerCounts = new Map();
+
+  for (const fileName of logFiles) {
+    const raw = await fs.readFile(path.join(captureDir, fileName), "utf-8");
+    const parsed = parseStructuredLogLines(raw);
+    const scenario = summarizeScenario(fileName, parsed);
+    summary.scenarios.push(scenario);
+    summary.parseErrors.push(
+      ...scenario.parseErrors.map((error) => ({
+        fileName,
+        ...error,
+      }))
+    );
+
+    summary.startupFailureCount += parsed.startupFailures.length;
+    summary.serverStateEventCount += parsed.serverStateEvents.length;
+
+    for (const failure of parsed.startupFailures) {
+      incrementCounter(startupCodeCounts, failure?.code);
+      incrementCounter(fallbackReasonCounts, failure?.fallback?.reason);
+    }
+    for (const event of parsed.serverStateEvents) {
+      incrementCounter(stateTriggerCounts, event?.trigger);
+    }
+  }
+
+  summary.startupFailureCodes = toSortedCountList(startupCodeCounts);
+  summary.fallbackReasons = toSortedCountList(fallbackReasonCounts);
+  summary.serverStateTriggers = toSortedCountList(stateTriggerCounts);
+  return summary;
+}
+
+function renderStructuredLogSection(structuredSummary) {
+  const lines = ["### Structured Log Coverage"];
+
+  if (!structuredSummary.found) {
+    lines.push(`- Captures: not found (\`${structuredSummary.captureDir}\`)`);
+    return lines;
+  }
+
+  lines.push(`- Capture files: ${structuredSummary.scenarioCount} (\`${structuredSummary.captureDir}\`)`);
+  lines.push(
+    `- Startup failures: ${structuredSummary.startupFailureCount} (${formatCountList(structuredSummary.startupFailureCodes)})`
+  );
+  lines.push(`- Fallback reasons: ${formatCountList(structuredSummary.fallbackReasons)}`);
+  lines.push(
+    `- Server state events: ${structuredSummary.serverStateEventCount} (${formatCountList(structuredSummary.serverStateTriggers)})`
+  );
+
+  if (structuredSummary.parseErrors.length > 0) {
+    lines.push(`- Parse errors: ${structuredSummary.parseErrors.length}`);
+  }
+
+  if (structuredSummary.scenarios.length > 0) {
+    lines.push("", "### Structured Log Scenarios");
+    for (const scenario of structuredSummary.scenarios) {
+      const startupInfo =
+        scenario.startupFailureCount > 0
+          ? `${scenario.startupFailureCount} startup/failure (${scenario.startupCodes.join(", ") || "unknown"})`
+          : "no startup/failure";
+      const fallbackInfo =
+        scenario.startupFallbackReasons.length > 0
+          ? `fallback=${scenario.startupFallbackReasons.join(", ")}`
+          : "fallback=none";
+      const stateInfo =
+        scenario.serverStateEventCount > 0
+          ? `${scenario.serverStateEventCount} state-event (${scenario.stateTriggers.join(", ") || "unknown"})`
+          : "no state-event";
+      lines.push(`- \`${scenario.scenario}\`: ${startupInfo}; ${fallbackInfo}; ${stateInfo}`);
+    }
+  }
+
+  return lines;
+}
+
+function renderSummary(reportPath, report, failures, structuredSummary) {
   const success = Boolean(report?.success);
   const icon = success ? "✅" : "❌";
   const duration = formatDurationMs(Number(report?.startTime), report?.testResults ?? []);
@@ -81,6 +281,10 @@ function renderSummary(reportPath, report, failures) {
     }
   }
 
+  if (structuredSummary) {
+    lines.push("", ...renderStructuredLogSection(structuredSummary));
+  }
+
   return `${lines.join("\n")}\n`;
 }
 
@@ -95,16 +299,24 @@ function renderMissingReportSummary(reportPath) {
   ].join("\n");
 }
 
-async function main() {
-  const reportPath = process.argv[2];
-  const outputPath = process.argv[3];
+async function writeStructuredLogSummaryArtifact(outputPath, structuredSummary) {
+  if (!outputPath || !structuredSummary) return;
+  const structuredSummaryPath = path.join(path.dirname(outputPath), "structured-log-summary.json");
+  await fs.writeFile(structuredSummaryPath, `${JSON.stringify(structuredSummary, null, 2)}\n`, "utf-8");
+}
+
+export async function summarizeFailureRegression({
+  reportPath,
+  outputPath,
+  captureDir,
+}) {
+  const resolvedCaptureDir = captureDir ?? path.join(path.dirname(outputPath ?? reportPath), "structured-log-captures");
 
   if (!reportPath) {
-    console.error("Usage: node scripts/summarize-failure-regression.mjs <reportPath> [outputPath]");
-    process.exitCode = 1;
-    return;
+    throw new Error("Usage: node scripts/summarize-failure-regression.mjs <reportPath> [outputPath] [captureDir]");
   }
 
+  const structuredSummary = await collectStructuredLogCaptureSummary(resolvedCaptureDir);
   let markdown;
   if (!(await fileExists(reportPath))) {
     markdown = renderMissingReportSummary(reportPath);
@@ -112,12 +324,13 @@ async function main() {
     const raw = await fs.readFile(reportPath, "utf-8");
     const report = JSON.parse(raw);
     const failures = collectFailures(report);
-    markdown = renderSummary(reportPath, report, failures);
+    markdown = renderSummary(reportPath, report, failures, structuredSummary);
   }
 
   if (outputPath) {
     await fs.mkdir(path.dirname(outputPath), { recursive: true });
     await fs.writeFile(outputPath, markdown, "utf-8");
+    await writeStructuredLogSummaryArtifact(outputPath, structuredSummary);
   }
 
   if (process.env.GITHUB_STEP_SUMMARY) {
@@ -127,7 +340,16 @@ async function main() {
   process.stdout.write(markdown);
 }
 
-main().catch((err) => {
-  console.error(`[failure-regression-summary] ${err instanceof Error ? err.stack ?? err.message : String(err)}`);
-  process.exitCode = 1;
-});
+async function main() {
+  const reportPath = process.argv[2];
+  const outputPath = process.argv[3];
+  const captureDir = process.argv[4];
+  await summarizeFailureRegression({ reportPath, outputPath, captureDir });
+}
+
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  main().catch((err) => {
+    console.error(`[failure-regression-summary] ${err instanceof Error ? err.stack ?? err.message : String(err)}`);
+    process.exitCode = 1;
+  });
+}

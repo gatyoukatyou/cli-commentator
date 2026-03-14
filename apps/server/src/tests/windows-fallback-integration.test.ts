@@ -34,6 +34,8 @@ type ServerStateLog = {
   context?: Record<string, unknown> | null;
 };
 
+const STRUCTURED_LOG_CAPTURE_DIR = process.env.FAILURE_REGRESSION_CAPTURE_DIR;
+
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -221,6 +223,32 @@ function parseServerStateLogs(output: string): ServerStateLog[] {
         return [];
       }
     });
+}
+
+function collectStructuredLogLines(stdoutOutput: string, stderrOutput: string): string[] {
+  return `${stdoutOutput}\n${stderrOutput}`
+    .split(/\r?\n/)
+    .filter(
+      (line) => line.startsWith("[startup/failure] ") || line.startsWith("[server/state-event] ")
+    );
+}
+
+function sanitizeCaptureName(name: string): string {
+  return name.replace(/[^a-z0-9]+/gi, "-").replace(/^-+|-+$/g, "").toLowerCase();
+}
+
+async function writeStructuredLogCapture(
+  scenarioName: string,
+  stdoutOutput: string,
+  stderrOutput: string
+): Promise<void> {
+  if (!STRUCTURED_LOG_CAPTURE_DIR) return;
+
+  const lines = collectStructuredLogLines(stdoutOutput, stderrOutput);
+  await fs.mkdir(STRUCTURED_LOG_CAPTURE_DIR, { recursive: true });
+  const filePath = path.join(STRUCTURED_LOG_CAPTURE_DIR, `${sanitizeCaptureName(scenarioName)}.log`);
+  const content = lines.length > 0 ? `${lines.join("\n")}\n` : "";
+  await fs.writeFile(filePath, content, "utf-8");
 }
 
 describe("windows fallback integration", () => {
@@ -427,6 +455,11 @@ describe("windows fallback integration", () => {
         ws.close();
       }
       await stopChild(child);
+      await writeStructuredLogCapture(
+        "startup_and_restart_fallback_activated",
+        stdoutOutput,
+        stderrOutput
+      );
       await fs.rm(tmpDir, { recursive: true, force: true });
     }
   }, 30000);
@@ -622,6 +655,11 @@ describe("windows fallback integration", () => {
         ws.close();
       }
       await stopChild(child);
+      await writeStructuredLogCapture(
+        "startup_and_restart_fallback_unavailable",
+        stdoutOutput,
+        stderrOutput
+      );
       await fs.rm(tmpDir, { recursive: true, force: true });
     }
   }, 30000);
@@ -674,6 +712,7 @@ describe("windows fallback integration", () => {
     expect(structuredFailure?.code).toBe("input_file_missing");
     expect(structuredFailure?.target?.inputFile).toBeUndefined();
     expect(`${stdoutOutput}\n${stderrOutput}`).toContain("INPUT_FILE is required when INPUT_MODE=file");
+    await writeStructuredLogCapture("file_mode_missing_input_file", stdoutOutput, stderrOutput);
   }, 10000);
 
   itWithLoopback("switches to an explicit file profile without re-emitting ptyUnavailable", async () => {
@@ -835,6 +874,11 @@ describe("windows fallback integration", () => {
         ws.close();
       }
       await stopChild(child);
+      await writeStructuredLogCapture(
+        "explicit_file_profile_transition",
+        stdoutOutput,
+        stderrOutput
+      );
       await fs.rm(tmpDir, { recursive: true, force: true });
     }
   }, 30000);
@@ -990,6 +1034,11 @@ describe("windows fallback integration", () => {
         ws.close();
       }
       await stopChild(child);
+      await writeStructuredLogCapture(
+        "invalid_profile_command_restart",
+        stdoutOutput,
+        stderrOutput
+      );
       await fs.rm(tmpDir, { recursive: true, force: true });
     }
   }, 30000);
