@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { summarizeFailureRegression } from "../../../../scripts/summarize-failure-regression.mjs";
+import { summarizeFailureRegression } from "../../../../scripts/summarize-failure-regression-lib.mjs";
 
 describe("scripts/summarize-failure-regression", () => {
   it("renders structured log coverage and writes aggregate artifact", async () => {
