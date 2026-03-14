@@ -54,4 +54,17 @@ describe("extractEvents fixtures", () => {
       },
     ]);
   });
+
+  it("drops Codex progress-noise lines from extraction", () => {
+    process.env.LOG_SOURCE = "codex";
+    const chunk = ["Working (14s • esc to interrupt)", "w", "•2", "10s • esc to interrupt)"].join("\n");
+    const events = extractEvents(chunk);
+    expect(events).toEqual([]);
+  });
+
+  it("uses the runtime source override for Codex noise suppression", () => {
+    delete process.env.LOG_SOURCE;
+    const events = extractEvents("10;?\n•2", "codex");
+    expect(events).toEqual([]);
+  });
 });

@@ -8,6 +8,7 @@ import type { LLMAdapter } from "../llm/adapter.js";
 import { CommentError } from "../errors.js";
 import { withTimeout } from "../utils/timeout.js";
 import type { ProfileLLMProviders } from "../profile/types.js";
+import { isCodexProgressNoise } from "../progress-noise.js";
 import {
   buildExplanationPrompt,
   buildNarrationPrompt,
@@ -540,6 +541,14 @@ function inferCommentaryMode(payload: CommentaryPayload): CommentaryMode {
   return "narration";
 }
 
+function isSuppressedCommentaryEvent(ev: Event): boolean {
+  return (
+    ev.type === "stdout" &&
+    ev.summary === "ログ更新" &&
+    isCodexProgressNoise((ev.detail ?? "").trim())
+  );
+}
+
 function withCommentaryMode(payload: CommentaryPayload): CommentaryPayload {
   return {
     ...payload,
@@ -551,6 +560,15 @@ function withCommentaryMode(payload: CommentaryPayload): CommentaryPayload {
 }
 
 function commentByRules(ev: Event, style: Style): CommentaryPayload {
+  if (isSuppressedCommentaryEvent(ev)) {
+    return withCommentaryMode({
+      meta: {
+        narrationProvider: "rules",
+        explanationProvider: "rules",
+      },
+    });
+  }
+
   const beginner = stripMemoPrefix(beginnerOneLine(ev, style));
   const glossaryNotes = getGlossaryNotes(ev.detail);
   const spotlight = detailSpotlight(ev, style);
@@ -652,6 +670,10 @@ async function commentInternal(
   providers: ProfileLLMProviders = {},
   signal?: AbortSignal
 ): Promise<CommentaryPayload> {
+  if (isSuppressedCommentaryEvent(ev)) {
+    return commentByRules(ev, style);
+  }
+
   const rules = commentByRules(ev, style);
   const resolvedProviders = resolveCommentaryProviders(providers);
   const narrationAdapter = getAdapter(resolvedProviders.narrationProvider);

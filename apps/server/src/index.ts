@@ -328,7 +328,11 @@ function processInputData(data: string, writeToStdout: boolean = true): void {
   }
 
   const clean = redact(data);
-  const evs = extractEvents(clean);
+  const activeSource =
+    sourceState.mode === "auto"
+      ? sourceState.detected ?? currentSourceMode
+      : sourceState.mode;
+  const evs = extractEvents(clean, activeSource);
   const detected = getAutoDetectedSource();
   if (detected) broadcastSource(detected);
 

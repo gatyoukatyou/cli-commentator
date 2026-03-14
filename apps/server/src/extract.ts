@@ -1,5 +1,6 @@
 import type { Event } from "./types.js";
 import { rulesForLine } from "./rulesets/index.js";
+import { isCodexProgressNoise } from "./progress-noise.js";
 
 // Remove ANSI/VT control sequences so TUI apps like Claude Code still match rules.
 const ANSI_ESCAPE_RE =
@@ -124,6 +125,11 @@ function preprocessLine(rawLine: string, sourceEnv?: string): string | null {
   const normalized = normalizeLine(rawLine);
   if (!normalized) return null;
 
+  const source = (sourceEnv ?? "").trim().toLowerCase();
+  if (source === "codex" && isCodexProgressNoise(normalized)) {
+    return null;
+  }
+
   if (/would you like to run the following command\?/i.test(normalized)) {
     return "Would you like to run the following command?";
   }
@@ -150,7 +156,6 @@ function preprocessLine(rawLine: string, sourceEnv?: string): string | null {
     return normalized;
   }
 
-  const source = (sourceEnv ?? "").trim().toLowerCase();
   if (source === "codex" || /\bcodex_core::/i.test(normalized)) {
     return null;
   }
@@ -158,7 +163,7 @@ function preprocessLine(rawLine: string, sourceEnv?: string): string | null {
   return normalized;
 }
 
-export function extractEvents(chunk: string): Event[] {
+export function extractEvents(chunk: string, sourceEnv: string | undefined = process.env.LOG_SOURCE): Event[] {
   const ts = Date.now();
 
   const events: Event[] = [];
@@ -166,10 +171,10 @@ export function extractEvents(chunk: string): Event[] {
     const sourceLine = normalizeLine(rawLine);
     if (!sourceLine) continue;
 
-    const line = preprocessLine(rawLine, process.env.LOG_SOURCE);
+    const line = preprocessLine(rawLine, sourceEnv);
     if (!line) continue;
 
-    const rules = rulesForLine(sourceLine, process.env.LOG_SOURCE);
+    const rules = rulesForLine(sourceLine, sourceEnv);
     const hit = rules.find((rule) => rule.re.test(line));
     if (hit) events.push({ ts, type: hit.type, summary: hit.summary, detail: line });
     else events.push({ ts, type: "stdout", summary: "ログ更新", detail: line });
