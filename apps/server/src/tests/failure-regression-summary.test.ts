@@ -51,6 +51,13 @@ describe("scripts/summarize-failure-regression", () => {
         ].join("\n"),
         "utf-8"
       );
+      await fs.writeFile(
+        path.join(captureDir, "explicit-file-profile.log"),
+        [
+          '[server/state-event] {"ts":3,"trigger":"file_tail_started","from":"restarting","to":"file_running","inputMode":"file","profileId":"profile-2","detail":"tail -f /tmp/profile.log","context":{"inputFile":"/tmp/profile.log"}}',
+        ].join("\n"),
+        "utf-8"
+      );
 
       await summarizeFailureRegression({ reportPath, outputPath, captureDir });
 
@@ -60,23 +67,35 @@ describe("scripts/summarize-failure-regression", () => {
       expect(markdown).toContain("`node_pty_unavailable` x2");
       expect(markdown).toContain("`activated` x1");
       expect(markdown).toContain("`file_not_found` x1");
-      expect(markdown).toContain("`file_tail_started` x1");
+      expect(markdown).toContain("`file_tail_started` x2");
       expect(markdown).toContain("`restart_failed` x1");
+      expect(markdown).toContain("`explicit_file_profile` x1");
+      expect(markdown).toContain("`restart_fallback_unavailable` x1");
+      expect(markdown).toContain("`startup_fallback_activated` x1");
       expect(markdown).toContain("`startup-restart-fallback`");
+      expect(markdown).toContain("routes=restart_fallback_unavailable, startup_fallback_activated");
+      expect(markdown).toContain("routes=explicit_file_profile");
+      expect(markdown).toContain("startup sample: startup/ptyUnavailable code=node_pty_unavailable");
+      expect(markdown).toContain("state sample: file_tail_started restarting->file_running inputMode=file profile=profile-2");
 
       const structuredSummary = JSON.parse(
         await fs.readFile(path.join(tempDir, "structured-log-summary.json"), "utf-8")
       );
       expect(structuredSummary).toMatchObject({
         found: true,
-        scenarioCount: 1,
+        scenarioCount: 2,
         startupFailureCount: 2,
-        serverStateEventCount: 2,
+        serverStateEventCount: 3,
       });
       expect(structuredSummary.startupFailureCodes).toEqual([{ value: "node_pty_unavailable", count: 2 }]);
       expect(structuredSummary.fallbackReasons).toEqual([
         { value: "activated", count: 1 },
         { value: "file_not_found", count: 1 },
+      ]);
+      expect(structuredSummary.routeLabels).toEqual([
+        { value: "explicit_file_profile", count: 1 },
+        { value: "restart_fallback_unavailable", count: 1 },
+        { value: "startup_fallback_activated", count: 1 },
       ]);
     } finally {
       await fs.rm(tempDir, { recursive: true, force: true });

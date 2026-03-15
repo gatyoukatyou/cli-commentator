@@ -106,6 +106,113 @@ export function parseStructuredLogLines(raw) {
   return { startupFailures, serverStateEvents, parseErrors };
 }
 
+function toBooleanText(value) {
+  return value === true ? "true" : value === false ? "false" : "unknown";
+}
+
+function summarizeStartupFailureSample(failure) {
+  return {
+    context: failure?.context ? String(failure.context) : "unknown",
+    kind: failure?.kind ? String(failure.kind) : "unknown",
+    code: failure?.code ? String(failure.code) : "unknown",
+    inputMode: failure?.inputMode ? String(failure.inputMode) : "unknown",
+    fallbackReason: failure?.fallback?.reason ? String(failure.fallback.reason) : "none",
+    fallbackActivated: failure?.fallback?.activated,
+    command: failure?.target?.cmd ? String(failure.target.cmd) : null,
+    cwd: failure?.target?.cwd ? String(failure.target.cwd) : null,
+    inputFile: failure?.target?.inputFile ? String(failure.target.inputFile) : null,
+  };
+}
+
+function summarizeServerStateSample(event) {
+  return {
+    trigger: event?.trigger ? String(event.trigger) : "unknown",
+    from: event?.from ? String(event.from) : "unknown",
+    to: event?.to ? String(event.to) : "unknown",
+    inputMode: event?.inputMode ? String(event.inputMode) : "unknown",
+    profileId: event?.profileId ? String(event.profileId) : null,
+    fallbackReason: event?.context?.fallbackReason ? String(event.context.fallbackReason) : null,
+    failureKind: event?.context?.failureKind ? String(event.context.failureKind) : null,
+    inputFile: event?.context?.inputFile ? String(event.context.inputFile) : null,
+    detail: event?.detail ? String(event.detail) : null,
+  };
+}
+
+function deriveScenarioRouteLabels(parsed) {
+  const labels = new Set();
+  const startupFailures = parsed.startupFailures ?? [];
+  const serverStateEvents = parsed.serverStateEvents ?? [];
+
+  const hasStartupFailure = (predicate) => startupFailures.some(predicate);
+  const hasStateEvent = (predicate) => serverStateEvents.some(predicate);
+
+  if (
+    hasStartupFailure((failure) => failure?.context === "startup" && failure?.fallback?.activated === true) &&
+    hasStateEvent((event) => event?.trigger === "file_tail_started" && event?.from === "starting" && event?.to === "file_running")
+  ) {
+    labels.add("startup_fallback_activated");
+  }
+
+  if (
+    hasStartupFailure(
+      (failure) =>
+        failure?.context === "startup" &&
+        failure?.kind === "ptyUnavailable" &&
+        failure?.fallback?.activated === false
+    ) &&
+    hasStateEvent((event) => event?.trigger === "startup_failed" && event?.from === "starting" && event?.to === "failed")
+  ) {
+    labels.add("startup_fallback_unavailable");
+  }
+
+  if (
+    hasStartupFailure((failure) => failure?.context === "restart" && failure?.fallback?.activated === true) &&
+    hasStateEvent(
+      (event) =>
+        (event?.trigger === "restart_fallback_file" || event?.trigger === "file_tail_started") &&
+        event?.from === "restarting" &&
+        event?.to === "file_running"
+    )
+  ) {
+    labels.add("restart_fallback_activated");
+  }
+
+  if (
+    hasStartupFailure(
+      (failure) =>
+        failure?.context === "restart" &&
+        failure?.kind === "ptyUnavailable" &&
+        failure?.fallback?.activated === false
+    ) &&
+    hasStateEvent((event) => event?.trigger === "restart_failed" && event?.from === "restarting" && event?.to === "failed")
+  ) {
+    labels.add("restart_fallback_unavailable");
+  }
+
+  if (
+    hasStartupFailure((failure) => failure?.context === "startup" && failure?.kind === "configError") &&
+    hasStateEvent((event) => event?.trigger === "startup_failed" && event?.from === "starting" && event?.to === "failed")
+  ) {
+    labels.add("file_mode_invalid_config");
+  }
+
+  if (
+    !hasStartupFailure((failure) => failure?.context === "restart") &&
+    hasStateEvent(
+      (event) =>
+        event?.trigger === "file_tail_started" &&
+        event?.from === "restarting" &&
+        event?.to === "file_running" &&
+        event?.inputMode === "file" &&
+        event?.profileId
+    )
+  ) {
+    labels.add("explicit_file_profile");
+  }
+
+  return [...labels].sort((a, b) => a.localeCompare(b));
+}
+
 function summarizeScenario(fileName, parsed) {
   const startupCodes = new Set();
   const startupFallbackReasons = new Set();
@@ -131,6 +238,9 @@ function summarizeScenario(fileName, parsed) {
     startupFallbackReasons: [...startupFallbackReasons],
     startupContexts: [...startupContexts],
     stateTriggers: [...stateTriggers],
+    routeLabels: deriveScenarioRouteLabels(parsed),
+    startupSamples: parsed.startupFailures.slice(0, 3).map(summarizeStartupFailureSample),
+    serverStateSamples: parsed.serverStateEvents.slice(0, 3).map(summarizeServerStateSample),
     parseErrors: parsed.parseErrors,
   };
 }
@@ -146,6 +256,7 @@ export async function collectStructuredLogCaptureSummary(captureDir) {
     startupFailureCodes: [],
     fallbackReasons: [],
     serverStateTriggers: [],
+    routeLabels: [],
     scenarios: [],
     parseErrors: [],
   };
@@ -167,6 +278,7 @@ export async function collectStructuredLogCaptureSummary(captureDir) {
   const startupCodeCounts = new Map();
   const fallbackReasonCounts = new Map();
   const stateTriggerCounts = new Map();
+  const routeLabelCounts = new Map();
 
   for (const fileName of logFiles) {
     const raw = await fs.readFile(path.join(captureDir, fileName), "utf-8");
@@ -190,12 +302,44 @@ export async function collectStructuredLogCaptureSummary(captureDir) {
     for (const event of parsed.serverStateEvents) {
       incrementCounter(stateTriggerCounts, event?.trigger);
     }
+    for (const label of scenario.routeLabels) {
+      incrementCounter(routeLabelCounts, label);
+    }
   }
 
   summary.startupFailureCodes = toSortedCountList(startupCodeCounts);
   summary.fallbackReasons = toSortedCountList(fallbackReasonCounts);
   summary.serverStateTriggers = toSortedCountList(stateTriggerCounts);
+  summary.routeLabels = toSortedCountList(routeLabelCounts);
   return summary;
+}
+
+function formatStartupSample(sample) {
+  const parts = [
+    `${sample.context}/${sample.kind}`,
+    `code=${sample.code}`,
+    `inputMode=${sample.inputMode}`,
+    `fallback=${sample.fallbackReason}`,
+    `activated=${toBooleanText(sample.fallbackActivated)}`,
+  ];
+  if (sample.command) parts.push(`cmd=${sample.command}`);
+  if (sample.cwd) parts.push(`cwd=${sample.cwd}`);
+  if (sample.inputFile) parts.push(`inputFile=${sample.inputFile}`);
+  return parts.join(" ");
+}
+
+function formatServerStateSample(sample) {
+  const parts = [
+    `${sample.trigger}`,
+    `${sample.from}->${sample.to}`,
+    `inputMode=${sample.inputMode}`,
+  ];
+  if (sample.profileId) parts.push(`profile=${sample.profileId}`);
+  if (sample.fallbackReason) parts.push(`fallback=${sample.fallbackReason}`);
+  if (sample.failureKind) parts.push(`failureKind=${sample.failureKind}`);
+  if (sample.inputFile) parts.push(`inputFile=${sample.inputFile}`);
+  if (sample.detail) parts.push(`detail=${sample.detail}`);
+  return parts.join(" ");
 }
 
 function renderStructuredLogSection(structuredSummary) {
@@ -214,6 +358,7 @@ function renderStructuredLogSection(structuredSummary) {
   lines.push(
     `- Server state events: ${structuredSummary.serverStateEventCount} (${formatCountList(structuredSummary.serverStateTriggers)})`
   );
+  lines.push(`- Route labels: ${formatCountList(structuredSummary.routeLabels)}`);
 
   if (structuredSummary.parseErrors.length > 0) {
     lines.push(`- Parse errors: ${structuredSummary.parseErrors.length}`);
@@ -234,7 +379,15 @@ function renderStructuredLogSection(structuredSummary) {
         scenario.serverStateEventCount > 0
           ? `${scenario.serverStateEventCount} state-event (${scenario.stateTriggers.join(", ") || "unknown"})`
           : "no state-event";
-      lines.push(`- \`${scenario.scenario}\`: ${startupInfo}; ${fallbackInfo}; ${stateInfo}`);
+      const routeInfo =
+        scenario.routeLabels.length > 0 ? `routes=${scenario.routeLabels.join(", ")}` : "routes=none";
+      lines.push(`- \`${scenario.scenario}\`: ${routeInfo}; ${startupInfo}; ${fallbackInfo}; ${stateInfo}`);
+      for (const sample of scenario.startupSamples) {
+        lines.push(`  - startup sample: ${formatStartupSample(sample)}`);
+      }
+      for (const sample of scenario.serverStateSamples) {
+        lines.push(`  - state sample: ${formatServerStateSample(sample)}`);
+      }
     }
   }
 
