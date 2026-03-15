@@ -323,12 +323,13 @@
   - signed/notarized release readiness は `#138` 未解消のため未達
   - clean internal 実機証跡は CI 証跡とは別管理
 - Remaining gap:
-  - `spawn` の細分類（`spawn_node_missing` など）は次の残件候補
+  - `要確認` は main 再監査時点で既知カテゴリ漏れではなく、未知 / 非構造化エラー向け fallback として残している
+  - `spawn` の細分類（`spawn_node_missing` など）は、具体的な実例が出るまで次 Sprint の残件候補とする
 
 ### Follow-up
 - [x] Sprint 16 の起動復旧整合と UX 修正の証跡を evidence log へ追記
-- [ ] `#215` の `要確認` 実例棚卸しと `spawn` 細分類判断メモを整理
-- [ ] `#214` として ROADMAP / roadmap-issues の `done / remaining / blocked` を更新
+- [x] `#215` の再監査メモを残し、`要確認` fallback / `spawn` 細分類 defer 方針を確認
+- [x] `#214` として ROADMAP / roadmap-issues の `done / remaining / blocked` を更新
 - [ ] `#138` を解消し signed/notarized release readiness を再開
 - Owner: maintainers
 - Due: 2026-03-18

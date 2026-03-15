@@ -323,12 +323,13 @@ Related docs:
   - signed/notarized release readiness remains blocked by `#138`
   - clean internal physical-machine evidence is tracked separately from CI evidence
 - Remaining gap:
-  - deeper `spawn` sub-classification (`spawn_node_missing`, etc.) remains a follow-up candidate
+  - `needs manual review` remains as the intentional fallback for unknown or unstructured failures, not as a known-category gap on main
+  - deeper `spawn` sub-classification (`spawn_node_missing`, etc.) remains a next-sprint candidate unless concrete examples prove the current buckets insufficient
 
 ### Follow-up
 - [x] Record Sprint 16 startup recovery alignment and UX evidence in the evidence log
-- [ ] Re-audit `#215` remaining `needs manual review` cases and document the `spawn` sub-classification decision
-- [ ] Update ROADMAP / roadmap-issues `done / remaining / blocked` as `#214`
+- [x] Re-audit `#215` and record the current fallback / `spawn` defer decision
+- [x] Update ROADMAP / roadmap-issues `done / remaining / blocked` as `#214`
 - [ ] Resolve `#138` and resume signed/notarized release readiness work
 - Owner: maintainers
 - Due: 2026-03-18

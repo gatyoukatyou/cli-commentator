@@ -181,8 +181,8 @@ CLI Commentator は「ターミナルの作業ログを見て、別ウィンド�
   - distribution smoke に negative path を追加し、GitHub CI 上で `desktop_distribution_smoke` を継続運用
   - recovery guidance の既知カテゴリ coverage、commentary noise suppression、入力/TTS UX 改善を main へ反映
 - Remaining
-  - `要確認` に落ちる残件棚卸し
-  - `spawn` 細分類を今 Sprint に含めるかの判断メモ
+  - `要確認` は未知 / 非構造化エラー用 fallback として維持しつつ、具体的な実例は `#215` で継続監査
+  - `spawn` 細分類は current buckets で不足する実例が出るまで次 Sprint 候補として扱う
 - Blocked / Deferred
   - signed/notarized release readiness は `#138` 依存
   - clean internal 実機証跡は CI 証跡とは別管理
