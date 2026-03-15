@@ -84,7 +84,7 @@ Build a minimal MVP that reliably works, then expand once value is proven.
 
 ---
 
-## Current status (as of 2026-02-18)
+## Current status (as of 2026-03-15)
 **Done**
 - PR #1: detect boundary tests (mixed => generic, 50-line limit, exported constants)
 - PR #2: add roadmap docs (JA/EN + links from docs/README)
@@ -119,23 +119,22 @@ Build a minimal MVP that reliably works, then expand once value is proven.
 - PR #174: structure server startup-failure classification logs (failure codes + fallback results + regression tests)
 - PR #175: structure server runtime state-transition logs (`[server/state-event]` + integration assertions)
 - PR #178: add v0.2.0 RC decision evidence templates and align links across checklist/runbook/docs index
+- PR #213: align startup failure classification across server / desktop / web / distribution smoke / runbook
+- PR #217: extend known-category recovery guidance test coverage
+- PR #218: suppress Codex progress commentary noise
+- PR #219: reduce duplicate input, lower TTS lag, and strengthen explanation prompts
+- PR #220: record Sprint 16 startup recovery evidence in the release evidence logs
 
 **Now**
-- Ran 2026-02-18 local preflight (`verify:updater`, web lint+build, `CLI_COMMENTATOR_FORCE_NO_PTY=1` server test, failure regression 34/34, desktop distribution smoke) and all checks passed
-- Hardened test assumptions for `CLI_COMMENTATOR_FORCE_NO_PTY=1` by skipping node-pty-required restart failure coverage in that mode, so runbook preflight commands are reproducible
-- Resumed `release-desktop` smoke runs and logged `smoke.01` / `smoke.02` failure causes (missing sidecar node binaries, unsupported runner label, release creation permission error)
-- Added sidecar prepare/verify steps in `.github/workflows/release-desktop.yml` and moved x64 to `macos-15-intel` (`smoke.03` confirmed successful bundling on both arm64/x64)
-- Updated `docs/release-runbook.*` and `docs/release-evidence-log.*` with same-day evidence
-- Merged PR #186 (`fix(release): preflight release write permissions`) and introduced `Verify release publish permissions`
-- Validated preflight + token fallback path with `v0.0.0-smoke.20260219-test` (`release-desktop` run `22185152032`)
-- Configured `GH_RELEASE_TOKEN` and confirmed Draft Release path recovery with `v0.0.0-smoke.20260220-211548` (run `22223734792`)
-- Continue operating docs drift guard and smoke matrix to accumulate v0.2.0 RC readiness evidence
+- Sprint 16 core work is largely landed: startup failure classification, recovery guidance, distribution smoke, and evidence logging are now reflected on main
+- GitHub CI provides green evidence across `desktop_distribution_smoke`, `desktop_check`, `failure_regression`, and the standard test matrix
+- Remaining Sprint 16 work is narrowed to `#214` (done / remaining / blocked reclassification) and `#215` (audit residual `needs manual review` cases and decide on `spawn` sub-classification)
 - Signed release readiness remains blocked by `#138` (Apple certificate/secrets)
 
 **Next**
-- Resolve `#138`, register `APPLE_CERTIFICATE`, and make `pnpm verify:apple-signing` pass
-- While paid Apple certificates are deferred, continue unsigned-internal validation with `v0.0.0-smoke.*` tags
-- Continue expanding startup-failure regression coverage (distribution startup and signing-mode differences)
+- As `#214`, reclassify Sprint 16 into `done / remaining / blocked` and compress carry-over candidates to one or two items
+- As `#215`, audit remaining `needs manual review` cases and decide whether `spawn` sub-classification belongs in this sprint or the next one
+- Resolve `#138` and resume signed/notarized release readiness work
 
 ---
 
@@ -170,6 +169,18 @@ Build a minimal MVP that reliably works, then expand once value is proven.
 **Definition of done**
 - Clean environment can complete install -> launch -> commentary start
 - Major startup failures can be triaged quickly
+
+**Status snapshot (2026-03-15)**
+- Done
+  - Land startup failure alignment across server / desktop / web / smoke / runbook on main
+  - Add negative-path distribution smoke coverage and keep `desktop_distribution_smoke` running in GitHub CI
+  - Land known-category recovery coverage, commentary noise suppression, and input/TTS UX fixes on main
+- Remaining
+  - Audit residual cases that still fall into `needs manual review`
+  - Leave an explicit decision memo on whether deeper `spawn` sub-classification belongs in Sprint 16
+- Blocked / Deferred
+  - Signed/notarized release readiness is still blocked by `#138`
+  - Clean-internal physical-machine evidence is tracked separately from CI evidence
 
 ### Sprint 17 (2026-03-26 to 2026-04-08): Observability & fallback hardening
 **Issue drafts**

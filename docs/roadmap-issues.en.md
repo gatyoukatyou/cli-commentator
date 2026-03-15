@@ -152,6 +152,18 @@ Document certificate and secrets lifecycle operations (create/update/revoke).
 
 ## Sprint 16 (2026-03-12 to 2026-03-25)
 
+**Status (2026-03-15)**
+- Done
+  - `server: strengthen startup-failure classification logs` is landed on main (PR #213)
+  - `qa: add clean-environment smoke tests for desktop artifacts` is running in CI; `desktop_distribution_smoke` is green with negative-path coverage
+  - known-category recovery coverage, commentary-noise suppression, and input/TTS UX fixes are also landed on main (PR #217-#219)
+- Remaining
+  - audit concrete examples that still fall into `needs manual review` under `desktop: improve startup failure recovery guidance in panel UI`
+  - leave an explicit memo on whether deeper `spawn` sub-classification belongs in this sprint
+- Blocked / Deferred
+  - signed/notarized distribution readiness still depends on `#138`
+  - clean internal physical-machine evidence is tracked separately from CI evidence
+
 ### 16-1
 **Title**
 `qa: add clean-environment smoke tests for desktop artifacts`
@@ -166,9 +178,9 @@ Add smoke tests for install-to-first-launch flow in clean environments.
 - Verify first launch and commentary start
 
 ## Tasks
-- [ ] Define smoke scenarios
-- [ ] Run on representative environments
-- [ ] Record failure patterns
+- [x] Define smoke scenarios
+- [x] Run on representative environments (GitHub CI `desktop_distribution_smoke`)
+- [x] Record failure patterns (negative path: `sidecar_server_entry_missing`)
 
 ## Definition of Done
 - install -> launch -> commentary start is reproducible
@@ -189,9 +201,11 @@ Improve desktop panel guidance so users can recover from startup failures quickl
 - Show immediate recovery actions
 
 ## Tasks
-- [ ] Classify error messages
-- [ ] Update recovery hints
-- [ ] Add regression checks for panel output
+- [x] Classify error messages
+- [x] Update recovery hints
+- [x] Add regression coverage for known categories
+- [ ] Audit examples that still fall into `needs manual review`
+- [ ] Record whether deeper `spawn` sub-classification belongs in the next sprint
 
 ## Definition of Done
 - Major startup failures show actionable recovery guidance
@@ -212,9 +226,9 @@ Improve startup-failure logs with explicit categories and recovery context.
 - Add context needed for fast triage
 
 ## Tasks
-- [ ] Design log fields
-- [ ] Implement classification logic
-- [ ] Add tests
+- [x] Design log fields
+- [x] Implement classification logic
+- [x] Add tests
 
 ## Definition of Done
 - Major startup failures are diagnosable from logs
