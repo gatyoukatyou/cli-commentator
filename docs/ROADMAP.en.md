@@ -176,8 +176,8 @@ Build a minimal MVP that reliably works, then expand once value is proven.
   - Add negative-path distribution smoke coverage and keep `desktop_distribution_smoke` running in GitHub CI
   - Land known-category recovery coverage, commentary noise suppression, and input/TTS UX fixes on main
 - Remaining
-  - Audit residual cases that still fall into `needs manual review`
-  - Leave an explicit decision memo on whether deeper `spawn` sub-classification belongs in Sprint 16
+  - Keep `needs manual review` as the fallback for unknown / unstructured failures while continuing to collect concrete examples in `#215`
+  - Treat deeper `spawn` sub-classification as a next-sprint candidate unless concrete cases show the current buckets are insufficient
 - Blocked / Deferred
   - Signed/notarized release readiness is still blocked by `#138`
   - Clean-internal physical-machine evidence is tracked separately from CI evidence
