@@ -13,6 +13,7 @@ describe("comment() timeout behavior", () => {
   afterEach(() => {
     vi.useRealTimers();
     vi.restoreAllMocks();
+    vi.doUnmock("../llm/factory.js");
     process.env = originalEnv;
   });
 
@@ -44,12 +45,8 @@ describe("comment() timeout behavior", () => {
     // comment() は abort されてルールベースにフォールバック
     const result = await comment(ev, "standard");
 
-    expect(result.narration).toBeTruthy();
     expect(result.explanation).toBeTruthy();
     expect(result.narration).not.toBe("should not reach here");
-
-    // Clean up the mock for next test
-    vi.doUnmock("../llm/factory.js");
   });
 
   it("returns normally when LLM responds within timeout", async () => {
@@ -103,8 +100,6 @@ describe("comment() timeout behavior", () => {
     // signal が渡されて abort されていることを確認
     expect(capturedSignal).toBeDefined();
     expect(capturedSignal?.aborted).toBe(true);
-
-    vi.doUnmock("../llm/factory.js");
   });
 });
 

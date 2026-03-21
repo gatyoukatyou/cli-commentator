@@ -2,6 +2,7 @@ import type { Event } from "../types.js";
 
 export function commentKansai(ev: Event): string {
   return ev.type === "read" ? "ファイル読んで状況確認してるで。" :
+    ev.type === "stdout" ? "" :
     ev.type === "write" ? "ファイル書き換えて修正反映してるで。" :
     ev.type === "search" ? "原因っぽいとこ探してるで。" :
     ev.type === "stderr" ? "エラー出力が出てるから内容確認してるで。" :
