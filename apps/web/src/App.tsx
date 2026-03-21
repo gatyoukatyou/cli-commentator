@@ -1,7 +1,6 @@
 import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import "./App.css";
 import { ProfileSelector } from "./components/ProfileSelector";
-import { ProfileEditor } from "./components/ProfileEditor";
 import type { TerminalPaneHandle, TerminalPaneTheme } from "./components/TerminalPane";
 import {
   isTTSSupported,
@@ -51,6 +50,11 @@ import type {
 } from "./types";
 
 const TerminalPane = lazy(() => import("./components/TerminalPane"));
+const ProfileEditor = lazy(() =>
+  import("./components/ProfileEditor").then((module) => ({
+    default: module.ProfileEditor,
+  }))
+);
 
 export type Skin = "standard" | "cli";
 
@@ -1800,14 +1804,29 @@ export default function App() {
         </div>
       )}
       {editingProfile && editingProfile !== "loading" && (
-        <ProfileEditor
-          key={profileEditorKey}
-          profile={editingProfile === "new" ? null : editingProfile}
-          error={profileError}
-          isWsOpen={connectionStatus === "connected"}
-          onSave={handleSaveProfile}
-          onCancel={handleCancelEdit}
-        />
+        <Suspense
+          fallback={
+            <div className="modal-backdrop">
+              <div className="modal">
+                <h2 className="modal__title">プロファイルエディターを読み込み中...</h2>
+                <div className="form-actions">
+                  <button type="button" onClick={handleCancelEdit}>
+                    キャンセル
+                  </button>
+                </div>
+              </div>
+            </div>
+          }
+        >
+          <ProfileEditor
+            key={profileEditorKey}
+            profile={editingProfile === "new" ? null : editingProfile}
+            error={profileError}
+            isWsOpen={connectionStatus === "connected"}
+            onSave={handleSaveProfile}
+            onCancel={handleCancelEdit}
+          />
+        </Suspense>
       )}
     </div>
   );
