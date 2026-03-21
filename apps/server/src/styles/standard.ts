@@ -2,6 +2,7 @@ import type { Event } from "../types.js";
 
 export function commentStandard(ev: Event): string {
   return ev.type === "read" ? "ファイルを読んで状況を確認しています。" :
+    ev.type === "stdout" ? "" :
     ev.type === "write" ? "ファイルを書き換えて修正を反映しています。" :
     ev.type === "search" ? "原因になりそうな箇所を検索しています。" :
     ev.type === "stderr" ? "エラー出力が出ているので内容を確認しています。" :

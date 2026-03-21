@@ -2,6 +2,7 @@ import type { Event } from "../types.js";
 
 export function commentZundamon(ev: Event): string {
   return ev.type === "read" ? "ファイルを読んで状況確認してるのだ。" :
+    ev.type === "stdout" ? "" :
     ev.type === "write" ? "修正を反映して書き換えてるのだ。" :
     ev.type === "search" ? "原因になりそうな所を探してるのだ。" :
     ev.type === "stderr" ? "エラー出力が出てるので内容を確認してるのだ。" :
