@@ -1,10 +1,8 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import "./App.css";
-import "xterm/css/xterm.css";
-import { Terminal } from "xterm";
-import { FitAddon } from "xterm-addon-fit";
 import { ProfileSelector } from "./components/ProfileSelector";
 import { ProfileEditor } from "./components/ProfileEditor";
+import type { TerminalPaneHandle, TerminalPaneTheme } from "./components/TerminalPane";
 import {
   isTTSSupported,
   speak,
@@ -40,7 +38,6 @@ import {
   type LaunchDraft,
   type LaunchPresetId,
 } from "./lib/session-launcher";
-import { createTerminalInputGate } from "./lib/terminal-input";
 import type {
   CommentaryDisplayMode,
   Style,
@@ -52,6 +49,8 @@ import type {
   ServerToClientMessage,
   PtyUnavailablePayload,
 } from "./types";
+
+const TerminalPane = lazy(() => import("./components/TerminalPane"));
 
 export type Skin = "standard" | "cli";
 
@@ -76,7 +75,7 @@ function isSkin(value: string | null): value is Skin {
   return value === "standard" || value === "cli";
 }
 
-function getTerminalTheme(skin: Skin) {
+function getTerminalTheme(skin: Skin): TerminalPaneTheme {
   if (skin === "cli") {
     return {
       background: "#081019",
@@ -603,11 +602,7 @@ export default function App() {
   const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingEditIdRef = useRef<string | null>(null);
   const logContainerRef = useRef<HTMLDivElement | null>(null);
-  const terminalContainerRef = useRef<HTMLDivElement | null>(null);
-  const terminalRef = useRef<Terminal | null>(null);
-  const fitAddonRef = useRef<FitAddon | null>(null);
-  const terminalBacklogRef = useRef("");
-  const terminalInputGateRef = useRef(createTerminalInputGate());
+  const terminalPaneRef = useRef<TerminalPaneHandle | null>(null);
   const shouldStickLogRef = useRef(true);
 
   // Profile state
@@ -633,6 +628,7 @@ export default function App() {
   const [ttsSettingsOpen, setTtsSettingsOpen] = useState(false);
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
   const [voicesLoaded, setVoicesLoaded] = useState(false);
+  const [pendingTerminalOutput, setPendingTerminalOutput] = useState("");
   const ttsSupported = isTTSSupported();
   const ttsEnabledRef = useRef(ttsEnabled);
   const ttsSettingsRef = useRef(ttsSettings);
@@ -653,9 +649,10 @@ export default function App() {
     return `ws://localhost:${port}`;
   }, [defaultWsPort, isTauriRuntime, tauriServerPort]);
 
+  const terminalTheme = useMemo(() => getTerminalTheme(skin), [skin]);
+
   const sendTerminalInput = useCallback((data: string) => {
     if (!data) return;
-    if (!terminalInputGateRef.current.shouldForward(data)) return;
     if (wsRef.current?.readyState !== WebSocket.OPEN) {
       setPtyError("サーバーに接続されていません");
       return;
@@ -695,101 +692,6 @@ export default function App() {
       setVoicesLoaded(true);
     });
   }, [ttsSupported]);
-
-  useEffect(() => {
-    const host = terminalContainerRef.current;
-    if (!host || terminalRef.current) return;
-    let disposed = false;
-    let frameId: number | null = null;
-
-    const fitAddon = new FitAddon();
-    const terminal = new Terminal({
-      convertEol: true,
-      cursorBlink: true,
-      fontFamily: "var(--font-mono)",
-      fontSize: 13,
-      lineHeight: 1.35,
-      scrollback: 5000,
-      theme: getTerminalTheme(skin),
-    });
-
-    terminal.loadAddon(fitAddon);
-    terminal.open(host);
-    const scheduleFit = () => {
-      if (disposed) return;
-      if (frameId !== null) {
-        window.cancelAnimationFrame(frameId);
-      }
-      frameId = window.requestAnimationFrame(() => {
-        frameId = null;
-        if (disposed) return;
-        try {
-          fitAddon.fit();
-          terminal.focus();
-        } catch (error) {
-          if (import.meta.env.DEV) {
-            console.debug("xterm fit skipped", error);
-          }
-        }
-      });
-    };
-
-    scheduleFit();
-    terminal.onData((data) => {
-      sendTerminalInput(data);
-    });
-
-    const textarea = terminal.textarea;
-    const handleCompositionStart = () => {
-      terminalInputGateRef.current.noteCompositionStart();
-    };
-    const handleCompositionEnd = () => {
-      terminalInputGateRef.current.noteCompositionEnd();
-    };
-    const handlePaste = () => {
-      terminalInputGateRef.current.notePaste();
-    };
-    textarea?.addEventListener("compositionstart", handleCompositionStart);
-    textarea?.addEventListener("compositionend", handleCompositionEnd);
-    textarea?.addEventListener("paste", handlePaste);
-
-    if (terminalBacklogRef.current) {
-      terminal.write(terminalBacklogRef.current);
-      terminalBacklogRef.current = "";
-    }
-
-    terminalRef.current = terminal;
-    fitAddonRef.current = fitAddon;
-
-    const resizeObserver =
-      typeof ResizeObserver === "function"
-        ? new ResizeObserver(() => {
-            scheduleFit();
-          })
-        : null;
-    resizeObserver?.observe(host);
-
-    return () => {
-      disposed = true;
-      if (frameId !== null) {
-        window.cancelAnimationFrame(frameId);
-      }
-      resizeObserver?.disconnect();
-      textarea?.removeEventListener("compositionstart", handleCompositionStart);
-      textarea?.removeEventListener("compositionend", handleCompositionEnd);
-      textarea?.removeEventListener("paste", handlePaste);
-      terminal.dispose();
-      terminalRef.current = null;
-      fitAddonRef.current = null;
-    };
-  }, [sendTerminalInput, skin]);
-
-  useEffect(() => {
-    const terminal = terminalRef.current;
-    if (!terminal) return;
-    terminal.options.theme = getTerminalTheme(skin);
-    fitAddonRef.current?.fit();
-  }, [skin]);
 
   // TTS cleanup on unmount (prevent orphan speech on reload/navigation)
   useEffect(() => {
@@ -903,20 +805,24 @@ export default function App() {
 
   const writeToTerminal = useCallback((data: string) => {
     if (!data) return;
-    const terminal = terminalRef.current;
+    const terminal = terminalPaneRef.current;
     if (!terminal) {
-      terminalBacklogRef.current += data;
-      if (terminalBacklogRef.current.length > TERMINAL_OUTPUT_MAX_CHARS) {
-        terminalBacklogRef.current = terminalBacklogRef.current.slice(-TERMINAL_OUTPUT_MAX_CHARS);
-      }
+      setPendingTerminalOutput((prev) => {
+        const next = prev + data;
+        return next.length > TERMINAL_OUTPUT_MAX_CHARS ? next.slice(-TERMINAL_OUTPUT_MAX_CHARS) : next;
+      });
       return;
     }
     terminal.write(data);
   }, []);
 
   const clearTerminal = useCallback(() => {
-    terminalBacklogRef.current = "";
-    terminalRef.current?.clear();
+    setPendingTerminalOutput("");
+    terminalPaneRef.current?.clear();
+  }, []);
+
+  const handlePendingTerminalOutputFlushed = useCallback(() => {
+    setPendingTerminalOutput("");
   }, []);
 
   const handleTTSPresetChange = (presetId: TTSPresetSelectValue) => {
@@ -1089,7 +995,7 @@ export default function App() {
               // Clear commentary items when PTY restarts
               setItems([]);
               clearTerminal();
-              terminalInputGateRef.current.reset();
+              terminalPaneRef.current?.resetInputGate();
               clearPendingSpeech();
               stopSpeech();
               setProfileError(null);
@@ -1206,7 +1112,7 @@ export default function App() {
     setCurrentSessionLabel(session.name?.trim() || session.cmd);
     wsRef.current.send(JSON.stringify({ kind: "launchSession", session }));
     window.setTimeout(() => {
-      terminalRef.current?.focus();
+      terminalPaneRef.current?.focus();
     }, 0);
   };
 
@@ -1506,12 +1412,18 @@ export default function App() {
                 </button>
               </div>
             </div>
-            <div
-              ref={terminalContainerRef}
-              className="terminal-panel__screen terminal-panel__screen--xterm"
-              onClick={() => terminalRef.current?.focus()}
-              role="presentation"
-            />
+            <Suspense
+              fallback={<div className="terminal-panel__screen terminal-panel__screen--xterm" role="presentation" />}
+            >
+              <TerminalPane
+                ref={terminalPaneRef}
+                className="terminal-panel__screen terminal-panel__screen--xterm"
+                onData={sendTerminalInput}
+                onPendingOutputFlushed={handlePendingTerminalOutputFlushed}
+                pendingOutput={pendingTerminalOutput}
+                theme={terminalTheme}
+              />
+            </Suspense>
           </div>
 
           <div className="panel workspace-subpanel">
