@@ -57,3 +57,10 @@ Use the Doc Freshness checklist in `.github/pull_request_template.md` and enforc
 - On pull requests, `docs_drift_guard` runs `scripts/check-doc-sync.mjs`.
 - If LLM/desktop-distribution implementation changes without matching docs updates, CI fails.
 - Use `[skip-doc-sync-check]` in the PR body only for explicit exceptions, and include the reason.
+
+### CI action maintenance
+
+- `pnpm/action-setup` is maintained as a CI/runtime action dependency. Updating it
+  to the v5 series changes the action runtime to Node.js 24, but does not change
+  the repository's pinned pnpm version, desktop release workflow shape, signing
+  flow, updater configuration, or operator-facing release steps.
