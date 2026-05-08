@@ -57,3 +57,10 @@
 - PR では `docs_drift_guard` ジョブが `scripts/check-doc-sync.mjs` を実行する。
 - 対象実装（LLM/desktop配布系）が変わったのに主要docsが未更新の場合、CI は失敗する。
 - 例外運用が必要な場合のみ、PR本文に `[skip-doc-sync-check]` を明記し、理由を添える。
+
+### CI action maintenance
+
+- `pnpm/action-setup` は CI/runtime action dependency として保守する。v5 系への
+  更新により action runtime は Node.js 24 になるが、このリポジトリで固定している
+  pnpm version、desktop release workflow の構成、署名フロー、updater 設定、
+  operator-facing なリリース手順は変更しない。
