@@ -32,6 +32,13 @@ v0.6.2 更新では Tauri project の workspace root 検出が改善されます
 signed/unsigned release branches、署名・notarization 入力、updater 設定、
 operator-facing なリリース手順は変更しません。
 
+## Updater plugin maintenance
+
+`tauri-plugin-updater` を 2.10.1 へ更新しました。この maintenance update は
+installation prompt で updater package の file extension を保つためのもので、
+updater endpoint 設定、署名入力、release artifact layout、operator-facing な
+リリース手順は変更しません。
+
 関連ドキュメント:
 - 詳細運用手順（復旧/ロールバック含む）: `docs/release-runbook.ja.md`
 - 証明書/Secrets運用: `docs/certificate-secrets.ja.md`
