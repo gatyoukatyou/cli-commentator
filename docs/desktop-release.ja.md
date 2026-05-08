@@ -25,6 +25,13 @@ Tauri runtime stack を 2.11 系へ更新しました。対象には `tauri`,
 手順、updater 設定、リリース運用手順は変更しません。検証は既存の
 `desktop_check` および `desktop_distribution_smoke` CI jobs を通じて行います。
 
+## Release action maintenance
+
+`tauri-apps/tauri-action` は tag-release workflow action として保守します。
+v0.6.2 更新では Tauri project の workspace root 検出が改善されますが、
+signed/unsigned release branches、署名・notarization 入力、updater 設定、
+operator-facing なリリース手順は変更しません。
+
 関連ドキュメント:
 - 詳細運用手順（復旧/ロールバック含む）: `docs/release-runbook.ja.md`
 - 証明書/Secrets運用: `docs/certificate-secrets.ja.md`
