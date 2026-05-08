@@ -15,6 +15,23 @@
 - `desktop_check` CI（`cargo check` + `cargo test`）を毎PRで実行
 - `scripts/verify-updater-config.mjs` で Updater公開鍵と署名鍵の整合チェックを追加
 
+## Desktop runtime maintenance
+
+Tauri runtime stack を 2.11 系へ更新しました。対象には `tauri`,
+`tauri-runtime`, `tauri-runtime-wry` のほか、window / tray 周辺の `wry`,
+`tao`, `tray-icon`, `muda` などが含まれます。
+
+これは runtime maintenance update であり、desktop 配布手順、署名・notarization
+手順、updater 設定、リリース運用手順は変更しません。検証は既存の
+`desktop_check` および `desktop_distribution_smoke` CI jobs を通じて行います。
+
+## Release action maintenance
+
+`tauri-apps/tauri-action` は tag-release workflow action として保守します。
+v0.6.2 更新では Tauri project の workspace root 検出が改善されますが、
+signed/unsigned release branches、署名・notarization 入力、updater 設定、
+operator-facing なリリース手順は変更しません。
+
 関連ドキュメント:
 - 詳細運用手順（復旧/ロールバック含む）: `docs/release-runbook.ja.md`
 - 証明書/Secrets運用: `docs/certificate-secrets.ja.md`

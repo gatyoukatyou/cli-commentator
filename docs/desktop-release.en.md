@@ -15,6 +15,24 @@ Current status: **Auto-start and in-app update checks are implemented**, and thi
 - `desktop_check` CI runs on every PR (`cargo check` + `cargo test`)
 - `scripts/verify-updater-config.mjs` validates updater pubkey format and signing-key pairing
 
+## Desktop runtime maintenance
+
+Tauri runtime stack has been refreshed to the 2.11 series, including `tauri`,
+`tauri-runtime`, `tauri-runtime-wry`, and related window/tray dependencies such
+as `wry`, `tao`, `tray-icon`, and `muda`.
+
+This is a runtime maintenance update only. It does not change the desktop
+distribution procedure, signing/notarization flow, updater configuration, or
+operator-facing release steps. Existing `desktop_check` and
+`desktop_distribution_smoke` CI jobs remain the validation path for this change.
+
+## Release action maintenance
+
+`tauri-apps/tauri-action` is maintained as the tag-release workflow action. The
+v0.6.2 update improves workspace-root detection for Tauri projects; it does not
+change the signed/unsigned release branches, signing or notarization inputs,
+updater configuration, or operator-facing release steps.
+
 Related docs:
 - Detailed operations (including recovery/rollback): `docs/release-runbook.en.md`
 - Certificate/secrets operations: `docs/certificate-secrets.en.md`
