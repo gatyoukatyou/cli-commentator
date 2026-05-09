@@ -17,6 +17,31 @@ struct UpdaterCheckStatus {
     error: Option<String>,
 }
 
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+struct DesktopDiagnostics {
+    version: String,
+    platform: String,
+    arch: String,
+    log_dir: Option<String>,
+    config_dir: Option<String>,
+}
+
+fn path_to_string(path: Result<std::path::PathBuf, tauri::Error>) -> Option<String> {
+    path.ok().map(|value| value.display().to_string())
+}
+
+#[tauri::command]
+fn desktop_diagnostics(app: tauri::AppHandle) -> DesktopDiagnostics {
+    DesktopDiagnostics {
+        version: app.package_info().version.to_string(),
+        platform: std::env::consts::OS.to_string(),
+        arch: std::env::consts::ARCH.to_string(),
+        log_dir: path_to_string(app.path().app_log_dir()),
+        config_dir: path_to_string(app.path().app_config_dir()),
+    }
+}
+
 #[tauri::command]
 fn autostart_status(app: tauri::AppHandle) -> Result<bool, String> {
     app.autolaunch()
@@ -112,6 +137,7 @@ pub fn run() {
             autostart_status,
             autostart_enable,
             autostart_disable,
+            desktop_diagnostics,
             updater_check
         ])
         .on_window_event(|window, event| {
