@@ -333,3 +333,79 @@ Related docs:
 - [ ] Resolve `#138` and resume signed/notarized release readiness work
 - Owner: maintainers
 - Due: 2026-03-18
+
+## RC Evidence Record: 2026-05-09 (unsigned distribution hardening smoke)
+
+### Metadata
+- Candidate: `v0.0.0-smoke.20260509-135214` (workflow smoke rerun)
+- Commit: `485d0f8` (`ci: harden unsigned desktop distribution smoke`, PR #252)
+- Reviewer: Codex
+- Decision Meeting: `2026-05-09`
+- Decision: Conditional Go (unsigned internal distribution path)
+
+### CI Evidence
+- Required checks run:
+  - PR #252 checks (`https://github.com/gatyoukatyou/cli-commentator/pull/252/checks`)
+  - `release-desktop` smoke (`https://github.com/gatyoukatyou/cli-commentator/actions/runs/25592176981`)
+- Core checks on PR #252:
+  - `actionlint`: Pass
+  - `docs_drift_guard`: Pass
+  - `test`: Pass
+  - `test_windows`: Pass
+  - `desktop_check`: Pass
+  - `desktop_distribution_smoke`: Pass
+  - `failure_regression`: Pass
+  - CodeQL: Pass
+
+### Release Workflow Evidence
+- `release-desktop` run:
+  - `v0.0.0-smoke.20260509-135214` -> `https://github.com/gatyoukatyou/cli-commentator/actions/runs/25592176981` (Success)
+- Execution mode: unsigned-internal (`APPLE_CERTIFICATE` still missing in repo secrets)
+- Release permission preflight:
+  - `Verify release publish permissions`: Pass via `GH_RELEASE_TOKEN`
+  - `Build and draft release (unsigned internal)`: Pass on arm64 and x64 jobs
+  - `Build and draft release (signed + notarized)`: Skip as expected
+- Draft Release metadata:
+  - `name=CLI Commentator v0.0.0-smoke.20260509-135214 (Unsigned Smoke)`
+  - `isDraft=true`
+  - `isPrerelease=true`
+  - `tagName=v0.0.0-smoke.20260509-135214`
+  - Body states this is an unsigned smoke and Gatekeeper warnings are expected
+- Artifact check:
+  - `latest.json`: Present (2.7 KB)
+  - `CLI.Commentator_0.1.0_aarch64.dmg`: Present (81,443,191 bytes)
+  - `CLI.Commentator_0.1.0_x64.dmg`: Present (82,930,106 bytes)
+  - `CLI.Commentator_aarch64.app.tar.gz`: Present (82,841,422 bytes)
+  - `CLI.Commentator_x64.app.tar.gz`: Present (84,126,701 bytes)
+  - `CLI.Commentator_aarch64.app.tar.gz.sig`: Present (416 bytes)
+  - `CLI.Commentator_x64.app.tar.gz.sig`: Present (416 bytes)
+  - `scripts/verify-desktop-bundle-artifacts.mjs --require dmg --require app-tar-gz --require sig`: Pass against downloaded Draft Release assets
+
+### Runtime/Recovery Evidence
+- Desktop lifecycle event sample (`[desktop/server-event]`): N/A (tag workflow scope)
+- Server state event sample (`[server/state-event]`): N/A (tag workflow scope)
+- Startup failure classification checked: Yes (PR #252 CI retained `desktop_distribution_smoke` / `failure_regression`)
+- In-app diagnostics checked by CI build: PR #252 added Desktop Server panel entries for version, platform, logs path, and config path
+
+### Cross-Platform Smoke Evidence
+- macOS arm64: Pass (Draft Release assets + verifier)
+- macOS x64: Pass (Draft Release assets + verifier)
+- Windows fallback path: Pass (`test_windows` on PR #252)
+- Linux install path: Documented in runbook; no Linux desktop asset is produced by this macOS-only release workflow
+
+### Risks and Exceptions
+- Open P0/P1: None known at this record point
+- Accepted risk:
+  - this record validates the unsigned internal path only
+  - signed/notarized release readiness remains blocked by `#138`
+- Blocking issue:
+  - `#138` Apple certificate configuration (`APPLE_CERTIFICATE` is still missing in repo secrets)
+
+### Follow-up
+- [x] Merge unsigned distribution hardening (PR #252)
+- [x] Run an unsigned `v0.0.0-smoke.*` after PR #252 reached `main`
+- [x] Confirm Draft Release label/body/prerelease state identifies `Unsigned Smoke`
+- [x] Confirm downloaded Draft Release assets pass bundle verification
+- [ ] Configure `APPLE_CERTIFICATE` and rerun signed/notarized smoke when the Developer ID `.p12` is available
+- Owner: maintainers
+- Due: 2026-05-16
