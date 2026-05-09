@@ -48,7 +48,7 @@ export default function TauriStatusPanel({ onStatusChange }: TauriStatusPanelPro
   const [updaterStatus, setUpdaterStatus] = useState<UpdaterCheckStatus | null>(null);
   const [updaterLoading, setUpdaterLoading] = useState(false);
   const [diagnostics, setDiagnostics] = useState<DesktopDiagnostics | null>(null);
-  const [copiedDiagnosticPath, setCopiedDiagnosticPath] = useState<string | null>(null);
+  const [copiedDiagnosticAction, setCopiedDiagnosticAction] = useState<string | null>(null);
   const [copiedRecoveryCommand, setCopiedRecoveryCommand] = useState<string | null>(null);
 
   useEffect(() => {
@@ -241,16 +241,65 @@ export default function TauriStatusPanel({ onStatusChange }: TauriStatusPanelPro
     }, 1600);
   };
 
-  const handleCopyDiagnosticPath = async (value: string) => {
-    const copied = await copyWithFallback(value);
+  const copyDiagnosticText = async (action: string, text: string) => {
+    const copied = await copyWithFallback(text);
     if (!copied) {
-      setInvokeError("パスのコピーに失敗しました。");
+      setInvokeError("診断情報のコピーに失敗しました。");
       return;
     }
-    setCopiedDiagnosticPath(value);
+    setCopiedDiagnosticAction(action);
     window.setTimeout(() => {
-      setCopiedDiagnosticPath((current) => (current === value ? null : current));
-    }, 1600);
+      setCopiedDiagnosticAction((current) => (current === action ? null : current));
+    }, 2000);
+  };
+
+  const formatDiagnosticTimestamp = (value: number | null | undefined) => {
+    if (!value) return "-";
+    return new Date(value).toLocaleString();
+  };
+
+  const buildDebugBundle = () => {
+    const version = diagnostics?.version ? `v${diagnostics.version}` : "-";
+    const platform =
+      diagnostics?.platform || diagnostics?.arch
+        ? `${diagnostics?.platform ?? "-"}/${diagnostics?.arch ?? "-"}`
+        : "-";
+    const health = status ? (status.health_ok ? "OK" : "NG") : "-";
+    const updaterResult = (() => {
+      if (updaterLoading) return "checking";
+      if (!updaterStatus) return "not checked";
+      if (!updaterStatus.configured) return "not configured";
+      if (updaterStatus.error) return "NG";
+      if (updaterStatus.available) return `update available (${updaterStatus.version ?? "unknown"})`;
+      return "OK";
+    })();
+
+    return [
+      "CLI Commentator Desktop",
+      `Version: ${version}`,
+      `Platform: ${platform}`,
+      "Desktop server:",
+      `- State: ${status?.state ?? state}`,
+      `- Health: ${health}`,
+      `- PID: ${status?.pid ?? "-"}`,
+      `- Port: ${status?.port ?? "-"}`,
+      `- Started at: ${formatDiagnosticTimestamp(status?.started_at)}`,
+      `- Last health: ${formatDiagnosticTimestamp(status?.last_seen_at)}`,
+      status?.error ? `- Error: ${status.error}` : null,
+      invokeError ? `- Panel error: ${invokeError}` : null,
+      "Updater:",
+      `- Result: ${updaterResult}`,
+      `- Current version: ${updaterStatus?.currentVersion ? `v${updaterStatus.currentVersion}` : version}`,
+      updaterStatus?.version ? `- Available version: v${updaterStatus.version}` : null,
+      updaterStatus?.date ? `- Release date: ${updaterStatus.date}` : null,
+      updaterStatus?.error ? `- Error: ${updaterStatus.error}` : null,
+      "Paths:",
+      `- Logs: ${diagnostics?.logDir ?? "-"}`,
+      `- Config: ${diagnostics?.configDir ?? "-"}`,
+      `Timestamp: ${new Date().toLocaleString()}`,
+    ]
+      .filter((line): line is string => Boolean(line))
+      .join("\n");
   };
 
   return (
@@ -334,6 +383,29 @@ export default function TauriStatusPanel({ onStatusChange }: TauriStatusPanelPro
             <div className="debug-panel__recovery-summary">問い合わせ時は Version、Platform、Logs path を添えてください。</div>
           </div>
           <div className="debug-panel__diagnostic-list">
+            <div className="debug-panel__actions debug-panel__actions--wrap">
+              <button
+                type="button"
+                className="debug-panel__btn debug-panel__btn--secondary"
+                onClick={() => {
+                  void copyDiagnosticText(
+                    "version-platform",
+                    [`Version: v${diagnostics.version}`, `Platform: ${diagnostics.platform}/${diagnostics.arch}`].join("\n")
+                  );
+                }}
+              >
+                {copiedDiagnosticAction === "version-platform" ? "Copied" : "Copy Version/Platform"}
+              </button>
+              <button
+                type="button"
+                className="debug-panel__btn debug-panel__btn--secondary"
+                onClick={() => {
+                  void copyDiagnosticText("debug-bundle", buildDebugBundle());
+                }}
+              >
+                {copiedDiagnosticAction === "debug-bundle" ? "Copied" : "Copy Debug bundle"}
+              </button>
+            </div>
             {diagnostics.logDir && (
               <div className="debug-panel__diagnostic-path">
                 <span className="debug-panel__recovery-label">Logs path</span>
@@ -342,10 +414,10 @@ export default function TauriStatusPanel({ onStatusChange }: TauriStatusPanelPro
                   type="button"
                   className="debug-panel__copy-btn"
                   onClick={() => {
-                    void handleCopyDiagnosticPath(diagnostics.logDir ?? "");
+                    void copyDiagnosticText("logs-path", diagnostics.logDir ?? "");
                   }}
                 >
-                  {copiedDiagnosticPath === diagnostics.logDir ? "Copied" : "Copy"}
+                  {copiedDiagnosticAction === "logs-path" ? "Copied" : "Copy Logs path"}
                 </button>
               </div>
             )}
@@ -357,10 +429,10 @@ export default function TauriStatusPanel({ onStatusChange }: TauriStatusPanelPro
                   type="button"
                   className="debug-panel__copy-btn"
                   onClick={() => {
-                    void handleCopyDiagnosticPath(diagnostics.configDir ?? "");
+                    void copyDiagnosticText("config-path", diagnostics.configDir ?? "");
                   }}
                 >
-                  {copiedDiagnosticPath === diagnostics.configDir ? "Copied" : "Copy"}
+                  {copiedDiagnosticAction === "config-path" ? "Copied" : "Copy Config path"}
                 </button>
               </div>
             )}
