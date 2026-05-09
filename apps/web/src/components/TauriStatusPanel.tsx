@@ -12,6 +12,14 @@ type UpdaterCheckStatus = {
   error: string | null;
 };
 
+type DesktopDiagnostics = {
+  version: string;
+  platform: string;
+  arch: string;
+  logDir: string | null;
+  configDir: string | null;
+};
+
 type TauriStatusPanelProps = {
   onStatusChange?: (status: ServerStatusDetail | null) => void;
 };
@@ -39,6 +47,8 @@ export default function TauriStatusPanel({ onStatusChange }: TauriStatusPanelPro
   const [autostartLoading, setAutostartLoading] = useState(false);
   const [updaterStatus, setUpdaterStatus] = useState<UpdaterCheckStatus | null>(null);
   const [updaterLoading, setUpdaterLoading] = useState(false);
+  const [diagnostics, setDiagnostics] = useState<DesktopDiagnostics | null>(null);
+  const [copiedDiagnosticPath, setCopiedDiagnosticPath] = useState<string | null>(null);
   const [copiedRecoveryCommand, setCopiedRecoveryCommand] = useState<string | null>(null);
 
   useEffect(() => {
@@ -76,20 +86,24 @@ export default function TauriStatusPanel({ onStatusChange }: TauriStatusPanelPro
     if (!isTauri) return;
     let cancelled = false;
 
-    const fetchAutostart = async () => {
+    const fetchDesktopMetadata = async () => {
       const core = getTauriCore();
       if (!core) return;
       try {
-        const result = await core.invoke("autostart_status");
+        const [autostartResult, diagnosticsResult] = await Promise.all([
+          core.invoke("autostart_status"),
+          core.invoke("desktop_diagnostics"),
+        ]);
         if (cancelled) return;
-        setAutostartEnabled(Boolean(result));
+        setAutostartEnabled(Boolean(autostartResult));
+        setDiagnostics(diagnosticsResult as DesktopDiagnostics);
       } catch (err) {
         if (cancelled) return;
         setInvokeError(errorToMessage(err));
       }
     };
 
-    fetchAutostart();
+    fetchDesktopMetadata();
     return () => {
       cancelled = true;
     };
@@ -227,6 +241,18 @@ export default function TauriStatusPanel({ onStatusChange }: TauriStatusPanelPro
     }, 1600);
   };
 
+  const handleCopyDiagnosticPath = async (value: string) => {
+    const copied = await copyWithFallback(value);
+    if (!copied) {
+      setInvokeError("パスのコピーに失敗しました。");
+      return;
+    }
+    setCopiedDiagnosticPath(value);
+    window.setTimeout(() => {
+      setCopiedDiagnosticPath((current) => (current === value ? null : current));
+    }, 1600);
+  };
+
   return (
     <div className="debug-panel">
       <div className="debug-panel__title">Desktop Server</div>
@@ -262,6 +288,20 @@ export default function TauriStatusPanel({ onStatusChange }: TauriStatusPanelPro
             <span className="debug-panel__label">Updater</span>
             <span>{updaterLabel}</span>
           </div>
+          {diagnostics && (
+            <>
+              <div className="debug-panel__row">
+                <span className="debug-panel__label">Version</span>
+                <span>v{diagnostics.version}</span>
+              </div>
+              <div className="debug-panel__row">
+                <span className="debug-panel__label">Platform</span>
+                <span>
+                  {diagnostics.platform}/{diagnostics.arch}
+                </span>
+              </div>
+            </>
+          )}
           {status.transitioned_at && (
             <div className="debug-panel__meta">
               状態更新: {new Date(status.transitioned_at).toLocaleTimeString()}
@@ -286,6 +326,46 @@ export default function TauriStatusPanel({ onStatusChange }: TauriStatusPanelPro
         <div className={`debug-panel__alert ${updaterNotice.className}`}>
           <pre style={{ margin: 0, whiteSpace: "pre-wrap", fontFamily: "inherit" }}>{updaterNotice.text}</pre>
         </div>
+      )}
+      {diagnostics && (
+        <section className="debug-panel__recovery-card" aria-label="desktop diagnostics">
+          <div className="debug-panel__recovery-header">
+            <div className="debug-panel__meta">Troubleshooting</div>
+            <div className="debug-panel__recovery-summary">問い合わせ時は Version、Platform、Logs path を添えてください。</div>
+          </div>
+          <div className="debug-panel__diagnostic-list">
+            {diagnostics.logDir && (
+              <div className="debug-panel__diagnostic-path">
+                <span className="debug-panel__recovery-label">Logs path</span>
+                <code className="debug-panel__command-code">{diagnostics.logDir}</code>
+                <button
+                  type="button"
+                  className="debug-panel__copy-btn"
+                  onClick={() => {
+                    void handleCopyDiagnosticPath(diagnostics.logDir ?? "");
+                  }}
+                >
+                  {copiedDiagnosticPath === diagnostics.logDir ? "Copied" : "Copy"}
+                </button>
+              </div>
+            )}
+            {diagnostics.configDir && (
+              <div className="debug-panel__diagnostic-path">
+                <span className="debug-panel__recovery-label">Config path</span>
+                <code className="debug-panel__command-code">{diagnostics.configDir}</code>
+                <button
+                  type="button"
+                  className="debug-panel__copy-btn"
+                  onClick={() => {
+                    void handleCopyDiagnosticPath(diagnostics.configDir ?? "");
+                  }}
+                >
+                  {copiedDiagnosticPath === diagnostics.configDir ? "Copied" : "Copy"}
+                </button>
+              </div>
+            )}
+          </div>
+        </section>
       )}
       {failureGuidance && (
         <section className="debug-panel__recovery-card" aria-label="startup recovery guidance">
