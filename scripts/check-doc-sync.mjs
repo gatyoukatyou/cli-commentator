@@ -49,6 +49,21 @@ function run(command) {
   return execSync(command, { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).trim();
 }
 
+function parseFileList(output) {
+  return output
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+}
+
+function runFileList(command) {
+  try {
+    return parseFileList(run(command));
+  } catch {
+    return [];
+  }
+}
+
 function parseArgs(argv) {
   const parsed = {
     baseRef: process.env.GITHUB_BASE_REF || "main",
@@ -105,22 +120,33 @@ function readPullRequestBody() {
 function getChangedFiles(baseRef, headRef) {
   const ranges = [`origin/${baseRef}...${headRef}`, `${baseRef}...${headRef}`];
   let lastError = null;
+  let committedFiles = [];
+  let resolvedRange = false;
 
   for (const range of ranges) {
     try {
       const output = run(`git diff --name-only --diff-filter=ACMRTUXB ${range}`);
-      return output
-        .split(/\r?\n/)
-        .map((line) => line.trim())
-        .filter(Boolean);
+      committedFiles = parseFileList(output);
+      resolvedRange = true;
+      break;
     } catch (error) {
       lastError = error;
     }
   }
 
-  throw new Error(
-    `Could not resolve git diff range for base '${baseRef}' and head '${headRef}'. ${String(lastError)}`
-  );
+  if (!resolvedRange) {
+    throw new Error(
+      `Could not resolve git diff range for base '${baseRef}' and head '${headRef}'. ${String(lastError)}`
+    );
+  }
+
+  const localFiles = [
+    ...runFileList("git diff --name-only --diff-filter=ACMRTUXB"),
+    ...runFileList("git diff --cached --name-only --diff-filter=ACMRTUXB"),
+    ...runFileList("git ls-files --others --exclude-standard"),
+  ];
+
+  return [...new Set([...committedFiles, ...localFiles])].sort();
 }
 
 function main() {
