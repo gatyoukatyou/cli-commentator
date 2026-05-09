@@ -200,10 +200,10 @@ jobs:
         with:
           projectPath: apps/desktop
           tagName: ${{ github.ref_name }}
-          releaseName: CLI Commentator ${{ github.ref_name }}
-          releaseBody: See the assets to download and install this version.
+          releaseName: ${{ startsWith(github.ref_name, 'v0.0.0-smoke.') && format('CLI Commentator {0} (signed smoke)', github.ref_name) || format('CLI Commentator {0}', github.ref_name) }}
+          releaseBody: ${{ startsWith(github.ref_name, 'v0.0.0-smoke.') && 'Signed and notarized internal smoke build. Validate artifacts and keep the draft unpublished.' || 'See the assets to download and install this version.' }}
           releaseDraft: true
-          prerelease: false
+          prerelease: ${{ startsWith(github.ref_name, 'v0.0.0-smoke.') }}
           args: ${{ matrix.args }}
 
       - name: Build and draft release (unsigned internal)

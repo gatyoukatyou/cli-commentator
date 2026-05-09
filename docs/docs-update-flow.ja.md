@@ -54,7 +54,9 @@
 
 ## CIガード（Issue #132）
 
+- GitHub Actions workflow file の静的検証として、PR と `main` push で `actionlint` を実行する。
 - PR では `docs_drift_guard` ジョブが `scripts/check-doc-sync.mjs` を実行する。
+- ローカル実行では commit 済み、stage 済み、未stage、untracked の差分を対象にする。
 - 対象実装（LLM/desktop配布系）が変わったのに主要docsが未更新の場合、CI は失敗する。
 - 例外運用が必要な場合のみ、PR本文に `[skip-doc-sync-check]` を明記し、理由を添える。
 

@@ -7,6 +7,18 @@ on:
       - main
 
 jobs:
+  actionlint:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Check workflow files
+        uses: docker://rhysd/actionlint:1.7.12
+        with:
+          args: -color
+
   docs_drift_guard:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest

@@ -34,6 +34,7 @@ Related docs:
 - `Apple secrets present`
   - Runs code signing + notarization
   - Produces release-candidate artifacts
+  - For `v0.0.0-smoke.*` tags, still runs the signed/notarized path but marks the Draft Release as prerelease and keeps it for internal evidence only
 - `Apple secrets missing`
   - Workflow continues in unsigned internal mode
   - Draft Release is generated only for `v0.0.0-smoke.*` tags (internal testing only)
@@ -101,6 +102,19 @@ Related docs:
   - `gh secret list --repo gatyoukatyou/cli-commentator` shows Apple secrets are present except `APPLE_CERTIFICATE`
   - signed/notarized distribution remains blocked by `#138`
 
+## 0.8) Current #138 Signing Readiness Snapshot (2026-05-09)
+
+- Repository secrets:
+  - Present: `APPLE_CERTIFICATE_PASSWORD`, `KEYCHAIN_PASSWORD`, `APPLE_ID`, `APPLE_PASSWORD`, `APPLE_TEAM_ID`
+  - Missing: `APPLE_CERTIFICATE`
+- Local shell checks:
+  - `pnpm verify:apple-signing:detect` only inspects environment variables in the current shell, not repository secret names.
+  - Therefore, a local run can report all Apple secrets as missing even when repository secrets already exist.
+- Remaining blocker:
+  - Issue/export a Developer ID Application certificate with its private key as `.p12`
+  - Base64-encode the `.p12` and register it as `APPLE_CERTIFICATE`
+  - Rotate `APPLE_CERTIFICATE_PASSWORD` at the same time if the `.p12` export password changes
+
 ## 1) Pre-release checks (required)
 
 ### 1-1. Local verification
@@ -151,6 +165,7 @@ Notes:
 4. Confirm `release-desktop` workflow passes
 5. Validate Draft Release assets
    - signed mode: signed/notarized artifacts
+   - signed smoke mode (`v0.0.0-smoke.*` with Apple secrets present): signed/notarized artifacts, `isDraft=true`, `isPrerelease=true`
    - unsigned mode: internal-test artifacts (Gatekeeper warning expected)
 6. Publish draft when validation is complete
 
@@ -178,6 +193,12 @@ Actions:
 2. Set `APPLE_ID` / `APPLE_PASSWORD` / `APPLE_TEAM_ID`
 3. Export values in the same shell and run `pnpm verify:apple-signing` (require mode) for format validation
 4. Re-run with a new tag and confirm signed mode
+   - Check `Detect Apple signing/notarization mode`: `enabled=true`
+   - Check `Configure macOS keychain for code signing`: certificate import succeeds
+   - Check `Detect code signing identity`: a Developer ID identity is detected
+   - Check `Log notarization configuration`: expected Apple Team ID/account domain is logged
+   - Check `Build and draft release (signed + notarized)`: succeeds for both arm64/x64 jobs
+   - Check Draft Release assets include `latest.json`, `.app.tar.gz`, `.sig`, and `.dmg`
 5. If budget is not available yet, run `pnpm verify:apple-signing:detect` to confirm missing-secret state only
 6. If budget is not available yet, continue using unsigned mode for internal validation
    - unsigned mode is allowed only with `v0.0.0-smoke.*` tags
