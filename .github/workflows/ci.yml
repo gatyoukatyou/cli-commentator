@@ -234,15 +234,7 @@ jobs:
             --config '{"bundle":{"createUpdaterArtifacts":false}}'
 
       - name: Verify desktop build outputs
-        run: |
-          set -euo pipefail
-          bundle_dir="apps/desktop/src-tauri/target/release/bundle"
-          test -d "${bundle_dir}"
-          if ! find "${bundle_dir}" -name "*.app" | grep -q .; then
-            echo "Desktop app bundle artifacts were not produced."
-            exit 1
-          fi
-          find "${bundle_dir}" -name "*.app"
+        run: node scripts/verify-desktop-bundle-artifacts.mjs apps/desktop/src-tauri/target/release/bundle --require app
 
       - name: Desktop distribution runtime smoke
         run: pnpm smoke:desktop-distribution
