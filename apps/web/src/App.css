@@ -325,6 +325,11 @@
   font-weight: var(--font-bold);
 }
 
+.debug-panel__value {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
 .debug-panel__meta {
   font-size: var(--text-xs);
   color: var(--color-fg-tertiary);
