@@ -54,6 +54,7 @@ Use the Doc Freshness checklist in `.github/pull_request_template.md` and enforc
 
 ## CI Guard (Issue #132)
 
+- `actionlint` runs on pull requests and `main` pushes to statically check GitHub Actions workflow files.
 - On pull requests, `docs_drift_guard` runs `scripts/check-doc-sync.mjs`.
 - If LLM/desktop-distribution implementation changes without matching docs updates, CI fails.
 - Use `[skip-doc-sync-check]` in the PR body only for explicit exceptions, and include the reason.
