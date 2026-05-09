@@ -200,8 +200,8 @@ jobs:
         with:
           projectPath: apps/desktop
           tagName: ${{ github.ref_name }}
-          releaseName: ${{ startsWith(github.ref_name, 'v0.0.0-smoke.') && format('CLI Commentator {0} (signed smoke)', github.ref_name) || format('CLI Commentator {0}', github.ref_name) }}
-          releaseBody: ${{ startsWith(github.ref_name, 'v0.0.0-smoke.') && 'Signed and notarized internal smoke build. Validate artifacts and keep the draft unpublished.' || 'See the assets to download and install this version.' }}
+          releaseName: ${{ startsWith(github.ref_name, 'v0.0.0-smoke.') && format('CLI Commentator {0} (Signed Smoke)', github.ref_name) || format('CLI Commentator {0}', github.ref_name) }}
+          releaseBody: ${{ startsWith(github.ref_name, 'v0.0.0-smoke.') && 'Signed Smoke internal test build. Apple Developer ID signing and notarization were enabled; validate artifacts and keep the draft unpublished.' || 'See the assets to download and install this version.' }}
           releaseDraft: true
           prerelease: ${{ startsWith(github.ref_name, 'v0.0.0-smoke.') }}
           args: ${{ matrix.args }}
@@ -216,8 +216,8 @@ jobs:
         with:
           projectPath: apps/desktop
           tagName: ${{ github.ref_name }}
-          releaseName: CLI Commentator ${{ github.ref_name }} (unsigned internal)
-          releaseBody: Unsigned internal test build from ${{ github.ref_name }}. Apple Developer ID signing/notarization is not configured.
+          releaseName: CLI Commentator ${{ github.ref_name }} (Unsigned Smoke)
+          releaseBody: Unsigned Smoke internal test build from ${{ github.ref_name }}. Apple Developer ID signing/notarization is not configured; Gatekeeper warnings are expected.
           releaseDraft: true
           prerelease: true
           args: ${{ matrix.args }}
@@ -258,14 +258,12 @@ jobs:
             fi
           fi
           test -d "${bundle_dir}"
-          find "${bundle_dir}" -name "*.dmg" | grep -q .
-          find "${bundle_dir}" -name "*.app.tar.gz" | grep -q .
-          find "${bundle_dir}" -name "*.app.tar.gz.sig" | grep -q .
+          node scripts/verify-desktop-bundle-artifacts.mjs "${bundle_dir}" --require dmg --require app-tar-gz --require sig
           echo "bundle_dir=${bundle_dir}" >> "$GITHUB_OUTPUT"
 
       - name: Upload smoke artifacts (token fallback)
         if: ${{ steps.release_token.outputs.write_capable != 'true' && startsWith(github.ref_name, 'v0.0.0-smoke.') }}
         uses: actions/upload-artifact@v7
         with:
-          name: smoke-bundle-${{ steps.fallback_target.outputs.triple }}
+          name: unsigned-smoke-bundle-${{ steps.fallback_target.outputs.triple }}
           path: ${{ steps.fallback_build.outputs.bundle_dir }}
