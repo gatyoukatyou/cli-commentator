@@ -167,8 +167,64 @@ pnpm smoke:desktop-distribution
 5. Draft Release の成果物を確認
    - signedモード: 署名/notarization済み成果物
    - signed smokeモード（Apple secrets 登録済みの `v0.0.0-smoke.*`）: 署名/notarization済み成果物、`isDraft=true`、`isPrerelease=true`
-   - unsignedモード: 内部検証用成果物（Gatekeeper警告あり）
+   - unsignedモード: 内部検証用成果物（`Unsigned Smoke`, `isDraft=true`, `isPrerelease=true`; Gatekeeper警告あり）
 6. 問題なければ Draft を Publish
+
+## 2.5) Unsigned install cheats
+
+現在の `release-desktop` smoke automation は macOS matrix から macOS artifacts（`.dmg`, `.app.tar.gz`, `.sig`）を生成する。Windows/Linux の手順は、ローカル build または将来の release matrix で該当 artifacts を生成した場合に使う。
+
+### macOS unsigned install
+
+1. `Unsigned Smoke` Draft Release から `.dmg` をダウンロード
+2. `.dmg` を開く
+3. `CLI Commentator.app` を `Applications` にドラッグ
+4. Finder から起動
+
+初回起動で macOS にブロックされた場合:
+
+1. Finder で `CLI Commentator.app` を右クリック
+2. `開く` を選ぶ
+3. unsigned app の警告を確認して開く
+4. それでもブロックされる場合は `システム設定` -> `プライバシーとセキュリティ` を開き、CLI Commentator の `このまま開く` を選ぶ
+
+代表的な警告:
+
+- `開発元を検証できないため開けません`: unsigned smoke builds では想定内。Finder の右クリック -> `開く` を使う。
+- `未確認の開発元からのアプリケーション`: unsigned smoke builds では想定内。`プライバシーとセキュリティ` -> `このまま開く` を使う。
+- `壊れているため開けません`: この repository release から取得した internal smoke artifact に限り quarantine を外して再試行する。
+
+```bash
+xattr -dr com.apple.quarantine "/Applications/CLI Commentator.app"
+```
+
+### Windows unsigned install
+
+Windows artifacts を生成した場合:
+
+1. `Unsigned Smoke` release から installer/archive をダウンロード
+2. SmartScreen が出たら `詳細情報` を選ぶ
+3. publisher が unknown/unsigned であることを確認し、`実行` を選ぶ
+4. Microsoft Defender がブロックした場合は、この repository release から取得した artifact であることを確認してから、Defender prompt で許可して再試行する
+
+### Linux unsigned install
+
+Linux artifacts を生成した場合:
+
+1. `Unsigned Smoke` release から archive または AppImage をダウンロード
+2. AppImage 形式なら実行権限を付ける
+
+```bash
+chmod +x ./CLI-Commentator*.AppImage
+```
+
+3. 最初は terminal から実行し、startup error が見える状態で確認する
+
+```bash
+./CLI-Commentator*.AppImage
+```
+
+`.tar.gz` の場合は archive を展開し、展開先の executable を実行する。
 
 ## 3) 障害時の復旧手順
 

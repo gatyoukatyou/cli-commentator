@@ -166,8 +166,64 @@ Notes:
 5. Validate Draft Release assets
    - signed mode: signed/notarized artifacts
    - signed smoke mode (`v0.0.0-smoke.*` with Apple secrets present): signed/notarized artifacts, `isDraft=true`, `isPrerelease=true`
-   - unsigned mode: internal-test artifacts (Gatekeeper warning expected)
+   - unsigned mode: internal-test artifacts (`Unsigned Smoke`, `isDraft=true`, `isPrerelease=true`; Gatekeeper warning expected)
 6. Publish draft when validation is complete
+
+## 2.5) Unsigned Install Cheats
+
+Current `release-desktop` smoke automation publishes macOS artifacts (`.dmg`, `.app.tar.gz`, `.sig`) from the macOS matrix. Use the Windows/Linux notes when equivalent artifacts are produced by a local build or a future release matrix.
+
+### macOS unsigned install
+
+1. Download the `.dmg` from the `Unsigned Smoke` Draft Release.
+2. Open the `.dmg`.
+3. Drag `CLI Commentator.app` into `Applications`.
+4. Launch from Finder.
+
+If macOS blocks first launch:
+
+1. In Finder, right-click `CLI Commentator.app`.
+2. Choose `Open`.
+3. Confirm the unsigned-app warning.
+4. If the button is still blocked, open `System Settings` -> `Privacy & Security`, then choose `Open Anyway` for CLI Commentator.
+
+Common warnings:
+
+- `cannot be opened because the developer cannot be verified`: expected for unsigned smoke builds; use Finder right-click -> `Open`.
+- `was blocked from use because it is not from an identified developer`: expected for unsigned smoke builds; use `Privacy & Security` -> `Open Anyway`.
+- `is damaged and can't be opened`: remove quarantine only for an internal smoke artifact that came from this repository release, then retry:
+
+```bash
+xattr -dr com.apple.quarantine "/Applications/CLI Commentator.app"
+```
+
+### Windows unsigned install
+
+When Windows artifacts are produced:
+
+1. Download the installer/archive from the `Unsigned Smoke` release.
+2. If SmartScreen appears, choose `More info`.
+3. Confirm the publisher is unknown/unsigned, then choose `Run anyway`.
+4. If Microsoft Defender blocks the file, keep the file only when it came from the repository release, then retry after the Defender prompt allows it.
+
+### Linux unsigned install
+
+When Linux artifacts are produced:
+
+1. Download the archive or AppImage from the `Unsigned Smoke` release.
+2. For AppImage-style artifacts, add execute permission:
+
+```bash
+chmod +x ./CLI-Commentator*.AppImage
+```
+
+3. Run it from a terminal first so startup errors stay visible.
+
+```bash
+./CLI-Commentator*.AppImage
+```
+
+For `.tar.gz` archives, extract the archive and run the included executable from the extracted directory.
 
 ## 3) Failure recovery playbook
 
