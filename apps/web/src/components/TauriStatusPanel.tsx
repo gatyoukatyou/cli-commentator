@@ -46,6 +46,7 @@ export default function TauriStatusPanel({ onStatusChange }: TauriStatusPanelPro
   const [autostartEnabled, setAutostartEnabled] = useState<boolean | null>(null);
   const [autostartLoading, setAutostartLoading] = useState(false);
   const [updaterStatus, setUpdaterStatus] = useState<UpdaterCheckStatus | null>(null);
+  const [updaterCheckedAt, setUpdaterCheckedAt] = useState<Date | null>(null);
   const [updaterLoading, setUpdaterLoading] = useState(false);
   const [diagnostics, setDiagnostics] = useState<DesktopDiagnostics | null>(null);
   const [copiedDiagnosticAction, setCopiedDiagnosticAction] = useState<string | null>(null);
@@ -164,9 +165,21 @@ export default function TauriStatusPanel({ onStatusChange }: TauriStatusPanelPro
     try {
       const result = await core.invoke("updater_check");
       setUpdaterStatus(result as UpdaterCheckStatus);
+      setUpdaterCheckedAt(new Date());
       setInvokeError(null);
     } catch (err) {
-      setInvokeError(errorToMessage(err));
+      const message = errorToMessage(err);
+      setUpdaterStatus({
+        configured: false,
+        available: false,
+        currentVersion: diagnostics?.version ?? "unknown",
+        version: null,
+        date: null,
+        body: null,
+        error: message,
+      });
+      setUpdaterCheckedAt(new Date());
+      setInvokeError(message);
     } finally {
       setUpdaterLoading(false);
     }
@@ -197,17 +210,18 @@ export default function TauriStatusPanel({ onStatusChange }: TauriStatusPanelPro
     autostartEnabled === null ? "読み込み中..." : autostartEnabled ? "自動起動を無効化" : "自動起動を有効化";
   const autostartButtonDisabled = autostartLoading || autostartEnabled === null;
   const updaterLabel = (() => {
-    if (updaterLoading) return "確認中";
-    if (!updaterStatus) return "未確認";
-    if (!updaterStatus.configured) return "未設定";
-    if (updaterStatus.available) return `更新あり (v${updaterStatus.version ?? "?"})`;
-    return "最新";
+    if (updaterLoading) return "Checking...";
+    if (!updaterStatus) return "Not checked";
+    if (updaterStatus.error) return "Failed";
+    if (!updaterStatus.configured) return "Not configured";
+    if (updaterStatus.available) return `Update available (latest: v${updaterStatus.version ?? "?"})`;
+    return "Up-to-date";
   })();
   const updaterNotice = (() => {
     if (!updaterStatus) return null;
     if (updaterStatus.error) {
       return {
-        text: updaterStatus.error,
+        text: `${updaterStatus.error}\nCopy Debug bundle を添えて共有してください。`,
         className: "debug-panel__alert--crash",
       };
     }
@@ -289,6 +303,7 @@ export default function TauriStatusPanel({ onStatusChange }: TauriStatusPanelPro
       invokeError ? `- Panel error: ${invokeError}` : null,
       "Updater:",
       `- Result: ${updaterResult}`,
+      `- Last checked: ${updaterCheckedAt ? updaterCheckedAt.toLocaleString() : "-"}`,
       `- Current version: ${updaterStatus?.currentVersion ? `v${updaterStatus.currentVersion}` : version}`,
       updaterStatus?.version ? `- Available version: v${updaterStatus.version}` : null,
       updaterStatus?.date ? `- Release date: ${updaterStatus.date}` : null,
@@ -334,8 +349,12 @@ export default function TauriStatusPanel({ onStatusChange }: TauriStatusPanelPro
             <span>{autostartLabel}</span>
           </div>
           <div className="debug-panel__row">
-            <span className="debug-panel__label">Updater</span>
-            <span>{updaterLabel}</span>
+            <span className="debug-panel__label">Update</span>
+            <span className="debug-panel__value">{updaterLabel}</span>
+          </div>
+          <div className="debug-panel__row">
+            <span className="debug-panel__label">Last checked</span>
+            <span>{updaterCheckedAt ? updaterCheckedAt.toLocaleTimeString() : "-"}</span>
           </div>
           {diagnostics && (
             <>
@@ -515,7 +534,7 @@ export default function TauriStatusPanel({ onStatusChange }: TauriStatusPanelPro
       </div>
       <div className="debug-panel__actions">
         <button className="debug-panel__btn debug-panel__btn--secondary" onClick={handleCheckUpdater} disabled={updaterLoading}>
-          {updaterLoading ? "確認中..." : "更新を確認"}
+          {updaterLoading ? "Checking..." : "Check updates"}
         </button>
       </div>
     </div>
