@@ -89,7 +89,7 @@ CLI Commentator は「ターミナルの作業ログを見て、別ウィンド�
 
 ---
 
-## 現在地（2026-03-15 時点）
+## 現在地（2026-05-08 時点）
 **Done**
 - PR #1：detect 境界テスト（混在→generic、50行制限、重要定数export）
 - PR #2：ロードマップ docs 追加（日英＋docs/READMEからリンク）
@@ -129,17 +129,27 @@ CLI Commentator は「ターミナルの作業ログを見て、別ウィンド�
 - PR #218：Codex progress commentary noise を抑止
 - PR #219：入力重複抑止・TTS遅延短縮・explanation prompt 改善
 - PR #220：Sprint 16 起動復旧整合の証跡を release evidence log へ反映
+- `#214` / `#215` は closed。Sprint 16 の remaining / blocked 再整理と、recovery guidance 残件の fallback 監視扱いへの整理が完了
+- PR #237：server / web の `@types/node` を更新し、個別PR #238 / #239 を内包して整理
+- PR #241-242：desktop release CI actions（`tauri-apps/tauri-action` v0.6.2 / `pnpm/action-setup` v5）を更新し、運用手順変更なしの docs note を追加
+- PR #244：`tauri-plugin-updater` を 2.10.1 へ更新し、updater plugin maintenance として記録
+- PR #249：Tauri runtime stack を 2.11 系へ更新し、runtime maintenance として記録。#248 は内包済みとして close
+- 2026-05-08 時点で open PR は 0 件。依存更新PR群の整理は完了
 
 **Now**
-- Sprint 16 の主戦場はほぼ収束し、起動失敗分類 / recovery guidance / distribution smoke / evidence log の main 反映が完了
-- GitHub CI では `desktop_distribution_smoke` / `desktop_check` / `failure_regression` を含む主要 checks が green
-- 残件は `#214`（Sprint 16 の done / remaining / blocked 再整理）と `#215`（`要確認` 実例棚卸し、`spawn` 細分類判断）に圧縮
-- signed 配布 readiness は `#138`（Apple certificate/secrets）未解消のため継続保留
+- release readiness の焦点は `#138` に集約。Apple Developer ID certificate 準備、GitHub Secrets 登録、`verify:apple-signing`、signed/notarized `release-desktop` smoke が残件
+- 残っているのは通常のコード実装というより、証明書発行、`.p12` 取り扱い、`APPLE_CERTIFICATE` / password 検証、notarization 証跡の運用 readiness
+- main は依存更新PR整理後の状態で最新化済み。GitHub CI は `docs_drift_guard` / `test` / `test_windows` / `desktop_check` / `desktop_distribution_smoke` / CodeQL が green
 
 **Next**
-- `#214` として Sprint 16 を `done / remaining / blocked` で再整理し、持ち越し候補を 1-2 件へ圧縮する
-- `#215` として `要確認` に落ちる残件を棚卸しし、`spawn` 細分類を今 Sprint でやるか次 Sprint に送るか判断する
-- `#138` を解消し、signed/notarized release readiness を再開する
+- `#138` の人間側作業を完了する: Developer ID Application certificate の発行 / export、必要な GitHub Secrets 登録、release smoke tag の再実行
+- release workflow から signed/notarized desktop artifacts（`latest.json`, `.app.tar.gz`, `.sig`, `.dmg`）を確認してから、正式な signed 配布 ready と判断する
+- signed/notarized smoke により既存手順が変わる場合のみ、release notes / operator docs を追加更新する
+
+**Later**
+- dependency / desktop runtime maintenance は docs drift guard 経由で継続運用する
+- 新しい具体的な失敗例が出たら、failure regression summary と recovery evidence を継続強化する
+- signed release readiness が unblock された後、UX / 実況品質改善へ戻る
 
 ---
 
@@ -175,16 +185,17 @@ CLI Commentator は「ターミナルの作業ログを見て、別ウィンド�
 - クリーン環境で「インストール→起動→実況開始」が通る
 - 主要な起動失敗パターンの一次切り分けが可能
 
-**現状整理（2026-03-15）**
+**現状整理（2026-05-08）**
 - Done
   - server / desktop / web / smoke / runbook の起動失敗分類整合を main へ反映
   - distribution smoke に negative path を追加し、GitHub CI 上で `desktop_distribution_smoke` を継続運用
   - recovery guidance の既知カテゴリ coverage、commentary noise suppression、入力/TTS UX 改善を main へ反映
+  - `#214` は closed。Sprint 16 の done / remaining / blocked 整理を記録
+  - `#215` は closed。`要確認` は未知 / 非構造化エラー用 fallback として維持、`spawn` 細分類は具体例が出るまで保留と整理
 - Remaining
-  - `要確認` は未知 / 非構造化エラー用 fallback として維持しつつ、具体的な実例は `#215` で継続監査
-  - `spawn` 細分類は current buckets で不足する実例が出るまで次 Sprint 候補として扱う
+  - 具体的な recovery 例が新しく出た場合は、通常の evidence log で継続収集する
 - Blocked / Deferred
-  - signed/notarized release readiness は `#138` 依存
+  - signed/notarized release readiness は `#138` 依存。具体的には Apple Developer ID certificate / GitHub Secrets / notarization validation が残件
   - clean internal 実機証跡は CI 証跡とは別管理
 
 ### Sprint 17（2026-03-26 〜 2026-04-08）: 可観測性とフォールバック強化
