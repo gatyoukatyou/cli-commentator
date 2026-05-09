@@ -84,7 +84,7 @@ Build a minimal MVP that reliably works, then expand once value is proven.
 
 ---
 
-## Current status (as of 2026-03-15)
+## Current status (as of 2026-05-08)
 **Done**
 - PR #1: detect boundary tests (mixed => generic, 50-line limit, exported constants)
 - PR #2: add roadmap docs (JA/EN + links from docs/README)
@@ -124,17 +124,27 @@ Build a minimal MVP that reliably works, then expand once value is proven.
 - PR #218: suppress Codex progress commentary noise
 - PR #219: reduce duplicate input, lower TTS lag, and strengthen explanation prompts
 - PR #220: record Sprint 16 startup recovery evidence in the release evidence logs
+- Issues #214 and #215 are closed: Sprint 16 remaining / blocked work has been reclassified, and residual recovery-guidance cases are documented as fallback monitoring rather than active implementation blockers
+- PR #237: update `@types/node` for server and web, replacing the narrower #238 / #239 PRs
+- PR #241-242: refresh desktop release CI actions (`tauri-apps/tauri-action` v0.6.2 and `pnpm/action-setup` v5) with docs notes confirming no operator workflow changes
+- PR #244: update `tauri-plugin-updater` to 2.10.1 and document it as updater plugin maintenance
+- PR #249: refresh the Tauri runtime stack to the 2.11 series and document it as runtime maintenance; #248 was closed as superseded
+- As of 2026-05-08, open PR count is 0 and the dependency-maintenance backlog has been cleared
 
 **Now**
-- Sprint 16 core work is largely landed: startup failure classification, recovery guidance, distribution smoke, and evidence logging are now reflected on main
-- GitHub CI provides green evidence across `desktop_distribution_smoke`, `desktop_check`, `failure_regression`, and the standard test matrix
-- Remaining Sprint 16 work is narrowed to `#214` (done / remaining / blocked reclassification) and `#215` (audit residual `needs manual review` cases and decide on `spawn` sub-classification)
-- Signed release readiness remains blocked by `#138` (Apple certificate/secrets)
+- Release readiness is now concentrated on `#138`: Apple Developer ID certificate preparation, GitHub Secrets registration, `verify:apple-signing`, and a signed/notarized `release-desktop` smoke run
+- The unresolved work is operational readiness rather than a normal code implementation backlog: certificate issuance, `.p12` handling, `APPLE_CERTIFICATE` / password validation, and notarization evidence
+- Main is current after dependency-maintenance PR cleanup, with GitHub CI green across `docs_drift_guard`, `test`, `test_windows`, `desktop_check`, `desktop_distribution_smoke`, and CodeQL
 
 **Next**
-- As `#214`, reclassify Sprint 16 into `done / remaining / blocked` and compress carry-over candidates to one or two items
-- As `#215`, audit remaining `needs manual review` cases and decide whether `spawn` sub-classification belongs in this sprint or the next one
-- Resolve `#138` and resume signed/notarized release readiness work
+- Complete the human-side `#138` work: issue / export the Developer ID Application certificate, register required GitHub Secrets, and rerun the release smoke tag
+- Confirm signed/notarized desktop artifacts (`latest.json`, `.app.tar.gz`, `.sig`, `.dmg`) from the release workflow before declaring public signed distribution ready
+- Refresh release notes and operator docs only if the signed/notarized smoke run changes the existing release procedure
+
+**Later**
+- Continue dependency and desktop runtime maintenance through the docs drift guard path
+- Keep improving failure-regression summaries and recovery evidence as new concrete failure cases appear
+- Resume UX/commentary-quality improvements after signed release readiness is unblocked
 
 ---
 
@@ -170,16 +180,17 @@ Build a minimal MVP that reliably works, then expand once value is proven.
 - Clean environment can complete install -> launch -> commentary start
 - Major startup failures can be triaged quickly
 
-**Status snapshot (2026-03-15)**
+**Status snapshot (2026-05-08)**
 - Done
   - Land startup failure alignment across server / desktop / web / smoke / runbook on main
   - Add negative-path distribution smoke coverage and keep `desktop_distribution_smoke` running in GitHub CI
   - Land known-category recovery coverage, commentary noise suppression, and input/TTS UX fixes on main
+  - Closed `#214` after recording the Sprint 16 done / remaining / blocked split
+  - Closed `#215` after confirming `needs manual review` remains the fallback for unknown / unstructured failures and deeper `spawn` sub-classification can wait for concrete cases
 - Remaining
-  - Keep `needs manual review` as the fallback for unknown / unstructured failures while continuing to collect concrete examples in `#215`
-  - Treat deeper `spawn` sub-classification as a next-sprint candidate unless concrete cases show the current buckets are insufficient
+  - Keep collecting concrete recovery examples through normal evidence logs when they appear
 - Blocked / Deferred
-  - Signed/notarized release readiness is still blocked by `#138`
+  - Signed/notarized release readiness is still blocked by `#138`, specifically Apple Developer ID certificate / GitHub Secrets / notarization validation
   - Clean-internal physical-machine evidence is tracked separately from CI evidence
 
 ### Sprint 17 (2026-03-26 to 2026-04-08): Observability & fallback hardening

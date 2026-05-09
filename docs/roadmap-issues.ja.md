@@ -152,16 +152,17 @@ notarizationのsubmit/staple手順を自動化し、配布前作業を定常運�
 
 ## Sprint 16（2026-03-12 〜 2026-03-25）
 
-**Status（2026-03-15）**
+**Status（2026-05-08）**
 - Done
   - `server: 起動失敗の原因分類ログを強化` は main 反映済み（PR #213）
   - `qa: クリーン環境向け配布物スモークテストを追加` は CI 反映済み。negative path を含む `desktop_distribution_smoke` が green
   - recovery guidance の既知カテゴリ coverage、commentary noise 抑止、入力/TTS UX 改善も main 反映済み（PR #217-#219）
+  - `#214` は closed。Sprint 16 の done / remaining / blocked 再整理を完了
+  - `#215` は closed。`要確認` は未知 / 非構造化エラー用 fallback として維持し、`spawn` 細分類は具体例が出るまで保留と整理
 - Remaining
-  - `desktop: 起動失敗時の復旧ガイドUIを改善` のうち、`要確認` に落ちる実例棚卸し
-  - `spawn` 細分類を今 Sprint に含めるかの判断メモ
+  - 具体的な recovery 例が新しく出た場合は、通常の evidence log で継続収集する
 - Blocked / Deferred
-  - signed/notarized 配布 readiness は `#138` 依存
+  - signed/notarized 配布 readiness は `#138` 依存（Apple Developer ID certificate、GitHub Secrets、notarization validation）
   - clean internal 実機証跡は CI 証跡とは別管理
 
 ### 16-1

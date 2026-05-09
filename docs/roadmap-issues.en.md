@@ -152,16 +152,17 @@ Document certificate and secrets lifecycle operations (create/update/revoke).
 
 ## Sprint 16 (2026-03-12 to 2026-03-25)
 
-**Status (2026-03-15)**
+**Status (2026-05-08)**
 - Done
   - `server: strengthen startup-failure classification logs` is landed on main (PR #213)
   - `qa: add clean-environment smoke tests for desktop artifacts` is running in CI; `desktop_distribution_smoke` is green with negative-path coverage
   - known-category recovery coverage, commentary-noise suppression, and input/TTS UX fixes are also landed on main (PR #217-#219)
+  - `#214` is closed after the Sprint 16 done / remaining / blocked reclassification
+  - `#215` is closed after confirming `needs manual review` remains the fallback for unknown / unstructured failures and deeper `spawn` sub-classification is deferred until concrete cases appear
 - Remaining
-  - audit concrete examples that still fall into `needs manual review` under `desktop: improve startup failure recovery guidance in panel UI`
-  - leave an explicit memo on whether deeper `spawn` sub-classification belongs in this sprint
+  - keep collecting concrete recovery examples through normal evidence logs when they appear
 - Blocked / Deferred
-  - signed/notarized distribution readiness still depends on `#138`
+  - signed/notarized distribution readiness still depends on `#138` (Apple Developer ID certificate, GitHub Secrets, and notarization validation)
   - clean internal physical-machine evidence is tracked separately from CI evidence
 
 ### 16-1
