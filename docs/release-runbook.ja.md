@@ -156,6 +156,27 @@ pnpm smoke:desktop-distribution
   - `apps/desktop/src-tauri/tauri.conf.json` の `plugins.updater.pubkey` 形式を検証
   - `TAURI_SIGNING_PRIVATE_KEY` がある場合、署名スモークで鍵ペア整合を検証
 
+### 1-3. Updater 配布契約の検証
+
+Release candidate が updater artifacts を生成する場合は、以下を確認します。
+
+1. tag 作成前に `pnpm verify:updater` が Pass している。
+2. Draft Release に以下が揃っている。
+   - `latest.json`
+   - macOS アーキテクチャごとの `.app.tar.gz`
+   - 対応する `.app.tar.gz.sig`
+   - 人間の初回導入用 `.dmg`
+3. ダウンロードした release assets に bundle verifier を実行する。
+   - `pnpm verify:desktop-bundle-artifacts <assets-dir> --require dmg --require app-tar-gz --require sig`
+4. `latest.json` を確認する。
+   - platform keys: `darwin-aarch64`, `darwin-aarch64-app`, `darwin-x86_64`, `darwin-x86_64-app`
+   - 各 `url` の basename が存在する `.app.tar.gz` を指している
+   - 各 `signature` が空でない
+5. インストール済み Desktop app で Desktop Server パネルを開き、`更新を確認` をクリックする。
+6. 更新確認が失敗した場合は `Copy Debug bundle` をクリックし、release evidence または issue comment に添付する。
+
+現時点のポリシー: 更新確認は Desktop Server パネルからの手動操作です。起動時の自動更新確認がないことは release blocker として扱いません。
+
 ## 2) 標準リリース手順（Happy Path）
 
 1. バージョンを更新（`apps/desktop/src-tauri/tauri.conf.json`）
@@ -168,6 +189,7 @@ pnpm smoke:desktop-distribution
    - signedモード: 署名/notarization済み成果物
    - signed smokeモード（Apple secrets 登録済みの `v0.0.0-smoke.*`）: 署名/notarization済み成果物、`isDraft=true`、`isPrerelease=true`
    - unsignedモード: 内部検証用成果物（`Unsigned Smoke`, `isDraft=true`, `isPrerelease=true`; Gatekeeper警告あり）
+   - updater契約: `latest.json` が存在する `.app.tar.gz` assets を指し、signature が空でない
 6. 問題なければ Draft を Publish
 
 ## 2.5) Unsigned install cheats
