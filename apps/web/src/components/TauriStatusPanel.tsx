@@ -220,8 +220,16 @@ export default function TauriStatusPanel({ onStatusChange }: TauriStatusPanelPro
   const updaterNotice = (() => {
     if (!updaterStatus) return null;
     if (updaterStatus.error) {
+      const details = [
+        updaterStatus.error,
+        "確認ポイント:",
+        "- ネットワーク接続と GitHub への到達性",
+        "- Release の latest.json / .app.tar.gz / .sig の有無",
+        "- docs/desktop-release の Updater 配布契約",
+        "Copy Debug bundle を添えて共有してください。",
+      ];
       return {
-        text: `${updaterStatus.error}\nCopy Debug bundle を添えて共有してください。`,
+        text: details.join("\n"),
         className: "debug-panel__alert--crash",
       };
     }
