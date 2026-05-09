@@ -333,3 +333,79 @@
 - [ ] `#138` を解消し signed/notarized release readiness を再開
 - Owner: maintainers
 - Due: 2026-03-18
+
+## RC Evidence Record: 2026-05-09（unsigned distribution hardening smoke）
+
+### Metadata
+- Candidate: `v0.0.0-smoke.20260509-135214`（workflow smoke rerun）
+- Commit: `485d0f8`（`ci: harden unsigned desktop distribution smoke`, PR #252）
+- Reviewer: Codex
+- Decision Meeting: `2026-05-09`
+- Decision: Conditional Go（unsigned internal distribution path）
+
+### CI Evidence
+- Required checks run:
+  - PR #252 checks (`https://github.com/gatyoukatyou/cli-commentator/pull/252/checks`)
+  - `release-desktop` smoke (`https://github.com/gatyoukatyou/cli-commentator/actions/runs/25592176981`)
+- PR #252 の主要 checks:
+  - `actionlint`: Pass
+  - `docs_drift_guard`: Pass
+  - `test`: Pass
+  - `test_windows`: Pass
+  - `desktop_check`: Pass
+  - `desktop_distribution_smoke`: Pass
+  - `failure_regression`: Pass
+  - CodeQL: Pass
+
+### Release Workflow Evidence
+- `release-desktop` run:
+  - `v0.0.0-smoke.20260509-135214` -> `https://github.com/gatyoukatyou/cli-commentator/actions/runs/25592176981`（Success）
+- Execution mode: unsigned-internal（repo secrets に `APPLE_CERTIFICATE` が未登録）
+- Release permission preflight:
+  - `Verify release publish permissions`: `GH_RELEASE_TOKEN` 経路で Pass
+  - `Build and draft release (unsigned internal)`: arm64 / x64 job で Pass
+  - `Build and draft release (signed + notarized)`: 期待どおり Skip
+- Draft Release metadata:
+  - `name=CLI Commentator v0.0.0-smoke.20260509-135214 (Unsigned Smoke)`
+  - `isDraft=true`
+  - `isPrerelease=true`
+  - `tagName=v0.0.0-smoke.20260509-135214`
+  - body で unsigned smoke であることと Gatekeeper 警告が想定内であることを明記
+- Artifact check:
+  - `latest.json`: Present（2.7 KB）
+  - `CLI.Commentator_0.1.0_aarch64.dmg`: Present（81,443,191 bytes）
+  - `CLI.Commentator_0.1.0_x64.dmg`: Present（82,930,106 bytes）
+  - `CLI.Commentator_aarch64.app.tar.gz`: Present（82,841,422 bytes）
+  - `CLI.Commentator_x64.app.tar.gz`: Present（84,126,701 bytes）
+  - `CLI.Commentator_aarch64.app.tar.gz.sig`: Present（416 bytes）
+  - `CLI.Commentator_x64.app.tar.gz.sig`: Present（416 bytes）
+  - `scripts/verify-desktop-bundle-artifacts.mjs --require dmg --require app-tar-gz --require sig`: Draft Release から取得した assets に対して Pass
+
+### Runtime/Recovery Evidence
+- Desktop lifecycle event sample (`[desktop/server-event]`): N/A（tag workflow scope）
+- Server state event sample (`[server/state-event]`): N/A（tag workflow scope）
+- Startup failure classification checked: Yes（PR #252 CI で `desktop_distribution_smoke` / `failure_regression` を継続）
+- In-app diagnostics checked by CI build: PR #252 で Desktop Server panel に version / platform / logs path / config path を追加
+
+### Cross-Platform Smoke Evidence
+- macOS arm64: Pass（Draft Release assets + verifier）
+- macOS x64: Pass（Draft Release assets + verifier）
+- Windows fallback path: Pass（PR #252 の `test_windows`）
+- Linux install path: runbook に導線を記載済み。この macOS-only release workflow では Linux desktop asset は生成しない
+
+### Risks and Exceptions
+- Open P0/P1: None known at this record point
+- Accepted risk:
+  - この記録は unsigned internal path の検証に限定
+  - signed/notarized release readiness は `#138` 未解消のため未達
+- Blocking issue:
+  - `#138` Apple certificate configuration（repo secrets に `APPLE_CERTIFICATE` が未登録）
+
+### Follow-up
+- [x] unsigned distribution hardening を merge（PR #252）
+- [x] PR #252 が `main` に入った後で unsigned `v0.0.0-smoke.*` を実行
+- [x] Draft Release の label/body/prerelease が `Unsigned Smoke` として識別できることを確認
+- [x] Draft Release から取得した assets が bundle verification を通ることを確認
+- [ ] Developer ID `.p12` が用意できたら `APPLE_CERTIFICATE` を登録し、signed/notarized smoke を再実行
+- Owner: maintainers
+- Due: 2026-05-16
