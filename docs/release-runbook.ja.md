@@ -34,6 +34,7 @@
 - `Apple secrets あり`
   - 従来どおり署名 + notarization を実施
   - 正式配布候補の成果物を生成
+  - `v0.0.0-smoke.*` タグでは signed/notarized 経路を実行しつつ、Draft Release は prerelease として内部証跡用に残す
 - `Apple secrets なし`
   - workflow は unsigned internal モードで継続
   - `v0.0.0-smoke.*` タグのみ Draft Release を作成（内部検証用途）
@@ -101,6 +102,19 @@
   - `gh secret list --repo gatyoukatyou/cli-commentator` 上で Apple secrets は `APPLE_CERTIFICATE` のみ未登録
   - signed/notarized 配布は引き続き `#138` の解消待ち
 
+## 0.8) 現在の #138 署名 readiness snapshot（2026-05-09）
+
+- Repository secrets:
+  - 登録済み: `APPLE_CERTIFICATE_PASSWORD`, `KEYCHAIN_PASSWORD`, `APPLE_ID`, `APPLE_PASSWORD`, `APPLE_TEAM_ID`
+  - 未登録: `APPLE_CERTIFICATE`
+- ローカル shell の確認:
+  - `pnpm verify:apple-signing:detect` は現在の shell の環境変数だけを見る。GitHub repository secret 名の存在は見ない。
+  - そのため、repository secrets が登録済みでも、ローカル実行では Apple secrets がすべて missing と表示されることがある。
+- 残 blocker:
+  - Developer ID Application certificate を private key 付きで `.p12` export
+  - `.p12` を base64 化して `APPLE_CERTIFICATE` に登録
+  - `.p12` export password を変える場合は `APPLE_CERTIFICATE_PASSWORD` も同時更新
+
 ## 1) リリース前チェック（必須）
 
 ### 1-1. ローカル検証
@@ -152,6 +166,7 @@ pnpm smoke:desktop-distribution
 4. Actions の `release-desktop` 実行を確認
 5. Draft Release の成果物を確認
    - signedモード: 署名/notarization済み成果物
+   - signed smokeモード（Apple secrets 登録済みの `v0.0.0-smoke.*`）: 署名/notarization済み成果物、`isDraft=true`、`isPrerelease=true`
    - unsignedモード: 内部検証用成果物（Gatekeeper警告あり）
 6. 問題なければ Draft を Publish
 
@@ -179,6 +194,12 @@ pnpm smoke:desktop-distribution
 2. `APPLE_ID` / `APPLE_PASSWORD` / `APPLE_TEAM_ID` を登録
 3. 同じシェルに値を展開し `pnpm verify:apple-signing`（require mode）で形式検証
 4. Secrets を追加後、新しいタグで signedモード実行を確認
+   - `Detect Apple signing/notarization mode`: `enabled=true`
+   - `Configure macOS keychain for code signing`: certificate import 成功
+   - `Detect code signing identity`: Developer ID identity 検出
+   - `Log notarization configuration`: 期待する Apple Team ID/account domain が表示される
+   - `Build and draft release (signed + notarized)`: arm64/x64 両jobで成功
+   - Draft Release assets に `latest.json`, `.app.tar.gz`, `.sig`, `.dmg` が揃う
 5. 予算都合で未設定の場合は `pnpm verify:apple-signing:detect` で不足状態のみ確認
 6. 予算都合で未設定の場合は内部検証用途として運用継続
    - unsigned 実行は `v0.0.0-smoke.*` タグでのみ可能
