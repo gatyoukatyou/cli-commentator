@@ -113,6 +113,21 @@ GitHub Actions では同じ値を Repository Secrets に登録します。
 `pubkey` には `tauri signer generate` で生成した公開鍵文字列（base64）を設定します。
 署名鍵をローテーションした場合は `pubkey` も更新し、リリース検証を再実行してください。
 
+## 3.5) Updater 配布契約
+
+Desktop updater の契約は意図的に狭く固定します。
+
+- 確認トリガー: ユーザーが Desktop Server パネルの `更新を確認` をクリックする。
+- endpoint: `https://github.com/gatyoukatyou/cli-commentator/releases/latest/download/latest.json`。
+- 配布元: 最新の published GitHub Release assets。
+- 対象 platform key: `darwin-aarch64`, `darwin-aarch64-app`, `darwin-x86_64`, `darwin-x86_64-app`。
+- asset 解決: `latest.json` の各 platform entry は、該当アーキテクチャの `.app.tar.gz` asset を指す。
+- 署名: 各 platform entry は空でない updater signature を持ち、対応する `.app.tar.gz.sig` asset も release に存在する。
+- インストーラ: `.dmg` は人間が初回導入に使う配布物、`.app.tar.gz` と `.sig` は updater 用配布物。
+- 失敗時のUX: updater 失敗は Desktop Server パネルに表示する。調査時は `Copy Debug bundle` で version / platform / server state / updater result / paths / timestamp をまとめて取得する。
+
+現時点のアプリは起動時に silent update check を実行しません。起動時は bundled server の起動を優先し、自動更新ポリシーを追加するまでは updater check を明示的なサポート/操作導線として扱います。
+
 ## 4) タグ起点のリリースワークフロー
 
 このリポジトリには `.github/workflows/release-desktop.yml` を追加済みです。
@@ -138,6 +153,7 @@ GitHub Actions では同じ値を Repository Secrets に登録します。
    - `Updater: 最新`
    - `Updater: 更新あり (vX.Y.Z)`
 4. `Updater: 未設定` が出る場合は `tauri.conf.json` の `pubkey` / `endpoints` を再確認
+5. `Copy Debug bundle` をクリックし、コピー内容に updater result と paths が含まれることを確認
 
 ## 6) 配布手順（最小）
 
@@ -147,8 +163,9 @@ GitHub Actions では同じ値を Repository Secrets に登録します。
 4. タグ作成・push
    - `git tag -a vX.Y.Z -m "vX.Y.Z"`
    - `git push origin vX.Y.Z`
-5. Draft Release の成果物を確認して Publish
-6. リリース後、既存アプリで更新チェックを確認
+5. `latest.json`, `.app.tar.gz`, `.app.tar.gz.sig`, `.dmg` を含む Draft Release の成果物を確認
+6. updater 配布契約を満たしていることを確認してから Draft を Publish
+7. リリース後、既存アプリで更新チェックを確認
 
 ## 6.5) 事前検証コマンド（推奨）
 

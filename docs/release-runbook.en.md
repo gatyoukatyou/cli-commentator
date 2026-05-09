@@ -155,6 +155,27 @@ Notes:
 - Validates `plugins.updater.pubkey` structure in `apps/desktop/src-tauri/tauri.conf.json`
 - If `TAURI_SIGNING_PRIVATE_KEY` is present, runs a signing smoke check and verifies key-id pairing
 
+### 1-3. Updater contract verification
+
+Use this check whenever a release candidate produces updater artifacts:
+
+1. Confirm `pnpm verify:updater` passes before tagging.
+2. Confirm the Draft Release includes:
+   - `latest.json`
+   - one `.app.tar.gz` per macOS architecture
+   - matching `.app.tar.gz.sig` files
+   - `.dmg` installers for human installation
+3. Run the bundle verifier against downloaded release assets:
+   - `pnpm verify:desktop-bundle-artifacts <assets-dir> --require dmg --require app-tar-gz --require sig`
+4. Inspect `latest.json`:
+   - platform keys: `darwin-aarch64`, `darwin-aarch64-app`, `darwin-x86_64`, `darwin-x86_64-app`
+   - each `url` basename points to a present `.app.tar.gz`
+   - each `signature` is non-empty
+5. From an installed desktop app, open Desktop Server panel and click `Check updates`.
+6. If update check fails, click `Copy Debug bundle` and attach it to the release evidence or issue comment.
+
+Current policy: update checks are manual from the Desktop Server panel. Do not treat the absence of startup-time automatic update checks as a release blocker.
+
 ## 2) Standard release flow (happy path)
 
 1. Bump version in `apps/desktop/src-tauri/tauri.conf.json`
@@ -167,6 +188,7 @@ Notes:
    - signed mode: signed/notarized artifacts
    - signed smoke mode (`v0.0.0-smoke.*` with Apple secrets present): signed/notarized artifacts, `isDraft=true`, `isPrerelease=true`
    - unsigned mode: internal-test artifacts (`Unsigned Smoke`, `isDraft=true`, `isPrerelease=true`; Gatekeeper warning expected)
+   - updater contract: `latest.json` resolves to present `.app.tar.gz` assets with non-empty signatures
 6. Publish draft when validation is complete
 
 ## 2.5) Unsigned Install Cheats
