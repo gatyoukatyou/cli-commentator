@@ -130,21 +130,23 @@ Build a minimal MVP that reliably works, then expand once value is proven.
 - PR #244: update `tauri-plugin-updater` to 2.10.1 and document it as updater plugin maintenance
 - PR #249: refresh the Tauri runtime stack to the 2.11 series and document it as runtime maintenance; #248 was closed as superseded
 - As of 2026-05-08, open PR count is 0 and the dependency-maintenance backlog has been cleared
+- PR #259 made Desktop sidecar preparation idempotent, so `dev:desktop:managed` can safely verify and regenerate bundled sidecar assets before startup
 
 **Now**
-- Release readiness is now concentrated on `#138`: Apple Developer ID certificate preparation, GitHub Secrets registration, `verify:apple-signing`, and a signed/notarized `release-desktop` smoke run
-- The unresolved work is operational readiness rather than a normal code implementation backlog: certificate issuance, `.p12` handling, `APPLE_CERTIFICATE` / password validation, and notarization evidence
-- Main is current after dependency-maintenance PR cleanup, with GitHub CI green across `docs_drift_guard`, `test`, `test_windows`, `desktop_check`, `desktop_distribution_smoke`, and CodeQL
+- Because we are not issuing an Apple Developer ID certificate for now, `#138` is treated as Deferred. Signed distribution readiness remains important, but we will return to it when certificate issuance and external distribution preparation resume
+- The near-term focus is local desktop app polish / local readiness instead of release readiness. The priority is a desktop app that starts reliably on a local machine and makes the next step obvious
+- Main is current after PR #259, with GitHub CI green across `test`, `test_windows`, `desktop_check`, `desktop_distribution_smoke`, and CodeQL
 
 **Next**
-- Complete the human-side `#138` work: issue / export the Developer ID Application certificate, register required GitHub Secrets, and rerun the release smoke tag
-- Confirm signed/notarized desktop artifacts (`latest.json`, `.app.tar.gz`, `.sig`, `.dmg`) from the release workflow before declaring public signed distribution ready
-- Refresh release notes and operator docs only if the signed/notarized smoke run changes the existing release procedure
+- Make the local `pnpm dev:desktop:managed` startup path easier to follow, especially first setup, sidecar/server startup waiting, and recovery guidance when startup fails
+- Consider a local readiness check script that can validate a clean checkout path, for example by running `ensure:desktop-sidecar`, web lint/build, server tests, and desktop cargo tests in order
+- Improve the standalone Web UI disconnected state and the Desktop managed flow that asks users to press Start before commentary can begin
+- Separate release readiness from local readiness so signing/notarization details do not dominate the local-use experience
 
 **Later**
 - Continue dependency and desktop runtime maintenance through the docs drift guard path
 - Keep improving failure-regression summaries and recovery evidence as new concrete failure cases appear
-- Resume UX/commentary-quality improvements after signed release readiness is unblocked
+- Return to `#138` when Apple Developer ID certificate issuance and distribution preparation resume, then run the signed/notarized `release-desktop` smoke and record evidence
 
 ---
 
