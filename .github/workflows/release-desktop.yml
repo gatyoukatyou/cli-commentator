@@ -154,9 +154,9 @@ jobs:
         run: |
           set -euo pipefail
           target_triple="$(rustc --print host-tuple 2>/dev/null || rustc -Vv | awk '/^host:/ {print $2}')"
-          node_binary="apps/desktop/src-tauri/binaries/node-${target_triple}"
+          node_binary="apps/desktop/src-tauri/binaries/node-${target_triple}/node"
           if [[ "${target_triple}" == *windows* ]]; then
-            node_binary="${node_binary}.exe"
+            node_binary="apps/desktop/src-tauri/binaries/node-${target_triple}/node.exe"
           fi
 
           test -f "${node_binary}"
