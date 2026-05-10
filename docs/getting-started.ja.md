@@ -47,6 +47,8 @@ pnpm dev
 pnpm dev:desktop:managed
 ```
 
+`dev:desktop:managed` は起動前に `pnpm ensure:desktop-sidecar` を実行し、`src-tauri/binaries`・`resources/server`・`sidecar-manifest.json` が欠けている場合は `prepare:desktop-sidecar` で再生成します。手動で状態確認だけしたい場合も同じコマンドを直接実行できます。
+
 Desktop Server パネルで server の状態を操作します（`Start` / `Stop`、`stopped` / `starting` / `running` / `stopping` / `failed`）。
 
 `failed` になった場合は、パネルの復旧ガイダンスと同じターミナルのログを確認してください。

@@ -145,8 +145,8 @@ jobs:
         shell: pwsh
         run: |
           $hostTriple = (rustc -vV | Select-String '^host:' | ForEach-Object { $_.ToString().Split(':')[1].Trim() })
-          $nodeBinaryName = if ($hostTriple -like '*windows*') { "node-$hostTriple.exe" } else { "node-$hostTriple" }
-          $nodeDest = "apps/desktop/src-tauri/binaries/$nodeBinaryName"
+          $nodeBinaryName = if ($hostTriple -like '*windows*') { "node.exe" } else { "node" }
+          $nodeDest = "apps/desktop/src-tauri/binaries/node-$hostTriple/$nodeBinaryName"
           New-Item -ItemType Directory -Force -Path (Split-Path $nodeDest) | Out-Null
           Copy-Item -Force (Get-Command node).Source $nodeDest
 
@@ -163,7 +163,7 @@ jobs:
             targetTriple = $hostTriple
             nodeVersion = (node --version)
             serverVersion = "0.0.0-ci"
-            nodeBinary = "binaries/$nodeBinaryName"
+            nodeBinary = "binaries/node-$hostTriple/$nodeBinaryName"
             serverRoot = "resources/server"
             serverEntry = "resources/server/dist/index.js"
           } | ConvertTo-Json
@@ -213,9 +213,9 @@ jobs:
         run: |
           set -euo pipefail
           target_triple="$(rustc --print host-tuple 2>/dev/null || rustc -Vv | awk '/^host:/ {print $2}')"
-          node_binary="apps/desktop/src-tauri/binaries/node-${target_triple}"
+          node_binary="apps/desktop/src-tauri/binaries/node-${target_triple}/node"
           if [[ "${target_triple}" == *windows* ]]; then
-            node_binary="${node_binary}.exe"
+            node_binary="apps/desktop/src-tauri/binaries/node-${target_triple}/node.exe"
           fi
 
           test -f "${node_binary}"

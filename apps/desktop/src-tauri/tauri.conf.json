@@ -29,11 +29,9 @@
     "createUpdaterArtifacts": true,
     "targets": ["dmg", "app"],
     "resources": [
+      "binaries",
       "resources/server",
       "resources/sidecar-manifest.json"
-    ],
-    "externalBin": [
-      "binaries/node"
     ],
     "icon": [
       "icons/32x32.png",

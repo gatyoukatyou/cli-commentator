@@ -1295,7 +1295,7 @@ mod tests {
         let root = unique_temp_path("node-manifest");
         let sidecar_root = root.join("Contents").join("Resources");
         let exe_dir = root.join("Contents").join("MacOS");
-        let manifest_node = "binaries/node-x86_64-apple-darwin";
+        let manifest_node = "binaries/node-x86_64-apple-darwin/node";
         let manifest_node_path = sidecar_root.join(manifest_node);
         touch_file(&manifest_node_path);
         touch_file(&exe_dir.join("node"));
@@ -1312,7 +1312,7 @@ mod tests {
         let root = unique_temp_path("node-fallback");
         let sidecar_root = root.join("Contents").join("Resources");
         let exe_dir = root.join("Contents").join("MacOS");
-        let manifest_node = "binaries/node-x86_64-apple-darwin";
+        let manifest_node = "binaries/node-x86_64-apple-darwin/node";
         #[cfg(windows)]
         let fallback_node = exe_dir.join("node.exe");
         #[cfg(not(windows))]
@@ -1369,7 +1369,7 @@ mod tests {
             "/Applications/CLI Commentator.app/Contents/Resources/sidecar-manifest.json",
         );
         let sidecar_root = PathBuf::from("/Applications/CLI Commentator.app/Contents/Resources");
-        let expected = sidecar_root.join("binaries/node-aarch64-apple-darwin");
+        let expected = sidecar_root.join("binaries/node-aarch64-apple-darwin/node");
         let executable_dir = PathBuf::from("/Applications/CLI Commentator.app/Contents/MacOS");
         let candidates = vec![expected.clone(), executable_dir.join("node")];
 

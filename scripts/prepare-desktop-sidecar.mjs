@@ -30,6 +30,23 @@ const bundledServerDir = path.join(resourcesDir, "server");
 const binariesDir = path.join(tauriDir, "binaries");
 const stageDir = mkdtempSync(path.join(os.tmpdir(), "cli-commentator-sidecar-"));
 
+function rmForce(targetPath) {
+  rmSync(targetPath, { recursive: true, force: true });
+}
+
+function ensureDir(targetPath) {
+  mkdirSync(targetPath, { recursive: true });
+}
+
+function firstExisting(relativeCandidates, baseDir) {
+  for (const relativePath of relativeCandidates) {
+    if (existsSync(path.join(baseDir, relativePath))) {
+      return relativePath;
+    }
+  }
+  return null;
+}
+
 function run(cmd, args, cwd = repoRoot) {
   const result = spawnSync(cmd, args, {
     cwd,
@@ -66,10 +83,8 @@ function getRustHostTriple() {
   }
 }
 
-function sidecarNodeFilename(targetTriple) {
-  return targetTriple.includes("windows")
-    ? `node-${targetTriple}.exe`
-    : `node-${targetTriple}`;
+function sidecarNodeDirname(targetTriple) {
+  return `node-${targetTriple}`;
 }
 
 function copyTreeDereference(sourcePath, destinationPath) {
@@ -106,12 +121,15 @@ if (!existsSync(workspaceFile)) {
 }
 
 const targetTriple = getRustHostTriple();
-const sidecarNodeName = sidecarNodeFilename(targetTriple);
-const sidecarNodePath = path.join(binariesDir, sidecarNodeName);
+const sidecarNodeDir = path.join(binariesDir, sidecarNodeDirname(targetTriple));
+const sidecarNodePath = path.join(
+  sidecarNodeDir,
+  targetTriple.includes("windows") ? "node.exe" : "node"
+);
 
 try {
   console.log("[sidecar] Building server dist...");
-  rmSync(serverDistDir, { recursive: true, force: true });
+  rmForce(serverDistDir);
   run("pnpm", ["-C", "apps/server", "build"]);
 
   if (!existsSync(serverDistDir)) {
@@ -130,30 +148,47 @@ try {
   ]);
 
   console.log("[sidecar] Copying deployed server bundle...");
-  rmSync(bundledServerDir, { recursive: true, force: true });
-  mkdirSync(resourcesDir, { recursive: true });
+  rmForce(bundledServerDir);
+  ensureDir(resourcesDir);
   copyTreeDereference(stageDir, bundledServerDir);
 
   // Always overwrite dist from local build so the entrypoint is deterministic.
-  cpSync(serverDistDir, path.join(bundledServerDir, "dist"), { recursive: true, force: true });
+  cpSync(serverDistDir, path.join(bundledServerDir, "dist"), {
+    recursive: true,
+    force: true,
+  });
 
   // Keep sidecar payload focused on runtime artifacts.
-  rmSync(path.join(bundledServerDir, "src"), { recursive: true, force: true });
-  rmSync(path.join(bundledServerDir, "test"), { recursive: true, force: true });
-  rmSync(path.join(bundledServerDir, "tsconfig.json"), { recursive: true, force: true });
-  rmSync(path.join(bundledServerDir, "tsconfig.build.json"), { recursive: true, force: true });
-  rmSync(path.join(bundledServerDir, ".env"), { recursive: true, force: true });
-  rmSync(path.join(bundledServerDir, ".env.local"), { recursive: true, force: true });
-  rmSync(path.join(bundledServerDir, ".env.development"), { recursive: true, force: true });
-  rmSync(path.join(bundledServerDir, ".env.production"), { recursive: true, force: true });
+  rmForce(path.join(bundledServerDir, "src"));
+  rmForce(path.join(bundledServerDir, "test"));
+  rmForce(path.join(bundledServerDir, "tsconfig.json"));
+  rmForce(path.join(bundledServerDir, "tsconfig.build.json"));
+  rmForce(path.join(bundledServerDir, ".env"));
+  rmForce(path.join(bundledServerDir, ".env.local"));
+  rmForce(path.join(bundledServerDir, ".env.development"));
+  rmForce(path.join(bundledServerDir, ".env.production"));
 
   console.log("[sidecar] Copying node runtime...");
   const nodeSource = realpathSync(process.execPath);
-  mkdirSync(binariesDir, { recursive: true });
-  rmSync(sidecarNodePath, { force: true });
+  rmForce(sidecarNodeDir);
+  ensureDir(sidecarNodeDir);
   copyFileSync(nodeSource, sidecarNodePath);
   if (!targetTriple.includes("windows")) {
     chmodSync(sidecarNodePath, 0o755);
+  }
+
+  const serverEntryCandidates = [
+    "resources/server/dist/index.js",
+    "resources/server/dist/main.js",
+    "resources/server/index.js",
+  ];
+  const serverEntry = firstExisting(serverEntryCandidates, tauriDir);
+  if (!serverEntry) {
+    throw new Error(
+      `[sidecar] server entry not found. expected one of: ${serverEntryCandidates.join(
+        ", "
+      )}`
+    );
   }
 
   const manifestPath = path.join(resourcesDir, "sidecar-manifest.json");
@@ -164,7 +199,8 @@ try {
     serverVersion: readPackageVersion(path.join(serverDir, "package.json")),
     nodeBinary: toPosix(path.relative(tauriDir, sidecarNodePath)),
     serverRoot: toPosix(path.relative(tauriDir, bundledServerDir)),
-    serverEntry: toPosix(path.join(path.relative(tauriDir, bundledServerDir), "dist", "index.js")),
+    serverEntry,
+    sidecars: [],
   };
   writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`, "utf8");
 
@@ -175,5 +211,5 @@ try {
   console.log(`- server entry: ${manifest.serverEntry}`);
   console.log(`- manifest: ${toPosix(path.relative(repoRoot, manifestPath))}`);
 } finally {
-  rmSync(stageDir, { recursive: true, force: true });
+  rmForce(stageDir);
 }
