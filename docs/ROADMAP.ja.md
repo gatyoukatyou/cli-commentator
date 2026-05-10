@@ -135,21 +135,23 @@ CLI Commentator は「ターミナルの作業ログを見て、別ウィンド�
 - PR #244：`tauri-plugin-updater` を 2.10.1 へ更新し、updater plugin maintenance として記録
 - PR #249：Tauri runtime stack を 2.11 系へ更新し、runtime maintenance として記録。#248 は内包済みとして close
 - 2026-05-08 時点で open PR は 0 件。依存更新PR群の整理は完了
+- PR #259：Desktop sidecar prepare を冪等化し、`dev:desktop:managed` 起動前に同梱sidecarを安全に確認・再生成できるようにした
 
 **Now**
-- release readiness の焦点は `#138` に集約。Apple Developer ID certificate 準備、GitHub Secrets 登録、`verify:apple-signing`、signed/notarized `release-desktop` smoke が残件
-- 残っているのは通常のコード実装というより、証明書発行、`.p12` 取り扱い、`APPLE_CERTIFICATE` / password 検証、notarization 証跡の運用 readiness
-- main は依存更新PR整理後の状態で最新化済み。GitHub CI は `docs_drift_guard` / `test` / `test_windows` / `desktop_check` / `desktop_distribution_smoke` / CodeQL が green
+- Apple Developer ID 証明書は当面発行しない方針のため、`#138` は Deferred / 保留扱いにする。signed/notarized release readiness は重要項目として残すが、証明書発行と外部配布準備を再開する段階で再着手する
+- 直近の焦点は release readiness ではなく local desktop app polish / local readiness。ローカルで安定して起動し、迷わず使えるデスクトップアプリとしての完成度を優先する
+- main は PR #259 反映後の状態で最新化済み。GitHub CI は `test` / `test_windows` / `desktop_check` / `desktop_distribution_smoke` / CodeQL が green
 
 **Next**
-- `#138` の人間側作業を完了する: Developer ID Application certificate の発行 / export、必要な GitHub Secrets 登録、release smoke tag の再実行
-- release workflow から signed/notarized desktop artifacts（`latest.json`, `.app.tar.gz`, `.sig`, `.dmg`）を確認してから、正式な signed 配布 ready と判断する
-- signed/notarized smoke により既存手順が変わる場合のみ、release notes / operator docs を追加更新する
+- `pnpm dev:desktop:managed` のローカル起動導線をさらに分かりやすくする。初回セットアップ、sidecar/server 起動待ち、失敗時の復旧案内を local 利用者目線で磨く
+- clean checkout から local readiness を確認できるスクリプトを検討する。例: `ensure:desktop-sidecar`、web lint/build、server test、desktop cargo test を順に実行する小さな検証入口
+- Web UI 単体起動時の「切断」表示と、Desktop managed 起動時の「まず Start する」導線を整理する
+- release readiness と local readiness の情報を分け、ローカル利用時に署名・notarization 関連情報が前面に出すぎないようにする
 
 **Later**
 - dependency / desktop runtime maintenance は docs drift guard 経由で継続運用する
 - 新しい具体的な失敗例が出たら、failure regression summary と recovery evidence を継続強化する
-- signed release readiness が unblock された後、UX / 実況品質改善へ戻る
+- Apple Developer ID 証明書の発行・配布準備を再開する段階で `#138` に戻り、signed/notarized `release-desktop` smoke と証跡記録を実施する
 
 ---
 
