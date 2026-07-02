@@ -1,5 +1,6 @@
 import type { CommentaryMode, CommentaryPayload, Event, Style } from "../types.js";
 import type { ProviderName } from "../llm/types.js";
+import { normalizeProviderName } from "../shared/validation.js";
 import { commentStandard } from "./standard.js";
 import { commentKansai } from "./kansai.js";
 import { commentZundamon } from "./zundamon.js";
@@ -587,22 +588,6 @@ function commentByRules(ev: Event, style: Style): CommentaryPayload {
       explanationProvider: "rules",
     },
   });
-}
-
-function normalizeProviderName(value?: string): ProviderName | undefined {
-  const normalized = (value ?? "").trim().toLowerCase();
-  if (
-    normalized === "disabled" ||
-    normalized === "mock" ||
-    normalized === "openai" ||
-    normalized === "groq" ||
-    normalized === "local" ||
-    normalized === "anthropic" ||
-    normalized === "gemini"
-  ) {
-    return normalized;
-  }
-  return undefined;
 }
 
 function resolveCommentaryProviders(providers: ProfileLLMProviders = {}): {

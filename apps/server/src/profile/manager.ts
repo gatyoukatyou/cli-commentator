@@ -15,6 +15,7 @@ import {
   normalizeArgs as normalizeSharedArgs,
   normalizeInputMode,
   normalizeOptionalArgs,
+  normalizeOptionalProvider,
   normalizeOptionalString,
   normalizeString,
   parseInputModeFromEnv,
@@ -23,12 +24,6 @@ import {
 
 // In-memory cache to avoid repeated disk reads
 let cachedStore: ProfileStore | null = null;
-
-function normalizeOptionalProvider(value?: ProviderName): ProviderName | undefined {
-  if (value === undefined) return undefined;
-  const trimmed = value.trim() as ProviderName;
-  return trimmed ? trimmed : undefined;
-}
 
 function normalizeCommand(value: string, inputMode?: InputMode): string {
   const trimmed = value.trim();

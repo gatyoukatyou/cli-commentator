@@ -1,4 +1,5 @@
-import type { InputMode } from "../types.js";
+import type { ProviderName } from "../llm/types.js";
+import type { InputMode, SourceMode, Style } from "../types.js";
 
 export function normalizeString(value: string): string {
   return value.trim();
@@ -53,4 +54,34 @@ export function parseTargetArgs(env: Record<string, string | undefined>): string
   }
 
   return [];
+}
+
+export function isStyle(value: unknown): value is Style {
+  return value === "standard" || value === "kansai" || value === "zundamon";
+}
+
+export function normalizeSource(value?: string): SourceMode {
+  const source = (value ?? "").trim().toLowerCase();
+  if (source === "claude" || source === "codex" || source === "generic") return source;
+  return "auto";
+}
+
+export function normalizeProviderName(value?: string): ProviderName | undefined {
+  const normalized = (value ?? "").trim().toLowerCase();
+  if (
+    normalized === "disabled" ||
+    normalized === "mock" ||
+    normalized === "openai" ||
+    normalized === "groq" ||
+    normalized === "local" ||
+    normalized === "anthropic" ||
+    normalized === "gemini"
+  ) {
+    return normalized;
+  }
+  return undefined;
+}
+
+export function normalizeOptionalProvider(value?: ProviderName): ProviderName | undefined {
+  return normalizeProviderName(value);
 }
