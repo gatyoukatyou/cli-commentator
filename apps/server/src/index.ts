@@ -41,6 +41,7 @@ import {
   type ServerRuntimeState,
   type ServerStateEventContextInput,
 } from "./runtime/state-event.js";
+import { isStyle, normalizeSource } from "./shared/validation.js";
 
 const PORT = Number(process.env.CLI_COMMENTATOR_PORT ?? process.env.PORT ?? 8787);
 const COMMENT_EXIT_TIMEOUT_MS = parseInt(process.env.COMMENT_EXIT_TIMEOUT_MS ?? "1500", 10);
@@ -59,16 +60,6 @@ function parseInputMode(value?: string): InputMode {
 const INPUT_MODE: InputMode = parseInputMode(INPUT_MODE_RAW);
 const INPUT_FILE = process.env.INPUT_FILE ?? "";
 let runtimeInputMode: InputMode = INPUT_MODE;
-
-function isStyle(value: unknown): value is Style {
-  return value === "standard" || value === "kansai" || value === "zundamon";
-}
-
-function normalizeSource(value?: string): SourceMode {
-  const source = (value ?? "").trim().toLowerCase();
-  if (source === "claude" || source === "codex" || source === "generic") return source;
-  return "auto";
-}
 
 // --- Mutable state ---
 let currentStyle: Style = "kansai";
