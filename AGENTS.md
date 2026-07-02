@@ -35,16 +35,24 @@ mainへ直接pushしない。mergeはHUMANのみ。
 
 ## Safety Guardrails
 
-Before any read/write operation, verify:
+Before any read/write operation, verify repo identity:
 
 ```bash
+# 1) Marker check (works in all environments, including cloud sandboxes)
 test -f pnpm-workspace.yaml
-git remote -v | grep -q "gatyoukatyou/cli-commentator"
+grep -q '"name": "cli-commentator"' package.json
+
+# 2) Remote check (only applies when a remote is configured)
+git remote -v
 ```
 
-### STOP IMMEDIATELY if any check fails
-- Wrong remote (not cli-commentator)
-- Not at repo root
+Remote check rules:
+- If `git remote -v` outputs one or more remotes, they MUST contain `gatyoukatyou/cli-commentator`.
+- If no remote is configured (e.g. Codex Cloud / CI sandboxes mount the repo without remotes), rely on the marker check above and proceed.
+
+### STOP IMMEDIATELY if
+- Marker check fails (wrong repo or not at repo root)
+- A remote exists but does not match `gatyoukatyou/cli-commentator`
 
 ## Forbidden Directories
 - `~/actions-runner/_work/*` (CI/CD only)
