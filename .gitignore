@@ -4,3 +4,6 @@ dist
 .env
 .Turbo
 .pnpm-store/
+
+# aion-ops bootstrap clone (母艦の一時取得先・コミットしない)
+.aion-ops/
