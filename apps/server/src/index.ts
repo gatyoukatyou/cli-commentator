@@ -230,6 +230,59 @@ function logInputStartupFailure(
   console.error(formatPtyStartupFailureLog(payload));
 }
 
+
+function handlePtyUnavailableFailure(params: {
+  context: "startup" | "restart";
+  failure: Extract<PtyFailure, { kind: "ptyUnavailable" }>;
+  profileId?: string | null;
+  target: {
+    cmd?: string;
+    args?: string[];
+    cwd?: string;
+    inputFile?: string;
+  };
+  stateFailureTrigger: string;
+  fallbackSuccessTrigger?: string;
+  startupFallbackLogMessage: string;
+  unavailableLogMessage: string;
+}): FileFallbackResult {
+  markPtyUnavailable(params.failure.error);
+  broadcast(createPtyUnavailableMessage(params.failure.error));
+  const fallback = tryStartFileFallback(params.context);
+  logPtyStartupFailure(params.context, params.failure, fallback, params.target);
+
+  if (!fallback.activated) {
+    transitionServerState(params.stateFailureTrigger, "failed", {
+      level: "warn",
+      detail: `kind=${params.failure.kind}; fallback_reason=${fallback.reason}; error=${params.failure.error}`,
+      profileId: params.profileId,
+      context: {
+        failureKind: params.failure.kind,
+        fallbackReason: fallback.reason,
+        error: params.failure.error,
+        ...buildTargetContext(params.target),
+      },
+    });
+  } else if (params.fallbackSuccessTrigger) {
+    transitionServerState(params.fallbackSuccessTrigger, "file_running", {
+      level: "warn",
+      inputMode: "file",
+      detail: `fallback_reason=${fallback.reason}`,
+      profileId: params.profileId,
+      context: {
+        fallbackReason: fallback.reason,
+        inputFile: params.target.inputFile?.trim() || undefined,
+      },
+    });
+  }
+
+  if (fallback.activated) {
+    console.warn(params.startupFallbackLogMessage);
+  }
+  console.error(params.unavailableLogMessage, params.failure.error);
+  return fallback;
+}
+
 function createAdHocPTYConfig(input: LaunchSessionInput): PTYConfig {
   const cmd = (input.cmd ?? "").trim();
   if (!cmd) {
@@ -587,48 +640,21 @@ async function restartPTY(profileId: string | null, force = false): Promise<void
 
     const failure = classifyPtyFailure(err, getNodePtyError());
     if (failure.kind === "ptyUnavailable") {
-      markPtyUnavailable(failure.error);
-      broadcast(createPtyUnavailableMessage(failure.error));
-      const fallback = tryStartFileFallback("restart");
-      logPtyStartupFailure("restart", failure, fallback, {
-        cmd: config?.cmd,
-        args: config?.args,
-        cwd: config?.cwd,
-        inputFile: INPUT_FILE.trim() || undefined,
+      handlePtyUnavailableFailure({
+        context: "restart",
+        failure,
+        profileId,
+        target: {
+          cmd: config?.cmd,
+          args: config?.args,
+          cwd: config?.cwd,
+          inputFile: INPUT_FILE.trim() || undefined,
+        },
+        stateFailureTrigger: "restart_failed",
+        fallbackSuccessTrigger: "restart_fallback_file",
+        startupFallbackLogMessage: `[INFO] Switched to file monitoring fallback (${INPUT_FILE}) after PTY restart failure.`,
+        unavailableLogMessage: "[WARN] PTY restart failed because node-pty is unavailable:",
       });
-      if (!fallback.activated) {
-        transitionServerState("restart_failed", "failed", {
-          level: "warn",
-          detail: `kind=${failure.kind}; fallback_reason=${fallback.reason}; error=${failure.error}`,
-          profileId,
-          context: {
-            failureKind: failure.kind,
-            fallbackReason: fallback.reason,
-            error: failure.error,
-            ...buildTargetContext({
-              cmd: config?.cmd,
-              args: config?.args,
-              cwd: config?.cwd,
-              inputFile: INPUT_FILE,
-            }),
-          },
-        });
-      } else {
-        transitionServerState("restart_fallback_file", "file_running", {
-          level: "warn",
-          inputMode: "file",
-          detail: `fallback_reason=${fallback.reason}`,
-          profileId,
-          context: {
-            fallbackReason: fallback.reason,
-            inputFile: INPUT_FILE.trim() || undefined,
-          },
-        });
-      }
-      if (fallback.activated) {
-        console.warn(`[INFO] Switched to file monitoring fallback (${INPUT_FILE}) after PTY restart failure.`);
-      }
-      console.error("[WARN] PTY restart failed because node-pty is unavailable:", failure.error);
       return;
     }
 
@@ -1007,35 +1033,19 @@ if (INPUT_MODE === "pty") {
   } catch (err) {
     const failure = classifyPtyFailure(err, getNodePtyError());
     if (failure.kind === "ptyUnavailable") {
-      markPtyUnavailable(failure.error);
-      const fallback = tryStartFileFallback("startup");
-      logPtyStartupFailure("startup", failure, fallback, {
-        cmd: initialConfig.cmd,
-        args: initialConfig.args,
-        cwd: initialConfig.cwd,
-        inputFile: INPUT_FILE.trim() || undefined,
+      handlePtyUnavailableFailure({
+        context: "startup",
+        failure,
+        target: {
+          cmd: initialConfig.cmd,
+          args: initialConfig.args,
+          cwd: initialConfig.cwd,
+          inputFile: INPUT_FILE.trim() || undefined,
+        },
+        stateFailureTrigger: "startup_failed",
+        startupFallbackLogMessage: `[INFO] Switched to file monitoring fallback (${INPUT_FILE}) after PTY startup failure.`,
+        unavailableLogMessage: "[WARN] PTY initialization failed:",
       });
-      if (!fallback.activated) {
-        transitionServerState("startup_failed", "failed", {
-          level: "warn",
-          detail: `kind=${failure.kind}; fallback_reason=${fallback.reason}; error=${failure.error}`,
-          context: {
-            failureKind: failure.kind,
-            fallbackReason: fallback.reason,
-            error: failure.error,
-            ...buildTargetContext({
-              cmd: initialConfig.cmd,
-              args: initialConfig.args,
-              cwd: initialConfig.cwd,
-              inputFile: INPUT_FILE,
-            }),
-          },
-        });
-      }
-      if (fallback.activated) {
-        console.warn(`[INFO] Switched to file monitoring fallback (${INPUT_FILE}) after PTY startup failure.`);
-      }
-      console.error("[WARN] PTY initialization failed:", ptyInitError);
       console.error("[INFO] Server will continue without PTY. Use INPUT_MODE=file for file monitoring.");
     } else {
       logPtyStartupFailure("startup", failure, NO_FILE_FALLBACK, {
