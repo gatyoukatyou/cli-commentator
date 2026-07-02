@@ -3,32 +3,22 @@ import "./App.css";
 import { ProfileSelector } from "./components/ProfileSelector";
 import type { TerminalPaneHandle, TerminalPaneTheme } from "./components/TerminalPane";
 import {
-  isTTSSupported,
-  speak,
-  stopSpeech,
-  getTTSEnabled,
-  setTTSEnabled,
-  getTTSSettings,
-  setTTSSettings,
-  waitForVoices,
   TTS_PRESETS,
   DEFAULT_TTS_SETTINGS,
-  applyTTSPreset,
   detectTTSPreset,
   type TTSPresetId,
-  type TTSSettings,
 } from "./lib/tts";
+import { useTTS } from "./hooks/useTTS";
+import { useCommentatorSocket, type PtyUnavailableNotice } from "./hooks/useCommentatorSocket";
 import {
   EVENT_TYPE_LABELS,
   EVENT_TYPE_OPTIONS,
   filterCommentaryItems,
-  getCommentaryGroupKey,
   groupCommentaryItems,
-  isEventType,
   type CommentaryItem,
   type LogEventTypeFilter,
 } from "./lib/log-filter";
-import { buildSpeechText, getCommentaryTextParts } from "./lib/glossary-note";
+import { getCommentaryTextParts } from "./lib/glossary-note";
 import {
   LAUNCH_PRESETS,
   buildLaunchDraft,
@@ -45,8 +35,6 @@ import type {
   ProfileSummary,
   CreateProfileInput,
   InputMode,
-  ServerToClientMessage,
-  PtyUnavailablePayload,
 } from "./types";
 
 const TerminalPane = lazy(() => import("./components/TerminalPane"));
@@ -59,17 +47,12 @@ const TauriStatusPanel = lazy(() => import("./components/TauriStatusPanel"));
 
 export type Skin = "standard" | "cli";
 
-type LegacyHello = { type: "hello"; style: Style };
-type PayloadMessage = { type?: string; payload?: PtyUnavailablePayload | Record<string, unknown> };
 type TTSPresetSelectValue = TTSPresetId | "custom";
 
-type ConnectionStatus = "connecting" | "connected" | "disconnected" | "reconnecting";
 const LOG_AUTO_SCROLL_THRESHOLD_PX = 64;
 const GENERIC_LOG_SUMMARIES = new Set(["ログ更新"]);
 const GROUP_DETAIL_PREVIEW_COUNT = 3;
 const TERMINAL_OUTPUT_MAX_CHARS = 24000;
-const TTS_BATCH_DELAY_MS = 320;
-const TTS_PRIORITY_BATCH_DELAY_MS = 120;
 const COMMENTARY_DISPLAY_MODE_OPTIONS: Array<{ value: CommentaryDisplayMode; label: string }> = [
   { value: "both", label: "実況＋解説" },
   { value: "narration", label: "実況のみ" },
@@ -98,33 +81,6 @@ function getTerminalTheme(skin: Skin): TerminalPaneTheme {
   };
 }
 
-type PendingSpeechBatch = {
-  groupKey: string | null;
-  latest: CommentaryItem;
-  count: number;
-};
-
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === "object" && value !== null;
-
-const getPayloadRecord = (msg: unknown): Record<string, unknown> | null => {
-  if (!isRecord(msg) || !("payload" in msg)) return null;
-  const payload = (msg as { payload?: unknown }).payload;
-  return isRecord(payload) ? payload : null;
-};
-
-const getStringField = (obj: Record<string, unknown> | null, key: string): string | undefined => {
-  if (!obj) return undefined;
-  const value = obj[key];
-  return typeof value === "string" ? value : undefined;
-};
-
-const getStringArrayField = (obj: Record<string, unknown> | null, key: string): string[] | undefined => {
-  if (!obj) return undefined;
-  const value = obj[key];
-  return Array.isArray(value) && value.every((entry) => typeof entry === "string") ? value : undefined;
-};
-
 const normalizeSuggestion = (value?: string): string | undefined => {
   if (!value) return undefined;
   const trimmed = value.trim();
@@ -150,20 +106,6 @@ const formatLogTimeRange = (startTs: number, endTs: number): string => {
   return `${start} - ${end}`;
 };
 
-function stubProfileFromSummary(summary: ProfileSummary): Profile {
-  return {
-    id: summary.id,
-    name: summary.name,
-    cmd: summary.cmd,
-    args: [],
-    style: "kansai",
-    logSource: "auto",
-    inputMode: "pty",
-    createdAt: 0,
-    updatedAt: 0,
-  };
-}
-
 export default function App() {
   const isTauriRuntime = Boolean(getTauriCore());
   const [items, setItems] = useState<CommentaryItem[]>([]);
@@ -171,7 +113,6 @@ export default function App() {
   const [logEventType, setLogEventType] = useState<LogEventTypeFilter>("all");
   const [style, setStyle] = useState<Style>("kansai");
   const [source, setSource] = useState<SourceState>({ mode: "auto", detected: null });
-  const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>("connecting");
   const [launchDraft, setLaunchDraft] = useState<LaunchDraft>(() => buildLaunchDraft("bash", "kansai"));
   const [currentSessionLabel, setCurrentSessionLabel] = useState("bash");
   const [tauriServerPort, setTauriServerPort] = useState<number | null>(null);
@@ -183,9 +124,6 @@ export default function App() {
     const saved = localStorage.getItem("cli-commentator-display-mode");
     return saved === "narration" || saved === "explanation" || saved === "both" ? saved : "both";
   });
-  const wsRef = useRef<WebSocket | null>(null);
-  const reconnectAttemptRef = useRef(0);
-  const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingEditIdRef = useRef<string | null>(null);
   const logContainerRef = useRef<HTMLDivElement | null>(null);
   const terminalPaneRef = useRef<TerminalPaneHandle | null>(null);
@@ -199,27 +137,28 @@ export default function App() {
   const profilesRef = useRef<ProfileSummary[]>([]);
 
   // PTY unavailable state (when node-pty build fails)
-  const [ptyUnavailable, setPtyUnavailable] = useState<{
-    error?: string;
-    suggestion?: string;
-    receivedAt: number;
-  } | null>(null);
+  const [ptyUnavailable, setPtyUnavailable] = useState<PtyUnavailableNotice | null>(null);
   const [ptyError, setPtyError] = useState<string | null>(null);
   const [copyState, setCopyState] = useState<"idle" | "copied" | "failed">("idle");
   const copyResetRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // TTS state
-  const [ttsEnabled, setTtsEnabledState] = useState(() => getTTSEnabled());
-  const [ttsSettings, setTtsSettingsState] = useState<TTSSettings>(() => getTTSSettings());
-  const [ttsSettingsOpen, setTtsSettingsOpen] = useState(false);
-  const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
-  const [voicesLoaded, setVoicesLoaded] = useState(false);
   const [pendingTerminalOutput, setPendingTerminalOutput] = useState("");
-  const ttsSupported = isTTSSupported();
-  const ttsEnabledRef = useRef(ttsEnabled);
-  const ttsSettingsRef = useRef(ttsSettings);
-  const pendingSpeechRef = useRef<PendingSpeechBatch | null>(null);
-  const pendingSpeechTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const {
+    ttsEnabled,
+    ttsSettings,
+    ttsSettingsOpen,
+    setTtsSettingsOpen,
+    voices,
+    voicesLoaded,
+    ttsSupported,
+    clearPendingSpeech,
+    stopAndClearSpeech,
+    queueSpeech,
+    handleTTSToggle,
+    handleTTSSettingsChange,
+    handleTTSPresetChange,
+    handleTestSpeak,
+  } = useTTS({ commentaryDisplayMode });
 
   const defaultWsPort = useMemo(() => {
     const parsed = Number(import.meta.env.VITE_WS_PORT ?? "8787");
@@ -237,15 +176,6 @@ export default function App() {
 
   const terminalTheme = useMemo(() => getTerminalTheme(skin), [skin]);
 
-  const sendTerminalInput = useCallback((data: string) => {
-    if (!data) return;
-    if (wsRef.current?.readyState !== WebSocket.OPEN) {
-      setPtyError("サーバーに接続されていません");
-      return;
-    }
-    wsRef.current.send(JSON.stringify({ kind: "writeInput", data }));
-  }, []);
-
   // Apply skin to document
   useEffect(() => {
     document.documentElement.setAttribute("data-skin", skin);
@@ -256,111 +186,10 @@ export default function App() {
     localStorage.setItem("cli-commentator-display-mode", commentaryDisplayMode);
   }, [commentaryDisplayMode]);
 
-  // TTS ref sync (to avoid stale closure in WebSocket handler)
-  useEffect(() => {
-    ttsEnabledRef.current = ttsEnabled;
-  }, [ttsEnabled]);
-
-  useEffect(() => {
-    ttsSettingsRef.current = ttsSettings;
-  }, [ttsSettings]);
-
   // Profile ref sync (to avoid stale closure in WebSocket handler)
   useEffect(() => {
     profilesRef.current = profiles;
   }, [profiles]);
-
-  // Load available voices
-  useEffect(() => {
-    if (!ttsSupported) return;
-    waitForVoices().then((v) => {
-      setVoices(v);
-      setVoicesLoaded(true);
-    });
-  }, [ttsSupported]);
-
-  // TTS cleanup on unmount (prevent orphan speech on reload/navigation)
-  useEffect(() => {
-    return () => {
-      if (pendingSpeechTimeoutRef.current) {
-        clearTimeout(pendingSpeechTimeoutRef.current);
-        pendingSpeechTimeoutRef.current = null;
-      }
-      pendingSpeechRef.current = null;
-      stopSpeech();
-    };
-  }, []);
-
-  const clearPendingSpeech = useCallback(() => {
-    if (pendingSpeechTimeoutRef.current) {
-      clearTimeout(pendingSpeechTimeoutRef.current);
-      pendingSpeechTimeoutRef.current = null;
-    }
-    pendingSpeechRef.current = null;
-  }, []);
-
-  const flushPendingSpeech = useCallback(() => {
-    if (pendingSpeechTimeoutRef.current) {
-      clearTimeout(pendingSpeechTimeoutRef.current);
-      pendingSpeechTimeoutRef.current = null;
-    }
-
-    const pending = pendingSpeechRef.current;
-    pendingSpeechRef.current = null;
-    if (!pending || !ttsEnabledRef.current) return;
-
-    const rawDetail = ttsSettingsRef.current.includeRawDetail ? normalizeSuggestion(pending.latest.detail) : undefined;
-    const speechText = buildSpeechText(
-      getCommentaryTextParts({
-        narration: pending.latest.narration,
-        explanation: pending.latest.explanation,
-        glossaryNotes: pending.latest.glossaryNotes,
-      }),
-      pending.count,
-      rawDetail,
-      commentaryDisplayMode
-    );
-    if (!speechText) return;
-    speak(speechText, ttsSettingsRef.current);
-  }, [commentaryDisplayMode]);
-
-  const schedulePendingSpeech = useCallback(() => {
-    if (pendingSpeechTimeoutRef.current) {
-      clearTimeout(pendingSpeechTimeoutRef.current);
-    }
-    const pending = pendingSpeechRef.current;
-    const delay =
-      pending && (pending.latest.eventType === "error" || pending.latest.eventType === "done")
-        ? TTS_PRIORITY_BATCH_DELAY_MS
-        : TTS_BATCH_DELAY_MS;
-    pendingSpeechTimeoutRef.current = setTimeout(() => {
-      flushPendingSpeech();
-    }, delay);
-  }, [flushPendingSpeech]);
-
-  const queueSpeech = useCallback((item: CommentaryItem) => {
-    if (!ttsEnabledRef.current) return;
-
-    const groupKey = getCommentaryGroupKey(item);
-    const pending = pendingSpeechRef.current;
-    if (pending && groupKey && pending.groupKey === groupKey) {
-      pending.latest = item;
-      pending.count += 1;
-      schedulePendingSpeech();
-      return;
-    }
-
-    if (pending) {
-      flushPendingSpeech();
-    }
-
-    pendingSpeechRef.current = {
-      groupKey,
-      latest: item,
-      count: 1,
-    };
-    schedulePendingSpeech();
-  }, [flushPendingSpeech, schedulePendingSpeech]);
 
   // Copy feedback cleanup/reset
   useEffect(() => {
@@ -370,24 +199,6 @@ export default function App() {
       }
     };
   }, []);
-
-  const handleTTSToggle = (enabled: boolean) => {
-    setTtsEnabledState(enabled);
-    setTTSEnabled(enabled);
-    if (enabled) {
-      // Safari対策: ユーザー操作をトリガーに一言喋らせる
-      speak("読み上げを開始します", ttsSettings);
-    } else {
-      clearPendingSpeech();
-      stopSpeech();
-      setTtsSettingsOpen(false);
-    }
-  };
-
-  const handleTTSSettingsChange = (newSettings: TTSSettings) => {
-    setTtsSettingsState(newSettings);
-    setTTSSettings(newSettings);
-  };
 
   const writeToTerminal = useCallback((data: string) => {
     if (!data) return;
@@ -411,15 +222,6 @@ export default function App() {
     setPendingTerminalOutput("");
   }, []);
 
-  const handleTTSPresetChange = (presetId: TTSPresetSelectValue) => {
-    if (presetId === "custom") return;
-    handleTTSSettingsChange(applyTTSPreset(ttsSettings, presetId));
-  };
-
-  const handleTestSpeak = () => {
-    speak("これはテスト読み上げです。設定を確認してください。", ttsSettings);
-  };
-
   const handleCopySuggestion = async () => {
     const suggestion = normalizeSuggestion(ptyUnavailable?.suggestion);
     if (!suggestion) return;
@@ -433,228 +235,40 @@ export default function App() {
     }, 1500);
   };
 
-  useEffect(() => {
-    // D-1: Prevent ghost reconnection on unmount/hot-reload
-    let cancelled = false;
+  const { wsRef, connectionStatus } = useCommentatorSocket({
+    wsUrl,
+    pendingEditIdRef,
+    profilesRef,
+    terminalPaneRef,
+    setItems,
+    setStyle,
+    setSource,
+    setProfiles,
+    setActiveProfileId,
+    setEditingProfile,
+    setProfileError,
+    setPtyError,
+    setPtyUnavailable,
+    setCopyState,
+    setCurrentSessionLabel,
+    writeToTerminal,
+    clearTerminal,
+    queueSpeech,
+    clearPendingSpeech,
+    stopAndClearSpeech,
+  });
 
-    // Exponential backoff: 500ms, 1s, 2s, 4s, 8s, max 10s
-    const getReconnectDelay = (attempt: number): number => {
-      const baseDelay = 500;
-      const maxDelay = 10000;
-      return Math.min(baseDelay * Math.pow(2, attempt), maxDelay);
-    };
-
-    const connect = () => {
-      if (cancelled) return;
-
-      // Clear any existing reconnect timeout
-      if (reconnectTimeoutRef.current) {
-        clearTimeout(reconnectTimeoutRef.current);
-        reconnectTimeoutRef.current = null;
+  const sendTerminalInput = useCallback(
+    (data: string) => {
+      if (!data) return;
+      if (wsRef.current?.readyState !== WebSocket.OPEN) {
+        setPtyError("サーバーに接続されていません");
+        return;
       }
-
-      setConnectionStatus(reconnectAttemptRef.current > 0 ? "reconnecting" : "connecting");
-
-      const ws = new WebSocket(wsUrl);
-      wsRef.current = ws;
-
-      ws.onopen = () => {
-        if (cancelled || wsRef.current !== ws) return;
-        console.log("WebSocket connected");
-        setConnectionStatus("connected");
-        setProfileError(null); // Clear WS offline error on reconnect
-        reconnectAttemptRef.current = 0;
-      };
-
-      ws.onmessage = (e) => {
-        if (cancelled || wsRef.current !== ws) return;
-        try {
-          const msg = JSON.parse(e.data) as ServerToClientMessage | LegacyHello | PayloadMessage;
-          const kind = "kind" in msg ? msg.kind : msg.type;
-          const payload = getPayloadRecord(msg);
-          const data = (payload ?? msg) as Record<string, unknown>;
-          switch (kind) {
-            case "hello":
-              if (typeof data.style === "string") setStyle(data.style as Style);
-              if (data.source) setSource(data.source as SourceState);
-              break;
-            case "style":
-              if (typeof data.style === "string") setStyle(data.style as Style);
-              break;
-            case "source":
-              if (data.source) setSource(data.source as SourceState);
-              break;
-            case "raw":
-              if (typeof data.data === "string") {
-                writeToTerminal(data.data);
-              }
-              break;
-            case "commentary":
-              if (typeof data.ts === "number") {
-                const ev = isRecord(data.ev) ? data.ev : null;
-                const eventTypeCandidate = ev?.type;
-                const eventType = isEventType(eventTypeCandidate) ? eventTypeCandidate : "stdout";
-                const summary = typeof ev?.summary === "string" ? ev.summary : undefined;
-                const detail = typeof ev?.detail === "string" ? ev.detail : undefined;
-                const parts = getCommentaryTextParts({
-                  narration: getStringField(data, "narration"),
-                  explanation: getStringField(data, "explanation"),
-                  glossaryNotes: getStringArrayField(data, "glossaryNotes"),
-                  text: getStringField(data, "text"),
-                });
-                if (!parts.narrationText && !parts.explanationText && parts.glossaryNotes.length === 0) {
-                  break;
-                }
-                const nextItem: CommentaryItem = {
-                  ts: data.ts as number,
-                  narration: parts.narrationText ?? undefined,
-                  explanation: parts.explanationText ?? undefined,
-                  glossaryNotes: parts.glossaryNotes,
-                  eventType,
-                  summary,
-                  detail,
-                };
-                setItems((prev) => [...prev, nextItem].slice(-200));
-                queueSpeech(nextItem);
-              }
-              break;
-            case "profiles":
-              if (Array.isArray(data.profiles)) {
-                setProfiles(data.profiles as ProfileSummary[]);
-                if ("activeId" in data) {
-                  setActiveProfileId((data.activeId as string | null) ?? null);
-                }
-              }
-              break;
-            case "profileSaved":
-              if (data.profile) {
-                const profile = data.profile as ProfileSummary;
-                setProfiles((prev) => {
-                  const exists = prev.some((p) => p.id === profile.id);
-                  if (exists) {
-                    return prev.map((p) => (p.id === profile.id ? profile : p));
-                  }
-                  return [...prev, profile];
-                });
-                if ("activeId" in data) {
-                  setActiveProfileId((data.activeId as string | null) ?? null);
-                }
-                setEditingProfile(null);
-                setProfileError(null);
-              }
-              break;
-            case "profileDeleted":
-              if (typeof data.id === "string") {
-                setProfiles((prev) => prev.filter((p) => p.id !== data.id));
-                if ("activeId" in data) {
-                  setActiveProfileId((data.activeId as string | null) ?? null);
-                }
-              }
-              break;
-            case "profileDetail":
-              if (data.profile) {
-                const profile = data.profile as Profile;
-                // Verify this is the response for the pending edit request
-                if (pendingEditIdRef.current === profile.id) {
-                  setEditingProfile(profile);
-                  pendingEditIdRef.current = null;
-                }
-              }
-              break;
-            case "profileError":
-              if (typeof data.error === "string") {
-                setProfileError(data.error);
-                // If a profile detail fetch was pending, fall back to summary data
-                const pid = pendingEditIdRef.current;
-                if (pid) {
-                  pendingEditIdRef.current = null;
-                  const summary = profilesRef.current.find((p) => p.id === pid);
-                  if (summary) {
-                    setEditingProfile(stubProfileFromSummary(summary));
-                  } else {
-                    setEditingProfile(null);
-                  }
-                }
-              }
-              break;
-            case "ptyRestart":
-              // Clear commentary items when PTY restarts
-              setItems([]);
-              clearTerminal();
-              terminalPaneRef.current?.resetInputGate();
-              clearPendingSpeech();
-              stopSpeech();
-              setProfileError(null);
-              setPtyError(null);
-              setCurrentSessionLabel(
-                [typeof data.cmd === "string" ? data.cmd : "", ...(Array.isArray(data.args) ? (data.args as string[]) : [])]
-                  .filter(Boolean)
-                  .join(" ") || "session"
-              );
-              break;
-            case "ptyError":
-              if (typeof data.error === "string") {
-                setPtyError(data.error);
-              }
-              break;
-            case "ptyUnavailable":
-              setCopyState("idle");
-              setPtyUnavailable({
-                error: normalizeSuggestion(getStringField(data, "error")),
-                suggestion: normalizeSuggestion(getStringField(data, "suggestion")),
-                receivedAt: Date.now(),
-              });
-              break;
-            default:
-              break;
-          }
-        } catch (err) {
-          if (import.meta.env.DEV) {
-            console.debug("Ignored malformed WebSocket message", err);
-          }
-        }
-      };
-
-      ws.onerror = (error) => {
-        if (wsRef.current !== ws) return;
-        console.error("WebSocket error:", error);
-      };
-
-      ws.onclose = (event) => {
-        if (wsRef.current !== ws) return;
-        console.log("WebSocket closed:", event.code, event.reason);
-        wsRef.current = null;
-        clearPendingSpeech();
-
-        // D-1: Don't reconnect if cancelled (unmount/hot-reload)
-        if (cancelled) return;
-
-        setConnectionStatus("disconnected");
-
-        // Schedule reconnect with exponential backoff
-        const delay = getReconnectDelay(reconnectAttemptRef.current);
-        console.log(`Reconnecting in ${delay}ms (attempt ${reconnectAttemptRef.current + 1})`);
-
-        reconnectTimeoutRef.current = setTimeout(() => {
-          reconnectAttemptRef.current++;
-          connect();
-        }, delay);
-      };
-    };
-
-    connect();
-
-    return () => {
-      // Cleanup on unmount
-      cancelled = true;
-      if (reconnectTimeoutRef.current) {
-        clearTimeout(reconnectTimeoutRef.current);
-      }
-      if (wsRef.current) {
-        wsRef.current.close();
-      }
-    };
-  }, [clearPendingSpeech, clearTerminal, queueSpeech, writeToTerminal, wsUrl]);
+      wsRef.current.send(JSON.stringify({ kind: "writeInput", data }));
+    },
+    [wsRef]
+  );
 
   const sendStyle = (s: Style) => {
     setStyle(s);
