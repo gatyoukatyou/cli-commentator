@@ -10,29 +10,19 @@ import type {
 } from "./types.js";
 import type { Style, SourceMode, InputMode } from "../types.js";
 import type { ProviderName } from "../llm/types.js";
+import {
+  getDefaultShell,
+  normalizeArgs as normalizeSharedArgs,
+  normalizeInputMode,
+  normalizeOptionalArgs,
+  normalizeOptionalString,
+  normalizeString,
+  parseInputModeFromEnv,
+  parseTargetArgs,
+} from "../shared/validation.js";
 
 // In-memory cache to avoid repeated disk reads
 let cachedStore: ProfileStore | null = null;
-
-function normalizeString(value: string): string {
-  return value.trim();
-}
-
-function normalizeOptionalString(value?: string): string | undefined {
-  if (value === undefined) return undefined;
-  const trimmed = value.trim();
-  return trimmed ? trimmed : undefined;
-}
-
-function normalizeArgs(args?: string[]): string[] | undefined {
-  if (args === undefined) return undefined;
-  return args.map((arg) => arg.trim()).filter(Boolean);
-}
-
-function normalizeInputMode(value?: InputMode): InputMode | undefined {
-  if (value === undefined) return undefined;
-  return value === "file" ? "file" : "pty";
-}
 
 function normalizeOptionalProvider(value?: ProviderName): ProviderName | undefined {
   if (value === undefined) return undefined;
@@ -52,7 +42,7 @@ function normalizeCreateInput(input: CreateProfileInput): CreateProfileInput {
     ...input,
     name: normalizeString(input.name),
     cmd: normalizeCommand(input.cmd, inputMode),
-    args: normalizeArgs(input.args),
+    args: normalizeOptionalArgs(input.args),
     cwd: normalizeOptionalString(input.cwd),
     inputMode,
     inputFile: normalizeOptionalString(input.inputFile),
@@ -68,7 +58,7 @@ function normalizeUpdateInput(input: UpdateProfileInput): UpdateProfileInput {
     ...input,
     ...(input.name !== undefined && { name: normalizeString(input.name) }),
     ...(input.cmd !== undefined && { cmd: normalizeCommand(input.cmd, inputMode) }),
-    ...(input.args !== undefined && { args: normalizeArgs(input.args) }),
+    ...(input.args !== undefined && { args: normalizeOptionalArgs(input.args) }),
     ...(input.cwd !== undefined && { cwd: normalizeOptionalString(input.cwd) }),
     ...(input.inputMode !== undefined && { inputMode }),
     ...(input.inputFile !== undefined && { inputFile: normalizeOptionalString(input.inputFile) }),
@@ -305,55 +295,15 @@ export async function remove(id: string): Promise<void> {
 }
 
 /**
- * Get the default shell for the current platform
- */
-function getDefaultShell(): string {
-  if (process.platform === "win32") {
-    return "powershell.exe";
-  }
-  return "bash";
-}
-
-function parseInputMode(env: Record<string, string | undefined>): InputMode {
-  return env.INPUT_MODE?.trim().toLowerCase() === "file" ? "file" : "pty";
-}
-
-/**
- * Parse command arguments from environment variables
- * TARGET_ARGS_JSON (JSON array) takes precedence over TARGET_ARGS (space-separated)
- */
-function parseArgs(env: Record<string, string | undefined>): string[] {
-  if (env.TARGET_ARGS_JSON) {
-    try {
-      const raw = JSON.parse(env.TARGET_ARGS_JSON);
-      if (!Array.isArray(raw) || !raw.every((x) => typeof x === "string")) {
-        throw new Error("must be array of strings");
-      }
-      return raw;
-    } catch {
-      throw new Error(
-        "Invalid TARGET_ARGS_JSON (must be JSON array of strings)"
-      );
-    }
-  }
-
-  if (env.TARGET_ARGS) {
-    return env.TARGET_ARGS.split(" ").filter(Boolean);
-  }
-
-  return [];
-}
-
-/**
  * Create a profile input from current environment variables
  * Useful for backwards compatibility / initial profile creation
  */
 export function createFromEnv(
   env: Record<string, string | undefined> = process.env
 ): CreateProfileInput {
-  const inputMode = parseInputMode(env);
+  const inputMode = parseInputModeFromEnv(env);
   const cmd = normalizeString(env.TARGET_CMD ?? getDefaultShell());
-  const args = parseArgs(env);
+  const args = normalizeSharedArgs(parseTargetArgs(env));
   const cwd = normalizeOptionalString(env.TARGET_CWD);
   const inputFile = normalizeOptionalString(env.INPUT_FILE);
 

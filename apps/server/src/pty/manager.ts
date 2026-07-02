@@ -1,5 +1,6 @@
 import { createRequire } from "node:module";
 import type { Profile } from "../profile/types.js";
+import { getDefaultShell, normalizeArgs, parseTargetArgs } from "../shared/validation.js";
 
 // Local type definitions (to avoid runtime import of node-pty)
 type IPty = {
@@ -85,23 +86,9 @@ function normalizeCommand(value: string): string {
   return value.trim();
 }
 
-function normalizeArgs(args: string[]): string[] {
-  return args.map((arg) => arg.trim()).filter(Boolean);
-}
-
 function normalizeCwd(value?: string): string {
   const trimmed = value?.trim();
   return trimmed || process.cwd();
-}
-
-/**
- * Get the default shell for the current platform
- */
-function getDefaultShell(): string {
-  if (process.platform === "win32") {
-    return "powershell.exe";
-  }
-  return "bash";
 }
 
 /**
@@ -234,32 +221,6 @@ export function configFromProfile(profile: Profile): PTYConfig {
 }
 
 /**
- * Parse command arguments from environment variables
- * TARGET_ARGS_JSON (JSON array) takes precedence over TARGET_ARGS (space-separated)
- */
-function parseArgs(env: Record<string, string | undefined>): string[] {
-  if (env.TARGET_ARGS_JSON) {
-    try {
-      const raw = JSON.parse(env.TARGET_ARGS_JSON);
-      if (!Array.isArray(raw) || !raw.every((x) => typeof x === "string")) {
-        throw new Error("must be array of strings");
-      }
-      return raw;
-    } catch {
-      throw new Error(
-        "Invalid TARGET_ARGS_JSON (must be JSON array of strings)"
-      );
-    }
-  }
-
-  if (env.TARGET_ARGS) {
-    return env.TARGET_ARGS.split(" ").filter(Boolean);
-  }
-
-  return [];
-}
-
-/**
  * Create PTY config from environment variables
  */
 export function configFromEnv(
@@ -267,7 +228,7 @@ export function configFromEnv(
 ): PTYConfig {
   return {
     cmd: normalizeCommand(env.TARGET_CMD ?? getDefaultShell()),
-    args: normalizeArgs(parseArgs(env)),
+    args: normalizeArgs(parseTargetArgs(env)),
     cwd: normalizeCwd(env.TARGET_CWD),
   };
 }
