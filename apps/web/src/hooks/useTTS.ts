@@ -1,0 +1,205 @@
+import { useCallback, useEffect, useRef, useState } from "react";
+import { buildSpeechText, getCommentaryTextParts } from "../lib/glossary-note";
+import { getCommentaryGroupKey, type CommentaryItem } from "../lib/log-filter";
+import {
+  applyTTSPreset,
+  getTTSEnabled,
+  getTTSSettings,
+  isTTSSupported,
+  setTTSEnabled,
+  setTTSSettings,
+  speak,
+  stopSpeech,
+  waitForVoices,
+  type TTSPresetId,
+  type TTSSettings,
+} from "../lib/tts";
+import type { CommentaryDisplayMode } from "../types";
+
+const TTS_BATCH_DELAY_MS = 320;
+const TTS_PRIORITY_BATCH_DELAY_MS = 120;
+
+type PendingSpeechBatch = {
+  groupKey: string | null;
+  latest: CommentaryItem;
+  count: number;
+};
+
+type UseTTSOptions = {
+  commentaryDisplayMode: CommentaryDisplayMode;
+};
+
+const normalizeSuggestion = (value?: string): string | undefined => {
+  if (!value) return undefined;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : undefined;
+};
+
+export function useTTS({ commentaryDisplayMode }: UseTTSOptions) {
+  const [ttsEnabled, setTtsEnabledState] = useState(() => getTTSEnabled());
+  const [ttsSettings, setTtsSettingsState] = useState<TTSSettings>(() => getTTSSettings());
+  const [ttsSettingsOpen, setTtsSettingsOpen] = useState(false);
+  const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
+  const [voicesLoaded, setVoicesLoaded] = useState(false);
+  const ttsSupported = isTTSSupported();
+  const ttsEnabledRef = useRef(ttsEnabled);
+  const ttsSettingsRef = useRef(ttsSettings);
+  const pendingSpeechRef = useRef<PendingSpeechBatch | null>(null);
+  const pendingSpeechTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    ttsEnabledRef.current = ttsEnabled;
+  }, [ttsEnabled]);
+
+  useEffect(() => {
+    ttsSettingsRef.current = ttsSettings;
+  }, [ttsSettings]);
+
+  useEffect(() => {
+    if (!ttsSupported) return;
+    waitForVoices().then((availableVoices) => {
+      setVoices(availableVoices);
+      setVoicesLoaded(true);
+    });
+  }, [ttsSupported]);
+
+  useEffect(() => {
+    return () => {
+      if (pendingSpeechTimeoutRef.current) {
+        clearTimeout(pendingSpeechTimeoutRef.current);
+        pendingSpeechTimeoutRef.current = null;
+      }
+      pendingSpeechRef.current = null;
+      stopSpeech();
+    };
+  }, []);
+
+  const clearPendingSpeech = useCallback(() => {
+    if (pendingSpeechTimeoutRef.current) {
+      clearTimeout(pendingSpeechTimeoutRef.current);
+      pendingSpeechTimeoutRef.current = null;
+    }
+    pendingSpeechRef.current = null;
+  }, []);
+
+  const stopAndClearSpeech = useCallback(() => {
+    clearPendingSpeech();
+    stopSpeech();
+  }, [clearPendingSpeech]);
+
+  const flushPendingSpeech = useCallback(() => {
+    if (pendingSpeechTimeoutRef.current) {
+      clearTimeout(pendingSpeechTimeoutRef.current);
+      pendingSpeechTimeoutRef.current = null;
+    }
+
+    const pending = pendingSpeechRef.current;
+    pendingSpeechRef.current = null;
+    if (!pending || !ttsEnabledRef.current) return;
+
+    const rawDetail = ttsSettingsRef.current.includeRawDetail
+      ? normalizeSuggestion(pending.latest.detail)
+      : undefined;
+    const speechText = buildSpeechText(
+      getCommentaryTextParts({
+        narration: pending.latest.narration,
+        explanation: pending.latest.explanation,
+        glossaryNotes: pending.latest.glossaryNotes,
+      }),
+      pending.count,
+      rawDetail,
+      commentaryDisplayMode
+    );
+    if (!speechText) return;
+    speak(speechText, ttsSettingsRef.current);
+  }, [commentaryDisplayMode]);
+
+  const schedulePendingSpeech = useCallback(() => {
+    if (pendingSpeechTimeoutRef.current) {
+      clearTimeout(pendingSpeechTimeoutRef.current);
+    }
+    const pending = pendingSpeechRef.current;
+    const delay =
+      pending && (pending.latest.eventType === "error" || pending.latest.eventType === "done")
+        ? TTS_PRIORITY_BATCH_DELAY_MS
+        : TTS_BATCH_DELAY_MS;
+    pendingSpeechTimeoutRef.current = setTimeout(() => {
+      flushPendingSpeech();
+    }, delay);
+  }, [flushPendingSpeech]);
+
+  const queueSpeech = useCallback(
+    (item: CommentaryItem) => {
+      if (!ttsEnabledRef.current) return;
+
+      const groupKey = getCommentaryGroupKey(item);
+      const pending = pendingSpeechRef.current;
+      if (pending && groupKey && pending.groupKey === groupKey) {
+        pending.latest = item;
+        pending.count += 1;
+        schedulePendingSpeech();
+        return;
+      }
+
+      if (pending) {
+        flushPendingSpeech();
+      }
+
+      pendingSpeechRef.current = {
+        groupKey,
+        latest: item,
+        count: 1,
+      };
+      schedulePendingSpeech();
+    },
+    [flushPendingSpeech, schedulePendingSpeech]
+  );
+
+  const handleTTSToggle = useCallback(
+    (enabled: boolean) => {
+      setTtsEnabledState(enabled);
+      setTTSEnabled(enabled);
+      if (enabled) {
+        speak("読み上げを開始します", ttsSettings);
+      } else {
+        stopAndClearSpeech();
+        setTtsSettingsOpen(false);
+      }
+    },
+    [stopAndClearSpeech, ttsSettings]
+  );
+
+  const handleTTSSettingsChange = useCallback((newSettings: TTSSettings) => {
+    setTtsSettingsState(newSettings);
+    setTTSSettings(newSettings);
+  }, []);
+
+  const handleTTSPresetChange = useCallback(
+    (presetId: TTSPresetId | "custom") => {
+      if (presetId === "custom") return;
+      handleTTSSettingsChange(applyTTSPreset(ttsSettings, presetId));
+    },
+    [handleTTSSettingsChange, ttsSettings]
+  );
+
+  const handleTestSpeak = useCallback(() => {
+    speak("これはテスト読み上げです。設定を確認してください。", ttsSettings);
+  }, [ttsSettings]);
+
+  return {
+    ttsEnabled,
+    ttsSettings,
+    ttsSettingsOpen,
+    setTtsSettingsOpen,
+    voices,
+    voicesLoaded,
+    ttsSupported,
+    clearPendingSpeech,
+    stopAndClearSpeech,
+    queueSpeech,
+    handleTTSToggle,
+    handleTTSSettingsChange,
+    handleTTSPresetChange,
+    handleTestSpeak,
+  };
+}
