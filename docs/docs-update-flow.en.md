@@ -58,6 +58,7 @@ Use the Doc Freshness checklist in `.github/pull_request_template.md` and enforc
 - On pull requests, `docs_drift_guard` runs `scripts/check-doc-sync.mjs`.
 - Local runs include committed, staged, unstaged, and untracked file changes.
 - If LLM/desktop-distribution implementation changes without matching docs updates, CI fails.
+- Dependency-only changes to `apps/desktop/src-tauri/Cargo.lock` do not alter operating procedures and are excluded from desktop-distribution doc sync. Desktop code, configuration, CI, and release workflow changes remain covered.
 - Use `[skip-doc-sync-check]` in the PR body only for explicit exceptions, and include the reason.
 
 ### CI action maintenance

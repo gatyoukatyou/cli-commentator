@@ -58,6 +58,7 @@
 - PR では `docs_drift_guard` ジョブが `scripts/check-doc-sync.mjs` を実行する。
 - ローカル実行では commit 済み、stage 済み、未stage、untracked の差分を対象にする。
 - 対象実装（LLM/desktop配布系）が変わったのに主要docsが未更新の場合、CI は失敗する。
+- `apps/desktop/src-tauri/Cargo.lock` のみの依存更新は、運用手順を変更しないため desktop 配布docsの同期対象外とする。desktopコード・設定・CI・release workflowは引き続き対象とする。
 - 例外運用が必要な場合のみ、PR本文に `[skip-doc-sync-check]` を明記し、理由を添える。
 
 ### CI action maintenance
