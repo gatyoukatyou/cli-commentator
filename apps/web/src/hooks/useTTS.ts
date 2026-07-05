@@ -15,6 +15,7 @@ import {
   type TTSSettings,
 } from "../lib/tts";
 import type { CommentaryDisplayMode } from "../types";
+import { normalizeSuggestion } from "../lib/text";
 
 const TTS_BATCH_DELAY_MS = 320;
 const TTS_PRIORITY_BATCH_DELAY_MS = 120;
@@ -27,12 +28,6 @@ type PendingSpeechBatch = {
 
 type UseTTSOptions = {
   commentaryDisplayMode: CommentaryDisplayMode;
-};
-
-const normalizeSuggestion = (value?: string): string | undefined => {
-  if (!value) return undefined;
-  const trimmed = value.trim();
-  return trimmed.length > 0 ? trimmed : undefined;
 };
 
 export function useTTS({ commentaryDisplayMode }: UseTTSOptions) {

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type Dispatch, type MutableRefObject, type
 import type { TerminalPaneHandle } from "../components/TerminalPane";
 import { getCommentaryTextParts } from "../lib/glossary-note";
 import { isEventType, type CommentaryItem } from "../lib/log-filter";
+import { normalizeSuggestion } from "../lib/text";
 import type {
   Profile,
   ProfileSummary,
@@ -13,7 +14,7 @@ import type {
 
 type LegacyHello = { type: "hello"; style: Style };
 type PayloadMessage = { type?: string; payload?: PtyUnavailablePayload | Record<string, unknown> };
-type ConnectionStatus = "connecting" | "connected" | "disconnected" | "reconnecting";
+export type ConnectionStatus = "connecting" | "connected" | "disconnected" | "reconnecting";
 type EditingProfile = Profile | null | "new" | "loading";
 type CopyState = "idle" | "copied" | "failed";
 
@@ -65,12 +66,6 @@ const getStringArrayField = (obj: Record<string, unknown> | null, key: string): 
   if (!obj) return undefined;
   const value = obj[key];
   return Array.isArray(value) && value.every((entry) => typeof entry === "string") ? value : undefined;
-};
-
-const normalizeSuggestion = (value?: string): string | undefined => {
-  if (!value) return undefined;
-  const trimmed = value.trim();
-  return trimmed.length > 0 ? trimmed : undefined;
 };
 
 function stubProfileFromSummary(summary: ProfileSummary): Profile {
