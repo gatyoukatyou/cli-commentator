@@ -2,10 +2,11 @@
 
 import { execSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
+import { pathToFileURL } from "node:url";
 
 const SKIP_TOKEN = "[skip-doc-sync-check]";
 
-const RULES = [
+export const RULES = [
   {
     id: "llm-adapter-doc-sync",
     description: "LLM implementation changes should update LLM adapter docs",
@@ -27,6 +28,9 @@ const RULES = [
       /^scripts\/prepare-desktop-sidecar\.mjs$/,
       /^\.github\/workflows\/ci\.yml$/,
       /^\.github\/workflows\/release-desktop\.yml$/,
+    ],
+    ignoredFiles: [
+      /^apps\/desktop\/src-tauri\/Cargo\.lock$/,
     ],
     requiredDocs: [
       "docs/ROADMAP.ja.md",
@@ -149,29 +153,13 @@ function getChangedFiles(baseRef, headRef) {
   return [...new Set([...committedFiles, ...localFiles])].sort();
 }
 
-function main() {
-  const args = parseArgs(process.argv.slice(2));
-  const changedFiles = getChangedFiles(args.baseRef, args.headRef);
-
-  console.log(`[doc-sync] Comparing ${args.baseRef}...${args.headRef}`);
-  console.log(`[doc-sync] Changed files: ${changedFiles.length}`);
-
-  if (changedFiles.length === 0) {
-    console.log("[doc-sync] No changed files. PASS");
-    return;
-  }
-
-  const prBody = readPullRequestBody();
-  if (prBody.includes(SKIP_TOKEN)) {
-    console.log(`[doc-sync] Skip token '${SKIP_TOKEN}' found in PR body. PASS`);
-    return;
-  }
-
+export function findViolations(changedFiles, rules = RULES) {
   const violations = [];
 
-  for (const rule of RULES) {
+  for (const rule of rules) {
     const matchedFiles = changedFiles.filter((file) =>
-      rule.triggers.some((pattern) => pattern.test(file))
+      rule.triggers.some((pattern) => pattern.test(file)) &&
+      !rule.ignoredFiles?.some((pattern) => pattern.test(file))
     );
 
     if (matchedFiles.length === 0) {
@@ -191,6 +179,29 @@ function main() {
       });
     }
   }
+
+  return violations;
+}
+
+function main() {
+  const args = parseArgs(process.argv.slice(2));
+  const changedFiles = getChangedFiles(args.baseRef, args.headRef);
+
+  console.log(`[doc-sync] Comparing ${args.baseRef}...${args.headRef}`);
+  console.log(`[doc-sync] Changed files: ${changedFiles.length}`);
+
+  if (changedFiles.length === 0) {
+    console.log("[doc-sync] No changed files. PASS");
+    return;
+  }
+
+  const prBody = readPullRequestBody();
+  if (prBody.includes(SKIP_TOKEN)) {
+    console.log(`[doc-sync] Skip token '${SKIP_TOKEN}' found in PR body. PASS`);
+    return;
+  }
+
+  const violations = findViolations(changedFiles);
 
   if (violations.length === 0) {
     console.log("[doc-sync] All triggered rules satisfied. PASS");
@@ -213,4 +224,6 @@ function main() {
   process.exit(1);
 }
 
-main();
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  main();
+}

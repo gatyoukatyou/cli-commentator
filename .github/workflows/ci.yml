@@ -34,6 +34,9 @@ jobs:
         with:
           node-version: "20"
 
+      - name: Test documentation drift guard
+        run: node --test ./scripts/check-doc-sync.test.mjs
+
       - name: Check documentation drift guard
         run: node ./scripts/check-doc-sync.mjs
 
