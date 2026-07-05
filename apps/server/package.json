@@ -8,6 +8,7 @@
     "test": "vitest"
   },
   "dependencies": {
+    "@cli-commentator/shared": "workspace:*",
     "dotenv": "^17.4.2",
     "ws": "^8.20.1"
   },

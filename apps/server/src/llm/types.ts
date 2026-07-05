@@ -1,4 +1,4 @@
-export type ProviderName = "disabled" | "mock" | "openai" | "groq" | "local" | "anthropic" | "gemini";
+export type { ProviderName } from "@cli-commentator/shared";
 
 export type ChatMessage = {
   role: "system" | "user" | "assistant";

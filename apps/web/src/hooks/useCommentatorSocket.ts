@@ -1,19 +1,16 @@
 import { useEffect, useRef, useState, type Dispatch, type MutableRefObject, type RefObject, type SetStateAction } from "react";
 import type { TerminalPaneHandle } from "../components/TerminalPane";
 import { getCommentaryTextParts } from "../lib/glossary-note";
-import { isEventType, type CommentaryItem } from "../lib/log-filter";
+import type { CommentaryItem } from "../lib/log-filter";
 import { normalizeSuggestion } from "../lib/text";
+import { parseServerMessage } from "@cli-commentator/shared";
 import type {
   Profile,
   ProfileSummary,
-  PtyUnavailablePayload,
-  ServerToClientMessage,
   SourceState,
   Style,
 } from "../types";
 
-type LegacyHello = { type: "hello"; style: Style };
-type PayloadMessage = { type?: string; payload?: PtyUnavailablePayload | Record<string, unknown> };
 export type ConnectionStatus = "connecting" | "connected" | "disconnected" | "reconnecting";
 type EditingProfile = Profile | null | "new" | "loading";
 type CopyState = "idle" | "copied" | "failed";
@@ -45,27 +42,6 @@ type UseCommentatorSocketOptions = {
   queueSpeech: (item: CommentaryItem) => void;
   clearPendingSpeech: () => void;
   stopAndClearSpeech: () => void;
-};
-
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === "object" && value !== null;
-
-const getPayloadRecord = (msg: unknown): Record<string, unknown> | null => {
-  if (!isRecord(msg) || !("payload" in msg)) return null;
-  const payload = (msg as { payload?: unknown }).payload;
-  return isRecord(payload) ? payload : null;
-};
-
-const getStringField = (obj: Record<string, unknown> | null, key: string): string | undefined => {
-  if (!obj) return undefined;
-  const value = obj[key];
-  return typeof value === "string" ? value : undefined;
-};
-
-const getStringArrayField = (obj: Record<string, unknown> | null, key: string): string[] | undefined => {
-  if (!obj) return undefined;
-  const value = obj[key];
-  return Array.isArray(value) && value.every((entry) => typeof entry === "string") ? value : undefined;
 };
 
 function stubProfileFromSummary(summary: ProfileSummary): Profile {
@@ -145,142 +121,104 @@ export function useCommentatorSocket({
       ws.onmessage = (e) => {
         if (cancelled || wsRef.current !== ws) return;
         try {
-          const msg = JSON.parse(e.data) as ServerToClientMessage | LegacyHello | PayloadMessage;
-          const kind = "kind" in msg ? msg.kind : msg.type;
-          const payload = getPayloadRecord(msg);
-          const data = (payload ?? msg) as Record<string, unknown>;
-          switch (kind) {
+          const message = parseServerMessage(JSON.parse(e.data));
+          if (!message) return;
+
+          switch (message.kind) {
             case "hello":
-              if (typeof data.style === "string") setStyle(data.style as Style);
-              if (data.source) setSource(data.source as SourceState);
+              setStyle(message.style);
+              setSource(message.source);
               break;
             case "style":
-              if (typeof data.style === "string") setStyle(data.style as Style);
+              setStyle(message.style);
               break;
             case "source":
-              if (data.source) setSource(data.source as SourceState);
+              setSource(message.source);
               break;
             case "raw":
-              if (typeof data.data === "string") {
-                writeToTerminal(data.data);
-              }
+              writeToTerminal(message.data);
               break;
-            case "commentary":
-              if (typeof data.ts === "number") {
-                const ev = isRecord(data.ev) ? data.ev : null;
-                const eventTypeCandidate = ev?.type;
-                const eventType = isEventType(eventTypeCandidate) ? eventTypeCandidate : "stdout";
-                const summary = typeof ev?.summary === "string" ? ev.summary : undefined;
-                const detail = typeof ev?.detail === "string" ? ev.detail : undefined;
-                const parts = getCommentaryTextParts({
-                  narration: getStringField(data, "narration"),
-                  explanation: getStringField(data, "explanation"),
-                  glossaryNotes: getStringArrayField(data, "glossaryNotes"),
-                  text: getStringField(data, "text"),
-                });
-                if (!parts.narrationText && !parts.explanationText && parts.glossaryNotes.length === 0) {
-                  break;
-                }
-                const nextItem: CommentaryItem = {
-                  ts: data.ts as number,
-                  narration: parts.narrationText ?? undefined,
-                  explanation: parts.explanationText ?? undefined,
-                  glossaryNotes: parts.glossaryNotes,
-                  eventType,
-                  summary,
-                  detail,
-                };
-                setItems((prev) => [...prev, nextItem].slice(-200));
-                queueSpeech(nextItem);
+            case "commentary": {
+              const parts = getCommentaryTextParts({
+                narration: message.narration,
+                explanation: message.explanation,
+                glossaryNotes: message.glossaryNotes,
+              });
+              if (!parts.narrationText && !parts.explanationText && parts.glossaryNotes.length === 0) {
+                break;
               }
+              const nextItem: CommentaryItem = {
+                ts: message.ts,
+                narration: parts.narrationText ?? undefined,
+                explanation: parts.explanationText ?? undefined,
+                glossaryNotes: parts.glossaryNotes,
+                eventType: message.ev.type,
+                summary: message.ev.summary,
+                detail: message.ev.detail,
+              };
+              setItems((prev) => [...prev, nextItem].slice(-200));
+              queueSpeech(nextItem);
               break;
+            }
             case "profiles":
-              if (Array.isArray(data.profiles)) {
-                setProfiles(data.profiles as ProfileSummary[]);
-                if ("activeId" in data) {
-                  setActiveProfileId((data.activeId as string | null) ?? null);
-                }
-              }
+              setProfiles(message.profiles);
+              setActiveProfileId(message.activeId);
               break;
-            case "profileSaved":
-              if (data.profile) {
-                const profile = data.profile as ProfileSummary;
-                setProfiles((prev) => {
-                  const exists = prev.some((p) => p.id === profile.id);
-                  if (exists) {
-                    return prev.map((p) => (p.id === profile.id ? profile : p));
-                  }
-                  return [...prev, profile];
-                });
-                if ("activeId" in data) {
-                  setActiveProfileId((data.activeId as string | null) ?? null);
+            case "profileSaved": {
+              const profile = message.profile;
+              setProfiles((prev) => {
+                const exists = prev.some((entry) => entry.id === profile.id);
+                if (exists) {
+                  return prev.map((entry) => (entry.id === profile.id ? profile : entry));
                 }
-                setEditingProfile(null);
-                setProfileError(null);
-              }
+                return [...prev, profile];
+              });
+              setActiveProfileId(message.activeId);
+              setEditingProfile(null);
+              setProfileError(null);
               break;
+            }
             case "profileDeleted":
-              if (typeof data.id === "string") {
-                setProfiles((prev) => prev.filter((p) => p.id !== data.id));
-                if ("activeId" in data) {
-                  setActiveProfileId((data.activeId as string | null) ?? null);
-                }
-              }
+              setProfiles((prev) => prev.filter((profile) => profile.id !== message.id));
+              setActiveProfileId(message.activeId);
               break;
             case "profileDetail":
-              if (data.profile) {
-                const profile = data.profile as Profile;
-                // Verify this is the response for the pending edit request
-                if (pendingEditIdRef.current === profile.id) {
-                  setEditingProfile(profile);
-                  pendingEditIdRef.current = null;
-                }
+              if (pendingEditIdRef.current === message.profile.id) {
+                setEditingProfile(message.profile);
+                pendingEditIdRef.current = null;
               }
               break;
-            case "profileError":
-              if (typeof data.error === "string") {
-                setProfileError(data.error);
-                // If a profile detail fetch was pending, fall back to summary data
-                const pid = pendingEditIdRef.current;
-                if (pid) {
-                  pendingEditIdRef.current = null;
-                  const summary = profilesRef.current.find((p) => p.id === pid);
-                  if (summary) {
-                    setEditingProfile(stubProfileFromSummary(summary));
-                  } else {
-                    setEditingProfile(null);
-                  }
-                }
+            case "profileError": {
+              setProfileError(message.error);
+              const pendingId = pendingEditIdRef.current;
+              if (pendingId) {
+                pendingEditIdRef.current = null;
+                const summary = profilesRef.current.find((profile) => profile.id === pendingId);
+                setEditingProfile(summary ? stubProfileFromSummary(summary) : null);
               }
               break;
+            }
             case "ptyRestart":
-              // Clear commentary items when PTY restarts
               setItems([]);
               clearTerminal();
               terminalPaneRef.current?.resetInputGate();
               stopAndClearSpeech();
               setProfileError(null);
               setPtyError(null);
-              setCurrentSessionLabel(
-                [typeof data.cmd === "string" ? data.cmd : "", ...(Array.isArray(data.args) ? (data.args as string[]) : [])]
-                  .filter(Boolean)
-                  .join(" ") || "session"
-              );
+              setCurrentSessionLabel([message.cmd, ...message.args].filter(Boolean).join(" ") || "session");
               break;
             case "ptyError":
-              if (typeof data.error === "string") {
-                setPtyError(data.error);
-              }
+              setPtyError(message.error);
               break;
             case "ptyUnavailable":
               setCopyState("idle");
               setPtyUnavailable({
-                error: normalizeSuggestion(getStringField(data, "error")),
-                suggestion: normalizeSuggestion(getStringField(data, "suggestion")),
+                error: normalizeSuggestion(message.error),
+                suggestion: normalizeSuggestion(message.suggestion),
                 receivedAt: Date.now(),
               });
               break;
-            default:
+            case "event":
               break;
           }
         } catch (err) {

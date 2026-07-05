@@ -32,6 +32,9 @@ importers:
 
   apps/server:
     dependencies:
+      '@cli-commentator/shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
       dotenv:
         specifier: ^17.4.2
         version: 17.4.2
@@ -61,6 +64,9 @@ importers:
 
   apps/web:
     dependencies:
+      '@cli-commentator/shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
       react:
         specifier: ^19.2.6
         version: 19.2.6
@@ -113,6 +119,8 @@ importers:
       vitest:
         specifier: ^4.0.18
         version: 4.0.18(@types/node@25.5.0)(lightningcss@1.32.0)(tsx@4.21.0)
+
+  packages/shared: {}
 
 packages:
 
