@@ -31,6 +31,7 @@ export const RULES = [
     ],
     ignoredFiles: [
       /^apps\/desktop\/src-tauri\/Cargo\.lock$/,
+      /^apps\/desktop\/src-tauri\/gen\//,
     ],
     requiredDocs: [
       "docs/ROADMAP.ja.md",
