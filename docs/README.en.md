@@ -14,9 +14,13 @@ This folder will host public documentation in paired Japanese and English files.
 
 Each document should start with mutual links so readers can switch languages easily.
 
-- [Roadmap](ROADMAP.en.md)
-- [Roadmap Issue Drafts](roadmap-issues.en.md)
+## Local Use and Development Startup
+
 - [Getting Started](getting-started.en.md)
+- [Manual Test Checklist (Internal Validation)](manual-test-checklist.en.md)
+
+## Distribution and Release Operations
+
 - [Desktop Release Guide](desktop-release.en.md)
 - [Desktop Release Runbook](release-runbook.en.md)
 - [v0.2.0 RC Checklist](release-rc-checklist.en.md)
@@ -24,5 +28,9 @@ Each document should start with mutual links so readers can switch languages eas
 - [v0.2.0 RC Decision Evidence Log](release-evidence-log.en.md)
 - [Cross-Platform Smoke Matrix](cross-platform-smoke-matrix.en.md)
 - [Certificate & Secrets Operations](certificate-secrets.en.md)
-- [Manual Test Checklist (Internal Validation)](manual-test-checklist.en.md)
+
+## Planning and Operating Rules
+
+- [Roadmap](ROADMAP.en.md)
+- [Roadmap Issue Drafts](roadmap-issues.en.md)
 - [ROADMAP/LLM_ADAPTER Update Flow](docs-update-flow.en.md)
