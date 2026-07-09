@@ -3,7 +3,7 @@
 
 # Desktop Release Guide (Tauri)
 
-This page is the practical checklist for desktop distribution.  
+This page is the practical checklist for **desktop distribution operators**. If you only want to run and use the app locally, start with `docs/getting-started.en.md`.  
 Current status: **Auto-start and in-app update checks are implemented**, and this repo now includes updater/release automation foundations.
 
 ## Current baseline
@@ -41,6 +41,7 @@ it does not change updater endpoint configuration, signing inputs, release
 artifact layout, or operator-facing release steps.
 
 Related docs:
+- Local use and development startup: `docs/getting-started.en.md`
 - Detailed operations (including recovery/rollback): `docs/release-runbook.en.md`
 - Certificate/secrets operations: `docs/certificate-secrets.en.md`
 
