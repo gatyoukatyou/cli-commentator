@@ -7,11 +7,11 @@
 
 English: This repository is an MVP for streaming CLI commentary in a separate window. See `README.en.md` for details.
 
-## Getting Started
+## Local Use / ローカル利用
 - JA docs: `./docs/getting-started.ja.md`
 - EN docs: `./docs/getting-started.en.md`
 
-## Desktop Distribution
+## Desktop Distribution / Desktop配布
 - JA guide: `./docs/desktop-release.ja.md`
 - EN guide: `./docs/desktop-release.en.md`
 - Latest release: <https://github.com/gatyoukatyou/cli-commentator/releases/latest>

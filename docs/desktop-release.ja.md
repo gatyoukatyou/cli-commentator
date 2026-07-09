@@ -3,7 +3,7 @@
 
 # Desktop配布ガイド（Tauri）
 
-このページは、デスクトップ版の配布導線を整えるための実務チェックリストです。  
+このページは、デスクトップ版の **配布運用者向け** 実務チェックリストです。ローカルで起動して使うだけなら、まず `docs/getting-started.ja.md` を参照してください。  
 現時点では **Auto-start と更新確認（Updater check）は実装済み** で、Updater/配布自動化の土台をこのリポジトリに追加済みです。
 
 ## 現在の到達点
@@ -40,6 +40,7 @@ updater endpoint 設定、署名入力、release artifact layout、operator-faci
 リリース手順は変更しません。
 
 関連ドキュメント:
+- ローカル利用・開発起動: `docs/getting-started.ja.md`
 - 詳細運用手順（復旧/ロールバック含む）: `docs/release-runbook.ja.md`
 - 証明書/Secrets運用: `docs/certificate-secrets.ja.md`
 

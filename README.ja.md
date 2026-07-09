@@ -21,9 +21,16 @@ CLIの出力を別ウィンドウで実況するMVP。
 
 `apps/server/.env` の `TARGET_CMD` に指定します。例: `/bin/bash`, `/bin/zsh`, `powershell`, `claude`, `codex`
 
-## 導入・配布導線
+## ローカルで使う・開発する
+
+まずはこちらを読んでください。ローカル起動や日常利用の確認では、署名・Notarization・Updater配布の手順は不要です。
 
 - Getting Started: `docs/getting-started.ja.md`
+
+## 配布・リリースを運用する
+
+配布版の作成、署名、Notarization、Updater、Draft Release確認はこちらです。
+
 - Desktop配布ガイド: `docs/desktop-release.ja.md`
 - 最新リリース: <https://github.com/gatyoukatyou/cli-commentator/releases/latest>
 

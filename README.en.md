@@ -21,9 +21,16 @@ Public documentation is maintained in both Japanese and English.
 
 Set `TARGET_CMD` in `apps/server/.env`. Examples: `/bin/bash`, `/bin/zsh`, `powershell`, `claude`, `codex`
 
-## Onboarding and Distribution
+## Local Use and Development
+
+Start here first. Local startup and day-to-day readiness checks do not require signing, notarization, or updater distribution steps.
 
 - Getting Started: `docs/getting-started.en.md`
+
+## Distribution and Release Operations
+
+Use these docs for release builds, signing, notarization, updater wiring, and draft release validation.
+
 - Desktop Release Guide: `docs/desktop-release.en.md`
 - Latest release: <https://github.com/gatyoukatyou/cli-commentator/releases/latest>
 

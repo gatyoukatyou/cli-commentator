@@ -5,6 +5,8 @@
 
 CLI Commentator は CLI 出力（PTY またはログファイル tail）を取り込み、イベント化して Web UI に実況を流します。
 
+このページは **ローカル利用・開発起動の入口**です。署名、Notarization、Updater、Draft Release などの配布運用は通常のローカル利用には不要です。配布版を作る・検証する場合は `docs/desktop-release.ja.md` を参照してください。
+
 ## 前提
 
 - Node.js（推奨: 20+）
@@ -22,26 +24,9 @@ CLI Commentator は CLI 出力（PTY またはログファイル tail）を取�
 pnpm install
 ```
 
-## 配布版（Desktop）を入手して使う
-
-- 最新配布ページ: <https://github.com/gatyoukatyou/cli-commentator/releases/latest>
-- 配布ガイド: `docs/desktop-release.ja.md`
-
-通常は Releases から `.dmg`（macOS）を取得して起動します。  
-運用や署名/更新まわりの詳細は配布ガイドと runbook を参照してください。
-
-## Web モードで起動（server + web）
-
-```bash
-pnpm dev
-```
-
-起動URLの目安:
-
-- Server health: `http://localhost:8787/healthz`（`/health` も互換で利用可能）
-- Web UI: Vite が表示する URL（通常 `http://localhost:5173`）
-
 ## Desktop managed モードで起動（Tauri + web）
+
+ローカルでデスクトップアプリとして確認する場合の主導線です。
 
 ```bash
 pnpm dev:desktop:managed
@@ -57,6 +42,27 @@ Desktop Server パネルで server の状態を操作します（`Start` / `Stop
 その場でコピーできる `試すコマンド` が出るので、まずは表示されたコマンドを順に確認してください。
 
 補足: Desktop managed モードでは、既定ポート `8787` が使用中なら `8788` 以降へ自動退避し、UI の接続先も自動追従します。
+
+## Web モードで起動（server + web）
+
+```bash
+pnpm dev
+```
+
+起動URLの目安:
+
+- Server health: `http://localhost:8787/healthz`（`/health` も互換で利用可能）
+- Web UI: Vite が表示する URL（通常 `http://localhost:5173`）
+
+## 配布版（Desktop）を入手して使う
+
+配布済みの `.dmg` を使う場合の導線です。配布版を作る・署名する・Updaterを検証する手順ではありません。
+
+- 最新配布ページ: <https://github.com/gatyoukatyou/cli-commentator/releases/latest>
+- 配布運用ガイド: `docs/desktop-release.ja.md`
+
+通常は Releases から `.dmg`（macOS）を取得して起動します。  
+署名/Notarization/Updater/リリース運用の詳細は配布運用ガイドと runbook を参照してください。
 
 ## 入力モード
 

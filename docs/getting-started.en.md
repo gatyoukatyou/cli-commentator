@@ -5,6 +5,8 @@
 
 CLI Commentator captures CLI output (PTY or file tail), extracts events, and streams commentary to the Web UI.
 
+This page is the entry point for **local use and development startup**. Signing, notarization, updater wiring, and draft release validation are not required for normal local use. If you are building or validating distribution artifacts, see `docs/desktop-release.en.md`.
+
 ## Prerequisites
 
 - Node.js (recommended: 20+)
@@ -22,13 +24,23 @@ Development flow (`pnpm dev*` / `tauri:build`) still requires local Node/pnpm.
 pnpm install
 ```
 
-## Use Desktop Release Builds
+## Run in Desktop Managed Mode (Tauri + web)
 
-- Latest release page: <https://github.com/gatyoukatyou/cli-commentator/releases/latest>
-- Desktop release guide: `docs/desktop-release.en.md`
+This is the primary path for checking the app locally as a desktop app.
 
-For normal usage, download `.dmg` (macOS) from Releases and launch it.  
-For signing/updater/release operations, use the desktop release guide and runbook docs.
+```bash
+pnpm dev:desktop:managed
+```
+
+`dev:desktop:managed` runs `pnpm ensure:desktop-sidecar` before startup. If `src-tauri/binaries`, `resources/server`, or `sidecar-manifest.json` is missing or incomplete, it regenerates the sidecar assets through `prepare:desktop-sidecar`. You can also run the same ensure command directly when you only want to validate the sidecar state.
+
+The Desktop Server panel controls server lifecycle (`Start` / `Stop`) and shows status (`stopped` / `starting` / `running` / `stopping` / `failed`).
+
+If status becomes `failed`, use the guidance shown in the panel and check logs from the same terminal.
+
+When startup fails, the Desktop Server panel shows a recovery card. It includes likely causes, checkpoints, diagnostic details, and copyable `commands to try`, so start with the commands shown there.
+
+Note: In desktop managed mode, if `8787` is occupied, desktop automatically falls back to `8788+` and the UI WebSocket target follows automatically.
 
 ## Run in Web Mode (server + web)
 
@@ -41,19 +53,15 @@ Expected URLs:
 - Server health: `http://localhost:8787/healthz` (`/health` is also supported)
 - Web UI: Vite URL (usually `http://localhost:5173`)
 
-## Run in Desktop Managed Mode (Tauri + web)
+## Use Desktop Release Builds
 
-```bash
-pnpm dev:desktop:managed
-```
+This path is for using already-published `.dmg` builds. It is not the procedure for creating releases, signing artifacts, or validating updater distribution.
 
-`dev:desktop:managed` runs `pnpm ensure:desktop-sidecar` before startup. If `src-tauri/binaries`, `resources/server`, or `sidecar-manifest.json` is missing or incomplete, it regenerates the sidecar assets through `prepare:desktop-sidecar`. You can also run the same ensure command directly when you only want to validate the sidecar state.
+- Latest release page: <https://github.com/gatyoukatyou/cli-commentator/releases/latest>
+- Distribution operations guide: `docs/desktop-release.en.md`
 
-The Desktop Server panel controls server lifecycle (`Start` / `Stop`) and shows status (`stopped` / `starting` / `running` / `stopping` / `failed`).
-
-If status becomes `failed`, use the guidance shown in the panel and check logs from the same terminal.
-
-Note: In desktop managed mode, if `8787` is occupied, desktop automatically falls back to `8788+` and the UI WebSocket target follows automatically.
+For normal usage, download `.dmg` (macOS) from Releases and launch it.  
+For signing/notarization/updater/release operations, use the distribution operations guide and runbook docs.
 
 ## Input Modes
 
