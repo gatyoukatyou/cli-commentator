@@ -30,6 +30,17 @@ test("accepts desktop release workflow changes with an operations doc", () => {
   );
 });
 
+test("ignores auto-generated tauri schema updates", () => {
+  assert.deepEqual(
+    findViolations([
+      "apps/desktop/src-tauri/gen/schemas/acl-manifests.json",
+      "apps/desktop/src-tauri/gen/schemas/desktop-schema.json",
+      "apps/desktop/src-tauri/gen/schemas/macOS-schema.json",
+    ]),
+    []
+  );
+});
+
 test("still requires docs for desktop runtime source changes", () => {
   const violations = findViolations([
     "apps/desktop/src-tauri/src/main.rs",
