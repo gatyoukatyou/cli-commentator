@@ -4,24 +4,37 @@
 # CLI Commentator Roadmap (v1)
 
 ## What is this?
-CLI Commentator is an app that reads terminal work logs and streams beginner-friendly commentary in a separate window.  
+CLI Commentator helps non-engineers who are not comfortable with English supervise CLI-based AI work through understandable Japanese text and speech.
+
 This page summarizes the **Goal**, the **phases**, and the **current status** in a simple, non-technical way.
 
 ---
 
 ## Goal
-- Use your terminal as usual (Claude Code / Codex / bash / git, etc.)
-- The app reads logs and generates “what’s happening now?” commentary automatically
-- Commentary flows in a **separate window** (doesn’t interrupt work)
+- Launch Claude Code and explain its activity and requests in real time through Japanese text and speech
+- Make it possible to understand **what the AI is doing and whether human judgment is required** without continuously reading English CLI output
+- Detect permission requests, questions, errors, completion, and prolonged thinking or silence so intervention is not missed
+- Generate explanations with rules and lightweight APIs instead of asking Claude Code itself
 - Tone presets (Standard / Kansai, etc.) + 1-line beginner hint + glossary notes (parentheses)
 - Mask secret-looking strings to reduce leakage risk
-- MVP works without an LLM (rule-based), with an option to add LLM adapters later
+- Ultimately supervise Claude Code and Codex CLI working in parallel, including their interactions
 
 ---
 
 ## Principle
-We prioritize a **stable foundation** over flashy features.  
-Build a minimal MVP that reliably works, then expand once value is proven.
+We prioritize **delivering the information needed for supervision, without omission or noise**.
+
+Entertaining commentary can help adoption, but interruption priority and immediate error alerts remain consistent across all tones.
+
+## Long-term priorities
+
+1. **Supervision event detection**: detect permission requests, questions, errors, completion, and prolonged thinking or silence, then notify by importance
+2. **Japanese explanation quality**: summarize English output in plain Japanese by intent and add necessary terminology notes
+3. **Remove startup friction**: let users reach live Claude Code commentary without relying on a manual
+4. **Parallel AI supervision**: supervise multiple Claude Code and Codex CLI sessions
+5. **Distribution and sharing**: improve external distribution and commentary-sharing paths
+
+Supervision and entertaining commentary share one event-detection result; only the presentation layer is separated into serious and play-by-play tones.
 
 ---
 
@@ -84,7 +97,7 @@ Build a minimal MVP that reliably works, then expand once value is proven.
 
 ---
 
-## Current status (as of 2026-05-08)
+## Current status (as of 2026-07-12)
 **Done**
 - PR #1: detect boundary tests (mixed => generic, 50-line limit, exported constants)
 - PR #2: add roadmap docs (JA/EN + links from docs/README)
@@ -133,17 +146,20 @@ Build a minimal MVP that reliably works, then expand once value is proven.
 - PR #259 made Desktop sidecar preparation idempotent, so `dev:desktop:managed` can safely verify and regenerate bundled sidecar assets before startup
 
 **Now**
+- Issue #300 establishes the long-term direction. Supervision event detection is the top priority, beginning with a Phase A-0 dogfooding observation period
+- During Phase A-0, record moments that mattered for supervision but were missed during one week of real work sessions, then use them to specify the five event classes
 - Because we are not issuing an Apple Developer ID certificate for now, `#138` is treated as Deferred. Signed distribution readiness remains important, but we will return to it when certificate issuance and external distribution preparation resume
-- The near-term focus is local desktop app polish / local readiness instead of release readiness. The priority is a desktop app that starts reliably on a local machine and makes the next step obvious
+- Keep local desktop app polish / local readiness sufficient to start Phase A-0 observations reliably
 - Main is current after PR #259, with GitHub CI green across `test`, `test_windows`, `desktop_check`, `desktop_distribution_smoke`, and CodeQL
 
 **Next**
-- Make the local `pnpm dev:desktop:managed` startup path easier to follow, especially first setup, sidecar/server startup waiting, and recovery guidance when startup fails
-- Consider a local readiness check script that can validate a clean checkout path, for example by running `ensure:desktop-sidecar`, web lint/build, server tests, and desktop cargo tests in order
-- Improve the standalone Web UI disconnected state and the Desktop managed flow that asks users to press Start before commentary can begin
-- Separate release readiness from local readiness so signing/notarization details do not dominate the local-use experience
+- Break Phase A-0 into an issue with observation fields, recording format, and completion criteria
+- Use the observations to specify permission requests, questions, errors, completion, and prolonged thinking or silence, with priority-aware TTS (Phase A-1)
+- Improve Japanese explanations and summarization, with separate serious and play-by-play presentation layers (Phase B)
 
 **Later**
+- Complete a manual-free path from launch to live commentary (Phase C)
+- Extend the architecture to supervise Claude Code and Codex CLI in parallel with multiple sessions
 - Continue dependency and desktop runtime maintenance through the docs drift guard path
 - Keep improving failure-regression summaries and recovery evidence as new concrete failure cases appear
 - Return to `#138` when Apple Developer ID certificate issuance and distribution preparation resume, then run the signed/notarized `release-desktop` smoke and record evidence
