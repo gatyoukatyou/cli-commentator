@@ -1,0 +1,8 @@
+{
+  "classification": "question",
+  "source": "Claude Code 2.1.207 PTY capture",
+  "sanitized": true,
+  "chunks": [
+    "\u001b[1C\u001b[1B☐\u001b[4GColor pick\u001b[K\r\n\u001b[1C\u001b[1B\u001b[K\r\n\u001b[1BWhich\u001b[7Gcolor do you choose:\u001b[28Gred\u001b[32Gor\u001b[35Gblue?\r\n\u001b[2C\u001b[2B1. Red\u001b[K\r\n\u001b[2C\u001b[1B2. Blue\r\n\u001b[2B  3. Type something.\r\n\u001b[2B  4. Chat about this\r\n\u001b[1B\u001b[K\r\n\u001b[1BEnter to select · ↑/↓ to navigate · Esc to cancel\u001b[K"
+  ]
+}

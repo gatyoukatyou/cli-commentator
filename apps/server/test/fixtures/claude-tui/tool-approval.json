@@ -1,0 +1,8 @@
+{
+  "classification": "permission",
+  "source": "Claude Code 2.1.207 PTY capture",
+  "sanitized": true,
+  "chunks": [
+    "\u001b[1B Bash command\u001b[K\r\n\u001b[2C\u001b[1B\u001b[K\r\n\u001b[3C\u001b[1Bcli_commentator_fixture_missing\r\n\u001b[1B  Run nonexistent command to demonstrate error\u001b[K\r\n\u001b[1C\u001b[2BThis command requires approval\r\n\u001b[2B Do you want to proceed?\u001b[K\r\n\u001b[1C\u001b[1B❯\u001b[4G1.\u001b[7GYes\u001b[K\r\n   2. Yes, and don’t ask again for: cli_commentator_fixture_missing\u001b[K\r\n  3. No\r\n\u001b[1BEsc to cancel · Tab to amend · ctrl+e to explain\u001b[K"
+  ]
+}

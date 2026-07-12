@@ -1,0 +1,8 @@
+{
+  "classification": ["error", "completion"],
+  "source": "Claude Code 2.1.207 PTY capture",
+  "sanitized": true,
+  "chunks": [
+    "\u001b[1B⏺\u001b[3GYou chose red. The command cli_commentator_fixture_missing\u001b[62Gfailed\u001b[69Gwith\u001b[74Gexit\u001b[79Gcode\u001b[84G127\u001b[88Gand\u001b[92Gthe\u001b[96Gmessage\u001b[104Gcommand\u001b[112Gnot\u001b[116Gfound\r\n\u001b[2C\u001b[1B— this is the shell's standard way of saying no executable with that name exists in your PATH\r\n\u001b[1B\u001b[K\r\n\u001b[2C\u001b[1BThe task is complete.\u001b[K"
+  ]
+}
