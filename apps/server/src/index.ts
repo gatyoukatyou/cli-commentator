@@ -42,6 +42,7 @@ import {
   type ServerStateEventContextInput,
 } from "./runtime/state-event.js";
 import { isStyle, normalizeSource } from "./shared/validation.js";
+import { createPtyCapture } from "./pty/capture.js";
 
 const PORT = Number(process.env.CLI_COMMENTATOR_PORT ?? process.env.PORT ?? 8787);
 const COMMENT_EXIT_TIMEOUT_MS = parseInt(process.env.COMMENT_EXIT_TIMEOUT_MS ?? "1500", 10);
@@ -59,6 +60,7 @@ function parseInputMode(value?: string): InputMode {
 
 const INPUT_MODE: InputMode = parseInputMode(INPUT_MODE_RAW);
 const INPUT_FILE = process.env.INPUT_FILE ?? "";
+const ptyCapture = createPtyCapture(process.env.PTY_CAPTURE_FILE);
 let runtimeInputMode: InputMode = INPUT_MODE;
 
 // --- Mutable state ---
@@ -439,6 +441,7 @@ function setupPTY(config: PTYConfig, profileId: string | null): void {
   // Process and broadcast data using common pipeline
   term.onData((data) => {
     if (ptyManager.current !== term) return;
+    ptyCapture?.write(data);
     processInputData(data, true);
   });
 
@@ -1142,6 +1145,7 @@ function cleanup(exitCode: number = 0): void {
   // 2. PTY kill / FileTail stop
   ptyManager.kill();
   stopFileTail(true);
+  ptyCapture?.close();
 
   // 3. WebSocket clients close
   for (const client of wss.clients) {

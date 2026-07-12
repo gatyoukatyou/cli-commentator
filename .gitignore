@@ -7,3 +7,6 @@ dist
 
 # aion-ops bootstrap clone (母艦の一時取得先・コミットしない)
 .aion-ops/
+
+# Raw PTY diagnostic captures can contain secrets and local paths.
+*.pty-capture.jsonl

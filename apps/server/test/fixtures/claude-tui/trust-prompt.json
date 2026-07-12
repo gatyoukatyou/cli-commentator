@@ -1,0 +1,8 @@
+{
+  "classification": "permission",
+  "source": "Claude Code 2.1.207 PTY capture",
+  "sanitized": true,
+  "chunks": [
+    "\u001b[2GAccessing\u001b[12Gworkspace:\r\n\r\n\u001b[2G/tmp/<WORKSPACE>\r\n\r\n\u001b[2GQuick\u001b[8Gsafety\u001b[15Gcheck:\u001b[22GIs\u001b[25Gthis\u001b[30Ga\u001b[32Gproject\u001b[40Gyou\u001b[44Gcreated\u001b[52Gor\u001b[55Gone\u001b[59Gyou\u001b[63Gtrust?\r\n\r\n\u001b[2GClaude\u001b[9GCode'll\u001b[17Gbe\u001b[20Gable\u001b[25Gto\u001b[28Gread,\u001b[34Gedit,\u001b[40Gand\u001b[44Gexecute\u001b[52Gfiles\u001b[58Ghere.\r\n\r\n\u001b[2G❯\u001b[4G1.\u001b[7GYes,\u001b[12GI\u001b[14Gtrust\u001b[20Gthis\u001b[25Gfolder\r\n\u001b[4G2.\u001b[7GNo,\u001b[11Gexit\r\n\r\n\u001b[2GEnter\u001b[8Gto\u001b[11Gconfirm\u001b[19G·\u001b[21GEsc\u001b[25Gto\u001b[28Gcancel"
+  ]
+}
