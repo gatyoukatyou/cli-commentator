@@ -5,6 +5,10 @@ export const claudeRuleset: RuleSet = {
   label: "Claude Code",
   detect: (line) => /^(⏺|•)\s*(Read|Update|Write|Bash)\(/.test(line),
   rules: [
+    { id: "claude.permission", priority: 130, re: /requires approval|do you want to proceed\?|trust this folder/i, type: "stdout", summary: "許可を待っている" },
+    { id: "claude.question", priority: 125, re: /enter to select|which .* do you (?:choose|prefer)/i, type: "stdout", summary: "質問への回答を待っている" },
+    { id: "claude.completion", priority: 120, re: /(?:^|[.!?]\s+)(?:the )?(?:task|work) is complete\.?$/i, type: "done", summary: "作業が完了した" },
+    { id: "claude.exit-error", priority: 115, re: /failed with exit code|command not found/i, type: "error", summary: "エラーが発生している" },
     { id: "claude.read", priority: 100, re: /^[⏺•]\s*Read\(/, type: "read", summary: "ファイルを読み込んでいる" },
     { id: "claude.glob", priority: 95, re: /^[⏺•]\s*Glob\(/, type: "search", summary: "ファイル一覧を検索している" },
     { id: "claude.grep", priority: 92, re: /^[⏺•]\s*Grep\(/, type: "search", summary: "該当箇所を検索している" },

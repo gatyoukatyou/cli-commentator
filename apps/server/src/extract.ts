@@ -1,6 +1,7 @@
 import type { Event } from "./types.js";
 import { rulesForLine } from "./rulesets/index.js";
 import { isCodexProgressNoise } from "./progress-noise.js";
+import { extractClaudeSupervisionEvents } from "./rulesets/claude-supervision.js";
 
 // Remove ANSI/VT control sequences so TUI apps like Claude Code still match rules.
 const ANSI_ESCAPE_RE =
@@ -165,6 +166,11 @@ function preprocessLine(rawLine: string, sourceEnv?: string): string | null {
 
 export function extractEvents(chunk: string, sourceEnv: string | undefined = process.env.LOG_SOURCE): Event[] {
   const ts = Date.now();
+
+  if ((sourceEnv ?? "").trim().toLowerCase() === "claude") {
+    const supervisionEvents = extractClaudeSupervisionEvents(chunk, ts);
+    if (supervisionEvents.length > 0) return supervisionEvents;
+  }
 
   const events: Event[] = [];
   for (const rawLine of chunk.split(/\r?\n/)) {
