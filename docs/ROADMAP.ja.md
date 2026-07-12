@@ -4,24 +4,37 @@
 # CLI Commentator ロードマップ（v1）
 
 ## これは何？
-CLI Commentator は「ターミナルの作業ログを見て、別ウィンドウで初心者向け実況（解説）を流す」アプリです。  
+CLI Commentator は、非エンジニアで英語に不慣れな人が、CLI上で動くAIの作業を理解できる日本語のテキストと音声で監督するためのアプリです。
+
 このページは **Goal（完成形）** と **そこに行く道（フェーズ）** と **現在地（いま何をやっているか）** を、非エンジニア向けに整理したものです。
 
 ---
 
 ## Goal（完成形）
-- ふだん通りにターミナルで作業（Claude Code / Codex / bash / git など）
-- アプリがログを読み取り、**「いま何してる？」を自動実況**
-- 実況は **別ウィンドウ**に流れ、作業の邪魔をしない
+- Claude Codeを起動し、その動作や指示をリアルタイムに日本語で解説・読み上げる
+- 英語のCLI出力を読み続けなくても、**「いま何をしているか」「HUMANの判断が必要か」**を把握できる
+- 許可待ち、質問、エラー、完了、長考・沈黙を検知し、介入すべき瞬間を逃さない
+- 解説はClaude Code自身ではなく、ルールと軽量APIで生成する
 - 口調プリセット（標準/関西弁など）＋「初心者向け1行説明」＋「用語注釈（括弧）」
 - **秘密っぽい文字列をマスク**して漏えい事故を防ぐ
-- 最初は **ルールベースで成立**（後でLLM差し替え可能）
+- 最終的にはClaude CodeとCodex CLIを並列で動かし、相互のやり取りを含めて監督する
 
 ---
 
 ## いまの方針（大事）
-このプロジェクトは、派手な機能よりも **「壊れない土台」**を優先します。  
-まずは “確実に動く最小構成（MVP）” を作り、価値が見えたら拡張します。
+このプロジェクトは **「監督に必要な情報が過不足なく届くこと」**を最優先します。
+
+実況の面白さは利用のフックとして活かしますが、口調が変わっても割り込み優先度とエラーの即時通知は共通にします。
+
+## 長期改良の優先順位
+
+1. **監督イベント検知**：許可待ち、質問、エラー、完了、長考・沈黙を検知し、重要度に応じて通知する
+2. **日本語解説の質**：英語出力を平易な日本語で意図単位に要約し、必要な用語注釈を付ける
+3. **起動フリクション排除**：説明書なしでClaude Codeの実況開始まで辿り着ける導線を作る
+4. **並列AI監督**：Claude CodeとCodex CLIの複数セッションを監督する
+5. **配布・共有**：外部配布と実況を共有しやすい導線を整える
+
+監督と実況の面白さは同じイベント検知結果を使い、真面目トーン／実況トーンの提示層だけを分離します。
 
 ---
 
@@ -89,7 +102,7 @@ CLI Commentator は「ターミナルの作業ログを見て、別ウィンド�
 
 ---
 
-## 現在地（2026-05-08 時点）
+## 現在地（2026-07-12 時点）
 **Done**
 - PR #1：detect 境界テスト（混在→generic、50行制限、重要定数export）
 - PR #2：ロードマップ docs 追加（日英＋docs/READMEからリンク）
@@ -138,17 +151,20 @@ CLI Commentator は「ターミナルの作業ログを見て、別ウィンド�
 - PR #259：Desktop sidecar prepare を冪等化し、`dev:desktop:managed` 起動前に同梱sidecarを安全に確認・再生成できるようにした
 
 **Now**
+- Issue #300 で長期改良方針を正本化。最優先は「監督イベント検知」とし、Phase A-0 のドッグフーディング観察から開始する
+- Phase A-0 では1週間の実作業セッションを通じて「監督に必要だったのに拾えなかった瞬間」を記録し、5分類の検知仕様へつなげる
 - Apple Developer ID 証明書は当面発行しない方針のため、`#138` は Deferred / 保留扱いにする。signed/notarized release readiness は重要項目として残すが、証明書発行と外部配布準備を再開する段階で再着手する
-- 直近の焦点は release readiness ではなく local desktop app polish / local readiness。ローカルで安定して起動し、迷わず使えるデスクトップアプリとしての完成度を優先する
+- local desktop app polish / local readiness は、Phase A-0 の観察を開始できる起動導線として維持する
 - main は PR #259 反映後の状態で最新化済み。GitHub CI は `test` / `test_windows` / `desktop_check` / `desktop_distribution_smoke` / CodeQL が green
 
 **Next**
-- `pnpm dev:desktop:managed` のローカル起動導線をさらに分かりやすくする。初回セットアップ、sidecar/server 起動待ち、失敗時の復旧案内を local 利用者目線で磨く
-- clean checkout から local readiness を確認できるスクリプトを検討する。例: `ensure:desktop-sidecar`、web lint/build、server test、desktop cargo test を順に実行する小さな検証入口
-- Web UI 単体起動時の「切断」表示と、Desktop managed 起動時の「まず Start する」導線を整理する
-- release readiness と local readiness の情報を分け、ローカル利用時に署名・notarization 関連情報が前面に出すぎないようにする
+- Phase A-0 の観察項目、記録形式、完了条件をIssueへ分解する
+- 観察結果から許可待ち、質問、エラー、完了、長考・沈黙の検知仕様と優先度付きTTSを設計する（Phase A-1）
+- 日本語解説・要約と、真面目トーン／実況トーンを分けた提示層を改善する（Phase B）
 
 **Later**
+- 説明書なしで実況開始まで辿り着ける起動導線を完成させる（Phase C）
+- 複数セッション前提でClaude CodeとCodex CLIの並列監督へ拡張する
 - dependency / desktop runtime maintenance は docs drift guard 経由で継続運用する
 - 新しい具体的な失敗例が出たら、failure regression summary と recovery evidence を継続強化する
 - Apple Developer ID 証明書の発行・配布準備を再開する段階で `#138` に戻り、signed/notarized `release-desktop` smoke と証跡記録を実施する
