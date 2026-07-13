@@ -172,6 +172,7 @@ codex --no-alt-screen -C /Users/home/AION_Project/repos/n8n-workflows -c log_dir
 - `INPUT_FILE`（`INPUT_MODE=file` で必須）
 - `TARGET_CMD`, `TARGET_ARGS`, `TARGET_ARGS_JSON`, `TARGET_CWD`
 - `LOG_SOURCE`（`auto|claude|codex|generic`）
+- `SILENCE_TIMEOUT_MS`（無出力を長考・沈黙として通知するまでの時間。ミリ秒、既定: `60000`）
 
 Web 側（server port と合わせる、主にWebモードで利用）:
 

@@ -43,9 +43,11 @@ import {
 } from "./runtime/state-event.js";
 import { isStyle, normalizeSource } from "./shared/validation.js";
 import { createPtyCapture } from "./pty/capture.js";
+import { createSilenceTimer, parseSilenceTimeoutMs } from "./silence-timer.js";
 
 const PORT = Number(process.env.CLI_COMMENTATOR_PORT ?? process.env.PORT ?? 8787);
 const COMMENT_EXIT_TIMEOUT_MS = parseInt(process.env.COMMENT_EXIT_TIMEOUT_MS ?? "1500", 10);
+const SILENCE_TIMEOUT_MS = parseSilenceTimeoutMs(process.env.SILENCE_TIMEOUT_MS);
 
 const INPUT_MODE_RAW = process.env.INPUT_MODE; // For debugging
 
@@ -308,6 +310,7 @@ async function launchAdHocSession(input: LaunchSessionInput): Promise<void> {
   });
 
   try {
+    silenceTimer.stop();
     ptyManager.kill();
     stopFileTail(true);
     disableStdinPassthrough();
@@ -368,6 +371,8 @@ async function launchAdHocSession(input: LaunchSessionInput): Promise<void> {
  * This is the common data processing pipeline.
  */
 function processInputData(data: string, writeToStdout: boolean = true): void {
+  silenceTimer.activity();
+
   // Write raw data to local terminal (only for PTY mode or when requested)
   if (writeToStdout) {
     process.stdout.write(data);
@@ -386,17 +391,33 @@ function processInputData(data: string, writeToStdout: boolean = true): void {
   broadcast({ kind: "raw", data: clean });
 
   for (const ev of evs) {
-    broadcast({ kind: "event", ev });
-    if (ev.type === "error" || shouldEmitNow()) {
-      // comment() is async - fire and forget, errors are handled inside
-      void comment(ev, currentStyle, currentCommentaryProviders)
-        .then((payload) => {
-          broadcastCommentary(ev.ts, ev, payload);
-        })
-        .catch(() => {});
-    }
+    emitEvent(ev);
   }
 }
+
+function emitEvent(ev: Event): void {
+  broadcast({ kind: "event", ev });
+  if (ev.type === "error" || shouldEmitNow()) {
+    // comment() is async - fire and forget, errors are handled inside
+    void comment(ev, currentStyle, currentCommentaryProviders)
+      .then((payload) => {
+        broadcastCommentary(ev.ts, ev, payload);
+      })
+      .catch(() => {});
+  }
+}
+
+const silenceTimer = createSilenceTimer({
+  thresholdMs: SILENCE_TIMEOUT_MS,
+  onSilence: () => {
+    emitEvent({
+      ts: Date.now(),
+      type: "stdout",
+      summary: "長考・沈黙が続いている",
+      detail: `${SILENCE_TIMEOUT_MS}ms outputなし`,
+    });
+  },
+});
 
 function broadcast(msg: WsOutgoing) {
   const data = JSON.stringify(msg);
@@ -421,6 +442,7 @@ function broadcastSource(nextDetected: SourceState["detected"]) {
  */
 function setupPTY(config: PTYConfig, profileId: string | null): void {
   const term = ptyManager.spawn(config);
+  silenceTimer.start();
   transitionServerState("setup_pty_success", "pty_running", {
     inputMode: "pty",
     profileId,
@@ -450,6 +472,8 @@ function setupPTY(config: PTYConfig, profileId: string | null): void {
     if (ptyManager.current !== term) {
       return;
     }
+    silenceTimer.stop();
+
     // If we're restarting, don't broadcast done or trigger cleanup
     if (restartInFlight || queuedProfileId !== undefined) {
       return;
@@ -579,6 +603,7 @@ async function restartPTY(profileId: string | null, force = false): Promise<void
     }
 
     // Kill existing PTY / file tail fallback
+    silenceTimer.stop();
     ptyManager.kill();
     stopFileTail(true);
     disableStdinPassthrough();
@@ -874,6 +899,7 @@ function setupFileTail(filePath: string, options?: { fatal?: boolean }): void {
 
   // Handle exit
   tail.on("exit", (code) => {
+    silenceTimer.stop();
     if (fileTail === tail) {
       fileTail = null;
     }
@@ -902,6 +928,7 @@ function setupFileTail(filePath: string, options?: { fatal?: boolean }): void {
   // Start tailing
   try {
     tail.start();
+    silenceTimer.start();
     transitionServerState("file_tail_started", "file_running", {
       inputMode: "file",
       detail: filePath,
@@ -1143,6 +1170,7 @@ function cleanup(exitCode: number = 0): void {
   disableStdinPassthrough();
 
   // 2. PTY kill / FileTail stop
+  silenceTimer.stop();
   ptyManager.kill();
   stopFileTail(true);
   ptyCapture?.close();

@@ -151,15 +151,15 @@ CLI Commentator は、非エンジニアで英語に不慣れな人が、CLI上�
 - PR #259：Desktop sidecar prepare を冪等化し、`dev:desktop:managed` 起動前に同梱sidecarを安全に確認・再生成できるようにした
 
 **Now**
-- Issue #300 で長期改良方針を正本化。最優先は「監督イベント検知」とし、Phase A-0 のドッグフーディング観察から開始する
-- Phase A-0 では1週間の実作業セッションを通じて「監督に必要だったのに拾えなかった瞬間」を記録し、5分類の検知仕様へつなげる
+- Issue #300 で長期改良方針を正本化。HUMAN判断で Phase A-0 の観察をスキップし、Issue #304 の Phase A-1（監督イベント5分類）を進行中
+- #305 fixture採取は PR #310、#306 Claude TUI監督イベント4分類は PR #311 で完了
+- #307 長考・沈黙検知は Draft PR #316 で、無出力タイマー・環境変数・テストを実装しCI確認中
 - Apple Developer ID 証明書は当面発行しない方針のため、`#138` は Deferred / 保留扱いにする。signed/notarized release readiness は重要項目として残すが、証明書発行と外部配布準備を再開する段階で再着手する
-- local desktop app polish / local readiness は、Phase A-0 の観察を開始できる起動導線として維持する
-- main は PR #259 反映後の状態で最新化済み。GitHub CI は `test` / `test_windows` / `desktop_check` / `desktop_distribution_smoke` / CodeQL が green
+- local desktop app polish / local readiness は、監督イベントの実機確認へ入るための起動導線として維持する
 
 **Next**
-- Phase A-0 の観察項目、記録形式、完了条件をIssueへ分解する
-- 観察結果から許可待ち、質問、エラー、完了、長考・沈黙の検知仕様と優先度付きTTSを設計する（Phase A-1）
+- PR #316 をHUMAN判断でmerge後、#308 優先度付きイベントパイプラインとWSプロトコル拡張へ進む
+- #309 で優先度付きTTSとWeb UI要対応表示を追加し、実機でPhase A-1の受け入れ確認を行う
 - 日本語解説・要約と、真面目トーン／実況トーンを分けた提示層を改善する（Phase B）
 
 **Later**

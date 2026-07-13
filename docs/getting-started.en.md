@@ -171,6 +171,7 @@ Main keys:
 - `INPUT_FILE` (required for `INPUT_MODE=file`)
 - `TARGET_CMD`, `TARGET_ARGS`, `TARGET_ARGS_JSON`, `TARGET_CWD`
 - `LOG_SOURCE` (`auto|claude|codex|generic`)
+- `SILENCE_TIMEOUT_MS` (milliseconds without PTY/file output before emitting a silence event; default: `60000`)
 
 Web dev key (must match server port, mainly for web mode):
 
