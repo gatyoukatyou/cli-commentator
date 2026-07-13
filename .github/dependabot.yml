@@ -4,11 +4,11 @@ updates:
   # JS/TS (pnpm workspace)
   # ─────────────────────────────────────────────
   - package-ecosystem: "npm"
-    directories:
-      - "/"
-      - "/apps/server"
-      - "/apps/web"
-      - "/apps/desktop"
+    # pnpm workspace はルートの pnpm-lock.yaml で全 apps/* を管理するため
+    # ルートのみ指定する。apps/* を併記すると同一更新のPRが重複し、
+    # サブディレクトリ側はルートのロックファイルを更新できず
+    # ERR_PNPM_OUTDATED_LOCKFILE で CI が落ちる（例: PR #314 と #315）。
+    directory: "/"
     schedule:
       interval: "weekly"
       day: "monday"
@@ -22,6 +22,12 @@ updates:
       prefix: "deps"
       prefix-development: "deps-dev"
       include: "scope"
+    ignore:
+      # typescript-eslint が TypeScript 7 (native) 未対応のため
+      # (peer: >=4.8.4 <6.1.0)。対応され次第このエントリを削除する。
+      # 経緯: PR #313 で TS 7.0.2 バンプにより eslint がクラッシュ。
+      - dependency-name: "typescript"
+        update-types: ["version-update:semver-major"]
     groups:
       # 1) security updates: combine into single PR
       security:
