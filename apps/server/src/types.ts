@@ -5,6 +5,7 @@ export type {
   CreateProfileInput,
   DetectedSource,
   Event,
+  EventPriority,
   EventType,
   InputMode,
   LaunchSessionInput,
