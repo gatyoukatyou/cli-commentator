@@ -11,6 +11,7 @@ describe("parseServerMessage", () => {
         type: "stdout",
         summary: "ログ更新",
         detail: "done",
+        priority: "urgent",
       },
       narration: "処理中です。",
       glossaryNotes: ["補足"],
@@ -20,7 +21,29 @@ describe("parseServerMessage", () => {
       kind: "commentary",
       ts: 123,
       narration: "処理中です。",
-      ev: { type: "stdout", summary: "ログ更新" },
+      ev: { type: "stdout", summary: "ログ更新", priority: "urgent" },
+    });
+  });
+
+  it("accepts priority on event messages and legacy events without it", () => {
+    expect(
+      parseServerMessage({
+        kind: "event",
+        ev: { ts: 456, type: "done", summary: "完了", priority: "notice" },
+      })
+    ).toMatchObject({
+      kind: "event",
+      ev: { priority: "notice" },
+    });
+
+    expect(
+      parseServerMessage({
+        kind: "event",
+        ev: { ts: 789, type: "stdout", summary: "legacy" },
+      })
+    ).toMatchObject({
+      kind: "event",
+      ev: { summary: "legacy" },
     });
   });
 
@@ -43,6 +66,12 @@ describe("parseServerMessage", () => {
   it("rejects malformed messages", () => {
     expect(parseServerMessage({ kind: "style", style: "unknown" })).toBeNull();
     expect(parseServerMessage({ kind: "commentary", ts: 123 })).toBeNull();
+    expect(
+      parseServerMessage({
+        kind: "event",
+        ev: { ts: 123, type: "stdout", summary: "bad", priority: "immediate" },
+      })
+    ).toBeNull();
     expect(parseServerMessage("not an object")).toBeNull();
   });
 });
