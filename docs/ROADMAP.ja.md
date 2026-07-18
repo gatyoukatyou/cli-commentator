@@ -153,13 +153,13 @@ CLI Commentator は、非エンジニアで英語に不慣れな人が、CLI上�
 **Now**
 - Issue #300 で長期改良方針を正本化。HUMAN判断で Phase A-0 の観察をスキップし、Issue #304 の Phase A-1（監督イベント5分類）を進行中
 - #305 fixture採取は PR #310、#306 Claude TUI監督イベント4分類は PR #311 で完了
-- #307 長考・沈黙検知は Draft PR #316 で、無出力タイマー・環境変数・テストを実装しCI確認中
+- #307 長考・沈黙検知は PR #316 で完了。#308 優先度付きイベントパイプラインは Draft PR #317 で実装しCI確認中
 - Apple Developer ID 証明書は当面発行しない方針のため、`#138` は Deferred / 保留扱いにする。signed/notarized release readiness は重要項目として残すが、証明書発行と外部配布準備を再開する段階で再着手する
 - local desktop app polish / local readiness は、監督イベントの実機確認へ入るための起動導線として維持する
 
 **Next**
-- PR #316 をHUMAN判断でmerge後、#308 優先度付きイベントパイプラインとWSプロトコル拡張へ進む
-- #309 で優先度付きTTSとWeb UI要対応表示を追加し、実機でPhase A-1の受け入れ確認を行う
+- PR #317 をHUMAN判断でmerge後、#309 優先度付きTTSとWeb UI要対応表示へ進む
+- #309 で実機受け入れ確認を行い、Phase A-1を完了する
 - 日本語解説・要約と、真面目トーン／実況トーンを分けた提示層を改善する（Phase B）
 
 **Later**

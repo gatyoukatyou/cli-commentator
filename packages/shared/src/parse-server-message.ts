@@ -1,6 +1,7 @@
 import type {
   CommentaryMeta,
   Event,
+  EventPriority,
   EventType,
   Profile,
   ProfileSummary,
@@ -28,6 +29,8 @@ const EVENT_TYPES = new Set<EventType>([
   "error",
   "done",
 ]);
+
+const EVENT_PRIORITIES = new Set<EventPriority>(["urgent", "notice", "progress"]);
 
 const PROVIDERS = new Set<ProviderName>([
   "disabled",
@@ -66,6 +69,9 @@ export const isSourceMode = (value: unknown): value is SourceMode =>
 export const isEventType = (value: unknown): value is EventType =>
   typeof value === "string" && EVENT_TYPES.has(value as EventType);
 
+export const isEventPriority = (value: unknown): value is EventPriority =>
+  typeof value === "string" && EVENT_PRIORITIES.has(value as EventPriority);
+
 export const isSourceState = (value: unknown): value is SourceState =>
   isRecord(value) &&
   isSourceMode(value.mode) &&
@@ -79,7 +85,8 @@ export const isEvent = (value: unknown): value is Event =>
   typeof value.ts === "number" &&
   isEventType(value.type) &&
   typeof value.summary === "string" &&
-  isOptionalString(value.detail);
+  isOptionalString(value.detail) &&
+  (value.priority === undefined || isEventPriority(value.priority));
 
 const isCommentaryMeta = (value: unknown): value is CommentaryMeta =>
   isRecord(value) &&

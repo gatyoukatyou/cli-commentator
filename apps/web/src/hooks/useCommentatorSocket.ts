@@ -153,6 +153,7 @@ export function useCommentatorSocket({
                 explanation: parts.explanationText ?? undefined,
                 glossaryNotes: parts.glossaryNotes,
                 eventType: message.ev.type,
+                priority: message.ev.priority ?? "progress",
                 summary: message.ev.summary,
                 detail: message.ev.detail,
               };

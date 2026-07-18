@@ -21,11 +21,14 @@ export type EventType =
   | "error"
   | "done";
 
+export type EventPriority = "urgent" | "notice" | "progress";
+
 export type Event = {
   ts: number;
   type: EventType;
   summary: string;
   detail?: string;
+  priority?: EventPriority;
 };
 
 export type CommentaryMode = "narration" | "explanation" | "both";

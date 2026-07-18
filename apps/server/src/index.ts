@@ -44,6 +44,7 @@ import {
 import { isStyle, normalizeSource } from "./shared/validation.js";
 import { createPtyCapture } from "./pty/capture.js";
 import { createSilenceTimer, parseSilenceTimeoutMs } from "./silence-timer.js";
+import { createCommentaryGate, withEventPriority } from "./event-priority.js";
 
 const PORT = Number(process.env.CLI_COMMENTATOR_PORT ?? process.env.PORT ?? 8787);
 const COMMENT_EXIT_TIMEOUT_MS = parseInt(process.env.COMMENT_EXIT_TIMEOUT_MS ?? "1500", 10);
@@ -91,16 +92,8 @@ function markPtyUnavailable(error: string): void {
   ptyInitError = error;
 }
 
-// rate limit: max once per 2s (error is always allowed)
-let lastEmit = 0;
-function shouldEmitNow(): boolean {
-  const now = Date.now();
-  if (now - lastEmit >= 2000) {
-    lastEmit = now;
-    return true;
-  }
-  return false;
-}
+// Progress commentary remains rate-limited; urgent and notice events bypass the gate.
+const commentaryGate = createCommentaryGate({ intervalMs: 2000 });
 
 // --- HTTP + WS ---
 const server = http.createServer((req, res) => {
@@ -396,12 +389,13 @@ function processInputData(data: string, writeToStdout: boolean = true): void {
 }
 
 function emitEvent(ev: Event): void {
-  broadcast({ kind: "event", ev });
-  if (ev.type === "error" || shouldEmitNow()) {
-    // comment() is async - fire and forget, errors are handled inside
-    void comment(ev, currentStyle, currentCommentaryProviders)
+  const prioritizedEvent = withEventPriority(ev);
+  // The rule-based event reaches clients immediately; LLM commentary follows asynchronously.
+  broadcast({ kind: "event", ev: prioritizedEvent });
+  if (commentaryGate.shouldEmit(prioritizedEvent.priority)) {
+    void comment(prioritizedEvent, currentStyle, currentCommentaryProviders)
       .then((payload) => {
-        broadcastCommentary(ev.ts, ev, payload);
+        broadcastCommentary(prioritizedEvent.ts, prioritizedEvent, payload);
       })
       .catch(() => {});
   }
@@ -479,7 +473,7 @@ function setupPTY(config: PTYConfig, profileId: string | null): void {
       return;
     }
 
-    const ev: Event = { ts: Date.now(), type: "done", summary: `終了 code=${exitCode}` };
+    const ev = withEventPriority({ ts: Date.now(), type: "done", summary: `終了 code=${exitCode}` });
     broadcast({ kind: "event", ev });
 
     // 安全タイマー付き二重化（comment()がsettleしなくてもcleanup確実実行）
@@ -506,12 +500,12 @@ function setupPTY(config: PTYConfig, profileId: string | null): void {
   });
 
   // Broadcast start event (ptyRestart is sent separately in restartPTY for correct ordering)
-  const startEvent: Event = {
+  const startEvent = withEventPriority({
     ts: Date.now(),
     type: "start",
     summary: "開始",
     detail: `${config.cmd} ${config.args.join(" ")}`,
-  };
+  });
   broadcast({ kind: "event", ev: startEvent });
 
   // Send commentary for start event
@@ -893,7 +887,7 @@ function setupFileTail(filePath: string, options?: { fatal?: boolean }): void {
   // Handle errors
   tail.on("error", (err) => {
     console.error("File tail error:", err.message);
-    const ev: Event = { ts: Date.now(), type: "error", summary: "ファイル監視エラー", detail: err.message };
+    const ev = withEventPriority({ ts: Date.now(), type: "error", summary: "ファイル監視エラー", detail: err.message });
     broadcast({ kind: "event", ev });
   });
 
@@ -912,7 +906,7 @@ function setupFileTail(filePath: string, options?: { fatal?: boolean }): void {
     }
 
     console.log(`File tail exited with code: ${code}`);
-    const ev: Event = { ts: Date.now(), type: "done", summary: `ファイル監視終了 code=${code}` };
+    const ev = withEventPriority({ ts: Date.now(), type: "done", summary: `ファイル監視終了 code=${code}` });
     broadcast({ kind: "event", ev });
 
     void comment(ev, currentStyle, currentCommentaryProviders)
@@ -938,12 +932,12 @@ function setupFileTail(filePath: string, options?: { fatal?: boolean }): void {
     });
 
     // Broadcast start event
-    const startEvent: Event = {
+    const startEvent = withEventPriority({
       ts: Date.now(),
       type: "start",
       summary: "ファイル監視開始",
       detail: `tail -f ${filePath}`,
-    };
+    });
     broadcast({ kind: "event", ev: startEvent });
 
     void comment(startEvent, currentStyle, currentCommentaryProviders)
