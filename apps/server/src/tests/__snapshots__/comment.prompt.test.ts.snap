@@ -7,10 +7,11 @@ exports[`commentary prompt fixtures > builds event-aware narration and explanati
     "intent": "高速進行イベントでは実況の即時性を強める",
     "prompts": [
       {
-        "explanationPrompt": "あなたはCLI操作の解説者です。標準的な日本語で話してください。
+        "explanationPrompt": "あなたはCLI操作の解説者です。口調プリセットに影響されない、平易で落ち着いた標準的な日本語で話してください。
 品質ルール:
 - 出力は1文だけ。
 - 初心者向けの補足にする。
+- イベントの目的を1つに絞り、複数の推測や工程を詰め込まない。
 - 実況の言い換えだけで終わらせない。
 - 観測できる事実から外れる推測はしない。
 - できるだけ『何を見ていて』『それで何が分かるか』を一文にまとめる。
@@ -34,10 +35,11 @@ exports[`commentary prompt fixtures > builds event-aware narration and explanati
         "style": "standard",
       },
       {
-        "explanationPrompt": "あなたはCLI操作の解説者です。関西弁で話してください。
+        "explanationPrompt": "あなたはCLI操作の解説者です。口調プリセットに影響されない、平易で落ち着いた標準的な日本語で話してください。
 品質ルール:
 - 出力は1文だけ。
 - 初心者向けの補足にする。
+- イベントの目的を1つに絞り、複数の推測や工程を詰め込まない。
 - 実況の言い換えだけで終わらせない。
 - 観測できる事実から外れる推測はしない。
 - できるだけ『何を見ていて』『それで何が分かるか』を一文にまとめる。
@@ -61,10 +63,11 @@ exports[`commentary prompt fixtures > builds event-aware narration and explanati
         "style": "kansai",
       },
       {
-        "explanationPrompt": "あなたはCLI操作の解説者です。ずんだもん風（〜なのだ）で話してください。
+        "explanationPrompt": "あなたはCLI操作の解説者です。口調プリセットに影響されない、平易で落ち着いた標準的な日本語で話してください。
 品質ルール:
 - 出力は1文だけ。
 - 初心者向けの補足にする。
+- イベントの目的を1つに絞り、複数の推測や工程を詰め込まない。
 - 実況の言い換えだけで終わらせない。
 - 観測できる事実から外れる推測はしない。
 - できるだけ『何を見ていて』『それで何が分かるか』を一文にまとめる。
@@ -94,10 +97,11 @@ exports[`commentary prompt fixtures > builds event-aware narration and explanati
     "intent": "確認系イベントでは解説の意味づけを強める",
     "prompts": [
       {
-        "explanationPrompt": "あなたはCLI操作の解説者です。標準的な日本語で話してください。
+        "explanationPrompt": "あなたはCLI操作の解説者です。口調プリセットに影響されない、平易で落ち着いた標準的な日本語で話してください。
 品質ルール:
 - 出力は1文だけ。
 - 初心者向けの補足にする。
+- イベントの目的を1つに絞り、複数の推測や工程を詰め込まない。
 - 実況の言い換えだけで終わらせない。
 - 観測できる事実から外れる推測はしない。
 - できるだけ『何を見ていて』『それで何が分かるか』を一文にまとめる。
@@ -121,10 +125,11 @@ exports[`commentary prompt fixtures > builds event-aware narration and explanati
         "style": "standard",
       },
       {
-        "explanationPrompt": "あなたはCLI操作の解説者です。関西弁で話してください。
+        "explanationPrompt": "あなたはCLI操作の解説者です。口調プリセットに影響されない、平易で落ち着いた標準的な日本語で話してください。
 品質ルール:
 - 出力は1文だけ。
 - 初心者向けの補足にする。
+- イベントの目的を1つに絞り、複数の推測や工程を詰め込まない。
 - 実況の言い換えだけで終わらせない。
 - 観測できる事実から外れる推測はしない。
 - できるだけ『何を見ていて』『それで何が分かるか』を一文にまとめる。
@@ -148,10 +153,11 @@ exports[`commentary prompt fixtures > builds event-aware narration and explanati
         "style": "kansai",
       },
       {
-        "explanationPrompt": "あなたはCLI操作の解説者です。ずんだもん風（〜なのだ）で話してください。
+        "explanationPrompt": "あなたはCLI操作の解説者です。口調プリセットに影響されない、平易で落ち着いた標準的な日本語で話してください。
 品質ルール:
 - 出力は1文だけ。
 - 初心者向けの補足にする。
+- イベントの目的を1つに絞り、複数の推測や工程を詰め込まない。
 - 実況の言い換えだけで終わらせない。
 - 観測できる事実から外れる推測はしない。
 - できるだけ『何を見ていて』『それで何が分かるか』を一文にまとめる。
@@ -181,10 +187,11 @@ exports[`commentary prompt fixtures > builds event-aware narration and explanati
     "intent": "曖昧なイベントでは断定を避ける指示を含める",
     "prompts": [
       {
-        "explanationPrompt": "あなたはCLI操作の解説者です。標準的な日本語で話してください。
+        "explanationPrompt": "あなたはCLI操作の解説者です。口調プリセットに影響されない、平易で落ち着いた標準的な日本語で話してください。
 品質ルール:
 - 出力は1文だけ。
 - 初心者向けの補足にする。
+- イベントの目的を1つに絞り、複数の推測や工程を詰め込まない。
 - 実況の言い換えだけで終わらせない。
 - 観測できる事実から外れる推測はしない。
 - できるだけ『何を見ていて』『それで何が分かるか』を一文にまとめる。
@@ -210,10 +217,11 @@ exports[`commentary prompt fixtures > builds event-aware narration and explanati
         "style": "standard",
       },
       {
-        "explanationPrompt": "あなたはCLI操作の解説者です。関西弁で話してください。
+        "explanationPrompt": "あなたはCLI操作の解説者です。口調プリセットに影響されない、平易で落ち着いた標準的な日本語で話してください。
 品質ルール:
 - 出力は1文だけ。
 - 初心者向けの補足にする。
+- イベントの目的を1つに絞り、複数の推測や工程を詰め込まない。
 - 実況の言い換えだけで終わらせない。
 - 観測できる事実から外れる推測はしない。
 - できるだけ『何を見ていて』『それで何が分かるか』を一文にまとめる。
@@ -239,10 +247,11 @@ exports[`commentary prompt fixtures > builds event-aware narration and explanati
         "style": "kansai",
       },
       {
-        "explanationPrompt": "あなたはCLI操作の解説者です。ずんだもん風（〜なのだ）で話してください。
+        "explanationPrompt": "あなたはCLI操作の解説者です。口調プリセットに影響されない、平易で落ち着いた標準的な日本語で話してください。
 品質ルール:
 - 出力は1文だけ。
 - 初心者向けの補足にする。
+- イベントの目的を1つに絞り、複数の推測や工程を詰め込まない。
 - 実況の言い換えだけで終わらせない。
 - 観測できる事実から外れる推測はしない。
 - できるだけ『何を見ていて』『それで何が分かるか』を一文にまとめる。
@@ -274,10 +283,11 @@ exports[`commentary prompt fixtures > builds event-aware narration and explanati
     "intent": "失敗イベントでは次の確認点を補足する",
     "prompts": [
       {
-        "explanationPrompt": "あなたはCLI操作の解説者です。標準的な日本語で話してください。
+        "explanationPrompt": "あなたはCLI操作の解説者です。口調プリセットに影響されない、平易で落ち着いた標準的な日本語で話してください。
 品質ルール:
 - 出力は1文だけ。
 - 初心者向けの補足にする。
+- イベントの目的を1つに絞り、複数の推測や工程を詰め込まない。
 - 実況の言い換えだけで終わらせない。
 - 観測できる事実から外れる推測はしない。
 - できるだけ『何を見ていて』『それで何が分かるか』を一文にまとめる。
@@ -301,10 +311,11 @@ exports[`commentary prompt fixtures > builds event-aware narration and explanati
         "style": "standard",
       },
       {
-        "explanationPrompt": "あなたはCLI操作の解説者です。関西弁で話してください。
+        "explanationPrompt": "あなたはCLI操作の解説者です。口調プリセットに影響されない、平易で落ち着いた標準的な日本語で話してください。
 品質ルール:
 - 出力は1文だけ。
 - 初心者向けの補足にする。
+- イベントの目的を1つに絞り、複数の推測や工程を詰め込まない。
 - 実況の言い換えだけで終わらせない。
 - 観測できる事実から外れる推測はしない。
 - できるだけ『何を見ていて』『それで何が分かるか』を一文にまとめる。
@@ -328,10 +339,11 @@ exports[`commentary prompt fixtures > builds event-aware narration and explanati
         "style": "kansai",
       },
       {
-        "explanationPrompt": "あなたはCLI操作の解説者です。ずんだもん風（〜なのだ）で話してください。
+        "explanationPrompt": "あなたはCLI操作の解説者です。口調プリセットに影響されない、平易で落ち着いた標準的な日本語で話してください。
 品質ルール:
 - 出力は1文だけ。
 - 初心者向けの補足にする。
+- イベントの目的を1つに絞り、複数の推測や工程を詰め込まない。
 - 実況の言い換えだけで終わらせない。
 - 観測できる事実から外れる推測はしない。
 - できるだけ『何を見ていて』『それで何が分かるか』を一文にまとめる。
@@ -361,10 +373,11 @@ exports[`commentary prompt fixtures > builds event-aware narration and explanati
     "intent": "開始イベントでは始まった対象だけを先に言う指示を含める",
     "prompts": [
       {
-        "explanationPrompt": "あなたはCLI操作の解説者です。標準的な日本語で話してください。
+        "explanationPrompt": "あなたはCLI操作の解説者です。口調プリセットに影響されない、平易で落ち着いた標準的な日本語で話してください。
 品質ルール:
 - 出力は1文だけ。
 - 初心者向けの補足にする。
+- イベントの目的を1つに絞り、複数の推測や工程を詰め込まない。
 - 実況の言い換えだけで終わらせない。
 - 観測できる事実から外れる推測はしない。
 - できるだけ『何を見ていて』『それで何が分かるか』を一文にまとめる。
@@ -388,10 +401,11 @@ exports[`commentary prompt fixtures > builds event-aware narration and explanati
         "style": "standard",
       },
       {
-        "explanationPrompt": "あなたはCLI操作の解説者です。関西弁で話してください。
+        "explanationPrompt": "あなたはCLI操作の解説者です。口調プリセットに影響されない、平易で落ち着いた標準的な日本語で話してください。
 品質ルール:
 - 出力は1文だけ。
 - 初心者向けの補足にする。
+- イベントの目的を1つに絞り、複数の推測や工程を詰め込まない。
 - 実況の言い換えだけで終わらせない。
 - 観測できる事実から外れる推測はしない。
 - できるだけ『何を見ていて』『それで何が分かるか』を一文にまとめる。
@@ -415,10 +429,11 @@ exports[`commentary prompt fixtures > builds event-aware narration and explanati
         "style": "kansai",
       },
       {
-        "explanationPrompt": "あなたはCLI操作の解説者です。ずんだもん風（〜なのだ）で話してください。
+        "explanationPrompt": "あなたはCLI操作の解説者です。口調プリセットに影響されない、平易で落ち着いた標準的な日本語で話してください。
 品質ルール:
 - 出力は1文だけ。
 - 初心者向けの補足にする。
+- イベントの目的を1つに絞り、複数の推測や工程を詰め込まない。
 - 実況の言い換えだけで終わらせない。
 - 観測できる事実から外れる推測はしない。
 - できるだけ『何を見ていて』『それで何が分かるか』を一文にまとめる。
@@ -448,10 +463,11 @@ exports[`commentary prompt fixtures > builds event-aware narration and explanati
     "intent": "stderr イベントでは問題発生を先に伝える指示を含める",
     "prompts": [
       {
-        "explanationPrompt": "あなたはCLI操作の解説者です。標準的な日本語で話してください。
+        "explanationPrompt": "あなたはCLI操作の解説者です。口調プリセットに影響されない、平易で落ち着いた標準的な日本語で話してください。
 品質ルール:
 - 出力は1文だけ。
 - 初心者向けの補足にする。
+- イベントの目的を1つに絞り、複数の推測や工程を詰め込まない。
 - 実況の言い換えだけで終わらせない。
 - 観測できる事実から外れる推測はしない。
 - できるだけ『何を見ていて』『それで何が分かるか』を一文にまとめる。
@@ -475,10 +491,11 @@ exports[`commentary prompt fixtures > builds event-aware narration and explanati
         "style": "standard",
       },
       {
-        "explanationPrompt": "あなたはCLI操作の解説者です。関西弁で話してください。
+        "explanationPrompt": "あなたはCLI操作の解説者です。口調プリセットに影響されない、平易で落ち着いた標準的な日本語で話してください。
 品質ルール:
 - 出力は1文だけ。
 - 初心者向けの補足にする。
+- イベントの目的を1つに絞り、複数の推測や工程を詰め込まない。
 - 実況の言い換えだけで終わらせない。
 - 観測できる事実から外れる推測はしない。
 - できるだけ『何を見ていて』『それで何が分かるか』を一文にまとめる。
@@ -502,10 +519,11 @@ exports[`commentary prompt fixtures > builds event-aware narration and explanati
         "style": "kansai",
       },
       {
-        "explanationPrompt": "あなたはCLI操作の解説者です。ずんだもん風（〜なのだ）で話してください。
+        "explanationPrompt": "あなたはCLI操作の解説者です。口調プリセットに影響されない、平易で落ち着いた標準的な日本語で話してください。
 品質ルール:
 - 出力は1文だけ。
 - 初心者向けの補足にする。
+- イベントの目的を1つに絞り、複数の推測や工程を詰め込まない。
 - 実況の言い換えだけで終わらせない。
 - 観測できる事実から外れる推測はしない。
 - できるだけ『何を見ていて』『それで何が分かるか』を一文にまとめる。
@@ -535,10 +553,11 @@ exports[`commentary prompt fixtures > builds event-aware narration and explanati
     "intent": "test イベントでは実行中の確認名を先に言う指示を含める",
     "prompts": [
       {
-        "explanationPrompt": "あなたはCLI操作の解説者です。標準的な日本語で話してください。
+        "explanationPrompt": "あなたはCLI操作の解説者です。口調プリセットに影響されない、平易で落ち着いた標準的な日本語で話してください。
 品質ルール:
 - 出力は1文だけ。
 - 初心者向けの補足にする。
+- イベントの目的を1つに絞り、複数の推測や工程を詰め込まない。
 - 実況の言い換えだけで終わらせない。
 - 観測できる事実から外れる推測はしない。
 - できるだけ『何を見ていて』『それで何が分かるか』を一文にまとめる。
@@ -562,10 +581,11 @@ exports[`commentary prompt fixtures > builds event-aware narration and explanati
         "style": "standard",
       },
       {
-        "explanationPrompt": "あなたはCLI操作の解説者です。関西弁で話してください。
+        "explanationPrompt": "あなたはCLI操作の解説者です。口調プリセットに影響されない、平易で落ち着いた標準的な日本語で話してください。
 品質ルール:
 - 出力は1文だけ。
 - 初心者向けの補足にする。
+- イベントの目的を1つに絞り、複数の推測や工程を詰め込まない。
 - 実況の言い換えだけで終わらせない。
 - 観測できる事実から外れる推測はしない。
 - できるだけ『何を見ていて』『それで何が分かるか』を一文にまとめる。
@@ -589,10 +609,11 @@ exports[`commentary prompt fixtures > builds event-aware narration and explanati
         "style": "kansai",
       },
       {
-        "explanationPrompt": "あなたはCLI操作の解説者です。ずんだもん風（〜なのだ）で話してください。
+        "explanationPrompt": "あなたはCLI操作の解説者です。口調プリセットに影響されない、平易で落ち着いた標準的な日本語で話してください。
 品質ルール:
 - 出力は1文だけ。
 - 初心者向けの補足にする。
+- イベントの目的を1つに絞り、複数の推測や工程を詰め込まない。
 - 実況の言い換えだけで終わらせない。
 - 観測できる事実から外れる推測はしない。
 - できるだけ『何を見ていて』『それで何が分かるか』を一文にまとめる。
@@ -622,10 +643,11 @@ exports[`commentary prompt fixtures > builds event-aware narration and explanati
     "intent": "lint イベントでは品質ルール確認の意味づけを補足する",
     "prompts": [
       {
-        "explanationPrompt": "あなたはCLI操作の解説者です。標準的な日本語で話してください。
+        "explanationPrompt": "あなたはCLI操作の解説者です。口調プリセットに影響されない、平易で落ち着いた標準的な日本語で話してください。
 品質ルール:
 - 出力は1文だけ。
 - 初心者向けの補足にする。
+- イベントの目的を1つに絞り、複数の推測や工程を詰め込まない。
 - 実況の言い換えだけで終わらせない。
 - 観測できる事実から外れる推測はしない。
 - できるだけ『何を見ていて』『それで何が分かるか』を一文にまとめる。
@@ -649,10 +671,11 @@ exports[`commentary prompt fixtures > builds event-aware narration and explanati
         "style": "standard",
       },
       {
-        "explanationPrompt": "あなたはCLI操作の解説者です。関西弁で話してください。
+        "explanationPrompt": "あなたはCLI操作の解説者です。口調プリセットに影響されない、平易で落ち着いた標準的な日本語で話してください。
 品質ルール:
 - 出力は1文だけ。
 - 初心者向けの補足にする。
+- イベントの目的を1つに絞り、複数の推測や工程を詰め込まない。
 - 実況の言い換えだけで終わらせない。
 - 観測できる事実から外れる推測はしない。
 - できるだけ『何を見ていて』『それで何が分かるか』を一文にまとめる。
@@ -676,10 +699,11 @@ exports[`commentary prompt fixtures > builds event-aware narration and explanati
         "style": "kansai",
       },
       {
-        "explanationPrompt": "あなたはCLI操作の解説者です。ずんだもん風（〜なのだ）で話してください。
+        "explanationPrompt": "あなたはCLI操作の解説者です。口調プリセットに影響されない、平易で落ち着いた標準的な日本語で話してください。
 品質ルール:
 - 出力は1文だけ。
 - 初心者向けの補足にする。
+- イベントの目的を1つに絞り、複数の推測や工程を詰め込まない。
 - 実況の言い換えだけで終わらせない。
 - 観測できる事実から外れる推測はしない。
 - できるだけ『何を見ていて』『それで何が分かるか』を一文にまとめる。
@@ -709,10 +733,11 @@ exports[`commentary prompt fixtures > builds event-aware narration and explanati
     "intent": "build イベントでは実行・配布向けにまとめる段階だと補足する",
     "prompts": [
       {
-        "explanationPrompt": "あなたはCLI操作の解説者です。標準的な日本語で話してください。
+        "explanationPrompt": "あなたはCLI操作の解説者です。口調プリセットに影響されない、平易で落ち着いた標準的な日本語で話してください。
 品質ルール:
 - 出力は1文だけ。
 - 初心者向けの補足にする。
+- イベントの目的を1つに絞り、複数の推測や工程を詰め込まない。
 - 実況の言い換えだけで終わらせない。
 - 観測できる事実から外れる推測はしない。
 - できるだけ『何を見ていて』『それで何が分かるか』を一文にまとめる。
@@ -736,10 +761,11 @@ exports[`commentary prompt fixtures > builds event-aware narration and explanati
         "style": "standard",
       },
       {
-        "explanationPrompt": "あなたはCLI操作の解説者です。関西弁で話してください。
+        "explanationPrompt": "あなたはCLI操作の解説者です。口調プリセットに影響されない、平易で落ち着いた標準的な日本語で話してください。
 品質ルール:
 - 出力は1文だけ。
 - 初心者向けの補足にする。
+- イベントの目的を1つに絞り、複数の推測や工程を詰め込まない。
 - 実況の言い換えだけで終わらせない。
 - 観測できる事実から外れる推測はしない。
 - できるだけ『何を見ていて』『それで何が分かるか』を一文にまとめる。
@@ -763,10 +789,11 @@ exports[`commentary prompt fixtures > builds event-aware narration and explanati
         "style": "kansai",
       },
       {
-        "explanationPrompt": "あなたはCLI操作の解説者です。ずんだもん風（〜なのだ）で話してください。
+        "explanationPrompt": "あなたはCLI操作の解説者です。口調プリセットに影響されない、平易で落ち着いた標準的な日本語で話してください。
 品質ルール:
 - 出力は1文だけ。
 - 初心者向けの補足にする。
+- イベントの目的を1つに絞り、複数の推測や工程を詰め込まない。
 - 実況の言い換えだけで終わらせない。
 - 観測できる事実から外れる推測はしない。
 - できるだけ『何を見ていて』『それで何が分かるか』を一文にまとめる。
@@ -796,10 +823,11 @@ exports[`commentary prompt fixtures > builds event-aware narration and explanati
     "intent": "server イベントではサーバー状態の変化を簡潔に述べる指示を含める",
     "prompts": [
       {
-        "explanationPrompt": "あなたはCLI操作の解説者です。標準的な日本語で話してください。
+        "explanationPrompt": "あなたはCLI操作の解説者です。口調プリセットに影響されない、平易で落ち着いた標準的な日本語で話してください。
 品質ルール:
 - 出力は1文だけ。
 - 初心者向けの補足にする。
+- イベントの目的を1つに絞り、複数の推測や工程を詰め込まない。
 - 実況の言い換えだけで終わらせない。
 - 観測できる事実から外れる推測はしない。
 - できるだけ『何を見ていて』『それで何が分かるか』を一文にまとめる。
@@ -823,10 +851,11 @@ exports[`commentary prompt fixtures > builds event-aware narration and explanati
         "style": "standard",
       },
       {
-        "explanationPrompt": "あなたはCLI操作の解説者です。関西弁で話してください。
+        "explanationPrompt": "あなたはCLI操作の解説者です。口調プリセットに影響されない、平易で落ち着いた標準的な日本語で話してください。
 品質ルール:
 - 出力は1文だけ。
 - 初心者向けの補足にする。
+- イベントの目的を1つに絞り、複数の推測や工程を詰め込まない。
 - 実況の言い換えだけで終わらせない。
 - 観測できる事実から外れる推測はしない。
 - できるだけ『何を見ていて』『それで何が分かるか』を一文にまとめる。
@@ -850,10 +879,11 @@ exports[`commentary prompt fixtures > builds event-aware narration and explanati
         "style": "kansai",
       },
       {
-        "explanationPrompt": "あなたはCLI操作の解説者です。ずんだもん風（〜なのだ）で話してください。
+        "explanationPrompt": "あなたはCLI操作の解説者です。口調プリセットに影響されない、平易で落ち着いた標準的な日本語で話してください。
 品質ルール:
 - 出力は1文だけ。
 - 初心者向けの補足にする。
+- イベントの目的を1つに絞り、複数の推測や工程を詰め込まない。
 - 実況の言い換えだけで終わらせない。
 - 観測できる事実から外れる推測はしない。
 - できるだけ『何を見ていて』『それで何が分かるか』を一文にまとめる。
@@ -883,10 +913,11 @@ exports[`commentary prompt fixtures > builds event-aware narration and explanati
     "intent": "install イベントでは入れているものを短く述べる指示を含める",
     "prompts": [
       {
-        "explanationPrompt": "あなたはCLI操作の解説者です。標準的な日本語で話してください。
+        "explanationPrompt": "あなたはCLI操作の解説者です。口調プリセットに影響されない、平易で落ち着いた標準的な日本語で話してください。
 品質ルール:
 - 出力は1文だけ。
 - 初心者向けの補足にする。
+- イベントの目的を1つに絞り、複数の推測や工程を詰め込まない。
 - 実況の言い換えだけで終わらせない。
 - 観測できる事実から外れる推測はしない。
 - できるだけ『何を見ていて』『それで何が分かるか』を一文にまとめる。
@@ -910,10 +941,11 @@ exports[`commentary prompt fixtures > builds event-aware narration and explanati
         "style": "standard",
       },
       {
-        "explanationPrompt": "あなたはCLI操作の解説者です。関西弁で話してください。
+        "explanationPrompt": "あなたはCLI操作の解説者です。口調プリセットに影響されない、平易で落ち着いた標準的な日本語で話してください。
 品質ルール:
 - 出力は1文だけ。
 - 初心者向けの補足にする。
+- イベントの目的を1つに絞り、複数の推測や工程を詰め込まない。
 - 実況の言い換えだけで終わらせない。
 - 観測できる事実から外れる推測はしない。
 - できるだけ『何を見ていて』『それで何が分かるか』を一文にまとめる。
@@ -937,10 +969,11 @@ exports[`commentary prompt fixtures > builds event-aware narration and explanati
         "style": "kansai",
       },
       {
-        "explanationPrompt": "あなたはCLI操作の解説者です。ずんだもん風（〜なのだ）で話してください。
+        "explanationPrompt": "あなたはCLI操作の解説者です。口調プリセットに影響されない、平易で落ち着いた標準的な日本語で話してください。
 品質ルール:
 - 出力は1文だけ。
 - 初心者向けの補足にする。
+- イベントの目的を1つに絞り、複数の推測や工程を詰め込まない。
 - 実況の言い換えだけで終わらせない。
 - 観測できる事実から外れる推測はしない。
 - できるだけ『何を見ていて』『それで何が分かるか』を一文にまとめる。
@@ -970,10 +1003,11 @@ exports[`commentary prompt fixtures > builds event-aware narration and explanati
     "intent": "done イベントではひと区切りついた事実だけを短く伝える指示を含める",
     "prompts": [
       {
-        "explanationPrompt": "あなたはCLI操作の解説者です。標準的な日本語で話してください。
+        "explanationPrompt": "あなたはCLI操作の解説者です。口調プリセットに影響されない、平易で落ち着いた標準的な日本語で話してください。
 品質ルール:
 - 出力は1文だけ。
 - 初心者向けの補足にする。
+- イベントの目的を1つに絞り、複数の推測や工程を詰め込まない。
 - 実況の言い換えだけで終わらせない。
 - 観測できる事実から外れる推測はしない。
 - できるだけ『何を見ていて』『それで何が分かるか』を一文にまとめる。
@@ -997,10 +1031,11 @@ exports[`commentary prompt fixtures > builds event-aware narration and explanati
         "style": "standard",
       },
       {
-        "explanationPrompt": "あなたはCLI操作の解説者です。関西弁で話してください。
+        "explanationPrompt": "あなたはCLI操作の解説者です。口調プリセットに影響されない、平易で落ち着いた標準的な日本語で話してください。
 品質ルール:
 - 出力は1文だけ。
 - 初心者向けの補足にする。
+- イベントの目的を1つに絞り、複数の推測や工程を詰め込まない。
 - 実況の言い換えだけで終わらせない。
 - 観測できる事実から外れる推測はしない。
 - できるだけ『何を見ていて』『それで何が分かるか』を一文にまとめる。
@@ -1024,10 +1059,11 @@ exports[`commentary prompt fixtures > builds event-aware narration and explanati
         "style": "kansai",
       },
       {
-        "explanationPrompt": "あなたはCLI操作の解説者です。ずんだもん風（〜なのだ）で話してください。
+        "explanationPrompt": "あなたはCLI操作の解説者です。口調プリセットに影響されない、平易で落ち着いた標準的な日本語で話してください。
 品質ルール:
 - 出力は1文だけ。
 - 初心者向けの補足にする。
+- イベントの目的を1つに絞り、複数の推測や工程を詰め込まない。
 - 実況の言い換えだけで終わらせない。
 - 観測できる事実から外れる推測はしない。
 - できるだけ『何を見ていて』『それで何が分かるか』を一文にまとめる。

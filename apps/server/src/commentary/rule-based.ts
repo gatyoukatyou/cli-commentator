@@ -88,7 +88,9 @@ export function commentByRules(ev: Event, style: Style): CommentaryPayload {
     });
   }
 
-  const beginner = stripMemoPrefix(beginnerOneLine(ev, style));
+  // Keep the beginner explanation useful as a supervision layer regardless of
+  // the selected entertainment/narration style.
+  const beginner = stripMemoPrefix(beginnerOneLine(ev, "standard"));
   const glossaryNotes = getGlossaryNotes(ev.detail);
   const spotlight = detailSpotlight(ev, style);
 
