@@ -1,0 +1,11 @@
+2026-07-19T01:00:00.000000Z  INFO codex_core::stream_events_utils: ToolCall: exec const r = await tools.exec_command({cmd:"rg -n 'TODO' src",workdir:"/Users/demo/project",yield_time_ms:10000,max_output_tokens:2000}); text(r.output); thread_id=demo
+2026-07-19T01:00:01.000000Z  INFO codex_core::stream_events_utils: ToolCall: exec const r = await tools.exec_command({cmd:"sed -n '1,80p' src/index.ts",workdir:"/Users/demo/project"}); text(r.output); thread_id=demo
+2026-07-19T01:00:02.000000Z  INFO codex_core::stream_events_utils: ToolCall: exec const r = await tools.exec_command({cmd:"git status -sb",workdir:"/Users/demo/project"}); text(r.output); thread_id=demo
+2026-07-19T01:00:03.000000Z  INFO codex_core::stream_events_utils: ToolCall: exec const r = await tools.exec_command({cmd:"pnpm -C apps/server test",workdir:"/Users/demo/project"}); text(r.output); thread_id=demo
+2026-07-19T01:00:04.000000Z  INFO codex_core::stream_events_utils: ToolCall: exec const [files, source] = await Promise.all([tools.exec_command({cmd:"rg --files src",workdir:"/Users/demo/project"}), tools.exec_command({cmd:"sed -n '1,40p' src/app.ts",workdir:"/Users/demo/project"})]); text(files.output); text(source.output); thread_id=demo
+2026-07-19T01:00:05.000000Z  INFO codex_core::stream_events_utils: ToolCall: exec_command {"cmd":"grep -R 'legacy' src","workdir":"/Users/demo/project"} thread_id=demo
+2026-07-19T01:00:06.000000Z  INFO codex_core::stream_events_utils: ToolCall: write_stdin {"session_id":42,"chars":"","yield_time_ms":1000} thread_id=demo
+2026-07-19T01:00:07.000000Z  INFO codex_core_plugins::remote::remote_installed_plugin_sync: completed remote installed plugin bundle sync installed_plugin_ids=[] removed_cache_plugin_ids=[] failed_remote_plugin_ids=[]
+2026-07-19T01:00:08.000000Z  WARN codex_core_plugins::remote::remote_installed_plugin_sync: completed with failed_remote_plugin_ids=[]
+Command failed with exit code 1
+2026-07-19T01:00:09.000000Z ERROR codex_core_plugins::remote::remote_installed_plugin_sync: plugin sync failed failed_remote_plugin_ids=["plugin-demo"]

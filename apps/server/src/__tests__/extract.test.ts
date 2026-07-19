@@ -67,4 +67,66 @@ describe("extractEvents fixtures", () => {
     const events = extractEvents("10;?\n•2", "codex");
     expect(events).toEqual([]);
   });
+
+  it("extracts current Codex exec tool calls without surfacing routine plugin logs", async () => {
+    const content = await fs.readFile(path.join(fixturesDir, "codex-current-toolcall.log"), "utf8");
+    const events = extractEvents(content, "codex");
+
+    expect(events.map(({ type, summary, detail }) => ({ type, summary, detail }))).toEqual([
+      { type: "search", summary: "該当箇所を検索している", detail: "⏺ Grep(rg -n 'TODO' src)" },
+      { type: "read", summary: "ファイルを読み込んでいる", detail: "⏺ Read(sed -n '1,80p' src/index.ts)" },
+      { type: "git", summary: "Git操作をしている", detail: "⏺ Bash(git status -sb)" },
+      { type: "test", summary: "テスト/型チェックを実行している", detail: "⏺ Bash(pnpm -C apps/server test)" },
+      {
+        type: "search",
+        summary: "ファイル一覧を検索している",
+        detail: "⏺ Glob(rg --files src ; sed -n '1,40p' src/app.ts)",
+      },
+      { type: "search", summary: "該当箇所を検索している", detail: "⏺ Grep(grep -R 'legacy' src)" },
+      { type: "error", summary: "終了コードで失敗している", detail: "Command failed with exit code 1" },
+      {
+        type: "error",
+        summary: "エラーが出ている",
+        detail:
+          '2026-07-19T01:00:09.000000Z ERROR codex_core_plugins::remote::remote_installed_plugin_sync: plugin sync failed failed_remote_plugin_ids=["plugin-demo"]',
+      },
+    ]);
+    expect(events.every((event) => !event.detail?.includes("ToolCall: exec"))).toBe(true);
+  });
+
+  it("uses a bounded, redacted preview for multiple exec commands", () => {
+    const chunk =
+      'ToolCall: exec await Promise.all([tools.exec_command({cmd:"curl --token secret-value https://example.invalid"}), tools.exec_command({cmd:"git status"}), tools.exec_command({cmd:"pnpm test"})]);';
+    const events = extractEvents(chunk, "codex");
+
+    expect(events).toHaveLength(1);
+    expect(events[0]).toMatchObject({ type: "git", summary: "Git操作をしている" });
+    expect(events[0]?.detail).toBe(
+      "⏺ Bash(curl --token=[REDACTED] https://example.invalid ; git status ... (+1 commands))"
+    );
+    expect(events[0]?.detail).not.toContain("secret-value");
+    expect(events[0]?.detail).not.toContain("pnpm test");
+  });
+
+  it("safely drops current exec calls whose cmd is not a static string", () => {
+    const events = extractEvents(
+      'ToolCall: exec const buildCommand = getCommand(); const r = await tools.exec_command({cmd:buildCommand}); text(r.output);',
+      "codex"
+    );
+
+    expect(events).toEqual([]);
+  });
+
+  it("suppresses write_stdin in the current exec wrapper", () => {
+    const events = extractEvents(
+      'ToolCall: exec const r = await tools.write_stdin({session_id:42,chars:"",yield_time_ms:1000}); text(r.output);',
+      "codex"
+    );
+
+    expect(events).toEqual([]);
+  });
+
+  it("does not treat an empty failed-id field as an error", () => {
+    expect(extractEvents("failed_remote_plugin_ids=[]", "codex")).toEqual([]);
+  });
 });

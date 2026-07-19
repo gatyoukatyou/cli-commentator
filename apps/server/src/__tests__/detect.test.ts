@@ -13,6 +13,7 @@ const cases = [
   { name: "claude.readonly.log", expected: "claude" },
   { name: "codex.approval.log", expected: "codex" },
   { name: "codex.toolcall.log", expected: "codex" },
+  { name: "codex-current-toolcall.log", expected: "codex" },
   { name: "codex.lifecycle-error.log", expected: "generic" },
   { name: "generic.shell.log", expected: "generic" },
   { name: "lock-does-not-flip-after-initial-detect.log", expected: "claude" },
