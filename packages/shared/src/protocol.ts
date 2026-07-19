@@ -33,6 +33,27 @@ export type Event = {
 
 export type CommentaryMode = "narration" | "explanation" | "both";
 
+export type CommentarySpeechDisposition = "speak" | "display_only";
+
+export type CommentarySpeechReason =
+  | "urgent"
+  | "human_required"
+  | "completion"
+  | "failure"
+  | "success"
+  | "new_task"
+  | "phase_change"
+  | "new_target"
+  | "progress_refresh"
+  | "progress_interval"
+  | "not_significant";
+
+export type CommentarySpeech = {
+  disposition: CommentarySpeechDisposition;
+  reason: CommentarySpeechReason;
+  text?: string;
+};
+
 export type CommentaryMeta = {
   narrationProvider?: string;
   explanationProvider?: string;
@@ -43,6 +64,7 @@ export type CommentaryPayload = {
   narration?: string;
   explanation?: string;
   glossaryNotes?: string[];
+  speech?: CommentarySpeech;
   meta?: CommentaryMeta;
 };
 

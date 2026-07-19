@@ -161,6 +161,7 @@ export function useCommentatorSocket({
                 priority: message.ev.priority ?? "progress",
                 summary: message.ev.summary,
                 detail: message.ev.detail,
+                speech: message.speech,
               };
               setItems((prev) => [...prev, nextItem].slice(-200));
               queueSpeech(nextItem);

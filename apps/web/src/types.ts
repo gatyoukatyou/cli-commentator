@@ -1,6 +1,9 @@
 export type {
   CommentaryMeta,
   CommentaryPayload,
+  CommentarySpeech,
+  CommentarySpeechDisposition,
+  CommentarySpeechReason,
   CreateProfileInput,
   DetectedSource,
   Event,

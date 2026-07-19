@@ -148,7 +148,7 @@ export function commentByRules(
   // Keep the beginner explanation useful as a supervision layer regardless of
   // the selected entertainment/narration style.
   const beginner = stripMemoPrefix(beginnerOneLine(ev, "standard"));
-  const glossaryNotes = getGlossaryNotes(ev.detail, ev.type);
+  const glossaryNotes = context ? [...context.glossaryNotes] : getGlossaryNotes(ev.detail, ev.type);
   const spotlight = detailSpotlight(ev, style);
 
   const core = COMMENTERS[style](ev);

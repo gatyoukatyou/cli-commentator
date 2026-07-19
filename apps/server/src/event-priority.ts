@@ -3,6 +3,7 @@ import type { Event, EventPriority } from "./types.js";
 const URGENT_SUMMARIES = new Set([
   "許可を待っている",
   "質問への回答を待っている",
+  "コマンド実行の確認待ち",
   "エラーが発生している",
 ]);
 
@@ -22,6 +23,7 @@ export function withEventPriority(event: Event): Event & { priority: EventPriori
 
 export interface CommentaryGate {
   shouldEmit(priority: EventPriority): boolean;
+  reset(): void;
 }
 
 export function createCommentaryGate(options?: {
@@ -40,6 +42,9 @@ export function createCommentaryGate(options?: {
       if (current - lastProgressEmit < intervalMs) return false;
       lastProgressEmit = current;
       return true;
+    },
+    reset() {
+      lastProgressEmit = Number.NEGATIVE_INFINITY;
     },
   };
 }

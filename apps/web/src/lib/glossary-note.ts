@@ -1,4 +1,4 @@
-import type { CommentaryDisplayMode, CommentaryPayload } from "../types";
+import type { CommentaryDisplayMode, CommentaryPayload, CommentarySpeech } from "../types";
 
 export type CommentaryTextParts = {
   narrationText: string | null;
@@ -71,8 +71,13 @@ export function buildSpeechText(
   parts: CommentaryTextParts,
   repeatCount = 1,
   rawDetail?: string,
-  mode: CommentaryDisplayMode = "both"
+  mode: CommentaryDisplayMode = "both",
+  speech?: CommentarySpeech
 ): string {
+  if (speech) {
+    return speech.disposition === "speak" ? speech.text?.trim() ?? "" : "";
+  }
+
   const segments: string[] = [];
   const includeNarration = mode !== "explanation";
   const includeExplanation = mode !== "narration";
