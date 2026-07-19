@@ -151,17 +151,16 @@ CLI Commentator は、非エンジニアで英語に不慣れな人が、CLI上�
 - PR #259：Desktop sidecar prepare を冪等化し、`dev:desktop:managed` 起動前に同梱sidecarを安全に確認・再生成できるようにした
 
 **Now**
-- Issue #300 で長期改良方針を正本化。HUMAN判断で Phase A-0 の観察をスキップし、Issue #304 の Phase A-1（監督イベント5分類）を進行中
-- #305 fixture採取は PR #310、#306 Claude TUI監督イベント4分類は PR #311 で完了
-- #307 長考・沈黙検知は PR #316、#308 優先度付きイベントパイプラインは PR #317 で完了
-- #309 優先度付きTTS（urgent割り込み / noticeキュー / progress従来）と Web UI 要対応表示を実装し、HUMAN確認中。スキンは現行の standard / cli の2種で確認する（brutalism / paper は廃止済み）
+- Issue #300 で長期改良方針を正本化。**Phase A-1（#304、監督イベント5分類）は 2026-07-19 に完了**
+  - #305 fixture採取 → PR #310、#306 Claude TUI監督イベント4分類 → PR #311
+  - #307 長考・沈黙検知 → PR #316、#308 優先度付きイベントパイプライン → PR #317
+  - #309 優先度付きTTS（urgent割り込み / noticeキュー / progress従来）＋ Web UI 要対応表示 → PR #321。HUMAN実機受け入れ済み。スキンは現行の standard / cli の2種で確認（brutalism / paper は廃止済み）
 - Apple Developer ID 証明書は当面発行しない方針のため、`#138` は Deferred / 保留扱いにする。signed/notarized release readiness は重要項目として残すが、証明書発行と外部配布準備を再開する段階で再着手する
 - local desktop app polish / local readiness は、監督イベントの実機確認へ入るための起動導線として維持する
 
 **Next**
-- #309 のHUMAN判断でのmergeと実機受け入れ確認を行い、Phase A-1を完了する
-- エラー膠着の反復検知（同じ失敗の繰り返し）は Phase A-1 受け入れ時に不足があればフォローアップIssueへ切り出す
-- 日本語解説・要約と、真面目トーン／実況トーンを分けた提示層を改善する（Phase B）
+- 日本語解説・要約と、真面目トーン／実況トーンを分けた提示層を改善する（Phase B）。着手前にHUMAN/Ginoと優先順位を確認する
+- エラー膠着の反復検知（同じ失敗の繰り返し）は、運用で不足を感じたらフォローアップIssueへ切り出す
 
 **Later**
 - 説明書なしで実況開始まで辿り着ける起動導線を完成させる（Phase C）
