@@ -164,5 +164,9 @@ exports[`Phase B evaluation replay > replays the minimal sanitized session deter
       "reason": "progress_interval",
     },
   ],
+  "taskContext": {
+    "objective": "Phase Bの実況品質について、反復・目的説明・状態変化・用語補足・読み上げ密度を調査する",
+    "userPrompt": "実況生成と読み上げに関係する実装とテストを読み、現状と改善候補を整理してください。",
+  },
 }
 `;

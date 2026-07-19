@@ -3,6 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import {
+  comparePhaseBEventTypes,
   replayPhaseBFixture,
   type PhaseBReplayFixture,
 } from "../evaluation/phase-b-replay.js";
@@ -25,6 +26,7 @@ describe("Phase B evaluation replay", () => {
       "Identifiers, paths, timestamps, and user-authored content are synthetic.",
     ]);
     expect(fixture.lines).toHaveLength(28);
+    expect(result.taskContext).toEqual(fixture.taskContext);
     expect(result.metrics).toMatchObject({
       events: 5,
       commentaries: 4,
@@ -32,5 +34,30 @@ describe("Phase B evaluation replay", () => {
       eventsByType: { search: 2, stdout: 2, test: 1 },
     });
     expect(result).toMatchSnapshot();
+  });
+
+  it("compares event classifications in a stable order", () => {
+    expect(comparePhaseBEventTypes(
+      {
+        events: 2,
+        commentaries: 0,
+        suppressed: 0,
+        eventsByType: { test: 1, search: 1 },
+        glossaryNotes: 0,
+        exactNarrationRepeats: 0,
+      },
+      {
+        events: 2,
+        commentaries: 0,
+        suppressed: 0,
+        eventsByType: { read: 1, search: 1 },
+        glossaryNotes: 0,
+        exactNarrationRepeats: 0,
+      }
+    )).toEqual([
+      { eventType: "read", baseline: 0, candidate: 1 },
+      { eventType: "search", baseline: 1, candidate: 1 },
+      { eventType: "test", baseline: 1, candidate: 0 },
+    ]);
   });
 });

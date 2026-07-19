@@ -6,6 +6,10 @@
   "id": "phase-b-codex-session",
   "source": "codex",
   "style": "kansai",
+  "taskContext": {
+    "objective": "Phase Bの実況品質について、反復・目的説明・状態変化・用語補足・読み上げ密度を調査する",
+    "userPrompt": "実況生成と読み上げに関係する実装とテストを読み、現状と改善候補を整理してください。"
+  },
   "commentaryIntervalMs": 2000,
   "lines": [
     { "offsetMs": 0, "line": "2030-01-01T00:00:00.000Z INFO codex_core::client: close time.busy=1ms" },

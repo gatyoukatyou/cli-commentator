@@ -10,8 +10,14 @@ export type PhaseBReplayFixture = {
   id: string;
   source: SourceMode;
   style: Style;
+  taskContext: PhaseBTaskContext;
   commentaryIntervalMs: number;
   lines: Array<{ offsetMs: number; line: string }>;
+};
+
+export type PhaseBTaskContext = {
+  objective: string;
+  userPrompt: string;
 };
 
 export type PhaseBSuppression = {
@@ -33,10 +39,34 @@ export type PhaseBReplayResult = {
   fixtureId: string;
   source: SourceMode;
   style: Style;
+  taskContext: PhaseBTaskContext;
   messages: Array<Extract<WsOutgoing, { kind: "event" | "commentary" }>>;
   suppressions: PhaseBSuppression[];
   metrics: PhaseBReplayMetrics;
 };
+
+export type PhaseBEventTypeComparison = {
+  eventType: string;
+  baseline: number;
+  candidate: number;
+};
+
+export function comparePhaseBEventTypes(
+  baseline: PhaseBReplayMetrics,
+  candidate: PhaseBReplayMetrics
+): PhaseBEventTypeComparison[] {
+  const eventTypes = new Set([
+    ...Object.keys(baseline.eventsByType),
+    ...Object.keys(candidate.eventsByType),
+  ]);
+  return Array.from(eventTypes)
+    .sort((left, right) => left.localeCompare(right, "en"))
+    .map((eventType) => ({
+      eventType,
+      baseline: baseline.eventsByType[eventType] ?? 0,
+      candidate: candidate.eventsByType[eventType] ?? 0,
+    }));
+}
 
 function countExactNarrationRepeats(messages: PhaseBReplayResult["messages"]): number {
   const counts = new Map<string, number>();
@@ -109,6 +139,7 @@ export async function replayPhaseBFixture(fixture: PhaseBReplayFixture): Promise
     fixtureId: fixture.id,
     source: fixture.source,
     style: fixture.style,
+    taskContext: fixture.taskContext,
     messages,
     suppressions,
     metrics: buildMetrics(messages, suppressions),

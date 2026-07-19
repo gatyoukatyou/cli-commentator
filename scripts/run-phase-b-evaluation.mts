@@ -3,6 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
+  comparePhaseBEventTypes,
   replayPhaseBFixture,
   type PhaseBReplayFixture,
   type PhaseBReplayResult,
@@ -26,6 +27,7 @@ function markdownReport(baseline: PhaseBReplayResult, candidate: PhaseBReplayRes
     ["glossaryNotes", baseline.metrics.glossaryNotes, candidate.metrics.glossaryNotes],
     ["exactNarrationRepeats", baseline.metrics.exactNarrationRepeats, candidate.metrics.exactNarrationRepeats],
   ];
+  const eventTypeRows = comparePhaseBEventTypes(baseline.metrics, candidate.metrics);
   return [
     "# Phase B fixture replay report",
     "",
@@ -36,6 +38,14 @@ function markdownReport(baseline: PhaseBReplayResult, candidate: PhaseBReplayRes
     "| metric | baseline | candidate |",
     "|---|---:|---:|",
     ...rows.map(([name, before, after]) => `| ${name} | ${before} | ${after} |`),
+    "",
+    "## Event classifications",
+    "",
+    "| event type | baseline | candidate |",
+    "|---|---:|---:|",
+    ...eventTypeRows.map(({ eventType, baseline: before, candidate: after }) =>
+      `| ${eventType} | ${before} | ${after} |`
+    ),
     "",
   ].join("\n");
 }
