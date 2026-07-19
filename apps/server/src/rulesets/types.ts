@@ -6,6 +6,7 @@ export type Rule = {
   id: string;
   priority: number;
   re: RegExp;
+  match?: (line: string) => boolean;
   type: EventType;
   summary: string;
 };

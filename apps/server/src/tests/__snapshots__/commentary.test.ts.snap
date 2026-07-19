@@ -11,7 +11,6 @@ exports[`commentary quality fixtures > renders styles consistently 1`] = `
           "explanation": "「TODO」を手がかりにプロジェクト全体を横断検索して、関係する場所を絞っています。",
           "glossaryNotes": [
             "補足: rg はプロジェクト全体を高速検索するコマンド",
-            "補足: pnpm/npm/yarn は依存関係やスクリプト実行に使う",
           ],
           "meta": {
             "explanationProvider": "rules",
@@ -27,7 +26,6 @@ exports[`commentary quality fixtures > renders styles consistently 1`] = `
           "explanation": "「TODO」を手がかりにプロジェクト全体を横断検索して、関係する場所を絞っています。",
           "glossaryNotes": [
             "補足: rg はプロジェクト全体を高速検索するコマンド",
-            "補足: pnpm/npm/yarn は依存関係やスクリプト実行に使う",
           ],
           "meta": {
             "explanationProvider": "rules",
@@ -43,7 +41,6 @@ exports[`commentary quality fixtures > renders styles consistently 1`] = `
           "explanation": "「TODO」を手がかりにプロジェクト全体を横断検索して、関係する場所を絞っています。",
           "glossaryNotes": [
             "補足: rg はプロジェクト全体を高速検索するコマンド",
-            "補足: pnpm/npm/yarn は依存関係やスクリプト実行に使う",
           ],
           "meta": {
             "explanationProvider": "rules",
@@ -65,7 +62,6 @@ exports[`commentary quality fixtures > renders styles consistently 1`] = `
           "explanation": "問題を直すために内容を更新しています。",
           "glossaryNotes": [
             "補足: pty は CLI を仮想端末として包んで動かす仕組み",
-            "補足: WebSocket は画面とサーバーをつなぐ常時接続",
           ],
           "meta": {
             "explanationProvider": "rules",
@@ -81,7 +77,6 @@ exports[`commentary quality fixtures > renders styles consistently 1`] = `
           "explanation": "問題を直すために内容を更新しています。",
           "glossaryNotes": [
             "補足: pty は CLI を仮想端末として包んで動かす仕組み",
-            "補足: WebSocket は画面とサーバーをつなぐ常時接続",
           ],
           "meta": {
             "explanationProvider": "rules",
@@ -97,7 +92,6 @@ exports[`commentary quality fixtures > renders styles consistently 1`] = `
           "explanation": "問題を直すために内容を更新しています。",
           "glossaryNotes": [
             "補足: pty は CLI を仮想端末として包んで動かす仕組み",
-            "補足: WebSocket は画面とサーバーをつなぐ常時接続",
           ],
           "meta": {
             "explanationProvider": "rules",
@@ -119,7 +113,6 @@ exports[`commentary quality fixtures > renders styles consistently 1`] = `
           "explanation": "PRの自動チェック結果を見て、公開前の安全確認をしています。",
           "glossaryNotes": [
             "補足: gh は GitHub を操作する公式CLI",
-            "補足: git は変更履歴を管理する仕組み",
           ],
           "meta": {
             "explanationProvider": "rules",
@@ -135,7 +128,6 @@ exports[`commentary quality fixtures > renders styles consistently 1`] = `
           "explanation": "PRの自動チェック結果を見て、公開前の安全確認をしています。",
           "glossaryNotes": [
             "補足: gh は GitHub を操作する公式CLI",
-            "補足: git は変更履歴を管理する仕組み",
           ],
           "meta": {
             "explanationProvider": "rules",
@@ -151,7 +143,6 @@ exports[`commentary quality fixtures > renders styles consistently 1`] = `
           "explanation": "PRの自動チェック結果を見て、公開前の安全確認をしています。",
           "glossaryNotes": [
             "補足: gh は GitHub を操作する公式CLI",
-            "補足: git は変更履歴を管理する仕組み",
           ],
           "meta": {
             "explanationProvider": "rules",
@@ -589,7 +580,6 @@ exports[`commentary quality fixtures > renders styles consistently 1`] = `
         "commentary": {
           "explanation": "変更の副作用がないか、自動テストで機械的に確認しています。",
           "glossaryNotes": [
-            "補足: pnpm/npm/yarn は依存関係やスクリプト実行に使う",
             "補足: Vitest/Jest は自動テストを走らせる仕組み",
           ],
           "meta": {
@@ -605,7 +595,6 @@ exports[`commentary quality fixtures > renders styles consistently 1`] = `
         "commentary": {
           "explanation": "変更の副作用がないか、自動テストで機械的に確認しています。",
           "glossaryNotes": [
-            "補足: pnpm/npm/yarn は依存関係やスクリプト実行に使う",
             "補足: Vitest/Jest は自動テストを走らせる仕組み",
           ],
           "meta": {
@@ -621,7 +610,6 @@ exports[`commentary quality fixtures > renders styles consistently 1`] = `
         "commentary": {
           "explanation": "変更の副作用がないか、自動テストで機械的に確認しています。",
           "glossaryNotes": [
-            "補足: pnpm/npm/yarn は依存関係やスクリプト実行に使う",
             "補足: Vitest/Jest は自動テストを走らせる仕組み",
           ],
           "meta": {
@@ -644,7 +632,6 @@ exports[`commentary quality fixtures > renders styles consistently 1`] = `
           "explanation": "プログラム同士のつながりが噛み合っているか、型ルールで機械確認しています。",
           "glossaryNotes": [
             "補足: tsc/typecheck は型の整合性を自動確認するチェック",
-            "補足: pnpm/npm/yarn は依存関係やスクリプト実行に使う",
           ],
           "meta": {
             "explanationProvider": "rules",
@@ -660,7 +647,6 @@ exports[`commentary quality fixtures > renders styles consistently 1`] = `
           "explanation": "プログラム同士のつながりが噛み合っているか、型ルールで機械確認しています。",
           "glossaryNotes": [
             "補足: tsc/typecheck は型の整合性を自動確認するチェック",
-            "補足: pnpm/npm/yarn は依存関係やスクリプト実行に使う",
           ],
           "meta": {
             "explanationProvider": "rules",
@@ -676,7 +662,6 @@ exports[`commentary quality fixtures > renders styles consistently 1`] = `
           "explanation": "プログラム同士のつながりが噛み合っているか、型ルールで機械確認しています。",
           "glossaryNotes": [
             "補足: tsc/typecheck は型の整合性を自動確認するチェック",
-            "補足: pnpm/npm/yarn は依存関係やスクリプト実行に使う",
           ],
           "meta": {
             "explanationProvider": "rules",

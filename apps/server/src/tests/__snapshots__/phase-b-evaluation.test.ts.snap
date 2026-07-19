@@ -22,11 +22,8 @@ exports[`Phase B evaluation replay > replays the minimal sanitized session deter
         "ts": 400,
         "type": "search",
       },
-      "explanation": "「name」を手がかりにプロジェクト全体を横断検索して、関係する場所を絞っています。",
-      "glossaryNotes": [
-        "補足: pnpm/npm/yarn は依存関係やスクリプト実行に使う",
-        "補足: git は変更履歴を管理する仕組み",
-      ],
+      "explanation": "「"name": "cli-commentator"」を手がかりにプロジェクト全体を横断検索して、関係する場所を絞っています。",
+      "glossaryNotes": [],
       "kind": "commentary",
       "meta": {
         "explanationProvider": "rules",
@@ -38,23 +35,23 @@ exports[`Phase B evaluation replay > replays the minimal sanitized session deter
     },
     {
       "ev": {
-        "detail": "⏺ Bash(nl -ba apps/server/src/commentary/orchestrator.ts | sed -n '1,120p'; nl -ba apps/server/src/commentary/rule-based.ts | sed -n '1,120p')",
+        "detail": "⏺ Read(nl -ba apps/server/src/commentary/orchestrator.ts | sed -n '1,120p'; nl -ba apps/server/src/commentary/rule-based.ts | sed -n '1,120p')",
         "priority": "progress",
-        "summary": "コマンドを実行している",
+        "summary": "ファイルを読み込んでいる",
         "ts": 3218,
-        "type": "stdout",
+        "type": "read",
       },
       "kind": "event",
     },
     {
       "ev": {
-        "detail": "⏺ Bash(nl -ba apps/server/src/commentary/orchestrator.ts | sed -n '1,120p'; nl -ba apps/server/src/commentary/rule-based.ts | sed -n '1,120p')",
+        "detail": "⏺ Read(nl -ba apps/server/src/commentary/orchestrator.ts | sed -n '1,120p'; nl -ba apps/server/src/commentary/rule-based.ts | sed -n '1,120p')",
         "priority": "progress",
-        "summary": "コマンドを実行している",
+        "summary": "ファイルを読み込んでいる",
         "ts": 3218,
-        "type": "stdout",
+        "type": "read",
       },
-      "explanation": "設定やログの実物を見て、仮説が合っているか確かめています。",
+      "explanation": "rule-based.ts | sed -n '1,120p' を読んで、現在の実装を確認しています。",
       "glossaryNotes": [],
       "kind": "commentary",
       "meta": {
@@ -62,7 +59,7 @@ exports[`Phase B evaluation replay > replays the minimal sanitized session deter
         "mode": "both",
         "narrationProvider": "rules",
       },
-      "narration": "今やってるのは、ファイルの中身を直接確認する作業や。",
+      "narration": "ファイル読んで状況確認してるで。",
       "ts": 3218,
     },
     {
@@ -86,7 +83,6 @@ exports[`Phase B evaluation replay > replays the minimal sanitized session deter
       "explanation": "「buildSpeechText|queueSpeech|commentaryDisplayMode」を手がかりにプロジェクト全体を横断検索して、関係する場所を絞っています。",
       "glossaryNotes": [
         "補足: rg はプロジェクト全体を高速検索するコマンド",
-        "補足: tsx は TypeScript をそのまま実行する仕組み",
       ],
       "kind": "commentary",
       "meta": {
@@ -99,33 +95,33 @@ exports[`Phase B evaluation replay > replays the minimal sanitized session deter
     },
     {
       "ev": {
-        "detail": "⏺ Bash(nl -ba apps/server/src/tests/commentary.test.ts | sed -n '1,160p'; nl -ba apps/server/src/tests/state-event.test.ts | sed -n '1,160p')",
+        "detail": "⏺ Read(nl -ba apps/server/src/tests/commentary.test.ts | sed -n '1,160p'; nl -ba apps/server/src/tests/state-event.test.ts | sed -n '1,160p')",
         "priority": "progress",
-        "summary": "テスト/型チェックを実行している",
+        "summary": "ファイルを読み込んでいる",
         "ts": 8734,
-        "type": "test",
+        "type": "read",
       },
       "kind": "event",
     },
     {
       "ev": {
-        "detail": "⏺ Bash(nl -ba apps/server/src/extract.ts | sed -n '1,180p'; nl -ba apps/server/src/event-priority.ts | sed -n '1,120p')",
+        "detail": "⏺ Read(nl -ba apps/server/src/extract.ts | sed -n '1,180p'; nl -ba apps/server/src/event-priority.ts | sed -n '1,120p')",
         "priority": "progress",
-        "summary": "コマンドを実行している",
+        "summary": "ファイルを読み込んでいる",
         "ts": 10573,
-        "type": "stdout",
+        "type": "read",
       },
       "kind": "event",
     },
     {
       "ev": {
-        "detail": "⏺ Bash(nl -ba apps/server/src/extract.ts | sed -n '1,180p'; nl -ba apps/server/src/event-priority.ts | sed -n '1,120p')",
+        "detail": "⏺ Read(nl -ba apps/server/src/extract.ts | sed -n '1,180p'; nl -ba apps/server/src/event-priority.ts | sed -n '1,120p')",
         "priority": "progress",
-        "summary": "コマンドを実行している",
+        "summary": "ファイルを読み込んでいる",
         "ts": 10573,
-        "type": "stdout",
+        "type": "read",
       },
-      "explanation": "設定やログの実物を見て、仮説が合っているか確かめています。",
+      "explanation": "event-priority.ts | sed -n '1,120p' を読んで、現在の実装を確認しています。",
       "glossaryNotes": [],
       "kind": "commentary",
       "meta": {
@@ -133,7 +129,7 @@ exports[`Phase B evaluation replay > replays the minimal sanitized session deter
         "mode": "both",
         "narrationProvider": "rules",
       },
-      "narration": "今やってるのは、ファイルの中身を直接確認する作業や。",
+      "narration": "ファイル読んで状況確認してるで。",
       "ts": 10573,
     },
   ],
@@ -141,12 +137,11 @@ exports[`Phase B evaluation replay > replays the minimal sanitized session deter
     "commentaries": 4,
     "events": 5,
     "eventsByType": {
+      "read": 3,
       "search": 2,
-      "stdout": 2,
-      "test": 1,
     },
     "exactNarrationRepeats": 2,
-    "glossaryNotes": 4,
+    "glossaryNotes": 1,
     "suppressed": 1,
   },
   "source": "codex",
@@ -154,11 +149,11 @@ exports[`Phase B evaluation replay > replays the minimal sanitized session deter
   "suppressions": [
     {
       "event": {
-        "detail": "⏺ Bash(nl -ba apps/server/src/tests/commentary.test.ts | sed -n '1,160p'; nl -ba apps/server/src/tests/state-event.test.ts | sed -n '1,160p')",
+        "detail": "⏺ Read(nl -ba apps/server/src/tests/commentary.test.ts | sed -n '1,160p'; nl -ba apps/server/src/tests/state-event.test.ts | sed -n '1,160p')",
         "priority": "progress",
-        "summary": "テスト/型チェックを実行している",
+        "summary": "ファイルを読み込んでいる",
         "ts": 8734,
-        "type": "test",
+        "type": "read",
       },
       "offsetMs": 8734,
       "reason": "progress_interval",

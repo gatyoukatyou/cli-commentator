@@ -31,7 +31,8 @@ describe("Phase B evaluation replay", () => {
       events: 5,
       commentaries: 4,
       suppressed: 1,
-      eventsByType: { search: 2, stdout: 2, test: 1 },
+      eventsByType: { search: 2, read: 3 },
+      glossaryNotes: 1,
     });
     expect(result).toMatchSnapshot();
   });

@@ -126,6 +126,53 @@ describe("extractEvents fixtures", () => {
     expect(events).toEqual([]);
   });
 
+  it.each([
+    "ToolCall: wait",
+    'ToolCall: wait {"cell_id":"cell-demo","yield_time_ms":1000}',
+    'ToolCall: tools.wait {"cell_id":"cell-demo"}',
+  ])("suppresses Codex wait polling: %s", (line) => {
+    expect(extractEvents(line, "codex")).toEqual([]);
+  });
+
+  it("keeps ordinary Codex tool calls after suppressing wait", () => {
+    expect(extractEvents('ToolCall: read_mcp_resource {"server":"demo","uri":"demo://resource"}', "codex"))
+      .toMatchObject([{ type: "read", summary: "ファイルを読み込んでいる" }]);
+  });
+
+  it.each([
+    "nl -ba apps/server/src/commentary.test.ts",
+    "sed -n '1,80p' apps/server/src/commentary.test.ts",
+    "cat apps/server/src/__tests__/extract.test.ts",
+    "head -n 20 apps/server/src/__tests__/extract.test.ts",
+  ])("classifies test-file reads as reads: %s", (cmd) => {
+    const events = extractEvents(`ToolCall: exec_command {"cmd":${JSON.stringify(cmd)}}`, "codex");
+    expect(events).toMatchObject([{ type: "read", summary: "ファイルを読み込んでいる" }]);
+  });
+
+  it.each([
+    "rg -n '__tests__' apps/server/src",
+    "grep -R '__tests__' apps/server/src",
+  ])("does not classify searches for test paths as test runs: %s", (cmd) => {
+    const events = extractEvents(`ToolCall: exec_command {"cmd":${JSON.stringify(cmd)}}`, "codex");
+    expect(events).toMatchObject([{ type: "search" }]);
+  });
+
+  it.each([
+    "pnpm -C apps/server test",
+    "pnpm -C apps/server exec vitest run",
+    "npx jest --runInBand",
+    "playwright test",
+    "playwright test --grep smoke",
+  ])("keeps actual test executions classified as tests: %s", (cmd) => {
+    const events = extractEvents(`ToolCall: exec_command {"cmd":${JSON.stringify(cmd)}}`, "codex");
+    expect(events).toMatchObject([{ type: "test", summary: "テスト/型チェックを実行している" }]);
+  });
+
+  it("does not confuse the shell test builtin with a test runner", () => {
+    const events = extractEvents('ToolCall: exec_command {"cmd":"test -f package.json"}', "codex");
+    expect(events).toMatchObject([{ type: "stdout", summary: "コマンドを実行している" }]);
+  });
+
   it("does not treat an empty failed-id field as an error", () => {
     expect(extractEvents("failed_remote_plugin_ids=[]", "codex")).toEqual([]);
   });
