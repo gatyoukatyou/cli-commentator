@@ -65,7 +65,7 @@ export default function App() {
   const [items, setItems] = useState<CommentaryItem[]>([]);
   const [style, setStyle] = useState<Style>("kansai");
   const [source, setSource] = useState<SourceState>({ mode: "auto", detected: null });
-  const [launchDraft, setLaunchDraft] = useState<LaunchDraft>(() => buildLaunchDraft("bash", "kansai"));
+  const [launchDraft, setLaunchDraft] = useState<LaunchDraft>(() => buildLaunchDraft("claude", "kansai"));
   const [currentSessionLabel, setCurrentSessionLabel] = useState("bash");
   const [tauriServerPort, setTauriServerPort] = useState<number | null>(null);
   const [skin, setSkin] = useState<Skin>(() => {
