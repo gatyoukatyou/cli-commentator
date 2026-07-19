@@ -46,6 +46,7 @@ import { createPtyCapture } from "./pty/capture.js";
 import { createSilenceTimer, parseSilenceTimeoutMs } from "./silence-timer.js";
 import { createCommentaryGate, withEventPriority } from "./event-priority.js";
 import { createRepeatedErrorDetector } from "./repeated-error-detector.js";
+import { createSessionContext } from "./session-context.js";
 
 const PORT = Number(process.env.CLI_COMMENTATOR_PORT ?? process.env.PORT ?? 8787);
 const COMMENT_EXIT_TIMEOUT_MS = parseInt(process.env.COMMENT_EXIT_TIMEOUT_MS ?? "1500", 10);
@@ -96,6 +97,7 @@ function markPtyUnavailable(error: string): void {
 // Progress commentary remains rate-limited; urgent and notice events bypass the gate.
 const commentaryGate = createCommentaryGate({ intervalMs: 2000 });
 const repeatedErrorDetector = createRepeatedErrorDetector();
+const sessionContext = createSessionContext();
 
 // --- HTTP + WS ---
 const server = http.createServer((req, res) => {
@@ -327,7 +329,7 @@ async function launchAdHocSession(input: LaunchSessionInput): Promise<void> {
     broadcast({ kind: "style", style: currentStyle });
     broadcast({ kind: "source", source: sourceState });
 
-    setupPTY(config, null);
+    setupPTY(config, null, { presetName: input.name });
     enableStdinPassthrough();
     currentlyRunningProfileId = null;
   } catch (err) {
@@ -392,10 +394,11 @@ function processInputData(data: string, writeToStdout: boolean = true): void {
 
 function emitEvent(ev: Event): void {
   const prioritizedEvent = withEventPriority(repeatedErrorDetector.observe(ev));
+  const context = sessionContext.observeEvent(prioritizedEvent);
   // The rule-based event reaches clients immediately; LLM commentary follows asynchronously.
   broadcast({ kind: "event", ev: prioritizedEvent });
   if (commentaryGate.shouldEmit(prioritizedEvent.priority)) {
-    void comment(prioritizedEvent, currentStyle, currentCommentaryProviders)
+    void comment(prioritizedEvent, currentStyle, currentCommentaryProviders, context)
       .then((payload) => {
         broadcastCommentary(prioritizedEvent.ts, prioritizedEvent, payload);
       })
@@ -436,7 +439,15 @@ function broadcastSource(nextDetected: SourceState["detected"]) {
 /**
  * Setup PTY with event handlers
  */
-function setupPTY(config: PTYConfig, profileId: string | null): void {
+function setupPTY(
+  config: PTYConfig,
+  profileId: string | null,
+  sessionOptions?: { presetName?: string }
+): void {
+  sessionContext.reset({
+    presetName: sessionOptions?.presetName,
+    acceptsHumanInput: /(?:^|[/\\])(?:codex|claude)(?:$|\s)/i.test(config.cmd),
+  });
   const term = ptyManager.spawn(config);
   silenceTimer.start();
   transitionServerState("setup_pty_success", "pty_running", {
@@ -476,6 +487,7 @@ function setupPTY(config: PTYConfig, profileId: string | null): void {
     }
 
     const ev = withEventPriority({ ts: Date.now(), type: "done", summary: `終了 code=${exitCode}` });
+    const context = sessionContext.observeEvent(ev);
     broadcast({ kind: "event", ev });
 
     // 安全タイマー付き二重化（comment()がsettleしなくてもcleanup確実実行）
@@ -490,7 +502,7 @@ function setupPTY(config: PTYConfig, profileId: string | null): void {
     // COMMENT_EXIT_TIMEOUT_MS後に強制cleanup（comment()がハングしても確実に終了）
     const hardTimeout = setTimeout(safeCleanup, COMMENT_EXIT_TIMEOUT_MS);
 
-    void comment(ev, currentStyle, currentCommentaryProviders)
+    void comment(ev, currentStyle, currentCommentaryProviders, context)
       .then((payload) => {
         broadcastCommentary(ev.ts, ev, payload);
       })
@@ -508,10 +520,11 @@ function setupPTY(config: PTYConfig, profileId: string | null): void {
     summary: "開始",
     detail: `${config.cmd} ${config.args.join(" ")}`,
   });
+  const context = sessionContext.observeEvent(startEvent);
   broadcast({ kind: "event", ev: startEvent });
 
   // Send commentary for start event
-  void comment(startEvent, currentStyle, currentCommentaryProviders)
+  void comment(startEvent, currentStyle, currentCommentaryProviders, context)
     .then((payload) => {
       broadcastCommentary(Date.now(), startEvent, payload);
     })
@@ -552,6 +565,7 @@ async function restartPTY(profileId: string | null, force = false): Promise<void
   let nextInputMode: InputMode = INPUT_MODE;
   let config: PTYConfig | null = null;
   let filePath: string | null = null;
+  let presetName: string | undefined;
 
   try {
     let newStyle = currentStyle;
@@ -565,6 +579,7 @@ async function restartPTY(profileId: string | null, force = false): Promise<void
         return;
       }
       nextInputMode = profile.inputMode ?? "pty";
+      presetName = profile.name;
       newStyle = profile.style;
       newSourceMode = profile.logSource;
       newCommentaryProviders = {
@@ -625,10 +640,10 @@ async function restartPTY(profileId: string | null, force = false): Promise<void
 
     if (nextInputMode === "file") {
       runtimeInputMode = "file";
-      setupFileTail(filePath ?? "", { fatal: false });
+      setupFileTail(filePath ?? "", { fatal: false, presetName });
     } else {
       runtimeInputMode = "pty";
-      setupPTY(config as PTYConfig, profileId);
+      setupPTY(config as PTYConfig, profileId, { presetName });
       enableStdinPassthrough();
     }
 
@@ -756,6 +771,7 @@ wss.on("connection", async (ws) => {
 
         case "writeInput":
           if (typeof msg.data === "string") {
+            sessionContext.observeInput(msg.data);
             ptyManager.write(msg.data);
           }
           break;
@@ -850,7 +866,7 @@ wss.on("connection", async (ws) => {
  * Setup file tail input source for external log monitoring.
  * @see Issue #40
  */
-function setupFileTail(filePath: string, options?: { fatal?: boolean }): void {
+function setupFileTail(filePath: string, options?: { fatal?: boolean; presetName?: string }): void {
   const fatal = options?.fatal ?? true;
   if (!filePath) {
     transitionServerState("file_tail_setup_failed", "failed", {
@@ -869,6 +885,7 @@ function setupFileTail(filePath: string, options?: { fatal?: boolean }): void {
   }
 
   console.log(`Starting file tail mode: ${filePath}`);
+  sessionContext.reset({ presetName: options?.presetName });
 
   // Reset auto-detection
   if (sourceState.mode === "auto") {
@@ -890,6 +907,7 @@ function setupFileTail(filePath: string, options?: { fatal?: boolean }): void {
   tail.on("error", (err) => {
     console.error("File tail error:", err.message);
     const ev = withEventPriority({ ts: Date.now(), type: "error", summary: "ファイル監視エラー", detail: err.message });
+    sessionContext.observeEvent(ev);
     broadcast({ kind: "event", ev });
   });
 
@@ -909,9 +927,10 @@ function setupFileTail(filePath: string, options?: { fatal?: boolean }): void {
 
     console.log(`File tail exited with code: ${code}`);
     const ev = withEventPriority({ ts: Date.now(), type: "done", summary: `ファイル監視終了 code=${code}` });
+    const context = sessionContext.observeEvent(ev);
     broadcast({ kind: "event", ev });
 
-    void comment(ev, currentStyle, currentCommentaryProviders)
+    void comment(ev, currentStyle, currentCommentaryProviders, context)
       .then((payload) => {
         broadcastCommentary(ev.ts, ev, payload);
       })
@@ -940,9 +959,10 @@ function setupFileTail(filePath: string, options?: { fatal?: boolean }): void {
       summary: "ファイル監視開始",
       detail: `tail -f ${filePath}`,
     });
+    const context = sessionContext.observeEvent(startEvent);
     broadcast({ kind: "event", ev: startEvent });
 
-    void comment(startEvent, currentStyle, currentCommentaryProviders)
+    void comment(startEvent, currentStyle, currentCommentaryProviders, context)
       .then((payload) => {
         broadcastCommentary(Date.now(), startEvent, payload);
       })

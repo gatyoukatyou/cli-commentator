@@ -33,7 +33,26 @@ describe("Phase B evaluation replay", () => {
       suppressed: 1,
       eventsByType: { search: 2, read: 3 },
       glossaryNotes: 1,
+      exactNarrationRepeats: 0,
     });
+    expect(result.contextTimeline.map(({ phase }) => phase)).toEqual([
+      "investigation",
+      "investigation",
+      "investigation",
+      "investigation",
+      "investigation",
+    ]);
+    expect(result.contextTimeline[0]).toMatchObject({
+      previousPhase: "unknown",
+      phaseChanged: true,
+      humanRequired: false,
+    });
+    expect(result.commentaryComparisons[0].withContext.explanation).toContain(
+      fixture.taskContext.objective.slice(0, 24)
+    );
+    expect(result.commentaryComparisons.some(({ withoutContext, withContext }) =>
+      withoutContext.narration !== withContext.narration
+    )).toBe(true);
     expect(result).toMatchSnapshot();
   });
 

@@ -28,6 +28,19 @@ function markdownReport(baseline: PhaseBReplayResult, candidate: PhaseBReplayRes
     ["exactNarrationRepeats", baseline.metrics.exactNarrationRepeats, candidate.metrics.exactNarrationRepeats],
   ];
   const eventTypeRows = comparePhaseBEventTypes(baseline.metrics, candidate.metrics);
+  const contextRows = candidate.contextTimeline.map(({ offsetMs, eventType, phase, previousPhase, phaseChanged, target, humanRequired }) => [
+    offsetMs,
+    eventType,
+    phase,
+    phaseChanged ? `${previousPhase} → ${phase}` : "-",
+    target ?? "-",
+    humanRequired ? "yes" : "no",
+  ]);
+  const commentaryRows = candidate.commentaryComparisons.map(({ offsetMs, withoutContext, withContext }) => [
+    offsetMs,
+    withoutContext.narration ?? "-",
+    withContext.narration ?? "-",
+  ]);
   return [
     "# Phase B fixture replay report",
     "",
@@ -46,6 +59,18 @@ function markdownReport(baseline: PhaseBReplayResult, candidate: PhaseBReplayRes
     ...eventTypeRows.map(({ eventType, baseline: before, candidate: after }) =>
       `| ${eventType} | ${before} | ${after} |`
     ),
+    "",
+    "## Session context timeline",
+    "",
+    "| offset (ms) | event | phase | transition | target | HUMAN required |",
+    "|---:|---|---|---|---|---|",
+    ...contextRows.map((row) => `| ${row.join(" | ")} |`),
+    "",
+    "## Commentary with / without context",
+    "",
+    "| offset (ms) | without context | with context |",
+    "|---:|---|---|",
+    ...commentaryRows.map((row) => `| ${row.join(" | ")} |`),
     "",
   ].join("\n");
 }

@@ -2,6 +2,113 @@
 
 exports[`Phase B evaluation replay > replays the minimal sanitized session deterministically 1`] = `
 {
+  "commentaryComparisons": [
+    {
+      "eventType": "search",
+      "offsetMs": 400,
+      "withContext": {
+        "explanation": "目的「Phase Bの実況品質について、反復・目的説明・状態変化・用…」に向けた調査段階です。",
+        "narration": "調査段階に入って、「pnpm-workspace.yaml」を扱ってるで。",
+      },
+      "withoutContext": {
+        "explanation": "「"name": "cli-commentator"」を手がかりにプロジェクト全体を横断検索して、関係する場所を絞っています。",
+        "narration": "原因っぽいとこ探してるで。",
+      },
+    },
+    {
+      "eventType": "read",
+      "offsetMs": 3218,
+      "withContext": {
+        "explanation": "rule-based.ts | sed -n '1,120p' を読んで、現在の実装を確認しています。",
+        "narration": "今の対象は「apps/server/src/commentary/orchestrator.ts」や。",
+      },
+      "withoutContext": {
+        "explanation": "rule-based.ts | sed -n '1,120p' を読んで、現在の実装を確認しています。",
+        "narration": "ファイル読んで状況確認してるで。",
+      },
+    },
+    {
+      "eventType": "search",
+      "offsetMs": 7355,
+      "withContext": {
+        "explanation": "「buildSpeechText|queueSpeech|commentaryDisplayMode」を手がかりにプロジェクト全体を横断検索して、関係する場所を絞っています。",
+        "narration": "今の対象は「apps/web/src」や。",
+      },
+      "withoutContext": {
+        "explanation": "「buildSpeechText|queueSpeech|commentaryDisplayMode」を手がかりにプロジェクト全体を横断検索して、関係する場所を絞っています。",
+        "narration": "原因っぽいとこ探してるで。",
+      },
+    },
+    {
+      "eventType": "read",
+      "offsetMs": 10573,
+      "withContext": {
+        "explanation": "event-priority.ts | sed -n '1,120p' を読んで、現在の実装を確認しています。",
+        "narration": "今の対象は「apps/server/src/extract.ts」や。",
+      },
+      "withoutContext": {
+        "explanation": "event-priority.ts | sed -n '1,120p' を読んで、現在の実装を確認しています。",
+        "narration": "ファイル読んで状況確認してるで。",
+      },
+    },
+  ],
+  "contextTimeline": [
+    {
+      "eventSummary": "該当箇所を検索している",
+      "eventType": "search",
+      "humanRequired": false,
+      "offsetMs": 400,
+      "phase": "investigation",
+      "phaseChanged": true,
+      "previousPhase": "unknown",
+      "sequence": 1,
+      "target": "pnpm-workspace.yaml",
+    },
+    {
+      "eventSummary": "ファイルを読み込んでいる",
+      "eventType": "read",
+      "humanRequired": false,
+      "offsetMs": 3218,
+      "phase": "investigation",
+      "phaseChanged": false,
+      "previousPhase": "investigation",
+      "sequence": 2,
+      "target": "apps/server/src/commentary/orchestrator.ts",
+    },
+    {
+      "eventSummary": "該当箇所を検索している",
+      "eventType": "search",
+      "humanRequired": false,
+      "offsetMs": 7355,
+      "phase": "investigation",
+      "phaseChanged": false,
+      "previousPhase": "investigation",
+      "sequence": 3,
+      "target": "apps/web/src",
+    },
+    {
+      "eventSummary": "ファイルを読み込んでいる",
+      "eventType": "read",
+      "humanRequired": false,
+      "offsetMs": 8734,
+      "phase": "investigation",
+      "phaseChanged": false,
+      "previousPhase": "investigation",
+      "sequence": 4,
+      "target": "apps/server/src/tests/commentary.test.ts",
+    },
+    {
+      "eventSummary": "ファイルを読み込んでいる",
+      "eventType": "read",
+      "humanRequired": false,
+      "offsetMs": 10573,
+      "phase": "investigation",
+      "phaseChanged": false,
+      "previousPhase": "investigation",
+      "sequence": 5,
+      "target": "apps/server/src/extract.ts",
+    },
+  ],
   "fixtureId": "phase-b-codex-session",
   "messages": [
     {
@@ -22,7 +129,7 @@ exports[`Phase B evaluation replay > replays the minimal sanitized session deter
         "ts": 400,
         "type": "search",
       },
-      "explanation": "「"name": "cli-commentator"」を手がかりにプロジェクト全体を横断検索して、関係する場所を絞っています。",
+      "explanation": "目的「Phase Bの実況品質について、反復・目的説明・状態変化・用…」に向けた調査段階です。",
       "glossaryNotes": [],
       "kind": "commentary",
       "meta": {
@@ -30,7 +137,7 @@ exports[`Phase B evaluation replay > replays the minimal sanitized session deter
         "mode": "both",
         "narrationProvider": "rules",
       },
-      "narration": "原因っぽいとこ探してるで。",
+      "narration": "調査段階に入って、「pnpm-workspace.yaml」を扱ってるで。",
       "ts": 400,
     },
     {
@@ -59,7 +166,7 @@ exports[`Phase B evaluation replay > replays the minimal sanitized session deter
         "mode": "both",
         "narrationProvider": "rules",
       },
-      "narration": "ファイル読んで状況確認してるで。",
+      "narration": "今の対象は「apps/server/src/commentary/orchestrator.ts」や。",
       "ts": 3218,
     },
     {
@@ -90,7 +197,7 @@ exports[`Phase B evaluation replay > replays the minimal sanitized session deter
         "mode": "both",
         "narrationProvider": "rules",
       },
-      "narration": "原因っぽいとこ探してるで。",
+      "narration": "今の対象は「apps/web/src」や。",
       "ts": 7355,
     },
     {
@@ -129,7 +236,7 @@ exports[`Phase B evaluation replay > replays the minimal sanitized session deter
         "mode": "both",
         "narrationProvider": "rules",
       },
-      "narration": "ファイル読んで状況確認してるで。",
+      "narration": "今の対象は「apps/server/src/extract.ts」や。",
       "ts": 10573,
     },
   ],
@@ -140,7 +247,7 @@ exports[`Phase B evaluation replay > replays the minimal sanitized session deter
       "read": 3,
       "search": 2,
     },
-    "exactNarrationRepeats": 2,
+    "exactNarrationRepeats": 0,
     "glossaryNotes": 1,
     "suppressed": 1,
   },

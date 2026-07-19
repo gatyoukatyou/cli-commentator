@@ -4,6 +4,7 @@ import { extractEvents } from "../extract.js";
 import { redact } from "../redact.js";
 import { createRepeatedErrorDetector } from "../repeated-error-detector.js";
 import type { CommentaryPayload, Event, SourceMode, Style, WsOutgoing } from "../types.js";
+import { createSessionContext, type SessionPhase } from "../session-context.js";
 
 export type PhaseBReplayFixture = {
   notice: string[];
@@ -41,6 +42,23 @@ export type PhaseBReplayResult = {
   style: Style;
   taskContext: PhaseBTaskContext;
   messages: Array<Extract<WsOutgoing, { kind: "event" | "commentary" }>>;
+  contextTimeline: Array<{
+    offsetMs: number;
+    eventType: Event["type"];
+    eventSummary: string;
+    sequence: number;
+    phase: SessionPhase;
+    previousPhase: SessionPhase;
+    phaseChanged: boolean;
+    target: string | null;
+    humanRequired: boolean;
+  }>;
+  commentaryComparisons: Array<{
+    offsetMs: number;
+    eventType: Event["type"];
+    withoutContext: Pick<CommentaryPayload, "narration" | "explanation">;
+    withContext: Pick<CommentaryPayload, "narration" | "explanation">;
+  }>;
   suppressions: PhaseBSuppression[];
   metrics: PhaseBReplayMetrics;
 };
@@ -113,13 +131,29 @@ export async function replayPhaseBFixture(fixture: PhaseBReplayFixture): Promise
   });
   const repeatedErrors = createRepeatedErrorDetector({ now: () => currentOffsetMs });
   const messages: PhaseBReplayResult["messages"] = [];
+  const contextTimeline: PhaseBReplayResult["contextTimeline"] = [];
+  const commentaryComparisons: PhaseBReplayResult["commentaryComparisons"] = [];
   const suppressions: PhaseBSuppression[] = [];
+  const sessionContext = createSessionContext();
+  sessionContext.setTaskContext({ ...fixture.taskContext, source: "fixture" });
 
   for (const entry of fixture.lines) {
     currentOffsetMs = entry.offsetMs;
     const events = extractEvents(redact(entry.line), fixture.source);
     for (const extracted of events) {
       const event = withEventPriority(repeatedErrors.observe({ ...extracted, ts: currentOffsetMs }));
+      const context = sessionContext.observeEvent(event);
+      contextTimeline.push({
+        offsetMs: currentOffsetMs,
+        eventType: event.type,
+        eventSummary: event.summary,
+        sequence: context.sequence,
+        phase: context.phase,
+        previousPhase: context.previousPhase,
+        phaseChanged: context.phaseChanged,
+        target: context.target,
+        humanRequired: context.humanRequired,
+      });
       messages.push({ kind: "event", ev: event });
 
       if (!gate.shouldEmit(event.priority)) {
@@ -127,9 +161,25 @@ export async function replayPhaseBFixture(fixture: PhaseBReplayFixture): Promise
         continue;
       }
 
-      const payload: CommentaryPayload = await comment(event, fixture.style, {
+      const providers = {
         narrationProvider: "disabled",
         explanationProvider: "disabled",
+      } as const;
+      const [withoutContext, payload] = await Promise.all([
+        comment(event, fixture.style, providers),
+        comment(event, fixture.style, providers, context),
+      ]);
+      commentaryComparisons.push({
+        offsetMs: currentOffsetMs,
+        eventType: event.type,
+        withoutContext: {
+          narration: withoutContext.narration,
+          explanation: withoutContext.explanation,
+        },
+        withContext: {
+          narration: payload.narration,
+          explanation: payload.explanation,
+        },
       });
       messages.push({ kind: "commentary", ts: currentOffsetMs, ev: event, ...payload });
     }
@@ -141,6 +191,8 @@ export async function replayPhaseBFixture(fixture: PhaseBReplayFixture): Promise
     style: fixture.style,
     taskContext: fixture.taskContext,
     messages,
+    contextTimeline,
+    commentaryComparisons,
     suppressions,
     metrics: buildMetrics(messages, suppressions),
   };

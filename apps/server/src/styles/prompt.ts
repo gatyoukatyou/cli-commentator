@@ -1,4 +1,5 @@
 import type { Event, Style } from "../types.js";
+import { SESSION_PHASE_LABELS, type SessionContextSnapshot } from "../session-context.js";
 
 type CommentaryRole = "narration" | "explanation";
 
@@ -120,10 +121,33 @@ function buildCommonEventSection(ev: Event): string {
   ].join("\n");
 }
 
+function buildContextSection(context?: SessionContextSnapshot): string {
+  if (!context) return "";
+  const recentFlow = context.recentEvents
+    .slice(-3)
+    .map((event) => `${event.type}:${event.summary}`)
+    .join(" → ");
+  return [
+    "観測済みセッション文脈:",
+    context.task.objective ? `- 確認済みの作業目的: ${context.task.objective}` : "- 作業目的: 不明",
+    context.task.userPrompt ? `- 確認済みのHUMAN依頼: ${context.task.userPrompt}` : "- HUMAN依頼: 不明",
+    ...(context.task.sessionLabel ? [`- 起動プリセット: ${context.task.sessionLabel}`] : []),
+    `- 現在フェーズ: ${SESSION_PHASE_LABELS[context.phase]} (${context.phase})`,
+    context.phaseChanged
+      ? `- フェーズ変化: ${SESSION_PHASE_LABELS[context.previousPhase]} → ${SESSION_PHASE_LABELS[context.phase]}`
+      : "- フェーズ変化: なし",
+    `- 現在対象: ${context.target ?? "不明"}`,
+    `- HUMAN対応: ${context.humanRequired ? "明示的に必要" : "明示されていない"}`,
+    ...(recentFlow ? [`- 直近の流れ: ${recentFlow}`] : []),
+    "この文脈は観測済みの事実だけとして使い、不明な目的・結果・成功見込みを補わない。",
+  ].join("\n");
+}
+
 function buildPrompt(
   role: CommentaryRole,
   ev: Event,
-  style: Style
+  style: Style,
+  context?: SessionContextSnapshot
 ): string {
   const roleLine =
     role === "narration"
@@ -160,17 +184,26 @@ function buildPrompt(
     `イベント別の指示: ${eventGuidance}`,
     ...(role === "explanation" ? [`説明の組み立て: ${explanationStructureHint(ev)}`] : []),
     ...(ambiguity ? [`曖昧さの扱い: ${ambiguity}`] : []),
+    ...(context ? [buildContextSection(context)] : []),
     buildCommonEventSection(ev),
     answerLine,
   ].join("\n");
 }
 
-export function buildNarrationPrompt(ev: Event, style: Style): string {
-  return buildPrompt("narration", ev, style);
+export function buildNarrationPrompt(
+  ev: Event,
+  style: Style,
+  context?: SessionContextSnapshot
+): string {
+  return buildPrompt("narration", ev, style, context);
 }
 
-export function buildExplanationPrompt(ev: Event, style: Style): string {
-  return buildPrompt("explanation", ev, style);
+export function buildExplanationPrompt(
+  ev: Event,
+  style: Style,
+  context?: SessionContextSnapshot
+): string {
+  return buildPrompt("explanation", ev, style, context);
 }
 
 export function normalizeGeneratedCommentaryText(

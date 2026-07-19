@@ -27,8 +27,8 @@
         "detail": "⏺ Grep(test -f pnpm-workspace.yaml && grep -q '\"name\": \"cli-commentator\"' package.json && git remote -v)",
         "priority": "progress"
       },
-      "narration": "原因っぽいとこ探してるで。",
-      "explanation": "「\"name\": \"cli-commentator\"」を手がかりにプロジェクト全体を横断検索して、関係する場所を絞っています。",
+      "narration": "調査段階に入って、「pnpm-workspace.yaml」を扱ってるで。",
+      "explanation": "目的「Phase Bの実況品質について、反復・目的説明・状態変化・用…」に向けた調査段階です。",
       "glossaryNotes": [],
       "meta": {
         "narrationProvider": "rules",
@@ -56,7 +56,7 @@
         "detail": "⏺ Read(nl -ba apps/server/src/commentary/orchestrator.ts | sed -n '1,120p'; nl -ba apps/server/src/commentary/rule-based.ts | sed -n '1,120p')",
         "priority": "progress"
       },
-      "narration": "ファイル読んで状況確認してるで。",
+      "narration": "今の対象は「apps/server/src/commentary/orchestrator.ts」や。",
       "explanation": "rule-based.ts | sed -n '1,120p' を読んで、現在の実装を確認しています。",
       "glossaryNotes": [],
       "meta": {
@@ -85,7 +85,7 @@
         "detail": "⏺ Grep(rg -n \"buildSpeechText|queueSpeech|commentaryDisplayMode\" apps/web/src; nl -ba apps/web/src/lib/tsx-runner.ts | sed -n '1,80p')",
         "priority": "progress"
       },
-      "narration": "原因っぽいとこ探してるで。",
+      "narration": "今の対象は「apps/web/src」や。",
       "explanation": "「buildSpeechText|queueSpeech|commentaryDisplayMode」を手がかりにプロジェクト全体を横断検索して、関係する場所を絞っています。",
       "glossaryNotes": [
         "補足: rg はプロジェクト全体を高速検索するコマンド"
@@ -126,13 +126,120 @@
         "detail": "⏺ Read(nl -ba apps/server/src/extract.ts | sed -n '1,180p'; nl -ba apps/server/src/event-priority.ts | sed -n '1,120p')",
         "priority": "progress"
       },
-      "narration": "ファイル読んで状況確認してるで。",
+      "narration": "今の対象は「apps/server/src/extract.ts」や。",
       "explanation": "event-priority.ts | sed -n '1,120p' を読んで、現在の実装を確認しています。",
       "glossaryNotes": [],
       "meta": {
         "narrationProvider": "rules",
         "explanationProvider": "rules",
         "mode": "both"
+      }
+    }
+  ],
+  "contextTimeline": [
+    {
+      "offsetMs": 400,
+      "eventType": "search",
+      "eventSummary": "該当箇所を検索している",
+      "sequence": 1,
+      "phase": "investigation",
+      "previousPhase": "unknown",
+      "phaseChanged": true,
+      "target": "pnpm-workspace.yaml",
+      "humanRequired": false
+    },
+    {
+      "offsetMs": 3218,
+      "eventType": "read",
+      "eventSummary": "ファイルを読み込んでいる",
+      "sequence": 2,
+      "phase": "investigation",
+      "previousPhase": "investigation",
+      "phaseChanged": false,
+      "target": "apps/server/src/commentary/orchestrator.ts",
+      "humanRequired": false
+    },
+    {
+      "offsetMs": 7355,
+      "eventType": "search",
+      "eventSummary": "該当箇所を検索している",
+      "sequence": 3,
+      "phase": "investigation",
+      "previousPhase": "investigation",
+      "phaseChanged": false,
+      "target": "apps/web/src",
+      "humanRequired": false
+    },
+    {
+      "offsetMs": 8734,
+      "eventType": "read",
+      "eventSummary": "ファイルを読み込んでいる",
+      "sequence": 4,
+      "phase": "investigation",
+      "previousPhase": "investigation",
+      "phaseChanged": false,
+      "target": "apps/server/src/tests/commentary.test.ts",
+      "humanRequired": false
+    },
+    {
+      "offsetMs": 10573,
+      "eventType": "read",
+      "eventSummary": "ファイルを読み込んでいる",
+      "sequence": 5,
+      "phase": "investigation",
+      "previousPhase": "investigation",
+      "phaseChanged": false,
+      "target": "apps/server/src/extract.ts",
+      "humanRequired": false
+    }
+  ],
+  "commentaryComparisons": [
+    {
+      "offsetMs": 400,
+      "eventType": "search",
+      "withoutContext": {
+        "narration": "原因っぽいとこ探してるで。",
+        "explanation": "「\"name\": \"cli-commentator\"」を手がかりにプロジェクト全体を横断検索して、関係する場所を絞っています。"
+      },
+      "withContext": {
+        "narration": "調査段階に入って、「pnpm-workspace.yaml」を扱ってるで。",
+        "explanation": "目的「Phase Bの実況品質について、反復・目的説明・状態変化・用…」に向けた調査段階です。"
+      }
+    },
+    {
+      "offsetMs": 3218,
+      "eventType": "read",
+      "withoutContext": {
+        "narration": "ファイル読んで状況確認してるで。",
+        "explanation": "rule-based.ts | sed -n '1,120p' を読んで、現在の実装を確認しています。"
+      },
+      "withContext": {
+        "narration": "今の対象は「apps/server/src/commentary/orchestrator.ts」や。",
+        "explanation": "rule-based.ts | sed -n '1,120p' を読んで、現在の実装を確認しています。"
+      }
+    },
+    {
+      "offsetMs": 7355,
+      "eventType": "search",
+      "withoutContext": {
+        "narration": "原因っぽいとこ探してるで。",
+        "explanation": "「buildSpeechText|queueSpeech|commentaryDisplayMode」を手がかりにプロジェクト全体を横断検索して、関係する場所を絞っています。"
+      },
+      "withContext": {
+        "narration": "今の対象は「apps/web/src」や。",
+        "explanation": "「buildSpeechText|queueSpeech|commentaryDisplayMode」を手がかりにプロジェクト全体を横断検索して、関係する場所を絞っています。"
+      }
+    },
+    {
+      "offsetMs": 10573,
+      "eventType": "read",
+      "withoutContext": {
+        "narration": "ファイル読んで状況確認してるで。",
+        "explanation": "event-priority.ts | sed -n '1,120p' を読んで、現在の実装を確認しています。"
+      },
+      "withContext": {
+        "narration": "今の対象は「apps/server/src/extract.ts」や。",
+        "explanation": "event-priority.ts | sed -n '1,120p' を読んで、現在の実装を確認しています。"
       }
     }
   ],
@@ -158,6 +265,6 @@
       "read": 3
     },
     "glossaryNotes": 1,
-    "exactNarrationRepeats": 2
+    "exactNarrationRepeats": 0
   }
 }
