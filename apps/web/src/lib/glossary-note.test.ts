@@ -80,4 +80,24 @@ describe("buildSpeechText", () => {
       '原因を検索しています。 TODO を手がかりに調べています。 原文 rg -n "TODO" src'
     );
   });
+
+  it("uses the server speech sentence and ignores display/raw fields", () => {
+    expect(buildSpeechText(
+      parts,
+      1,
+      'rg -n "TODO|FIXME" src',
+      "both",
+      { disposition: "speak", reason: "new_target", text: "対象が変わりました。" }
+    )).toBe("対象が変わりました。");
+  });
+
+  it("returns no speech for a server display-only decision", () => {
+    expect(buildSpeechText(
+      parts,
+      1,
+      undefined,
+      "both",
+      { disposition: "display_only", reason: "progress_interval" }
+    )).toBe("");
+  });
 });

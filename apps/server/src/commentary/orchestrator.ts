@@ -9,6 +9,7 @@ import type { ProfileLLMProviders } from "../profile/types.js";
 import { buildExplanationPrompt, buildNarrationPrompt, normalizeGeneratedCommentaryText } from "../styles/prompt.js";
 import { commentByRules, isSuppressedCommentaryEvent, withCommentaryMode } from "./rule-based.js";
 import type { SessionContextSnapshot } from "../session-context.js";
+import { applySpeechContract } from "./speech-policy.js";
 
 const COMMENT_TIMEOUT_MS = parseInt(process.env.COMMENT_TIMEOUT_MS ?? "3000", 10);
 const adapterCache = new Map<ProviderName, LLMAdapter | null>();
@@ -171,7 +172,7 @@ export async function comment(
 
   // ルールベースのみの場合はタイムアウト不要
   if (!narrationAdapter && !explanationAdapter) {
-    return commentByRules(ev, style, context);
+    return applySpeechContract(commentByRules(ev, style, context), ev, context);
   }
 
   const controller = new AbortController();
@@ -187,7 +188,7 @@ export async function comment(
       }
     );
     logComment("ok", Date.now() - start, meta);
-    return result;
+    return applySpeechContract(result, ev, context);
   } catch (err) {
     const duration = Date.now() - start;
     if (err instanceof CommentError) {
@@ -196,6 +197,6 @@ export async function comment(
     } else {
       logComment("llm_error", duration, meta);
     }
-    return commentByRules(ev, style, context);
+    return applySpeechContract(commentByRules(ev, style, context), ev, context);
   }
 }

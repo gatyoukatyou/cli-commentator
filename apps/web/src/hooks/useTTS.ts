@@ -93,7 +93,7 @@ export function useTTS({ commentaryDisplayMode }: UseTTSOptions) {
     pendingSpeechRef.current = null;
     if (!pending || !ttsEnabledRef.current) return;
 
-    const rawDetail = ttsSettingsRef.current.includeRawDetail
+    const rawDetail = !pending.latest.speech && ttsSettingsRef.current.includeRawDetail
       ? normalizeSuggestion(pending.latest.detail)
       : undefined;
     const speechText = buildSpeechText(
@@ -104,7 +104,8 @@ export function useTTS({ commentaryDisplayMode }: UseTTSOptions) {
       }),
       pending.count,
       rawDetail,
-      commentaryDisplayMode
+      commentaryDisplayMode,
+      pending.latest.speech
     );
     if (!speechText) return;
     // notice（完了/沈黙）は進行中の発話を止めずキュー末尾、progressは従来のcancel方式
@@ -128,6 +129,7 @@ export function useTTS({ commentaryDisplayMode }: UseTTSOptions) {
   const queueSpeech = useCallback(
     (item: CommentaryItem) => {
       if (!ttsEnabledRef.current) return;
+      if (item.speech?.disposition === "display_only") return;
 
       const groupKey = getCommentaryGroupKey(item);
       const pending = pendingSpeechRef.current;

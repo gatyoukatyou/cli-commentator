@@ -1,6 +1,8 @@
-import type { Event } from "./types.js";
+import type { CommentarySpeech, Event } from "./types.js";
 import { tokenizeShellCommand, unwrapCommandDetail } from "./command-analysis.js";
 import { redact } from "./redact.js";
+import { getEventPriority } from "./event-priority.js";
+import { getGlossaryNotes } from "./commentary/glossary.js";
 
 export type SessionPhase =
   | "unknown"
@@ -33,8 +35,11 @@ export type SessionContextSnapshot = Readonly<{
   phase: SessionPhase;
   previousPhase: SessionPhase;
   phaseChanged: boolean;
+  targetChanged: boolean;
   humanRequired: boolean;
   sequence: number;
+  speech: Readonly<Omit<CommentarySpeech, "text">>;
+  glossaryNotes: readonly string[];
 }>;
 
 export type SessionContext = {
@@ -43,8 +48,8 @@ export type SessionContext = {
     userPrompt?: string | null;
     source: TaskContextSource;
   }): void;
-  observeInput(data: string): void;
-  observeEvent(event: Event): SessionContextSnapshot;
+  observeInput(data: string): { newTask: boolean };
+  observeEvent(event: Event, options?: { commentaryEligible?: boolean }): SessionContextSnapshot;
   snapshot(): SessionContextSnapshot;
   reset(options?: { presetName?: string; acceptsHumanInput?: boolean }): void;
 };
@@ -56,11 +61,16 @@ type MutableState = {
   phase: SessionPhase;
   previousPhase: SessionPhase;
   phaseChanged: boolean;
+  targetChanged: boolean;
   humanRequired: boolean;
   sequence: number;
   phaseBeforeWaiting: SessionPhase;
   inputBuffer: string;
   acceptsHumanInput: boolean;
+  lastProgressSpeechAt: number;
+  lastProgressKey: string | null;
+  lastSpokenTarget: string | null;
+  seenGlossaryNotes: Set<string>;
 };
 
 const DEFAULT_HISTORY_LIMIT = 5;
@@ -68,6 +78,7 @@ const MAX_CONTEXT_LENGTH = 320;
 const MAX_INPUT_BUFFER_LENGTH = MAX_CONTEXT_LENGTH * 2;
 const MAX_SUMMARY_LENGTH = 120;
 const MAX_TARGET_LENGTH = 160;
+const DEFAULT_PROGRESS_SPEECH_INTERVAL_MS = 30_000;
 
 export const SESSION_PHASE_LABELS: Record<SessionPhase, string> = {
   unknown: "未判定",
@@ -214,15 +225,27 @@ function initialState(): MutableState {
     phase: "unknown",
     previousPhase: "unknown",
     phaseChanged: false,
+    targetChanged: false,
     humanRequired: false,
     sequence: 0,
     phaseBeforeWaiting: "unknown",
     inputBuffer: "",
     acceptsHumanInput: false,
+    lastProgressSpeechAt: Number.NEGATIVE_INFINITY,
+    lastProgressKey: null,
+    lastSpokenTarget: null,
+    seenGlossaryNotes: new Set(),
   };
 }
 
-function immutableSnapshot(state: MutableState): SessionContextSnapshot {
+function immutableSnapshot(
+  state: MutableState,
+  speech: Omit<CommentarySpeech, "text"> = {
+    disposition: "display_only",
+    reason: "not_significant",
+  },
+  glossaryNotes: readonly string[] = []
+): SessionContextSnapshot {
   const task = Object.freeze({ ...state.task });
   const recentEvents = Object.freeze(state.recentEvents.map((event) => Object.freeze({ ...event })));
   return Object.freeze({
@@ -232,9 +255,75 @@ function immutableSnapshot(state: MutableState): SessionContextSnapshot {
     phase: state.phase,
     previousPhase: state.previousPhase,
     phaseChanged: state.phaseChanged,
+    targetChanged: state.targetChanged,
     humanRequired: state.humanRequired,
     sequence: state.sequence,
+    speech: Object.freeze({ ...speech }),
+    glossaryNotes: Object.freeze([...glossaryNotes]),
   });
+}
+
+function observedOutcome(event: Event): "success" | "failure" | null {
+  if (event.type === "error") return "failure";
+  if (event.type === "done") {
+    const exitCode = `${event.summary} ${event.detail ?? ""}`
+      .match(/\b(?:exit[_ ]?code|code)\s*=\s*(-?\d+)\b/iu)?.[1];
+    if (exitCode !== undefined) return Number(exitCode) === 0 ? "success" : "failure";
+    return null;
+  }
+  if (!["stdout", "test", "build", "lint", "server", "done"].includes(event.type)) return null;
+  const text = `${event.summary} ${event.detail ?? ""}`;
+  if (/(?:失敗|異常終了|\bFAIL(?:ED)?\b|\bERROR\b)/iu.test(text)) return "failure";
+  if (/(?:成功|完了|\bPASS(?:ED)?\b|\bSUCCESS\b|\bSUCCEEDED\b)/iu.test(text)) return "success";
+  return null;
+}
+
+function progressKey(state: MutableState): string {
+  const taskKey =
+    state.task.objective ?? state.task.userPrompt ?? state.task.sessionLabel ?? "unknown-task";
+  return `${taskKey}\u0000${state.phase}`;
+}
+
+function decideSpeech(
+  state: MutableState,
+  event: Event,
+  now: number,
+  intervalMs: number,
+  commentaryEligible: boolean
+): Omit<CommentarySpeech, "text"> {
+  const priority = getEventPriority(event);
+  const outcome = observedOutcome(event);
+  let reason: CommentarySpeech["reason"] | null = null;
+
+  if (state.humanRequired) reason = "human_required";
+  else if (priority === "urgent") reason = "urgent";
+  else if (outcome === "failure") reason = "failure";
+  else if (event.type === "done") reason = "completion";
+  else if (outcome === "success") reason = "success";
+  else if (state.sequence === 1) reason = "new_task";
+  else if (state.phaseChanged) reason = "phase_change";
+  else if (state.targetChanged) reason = "new_target";
+
+  if (!reason && priority === "progress") {
+    const key = progressKey(state);
+    const withinInterval =
+      state.lastProgressKey === key && now - state.lastProgressSpeechAt < intervalMs;
+    if (withinInterval) {
+      return { disposition: "display_only", reason: "progress_interval" };
+    }
+    reason = "progress_refresh";
+  }
+
+  if (!reason) return { disposition: "display_only", reason: "not_significant" };
+
+  if (commentaryEligible && priority === "progress") {
+    state.lastProgressKey = progressKey(state);
+    state.lastProgressSpeechAt = now;
+  }
+  if (commentaryEligible && (reason === "new_task" || reason === "new_target")) {
+    state.lastSpokenTarget = state.target;
+  }
+  return { disposition: "speak", reason };
 }
 
 function looksLikeHumanRequest(line: string): boolean {
@@ -266,8 +355,15 @@ function appendTerminalInput(buffer: string, data: string): string {
   return next;
 }
 
-export function createSessionContext(options?: { historyLimit?: number }): SessionContext {
+export function createSessionContext(options?: {
+  historyLimit?: number;
+  now?: () => number;
+  progressSpeechIntervalMs?: number;
+}): SessionContext {
   const historyLimit = Math.min(5, Math.max(3, options?.historyLimit ?? DEFAULT_HISTORY_LIMIT));
+  const now = options?.now ?? Date.now;
+  const progressSpeechIntervalMs =
+    options?.progressSpeechIntervalMs ?? DEFAULT_PROGRESS_SPEECH_INTERVAL_MS;
   let state = initialState();
 
   return {
@@ -283,7 +379,8 @@ export function createSessionContext(options?: { historyLimit?: number }): Sessi
     },
 
     observeInput(data) {
-      if (!state.acceptsHumanInput || state.task.source === "fixture") return;
+      if (!state.acceptsHumanInput || state.task.source === "fixture") return { newTask: false };
+      let newTask = false;
       state.inputBuffer = appendTerminalInput(state.inputBuffer, data);
       if (state.inputBuffer.length > MAX_INPUT_BUFFER_LENGTH) {
         state.inputBuffer = state.inputBuffer.slice(-MAX_INPUT_BUFFER_LENGTH);
@@ -310,14 +407,20 @@ export function createSessionContext(options?: { historyLimit?: number }): Sessi
             sessionLabel,
             source: "human_input",
           };
+          newTask = true;
         }
       }
+      return { newTask };
     },
 
-    observeEvent(event) {
+    observeEvent(event, observeOptions) {
+      const commentaryEligible = observeOptions?.commentaryEligible ?? true;
       state.sequence += 1;
       const target = inferEventTarget(event);
       if (target) state.target = target;
+      // Compare with the last target that was actually announced. A target first
+      // observed behind the 2-second commentary gate must remain pending.
+      state.targetChanged = Boolean(state.target && state.target !== state.lastSpokenTarget);
 
       const priorPhase = state.phase;
       const resolvedPhase = nextPhase(state, event);
@@ -331,6 +434,7 @@ export function createSessionContext(options?: { historyLimit?: number }): Sessi
       if (explicitlyRequiresHuman(event)) state.humanRequired = true;
       else if (
         isHumanResponseEvent(event) ||
+        event.type === "done" ||
         (priorPhase === "waiting" && resolvedPhase !== "waiting") ||
         (!isWaitingEvent(event) && explicitPhaseFor(event) !== null)
       ) {
@@ -344,7 +448,21 @@ export function createSessionContext(options?: { historyLimit?: number }): Sessi
         target: target ?? state.target,
       });
       state.recentEvents = state.recentEvents.slice(-historyLimit);
-      return immutableSnapshot(state);
+      const speech = decideSpeech(
+        state,
+        event,
+        now(),
+        progressSpeechIntervalMs,
+        commentaryEligible
+      );
+      const glossaryNotes = commentaryEligible
+        ? getGlossaryNotes(event.detail, event.type).filter((note) => {
+            if (state.seenGlossaryNotes.has(note)) return false;
+            state.seenGlossaryNotes.add(note);
+            return true;
+          })
+        : [];
+      return immutableSnapshot(state, speech, glossaryNotes);
     },
 
     snapshot() {

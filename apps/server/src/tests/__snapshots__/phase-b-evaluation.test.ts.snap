@@ -9,10 +9,16 @@ exports[`Phase B evaluation replay > replays the minimal sanitized session deter
       "withContext": {
         "explanation": "目的「Phase Bの実況品質について、反復・目的説明・状態変化・用…」に向けた調査段階です。",
         "narration": "調査段階に入って、「pnpm-workspace.yaml」を扱ってるで。",
+        "speech": {
+          "disposition": "speak",
+          "reason": "new_task",
+          "text": "調査段階に入って、「pnpm-workspace.yaml」を扱ってるで。",
+        },
       },
       "withoutContext": {
         "explanation": "「"name": "cli-commentator"」を手がかりにプロジェクト全体を横断検索して、関係する場所を絞っています。",
         "narration": "原因っぽいとこ探してるで。",
+        "speech": undefined,
       },
     },
     {
@@ -21,10 +27,16 @@ exports[`Phase B evaluation replay > replays the minimal sanitized session deter
       "withContext": {
         "explanation": "rule-based.ts | sed -n '1,120p' を読んで、現在の実装を確認しています。",
         "narration": "今の対象は「apps/server/src/commentary/orchestrator.ts」や。",
+        "speech": {
+          "disposition": "speak",
+          "reason": "new_target",
+          "text": "今の対象は「apps/server/src/commentary/orchestrator.ts」や。",
+        },
       },
       "withoutContext": {
         "explanation": "rule-based.ts | sed -n '1,120p' を読んで、現在の実装を確認しています。",
         "narration": "ファイル読んで状況確認してるで。",
+        "speech": undefined,
       },
     },
     {
@@ -33,10 +45,16 @@ exports[`Phase B evaluation replay > replays the minimal sanitized session deter
       "withContext": {
         "explanation": "「buildSpeechText|queueSpeech|commentaryDisplayMode」を手がかりにプロジェクト全体を横断検索して、関係する場所を絞っています。",
         "narration": "今の対象は「apps/web/src」や。",
+        "speech": {
+          "disposition": "speak",
+          "reason": "new_target",
+          "text": "今の対象は「apps/web/src」や。",
+        },
       },
       "withoutContext": {
         "explanation": "「buildSpeechText|queueSpeech|commentaryDisplayMode」を手がかりにプロジェクト全体を横断検索して、関係する場所を絞っています。",
         "narration": "原因っぽいとこ探してるで。",
+        "speech": undefined,
       },
     },
     {
@@ -45,10 +63,16 @@ exports[`Phase B evaluation replay > replays the minimal sanitized session deter
       "withContext": {
         "explanation": "event-priority.ts | sed -n '1,120p' を読んで、現在の実装を確認しています。",
         "narration": "今の対象は「apps/server/src/extract.ts」や。",
+        "speech": {
+          "disposition": "speak",
+          "reason": "new_target",
+          "text": "今の対象は「apps/server/src/extract.ts」や。",
+        },
       },
       "withoutContext": {
         "explanation": "event-priority.ts | sed -n '1,120p' を読んで、現在の実装を確認しています。",
         "narration": "ファイル読んで状況確認してるで。",
+        "speech": undefined,
       },
     },
   ],
@@ -62,7 +86,10 @@ exports[`Phase B evaluation replay > replays the minimal sanitized session deter
       "phaseChanged": true,
       "previousPhase": "unknown",
       "sequence": 1,
+      "speechDisposition": "speak",
+      "speechReason": "new_task",
       "target": "pnpm-workspace.yaml",
+      "targetChanged": true,
     },
     {
       "eventSummary": "ファイルを読み込んでいる",
@@ -73,7 +100,10 @@ exports[`Phase B evaluation replay > replays the minimal sanitized session deter
       "phaseChanged": false,
       "previousPhase": "investigation",
       "sequence": 2,
+      "speechDisposition": "speak",
+      "speechReason": "new_target",
       "target": "apps/server/src/commentary/orchestrator.ts",
+      "targetChanged": true,
     },
     {
       "eventSummary": "該当箇所を検索している",
@@ -84,7 +114,10 @@ exports[`Phase B evaluation replay > replays the minimal sanitized session deter
       "phaseChanged": false,
       "previousPhase": "investigation",
       "sequence": 3,
+      "speechDisposition": "speak",
+      "speechReason": "new_target",
       "target": "apps/web/src",
+      "targetChanged": true,
     },
     {
       "eventSummary": "ファイルを読み込んでいる",
@@ -95,7 +128,10 @@ exports[`Phase B evaluation replay > replays the minimal sanitized session deter
       "phaseChanged": false,
       "previousPhase": "investigation",
       "sequence": 4,
+      "speechDisposition": "speak",
+      "speechReason": "new_target",
       "target": "apps/server/src/tests/commentary.test.ts",
+      "targetChanged": true,
     },
     {
       "eventSummary": "ファイルを読み込んでいる",
@@ -106,7 +142,10 @@ exports[`Phase B evaluation replay > replays the minimal sanitized session deter
       "phaseChanged": false,
       "previousPhase": "investigation",
       "sequence": 5,
+      "speechDisposition": "speak",
+      "speechReason": "new_target",
       "target": "apps/server/src/extract.ts",
+      "targetChanged": true,
     },
   ],
   "fixtureId": "phase-b-codex-session",
@@ -138,6 +177,11 @@ exports[`Phase B evaluation replay > replays the minimal sanitized session deter
         "narrationProvider": "rules",
       },
       "narration": "調査段階に入って、「pnpm-workspace.yaml」を扱ってるで。",
+      "speech": {
+        "disposition": "speak",
+        "reason": "new_task",
+        "text": "調査段階に入って、「pnpm-workspace.yaml」を扱ってるで。",
+      },
       "ts": 400,
     },
     {
@@ -167,6 +211,11 @@ exports[`Phase B evaluation replay > replays the minimal sanitized session deter
         "narrationProvider": "rules",
       },
       "narration": "今の対象は「apps/server/src/commentary/orchestrator.ts」や。",
+      "speech": {
+        "disposition": "speak",
+        "reason": "new_target",
+        "text": "今の対象は「apps/server/src/commentary/orchestrator.ts」や。",
+      },
       "ts": 3218,
     },
     {
@@ -198,6 +247,11 @@ exports[`Phase B evaluation replay > replays the minimal sanitized session deter
         "narrationProvider": "rules",
       },
       "narration": "今の対象は「apps/web/src」や。",
+      "speech": {
+        "disposition": "speak",
+        "reason": "new_target",
+        "text": "今の対象は「apps/web/src」や。",
+      },
       "ts": 7355,
     },
     {
@@ -237,19 +291,34 @@ exports[`Phase B evaluation replay > replays the minimal sanitized session deter
         "narrationProvider": "rules",
       },
       "narration": "今の対象は「apps/server/src/extract.ts」や。",
+      "speech": {
+        "disposition": "speak",
+        "reason": "new_target",
+        "text": "今の対象は「apps/server/src/extract.ts」や。",
+      },
       "ts": 10573,
     },
   ],
   "metrics": {
     "commentaries": 4,
+    "displayOnlyCommentaries": 0,
     "events": 5,
     "eventsByType": {
       "read": 3,
       "search": 2,
     },
     "exactNarrationRepeats": 0,
+    "falseUrgent": 0,
     "glossaryNotes": 1,
+    "glossaryRedisplays": 0,
+    "maxSpeechSentences": 1,
+    "multiSentenceSpeech": 0,
+    "rawCommandSpeech": 0,
+    "repeatedProgressSpeechWithin30s": 0,
+    "speechSuppressionsByReason": {},
+    "spokenCommentaries": 4,
     "suppressed": 1,
+    "urgentMisses": 0,
   },
   "source": "codex",
   "style": "kansai",

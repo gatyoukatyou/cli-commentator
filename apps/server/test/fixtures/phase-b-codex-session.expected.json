@@ -34,6 +34,11 @@
         "narrationProvider": "rules",
         "explanationProvider": "rules",
         "mode": "both"
+      },
+      "speech": {
+        "disposition": "speak",
+        "reason": "new_task",
+        "text": "調査段階に入って、「pnpm-workspace.yaml」を扱ってるで。"
       }
     },
     {
@@ -63,6 +68,11 @@
         "narrationProvider": "rules",
         "explanationProvider": "rules",
         "mode": "both"
+      },
+      "speech": {
+        "disposition": "speak",
+        "reason": "new_target",
+        "text": "今の対象は「apps/server/src/commentary/orchestrator.ts」や。"
       }
     },
     {
@@ -94,6 +104,11 @@
         "narrationProvider": "rules",
         "explanationProvider": "rules",
         "mode": "both"
+      },
+      "speech": {
+        "disposition": "speak",
+        "reason": "new_target",
+        "text": "今の対象は「apps/web/src」や。"
       }
     },
     {
@@ -133,6 +148,11 @@
         "narrationProvider": "rules",
         "explanationProvider": "rules",
         "mode": "both"
+      },
+      "speech": {
+        "disposition": "speak",
+        "reason": "new_target",
+        "text": "今の対象は「apps/server/src/extract.ts」や。"
       }
     }
   ],
@@ -145,8 +165,11 @@
       "phase": "investigation",
       "previousPhase": "unknown",
       "phaseChanged": true,
+      "targetChanged": true,
       "target": "pnpm-workspace.yaml",
-      "humanRequired": false
+      "humanRequired": false,
+      "speechDisposition": "speak",
+      "speechReason": "new_task"
     },
     {
       "offsetMs": 3218,
@@ -156,8 +179,11 @@
       "phase": "investigation",
       "previousPhase": "investigation",
       "phaseChanged": false,
+      "targetChanged": true,
       "target": "apps/server/src/commentary/orchestrator.ts",
-      "humanRequired": false
+      "humanRequired": false,
+      "speechDisposition": "speak",
+      "speechReason": "new_target"
     },
     {
       "offsetMs": 7355,
@@ -167,8 +193,11 @@
       "phase": "investigation",
       "previousPhase": "investigation",
       "phaseChanged": false,
+      "targetChanged": true,
       "target": "apps/web/src",
-      "humanRequired": false
+      "humanRequired": false,
+      "speechDisposition": "speak",
+      "speechReason": "new_target"
     },
     {
       "offsetMs": 8734,
@@ -178,8 +207,11 @@
       "phase": "investigation",
       "previousPhase": "investigation",
       "phaseChanged": false,
+      "targetChanged": true,
       "target": "apps/server/src/tests/commentary.test.ts",
-      "humanRequired": false
+      "humanRequired": false,
+      "speechDisposition": "speak",
+      "speechReason": "new_target"
     },
     {
       "offsetMs": 10573,
@@ -189,8 +221,11 @@
       "phase": "investigation",
       "previousPhase": "investigation",
       "phaseChanged": false,
+      "targetChanged": true,
       "target": "apps/server/src/extract.ts",
-      "humanRequired": false
+      "humanRequired": false,
+      "speechDisposition": "speak",
+      "speechReason": "new_target"
     }
   ],
   "commentaryComparisons": [
@@ -203,7 +238,12 @@
       },
       "withContext": {
         "narration": "調査段階に入って、「pnpm-workspace.yaml」を扱ってるで。",
-        "explanation": "目的「Phase Bの実況品質について、反復・目的説明・状態変化・用…」に向けた調査段階です。"
+        "explanation": "目的「Phase Bの実況品質について、反復・目的説明・状態変化・用…」に向けた調査段階です。",
+        "speech": {
+          "disposition": "speak",
+          "reason": "new_task",
+          "text": "調査段階に入って、「pnpm-workspace.yaml」を扱ってるで。"
+        }
       }
     },
     {
@@ -215,7 +255,12 @@
       },
       "withContext": {
         "narration": "今の対象は「apps/server/src/commentary/orchestrator.ts」や。",
-        "explanation": "rule-based.ts | sed -n '1,120p' を読んで、現在の実装を確認しています。"
+        "explanation": "rule-based.ts | sed -n '1,120p' を読んで、現在の実装を確認しています。",
+        "speech": {
+          "disposition": "speak",
+          "reason": "new_target",
+          "text": "今の対象は「apps/server/src/commentary/orchestrator.ts」や。"
+        }
       }
     },
     {
@@ -227,7 +272,12 @@
       },
       "withContext": {
         "narration": "今の対象は「apps/web/src」や。",
-        "explanation": "「buildSpeechText|queueSpeech|commentaryDisplayMode」を手がかりにプロジェクト全体を横断検索して、関係する場所を絞っています。"
+        "explanation": "「buildSpeechText|queueSpeech|commentaryDisplayMode」を手がかりにプロジェクト全体を横断検索して、関係する場所を絞っています。",
+        "speech": {
+          "disposition": "speak",
+          "reason": "new_target",
+          "text": "今の対象は「apps/web/src」や。"
+        }
       }
     },
     {
@@ -239,7 +289,12 @@
       },
       "withContext": {
         "narration": "今の対象は「apps/server/src/extract.ts」や。",
-        "explanation": "event-priority.ts | sed -n '1,120p' を読んで、現在の実装を確認しています。"
+        "explanation": "event-priority.ts | sed -n '1,120p' を読んで、現在の実装を確認しています。",
+        "speech": {
+          "disposition": "speak",
+          "reason": "new_target",
+          "text": "今の対象は「apps/server/src/extract.ts」や。"
+        }
       }
     }
   ],
@@ -265,6 +320,16 @@
       "read": 3
     },
     "glossaryNotes": 1,
-    "exactNarrationRepeats": 0
+    "exactNarrationRepeats": 0,
+    "spokenCommentaries": 4,
+    "displayOnlyCommentaries": 0,
+    "speechSuppressionsByReason": {},
+    "maxSpeechSentences": 1,
+    "multiSentenceSpeech": 0,
+    "rawCommandSpeech": 0,
+    "repeatedProgressSpeechWithin30s": 0,
+    "glossaryRedisplays": 0,
+    "urgentMisses": 0,
+    "falseUrgent": 0
   }
 }

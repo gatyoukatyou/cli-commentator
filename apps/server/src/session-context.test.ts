@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { Event } from "./types.js";
 import { createSessionContext } from "./session-context.js";
+import { createCommentaryGate } from "./event-priority.js";
 
 function event(type: Event["type"], detail?: string, summary: string = type): Event {
   return { ts: 1, type, summary, detail };
@@ -233,5 +234,132 @@ describe("SessionContext", () => {
     });
     expect(Object.isFrozen(oldSnapshot)).toBe(true);
     expect(Object.isFrozen(oldSnapshot.recentEvents)).toBe(true);
+  });
+
+  it("suppresses repeated same-task progress for 30 seconds with an injected clock", () => {
+    let now = 0;
+    const context = createSessionContext({ now: () => now });
+    context.setTaskContext({ objective: "同じ目的", source: "fixture" });
+    expect(context.observeEvent(event("read", "⏺ Read(src/a.ts)")).speech).toMatchObject({
+      disposition: "speak",
+    });
+
+    now = 1_000;
+    expect(context.observeEvent(event("read", "⏺ Read(src/a.ts)")).speech).toEqual({
+      disposition: "display_only",
+      reason: "progress_interval",
+    });
+
+    now = 31_001;
+    expect(context.observeEvent(event("read", "⏺ Read(src/a.ts)")).speech).toEqual({
+      disposition: "speak",
+      reason: "progress_refresh",
+    });
+  });
+
+  it("speaks phase changes and new targets even within the progress interval", () => {
+    let now = 0;
+    const context = createSessionContext({ now: () => now });
+    context.observeEvent(event("read", "⏺ Read(src/a.ts)"));
+    now = 100;
+    expect(context.observeEvent(event("read", "⏺ Read(src/b.ts)")).speech.reason)
+      .toBe("new_target");
+    now = 200;
+    expect(context.observeEvent(event("write", "⏺ Update(src/b.ts)")).speech.reason)
+      .toBe("phase_change");
+  });
+
+  it("keeps a target change pending when the commentary gate suppresses its event", () => {
+    let now = 0;
+    const context = createSessionContext({ now: () => now });
+    const gate = createCommentaryGate({ intervalMs: 2_000, now: () => now });
+
+    const first = event("read", "⏺ Read(src/a.ts)");
+    expect(context.observeEvent(first, { commentaryEligible: gate.shouldEmit("progress") }).speech)
+      .toMatchObject({ disposition: "speak", reason: "new_task" });
+
+    now = 1_000;
+    const gatedTargetChange = event("read", "⏺ Read(src/b.ts)");
+    expect(gate.shouldEmit("progress")).toBe(false);
+    expect(context.observeEvent(gatedTargetChange, { commentaryEligible: false })).toMatchObject({
+      target: "src/b.ts",
+      targetChanged: true,
+    });
+
+    now = 3_000;
+    const nextEligible = event("read", "⏺ Read(src/b.ts)");
+    expect(context.observeEvent(nextEligible, { commentaryEligible: gate.shouldEmit("progress") }).speech)
+      .toEqual({ disposition: "speak", reason: "new_target" });
+  });
+
+  it("never suppresses urgent, HUMAN-required, failure, or completion events", () => {
+    let now = 0;
+    const context = createSessionContext({ now: () => now });
+    const urgentError = { ...event("error", "failed", "エラーが出ている"), priority: "urgent" as const };
+    expect(context.observeEvent(urgentError).speech).toMatchObject({
+      disposition: "speak",
+      reason: "urgent",
+    });
+    now = 1;
+    expect(context.observeEvent(urgentError).speech.disposition).toBe("speak");
+    expect(context.observeEvent(event("stdout", undefined, "コマンド実行の確認待ち")).speech)
+      .toMatchObject({ disposition: "speak", reason: "human_required" });
+    expect(context.observeEvent(event("done", undefined, "完了")).speech)
+      .toMatchObject({ disposition: "speak", reason: "completion" });
+  });
+
+  it("speaks explicit success and failure outcomes without promoting success to urgent", () => {
+    const context = createSessionContext();
+    const succeeded = { ...event("test", "PASS 10 tests", "テスト成功"), priority: "progress" as const };
+    expect(context.observeEvent(succeeded).speech).toMatchObject({
+      disposition: "speak",
+      reason: "success",
+    });
+    const failed = { ...event("test", "FAIL 1 test", "テスト失敗"), priority: "progress" as const };
+    expect(context.observeEvent(failed).speech).toMatchObject({
+      disposition: "speak",
+      reason: "failure",
+    });
+  });
+
+  it("distinguishes zero, non-zero, and unknown PTY exit codes", () => {
+    expect(createSessionContext().observeEvent(event("done", undefined, "終了 code=0")).speech)
+      .toEqual({ disposition: "speak", reason: "completion" });
+    expect(createSessionContext().observeEvent(event("done", undefined, "終了 code=1")).speech)
+      .toEqual({ disposition: "speak", reason: "failure" });
+    expect(createSessionContext().observeEvent(event("done", undefined, "終了")).speech)
+      .toEqual({ disposition: "speak", reason: "completion" });
+  });
+
+  it("emits each glossary note once per session and resets the history", () => {
+    const context = createSessionContext();
+    const search = event("search", "⏺ Grep(rg SessionContext apps/server/src)");
+    expect(context.observeEvent(search).glossaryNotes).toEqual([
+      "補足: rg はプロジェクト全体を高速検索するコマンド",
+    ]);
+    expect(context.observeEvent(search).glossaryNotes).toEqual([]);
+    context.reset();
+    expect(context.observeEvent(search).glossaryNotes).toHaveLength(1);
+  });
+
+  it("does not consume a glossary note when commentary is gated out", () => {
+    const context = createSessionContext();
+    const search = event("search", "⏺ Grep(rg SessionContext apps/server/src)");
+    expect(context.observeEvent(search, { commentaryEligible: false }).glossaryNotes).toEqual([]);
+    expect(context.observeEvent(search).glossaryNotes).toHaveLength(1);
+  });
+
+  it("resets speech suppression for a confirmed new task in the same PTY", () => {
+    let now = 0;
+    const context = createSessionContext({ now: () => now });
+    context.reset({ acceptsHumanInput: true });
+    context.observeInput("最初の調査です\n");
+    context.observeEvent(event("read", "⏺ Read(src/a.ts)"));
+    now = 100;
+    expect(context.observeEvent(event("read", "⏺ Read(src/a.ts)")).speech.disposition)
+      .toBe("display_only");
+    context.observeInput("次の調査です\n");
+    expect(context.observeEvent(event("read", "⏺ Read(src/a.ts)")).speech.disposition)
+      .toBe("speak");
   });
 });

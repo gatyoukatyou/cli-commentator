@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import {
   comparePhaseBEventTypes,
+  hasRawCommandSpeech,
   replayPhaseBFixture,
   type PhaseBReplayFixture,
 } from "../evaluation/phase-b-replay.js";
@@ -17,6 +18,14 @@ async function loadFixture(): Promise<PhaseBReplayFixture> {
 }
 
 describe("Phase B evaluation replay", () => {
+  it.each([
+    "git status を確認しています。",
+    "pnpm test を実行しています。",
+    "gh pr view を確認しています。",
+  ])("detects common raw commands with the production TTS policy: %s", (speech) => {
+    expect(hasRawCommandSpeech(speech)).toBe(true);
+  });
+
   it("replays the minimal sanitized session deterministically", async () => {
     const fixture = await loadFixture();
     const result = await replayPhaseBFixture(fixture);
@@ -34,6 +43,16 @@ describe("Phase B evaluation replay", () => {
       eventsByType: { search: 2, read: 3 },
       glossaryNotes: 1,
       exactNarrationRepeats: 0,
+      spokenCommentaries: 4,
+      displayOnlyCommentaries: 0,
+      speechSuppressionsByReason: {},
+      maxSpeechSentences: 1,
+      multiSentenceSpeech: 0,
+      rawCommandSpeech: 0,
+      repeatedProgressSpeechWithin30s: 0,
+      glossaryRedisplays: 0,
+      urgentMisses: 0,
+      falseUrgent: 0,
     });
     expect(result.contextTimeline.map(({ phase }) => phase)).toEqual([
       "investigation",
@@ -65,6 +84,16 @@ describe("Phase B evaluation replay", () => {
         eventsByType: { test: 1, search: 1 },
         glossaryNotes: 0,
         exactNarrationRepeats: 0,
+        spokenCommentaries: 0,
+        displayOnlyCommentaries: 0,
+        speechSuppressionsByReason: {},
+        maxSpeechSentences: 0,
+        multiSentenceSpeech: 0,
+        rawCommandSpeech: 0,
+        repeatedProgressSpeechWithin30s: 0,
+        glossaryRedisplays: 0,
+        urgentMisses: 0,
+        falseUrgent: 0,
       },
       {
         events: 2,
@@ -73,6 +102,16 @@ describe("Phase B evaluation replay", () => {
         eventsByType: { read: 1, search: 1 },
         glossaryNotes: 0,
         exactNarrationRepeats: 0,
+        spokenCommentaries: 0,
+        displayOnlyCommentaries: 0,
+        speechSuppressionsByReason: {},
+        maxSpeechSentences: 0,
+        multiSentenceSpeech: 0,
+        rawCommandSpeech: 0,
+        repeatedProgressSpeechWithin30s: 0,
+        glossaryRedisplays: 0,
+        urgentMisses: 0,
+        falseUrgent: 0,
       }
     )).toEqual([
       { eventType: "read", baseline: 0, candidate: 1 },

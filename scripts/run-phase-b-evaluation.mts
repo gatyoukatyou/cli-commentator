@@ -26,20 +26,31 @@ function markdownReport(baseline: PhaseBReplayResult, candidate: PhaseBReplayRes
     ["suppressed", baseline.metrics.suppressed, candidate.metrics.suppressed],
     ["glossaryNotes", baseline.metrics.glossaryNotes, candidate.metrics.glossaryNotes],
     ["exactNarrationRepeats", baseline.metrics.exactNarrationRepeats, candidate.metrics.exactNarrationRepeats],
+    ["spokenCommentaries", baseline.metrics.spokenCommentaries ?? 0, candidate.metrics.spokenCommentaries],
+    ["displayOnlyCommentaries", baseline.metrics.displayOnlyCommentaries ?? 0, candidate.metrics.displayOnlyCommentaries],
+    ["maxSpeechSentences", baseline.metrics.maxSpeechSentences ?? 0, candidate.metrics.maxSpeechSentences],
+    ["multiSentenceSpeech", baseline.metrics.multiSentenceSpeech ?? 0, candidate.metrics.multiSentenceSpeech],
+    ["rawCommandSpeech", baseline.metrics.rawCommandSpeech ?? 0, candidate.metrics.rawCommandSpeech],
+    ["repeatedProgressSpeechWithin30s", baseline.metrics.repeatedProgressSpeechWithin30s ?? 0, candidate.metrics.repeatedProgressSpeechWithin30s],
+    ["glossaryRedisplays", baseline.metrics.glossaryRedisplays ?? 0, candidate.metrics.glossaryRedisplays],
+    ["urgentMisses", baseline.metrics.urgentMisses ?? 0, candidate.metrics.urgentMisses],
+    ["falseUrgent", baseline.metrics.falseUrgent ?? 0, candidate.metrics.falseUrgent],
   ];
   const eventTypeRows = comparePhaseBEventTypes(baseline.metrics, candidate.metrics);
-  const contextRows = candidate.contextTimeline.map(({ offsetMs, eventType, phase, previousPhase, phaseChanged, target, humanRequired }) => [
+  const contextRows = candidate.contextTimeline.map(({ offsetMs, eventType, phase, previousPhase, phaseChanged, target, humanRequired, speechDisposition, speechReason }) => [
     offsetMs,
     eventType,
     phase,
     phaseChanged ? `${previousPhase} → ${phase}` : "-",
     target ?? "-",
     humanRequired ? "yes" : "no",
+    `${speechDisposition}:${speechReason}`,
   ]);
   const commentaryRows = candidate.commentaryComparisons.map(({ offsetMs, withoutContext, withContext }) => [
     offsetMs,
     withoutContext.narration ?? "-",
     withContext.narration ?? "-",
+    withContext.speech?.text ?? "-",
   ]);
   return [
     "# Phase B fixture replay report",
@@ -51,6 +62,7 @@ function markdownReport(baseline: PhaseBReplayResult, candidate: PhaseBReplayRes
     "| metric | baseline | candidate |",
     "|---|---:|---:|",
     ...rows.map(([name, before, after]) => `| ${name} | ${before} | ${after} |`),
+    `| speechSuppressionsByReason | ${JSON.stringify(baseline.metrics.speechSuppressionsByReason ?? {})} | ${JSON.stringify(candidate.metrics.speechSuppressionsByReason)} |`,
     "",
     "## Event classifications",
     "",
@@ -62,14 +74,14 @@ function markdownReport(baseline: PhaseBReplayResult, candidate: PhaseBReplayRes
     "",
     "## Session context timeline",
     "",
-    "| offset (ms) | event | phase | transition | target | HUMAN required |",
-    "|---:|---|---|---|---|---|",
+    "| offset (ms) | event | phase | transition | target | HUMAN required | speech |",
+    "|---:|---|---|---|---|---|---|",
     ...contextRows.map((row) => `| ${row.join(" | ")} |`),
     "",
     "## Commentary with / without context",
     "",
-    "| offset (ms) | without context | with context |",
-    "|---:|---|---|",
+    "| offset (ms) | without context | with context | speech text |",
+    "|---:|---|---|---|",
     ...commentaryRows.map((row) => `| ${row.join(" | ")} |`),
     "",
   ].join("\n");

@@ -5,6 +5,7 @@ import { redact } from "../redact.js";
 import { createRepeatedErrorDetector } from "../repeated-error-detector.js";
 import type { CommentaryPayload, Event, SourceMode, Style, WsOutgoing } from "../types.js";
 import { createSessionContext, type SessionPhase } from "../session-context.js";
+import { hasRawCommandText } from "../commentary/speech-policy.js";
 
 export type PhaseBReplayFixture = {
   notice: string[];
@@ -34,6 +35,16 @@ export type PhaseBReplayMetrics = {
   eventsByType: Record<string, number>;
   glossaryNotes: number;
   exactNarrationRepeats: number;
+  spokenCommentaries: number;
+  displayOnlyCommentaries: number;
+  speechSuppressionsByReason: Record<string, number>;
+  maxSpeechSentences: number;
+  multiSentenceSpeech: number;
+  rawCommandSpeech: number;
+  repeatedProgressSpeechWithin30s: number;
+  glossaryRedisplays: number;
+  urgentMisses: number;
+  falseUrgent: number;
 };
 
 export type PhaseBReplayResult = {
@@ -50,14 +61,17 @@ export type PhaseBReplayResult = {
     phase: SessionPhase;
     previousPhase: SessionPhase;
     phaseChanged: boolean;
+    targetChanged: boolean;
     target: string | null;
     humanRequired: boolean;
+    speechDisposition: "speak" | "display_only";
+    speechReason: string;
   }>;
   commentaryComparisons: Array<{
     offsetMs: number;
     eventType: Event["type"];
-    withoutContext: Pick<CommentaryPayload, "narration" | "explanation">;
-    withContext: Pick<CommentaryPayload, "narration" | "explanation">;
+    withoutContext: Pick<CommentaryPayload, "narration" | "explanation" | "speech">;
+    withContext: Pick<CommentaryPayload, "narration" | "explanation" | "speech">;
   }>;
   suppressions: PhaseBSuppression[];
   metrics: PhaseBReplayMetrics;
@@ -95,6 +109,21 @@ function countExactNarrationRepeats(messages: PhaseBReplayResult["messages"]): n
   return Array.from(counts.values()).reduce((total, count) => total + Math.max(0, count - 1), 0);
 }
 
+function speechSentenceCount(text?: string): number {
+  const compact = text?.trim();
+  if (!compact) return 0;
+  return compact.match(/[。！？!?]+/gu)?.length ?? 1;
+}
+
+export function hasRawCommandSpeech(text?: string): boolean {
+  return hasRawCommandText(text);
+}
+
+function expectedUrgent(event: Event): boolean {
+  return event.type === "error" ||
+    /(?:許可を待っている|質問への回答を待っている|コマンド実行の確認待ち|同じエラーが繰り返されている)/u.test(event.summary);
+}
+
 function buildMetrics(
   messages: PhaseBReplayResult["messages"],
   suppressions: PhaseBSuppression[]
@@ -109,6 +138,36 @@ function buildMetrics(
   for (const message of eventMessages) {
     eventsByType[message.ev.type] = (eventsByType[message.ev.type] ?? 0) + 1;
   }
+  const spoken = commentaryMessages.filter((message) => message.speech?.disposition === "speak");
+  const displayOnly = commentaryMessages.filter(
+    (message) => message.speech?.disposition === "display_only"
+  );
+  const speechSuppressionsByReason: Record<string, number> = {};
+  for (const message of displayOnly) {
+    const reason = message.speech?.reason ?? "missing";
+    speechSuppressionsByReason[reason] = (speechSuppressionsByReason[reason] ?? 0) + 1;
+  }
+  const glossaryCounts = new Map<string, number>();
+  for (const message of commentaryMessages) {
+    for (const note of message.glossaryNotes ?? []) {
+      glossaryCounts.set(note, (glossaryCounts.get(note) ?? 0) + 1);
+    }
+  }
+  let repeatedProgressSpeechWithin30s = 0;
+  const lastProgressSpeech = new Map<string, number>();
+  for (const message of spoken) {
+    const text = message.speech?.text;
+    if (!text || message.ev.priority !== "progress") continue;
+    const lastAt = lastProgressSpeech.get(text);
+    if (lastAt !== undefined && message.ts - lastAt < 30_000) {
+      repeatedProgressSpeechWithin30s += 1;
+    }
+    lastProgressSpeech.set(text, message.ts);
+  }
+  const commentaryByEvent = new Map(
+    commentaryMessages.map((message) => [`${message.ev.ts}:${message.ev.type}`, message])
+  );
+  const urgentEvents = eventMessages.filter((message) => message.ev.priority === "urgent");
 
   return {
     events: eventMessages.length,
@@ -120,6 +179,19 @@ function buildMetrics(
       0
     ),
     exactNarrationRepeats: countExactNarrationRepeats(messages),
+    spokenCommentaries: spoken.length,
+    displayOnlyCommentaries: displayOnly.length,
+    speechSuppressionsByReason,
+    maxSpeechSentences: Math.max(0, ...spoken.map((message) => speechSentenceCount(message.speech?.text))),
+    multiSentenceSpeech: spoken.filter((message) => speechSentenceCount(message.speech?.text) > 1).length,
+    rawCommandSpeech: spoken.filter((message) => hasRawCommandSpeech(message.speech?.text)).length,
+    repeatedProgressSpeechWithin30s,
+    glossaryRedisplays: Array.from(glossaryCounts.values())
+      .reduce((total, count) => total + Math.max(0, count - 1), 0),
+    urgentMisses: urgentEvents.filter((message) =>
+      commentaryByEvent.get(`${message.ev.ts}:${message.ev.type}`)?.speech?.disposition !== "speak"
+    ).length,
+    falseUrgent: urgentEvents.filter((message) => !expectedUrgent(message.ev)).length,
   };
 }
 
@@ -134,7 +206,7 @@ export async function replayPhaseBFixture(fixture: PhaseBReplayFixture): Promise
   const contextTimeline: PhaseBReplayResult["contextTimeline"] = [];
   const commentaryComparisons: PhaseBReplayResult["commentaryComparisons"] = [];
   const suppressions: PhaseBSuppression[] = [];
-  const sessionContext = createSessionContext();
+  const sessionContext = createSessionContext({ now: () => currentOffsetMs });
   sessionContext.setTaskContext({ ...fixture.taskContext, source: "fixture" });
 
   for (const entry of fixture.lines) {
@@ -142,7 +214,10 @@ export async function replayPhaseBFixture(fixture: PhaseBReplayFixture): Promise
     const events = extractEvents(redact(entry.line), fixture.source);
     for (const extracted of events) {
       const event = withEventPriority(repeatedErrors.observe({ ...extracted, ts: currentOffsetMs }));
-      const context = sessionContext.observeEvent(event);
+      const shouldEmitCommentary = gate.shouldEmit(event.priority);
+      const context = sessionContext.observeEvent(event, {
+        commentaryEligible: shouldEmitCommentary,
+      });
       contextTimeline.push({
         offsetMs: currentOffsetMs,
         eventType: event.type,
@@ -151,12 +226,15 @@ export async function replayPhaseBFixture(fixture: PhaseBReplayFixture): Promise
         phase: context.phase,
         previousPhase: context.previousPhase,
         phaseChanged: context.phaseChanged,
+        targetChanged: context.targetChanged,
         target: context.target,
         humanRequired: context.humanRequired,
+        speechDisposition: context.speech.disposition,
+        speechReason: context.speech.reason,
       });
       messages.push({ kind: "event", ev: event });
 
-      if (!gate.shouldEmit(event.priority)) {
+      if (!shouldEmitCommentary) {
         suppressions.push({ offsetMs: currentOffsetMs, reason: "progress_interval", event });
         continue;
       }
@@ -175,10 +253,12 @@ export async function replayPhaseBFixture(fixture: PhaseBReplayFixture): Promise
         withoutContext: {
           narration: withoutContext.narration,
           explanation: withoutContext.explanation,
+          speech: withoutContext.speech,
         },
         withContext: {
           narration: payload.narration,
           explanation: payload.explanation,
+          speech: payload.speech,
         },
       });
       messages.push({ kind: "commentary", ts: currentOffsetMs, ev: event, ...payload });

@@ -1,4 +1,4 @@
-import type { EventPriority, EventType } from "../types";
+import type { CommentarySpeech, EventPriority, EventType } from "../types";
 import { buildCombinedCommentaryText } from "./glossary-note";
 
 export type LogEventTypeFilter = "all" | EventType;
@@ -12,6 +12,7 @@ export type CommentaryItem = {
   priority?: EventPriority;
   summary?: string;
   detail?: string;
+  speech?: CommentarySpeech;
 };
 
 export type GroupedCommentaryItem = {

@@ -15,12 +15,14 @@ describe("parseServerMessage", () => {
       },
       narration: "処理中です。",
       glossaryNotes: ["補足"],
+      speech: { disposition: "speak", reason: "urgent", text: "要対応です。" },
     });
 
     expect(message).toMatchObject({
       kind: "commentary",
       ts: 123,
       narration: "処理中です。",
+      speech: { disposition: "speak", reason: "urgent", text: "要対応です。" },
       ev: { type: "stdout", summary: "ログ更新", priority: "urgent" },
     });
   });
@@ -66,6 +68,20 @@ describe("parseServerMessage", () => {
   it("rejects malformed messages", () => {
     expect(parseServerMessage({ kind: "style", style: "unknown" })).toBeNull();
     expect(parseServerMessage({ kind: "commentary", ts: 123 })).toBeNull();
+    expect(parseServerMessage({
+      kind: "commentary",
+      ts: 123,
+      ev: { ts: 123, type: "stdout", summary: "bad" },
+      narration: "bad",
+      speech: { disposition: "later", reason: "unknown" },
+    })).toBeNull();
+    expect(parseServerMessage({
+      kind: "commentary",
+      ts: 123,
+      ev: { ts: 123, type: "stdout", summary: "bad" },
+      narration: "bad",
+      speech: { disposition: "speak", reason: "urgent" },
+    })).toBeNull();
     expect(
       parseServerMessage({
         kind: "event",

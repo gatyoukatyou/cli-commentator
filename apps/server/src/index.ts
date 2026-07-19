@@ -47,6 +47,7 @@ import { createSilenceTimer, parseSilenceTimeoutMs } from "./silence-timer.js";
 import { createCommentaryGate, withEventPriority } from "./event-priority.js";
 import { createRepeatedErrorDetector } from "./repeated-error-detector.js";
 import { createSessionContext } from "./session-context.js";
+import { applySpeechContract } from "./commentary/speech-policy.js";
 
 const PORT = Number(process.env.CLI_COMMENTATOR_PORT ?? process.env.PORT ?? 8787);
 const COMMENT_EXIT_TIMEOUT_MS = parseInt(process.env.COMMENT_EXIT_TIMEOUT_MS ?? "1500", 10);
@@ -394,10 +395,13 @@ function processInputData(data: string, writeToStdout: boolean = true): void {
 
 function emitEvent(ev: Event): void {
   const prioritizedEvent = withEventPriority(repeatedErrorDetector.observe(ev));
-  const context = sessionContext.observeEvent(prioritizedEvent);
+  const shouldEmitCommentary = commentaryGate.shouldEmit(prioritizedEvent.priority);
+  const context = sessionContext.observeEvent(prioritizedEvent, {
+    commentaryEligible: shouldEmitCommentary,
+  });
   // The rule-based event reaches clients immediately; LLM commentary follows asynchronously.
   broadcast({ kind: "event", ev: prioritizedEvent });
-  if (commentaryGate.shouldEmit(prioritizedEvent.priority)) {
+  if (shouldEmitCommentary) {
     void comment(prioritizedEvent, currentStyle, currentCommentaryProviders, context)
       .then((payload) => {
         broadcastCommentary(prioritizedEvent.ts, prioritizedEvent, payload);
@@ -448,6 +452,7 @@ function setupPTY(
     presetName: sessionOptions?.presetName,
     acceptsHumanInput: /(?:^|[/\\])(?:codex|claude)(?:$|\s)/i.test(config.cmd),
   });
+  commentaryGate.reset();
   const term = ptyManager.spawn(config);
   silenceTimer.start();
   transitionServerState("setup_pty_success", "pty_running", {
@@ -530,10 +535,10 @@ function setupPTY(
     })
     .catch((err) => {
       // Fallback: show basic start message if LLM fails
-      broadcastCommentary(Date.now(), startEvent, {
+      broadcastCommentary(Date.now(), startEvent, applySpeechContract({
         narration: `開始: ${startEvent.detail}`,
         meta: { narrationProvider: "fallback", mode: "narration" },
-      });
+      }, startEvent, context));
       console.error("start commentary failed:", err);
     });
 }
@@ -771,7 +776,11 @@ wss.on("connection", async (ws) => {
 
         case "writeInput":
           if (typeof msg.data === "string") {
-            sessionContext.observeInput(msg.data);
+            const inputResult = sessionContext.observeInput(msg.data);
+            if (inputResult.newTask) {
+              commentaryGate.reset();
+              repeatedErrorDetector.reset();
+            }
             ptyManager.write(msg.data);
           }
           break;
@@ -886,6 +895,7 @@ function setupFileTail(filePath: string, options?: { fatal?: boolean; presetName
 
   console.log(`Starting file tail mode: ${filePath}`);
   sessionContext.reset({ presetName: options?.presetName });
+  commentaryGate.reset();
 
   // Reset auto-detection
   if (sourceState.mode === "auto") {
@@ -907,7 +917,7 @@ function setupFileTail(filePath: string, options?: { fatal?: boolean; presetName
   tail.on("error", (err) => {
     console.error("File tail error:", err.message);
     const ev = withEventPriority({ ts: Date.now(), type: "error", summary: "ファイル監視エラー", detail: err.message });
-    sessionContext.observeEvent(ev);
+    sessionContext.observeEvent(ev, { commentaryEligible: false });
     broadcast({ kind: "event", ev });
   });
 
@@ -967,10 +977,10 @@ function setupFileTail(filePath: string, options?: { fatal?: boolean; presetName
         broadcastCommentary(Date.now(), startEvent, payload);
       })
       .catch((err) => {
-        broadcastCommentary(Date.now(), startEvent, {
+        broadcastCommentary(Date.now(), startEvent, applySpeechContract({
           narration: `ファイル監視開始: ${filePath}`,
           meta: { narrationProvider: "fallback", mode: "narration" },
-        });
+        }, startEvent, context));
         console.error("start commentary failed:", err);
       });
   } catch (err) {

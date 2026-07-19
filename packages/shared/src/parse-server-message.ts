@@ -97,10 +97,34 @@ const isCommentaryMeta = (value: unknown): value is CommentaryMeta =>
     value.mode === "explanation" ||
     value.mode === "both");
 
+const COMMENTARY_SPEECH_REASONS = new Set([
+  "urgent",
+  "human_required",
+  "completion",
+  "failure",
+  "success",
+  "new_task",
+  "phase_change",
+  "new_target",
+  "progress_refresh",
+  "progress_interval",
+  "not_significant",
+]);
+
+const isCommentarySpeech = (value: unknown): boolean =>
+  isRecord(value) &&
+  (value.disposition === "speak" || value.disposition === "display_only") &&
+  typeof value.reason === "string" &&
+  COMMENTARY_SPEECH_REASONS.has(value.reason) &&
+  (value.disposition === "speak"
+    ? typeof value.text === "string" && value.text.trim().length > 0
+    : value.text === undefined);
+
 const hasCommentaryPayload = (value: Record<string, unknown>): boolean =>
   isOptionalString(value.narration) &&
   isOptionalString(value.explanation) &&
   (value.glossaryNotes === undefined || isStringArray(value.glossaryNotes)) &&
+  (value.speech === undefined || isCommentarySpeech(value.speech)) &&
   (value.meta === undefined || isCommentaryMeta(value.meta));
 
 const isProfileSummary = (value: unknown): value is ProfileSummary =>
