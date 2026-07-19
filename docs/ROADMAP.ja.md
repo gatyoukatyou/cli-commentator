@@ -155,12 +155,12 @@ CLI Commentator は、非エンジニアで英語に不慣れな人が、CLI上�
   - #305 fixture採取 → PR #310、#306 Claude TUI監督イベント4分類 → PR #311
   - #307 長考・沈黙検知 → PR #316、#308 優先度付きイベントパイプライン → PR #317
   - #309 優先度付きTTS（urgent割り込み / noticeキュー / progress従来）＋ Web UI 要対応表示 → PR #321。HUMAN実機受け入れ済み。スキンは現行の standard / cli の2種で確認（brutalism / paper は廃止済み）
+- エラー膠着の反復検知を追加。同一エラーを2分以内に3回検出すると、urgentの「同じエラーが繰り返されている」イベントへ昇格する
 - Apple Developer ID 証明書は当面発行しない方針のため、`#138` は Deferred / 保留扱いにする。signed/notarized release readiness は重要項目として残すが、証明書発行と外部配布準備を再開する段階で再着手する
 - local desktop app polish / local readiness は、監督イベントの実機確認へ入るための起動導線として維持する
 
 **Next**
 - 日本語解説・要約と、真面目トーン／実況トーンを分けた提示層を改善する（Phase B）。着手前にHUMAN/Ginoと優先順位を確認する
-- エラー膠着の反復検知（同じ失敗の繰り返し）は、運用で不足を感じたらフォローアップIssueへ切り出す
 
 **Later**
 - 説明書なしで実況開始まで辿り着ける起動導線を完成させる（Phase C）

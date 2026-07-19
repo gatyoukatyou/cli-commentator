@@ -45,6 +45,7 @@ import { isStyle, normalizeSource } from "./shared/validation.js";
 import { createPtyCapture } from "./pty/capture.js";
 import { createSilenceTimer, parseSilenceTimeoutMs } from "./silence-timer.js";
 import { createCommentaryGate, withEventPriority } from "./event-priority.js";
+import { createRepeatedErrorDetector } from "./repeated-error-detector.js";
 
 const PORT = Number(process.env.CLI_COMMENTATOR_PORT ?? process.env.PORT ?? 8787);
 const COMMENT_EXIT_TIMEOUT_MS = parseInt(process.env.COMMENT_EXIT_TIMEOUT_MS ?? "1500", 10);
@@ -94,6 +95,7 @@ function markPtyUnavailable(error: string): void {
 
 // Progress commentary remains rate-limited; urgent and notice events bypass the gate.
 const commentaryGate = createCommentaryGate({ intervalMs: 2000 });
+const repeatedErrorDetector = createRepeatedErrorDetector();
 
 // --- HTTP + WS ---
 const server = http.createServer((req, res) => {
@@ -389,7 +391,7 @@ function processInputData(data: string, writeToStdout: boolean = true): void {
 }
 
 function emitEvent(ev: Event): void {
-  const prioritizedEvent = withEventPriority(ev);
+  const prioritizedEvent = withEventPriority(repeatedErrorDetector.observe(ev));
   // The rule-based event reaches clients immediately; LLM commentary follows asynchronously.
   broadcast({ kind: "event", ev: prioritizedEvent });
   if (commentaryGate.shouldEmit(prioritizedEvent.priority)) {
