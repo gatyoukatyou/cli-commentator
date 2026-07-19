@@ -98,7 +98,14 @@ function contextNarration(context: SessionContextSnapshot, style: Style): string
     });
   }
 
-  if (context.target && ["read", "search", "write", "test", "lint", "build"].includes(context.recentEvents.at(-1)?.type ?? "")) {
+  const currentEvent = context.recentEvents.at(-1);
+  const previousEvent = context.recentEvents.at(-2);
+  const targetChanged = currentEvent?.target !== previousEvent?.target;
+  if (
+    context.target &&
+    targetChanged &&
+    ["read", "search", "write", "test", "lint", "build"].includes(currentEvent?.type ?? "")
+  ) {
     return say(style, {
       standard: `現在の対象は${target}です。`,
       kansai: `今の対象は${target}や。`,
@@ -117,11 +124,11 @@ function contextExplanation(
 
   const phase = SESSION_PHASE_LABELS[context.phase];
   const objective = context.task.objective;
-  if (objective && (context.sequence === 1 || context.phaseChanged)) {
-    const purpose = objective.length <= 48 ? objective : `${objective.slice(0, 47).trimEnd()}…`;
-    return `目的「${purpose}」に向けた${phase}段階です。 ${beginner}`.trim();
+  if (objective && context.phaseChanged) {
+    const purpose = objective.length <= 32 ? objective : `${objective.slice(0, 31).trimEnd()}…`;
+    return `目的「${purpose}」に向けた${phase}段階です。`;
   }
-  return `現在は${phase}段階です。 ${beginner}`.trim();
+  return beginner || undefined;
 }
 
 export function commentByRules(
@@ -148,7 +155,7 @@ export function commentByRules(
   const contextual = context ? contextNarration(context, style) : "";
 
   return withCommentaryMode({
-    narration: [contextual, core, spotlight].filter(Boolean).join(" "),
+    narration: [contextual || core, spotlight].filter(Boolean).join(" "),
     explanation: contextExplanation(beginner, context),
     glossaryNotes,
     meta: {

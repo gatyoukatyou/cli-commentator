@@ -15,6 +15,7 @@ export type TaskContextSource = "fixture" | "human_input" | "human_log" | "prese
 export type SessionTaskContext = {
   objective: string | null;
   userPrompt: string | null;
+  sessionLabel: string | null;
   source: TaskContextSource | null;
 };
 
@@ -84,18 +85,19 @@ function limited(value: string | null | undefined, max: number): string | null {
 }
 
 function isWaitingEvent(event: Event): boolean {
-  const text = `${event.summary} ${event.detail ?? ""}`;
-  return /(?:確認待ち|許可を待|承認待ち|回答を待|入力待ち|質問への回答|長考・沈黙)/u.test(text);
+  return /(?:確認待ち|許可を待|承認待ち|回答を待|入力待ち|質問への回答|長考・沈黙)/u.test(
+    event.summary
+  );
 }
 
 function explicitlyRequiresHuman(event: Event): boolean {
-  const text = `${event.summary} ${event.detail ?? ""}`;
-  return /(?:確認待ち|許可を待|承認待ち|回答を待|入力待ち|質問への回答|HUMAN(?:の)?(?:判断|対応))/iu.test(text);
+  return /(?:確認待ち|許可を待|承認待ち|回答を待|入力待ち|質問への回答|HUMAN(?:の)?(?:判断|対応))/iu.test(
+    event.summary
+  );
 }
 
 function isHumanResponseEvent(event: Event): boolean {
-  const text = `${event.summary} ${event.detail ?? ""}`;
-  return /(?:承認された|approved|入力を受け付け|回答済み)/iu.test(text);
+  return /(?:承認された|approved|入力を受け付け|回答済み)/iu.test(event.summary);
 }
 
 function isPublishingOperation(event: Event): boolean {
@@ -103,7 +105,7 @@ function isPublishingOperation(event: Event): boolean {
   const command = unwrapCommandDetail(event.detail ?? "");
   return (
     /\bgit\s+(?:commit|push)\b/i.test(command) ||
-    /\bgh\s+pr\s+(?:create|edit|comment|merge|ready)\b/i.test(command) ||
+    /\bgh\s+pr\s+(?:create|edit|comment|merge|ready|review|close|reopen|update-branch)\b/i.test(command) ||
     /\bgh\s+release\s+(?:create|upload|edit)\b/i.test(command)
   );
 }
@@ -206,7 +208,7 @@ export function inferEventTarget(event: Event): string | null {
 
 function initialState(): MutableState {
   return {
-    task: { objective: null, userPrompt: null, source: null },
+    task: { objective: null, userPrompt: null, sessionLabel: null, source: null },
     target: null,
     recentEvents: [],
     phase: "unknown",
@@ -238,7 +240,15 @@ function immutableSnapshot(state: MutableState): SessionContextSnapshot {
 function looksLikeHumanRequest(line: string): boolean {
   if (line.length < 4 || /^[/:.\w-]+$/u.test(line)) return false;
   if (/^(?:codex|claude|exit|quit|clear|help)$/i.test(line)) return false;
+  if (/^\/\S+(?:\s+.*)?$/u.test(line)) return false;
   return true;
+}
+
+function resumeFromHumanResponse(state: MutableState): void {
+  state.phase = state.phaseBeforeWaiting;
+  state.previousPhase = "waiting";
+  state.phaseChanged = state.phase !== "waiting";
+  state.humanRequired = false;
 }
 
 function appendTerminalInput(buffer: string, data: string): string {
@@ -267,6 +277,7 @@ export function createSessionContext(options?: { historyLimit?: number }): Sessi
       state.task = {
         objective,
         userPrompt,
+        sessionLabel: state.task.sessionLabel,
         source: objective || userPrompt ? input.source : null,
       };
     },
@@ -282,7 +293,23 @@ export function createSessionContext(options?: { historyLimit?: number }): Sessi
       for (const part of parts) {
         const prompt = limited(part, MAX_CONTEXT_LENGTH);
         if (prompt && looksLikeHumanRequest(prompt)) {
-          state.task = { objective: prompt, userPrompt: prompt, source: "human_input" };
+          if (state.phase === "waiting") {
+            resumeFromHumanResponse(state);
+            continue;
+          }
+
+          // A confirmed HUMAN instruction starts a new task within the same PTY.
+          // Preserve only session-scoped launch metadata and input trust.
+          const acceptsHumanInput: boolean = state.acceptsHumanInput;
+          const sessionLabel: string | null = state.task.sessionLabel;
+          state = initialState();
+          state.acceptsHumanInput = acceptsHumanInput;
+          state.task = {
+            objective: prompt,
+            userPrompt: prompt,
+            sessionLabel,
+            source: "human_input",
+          };
         }
       }
     },
@@ -329,7 +356,12 @@ export function createSessionContext(options?: { historyLimit?: number }): Sessi
       state.acceptsHumanInput = resetOptions?.acceptsHumanInput ?? false;
       const presetName = limited(resetOptions?.presetName, MAX_CONTEXT_LENGTH);
       if (presetName) {
-        state.task = { objective: presetName, userPrompt: null, source: "preset" };
+        state.task = {
+          objective: null,
+          userPrompt: null,
+          sessionLabel: presetName,
+          source: "preset",
+        };
       }
     },
   };

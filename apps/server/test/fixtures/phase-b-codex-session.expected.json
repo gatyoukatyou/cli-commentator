@@ -27,8 +27,8 @@
         "detail": "⏺ Grep(test -f pnpm-workspace.yaml && grep -q '\"name\": \"cli-commentator\"' package.json && git remote -v)",
         "priority": "progress"
       },
-      "narration": "調査段階に入って、「pnpm-workspace.yaml」を扱ってるで。 原因っぽいとこ探してるで。",
-      "explanation": "目的「Phase Bの実況品質について、反復・目的説明・状態変化・用語補足・読み上げ密度を調査する」に向けた調査段階です。 「\"name\": \"cli-commentator\"」を手がかりにプロジェクト全体を横断検索して、関係する場所を絞っています。",
+      "narration": "調査段階に入って、「pnpm-workspace.yaml」を扱ってるで。",
+      "explanation": "目的「Phase Bの実況品質について、反復・目的説明・状態変化・用…」に向けた調査段階です。",
       "glossaryNotes": [],
       "meta": {
         "narrationProvider": "rules",
@@ -56,8 +56,8 @@
         "detail": "⏺ Read(nl -ba apps/server/src/commentary/orchestrator.ts | sed -n '1,120p'; nl -ba apps/server/src/commentary/rule-based.ts | sed -n '1,120p')",
         "priority": "progress"
       },
-      "narration": "今の対象は「apps/server/src/commentary/orchestrator.ts」や。 ファイル読んで状況確認してるで。",
-      "explanation": "現在は調査段階です。 rule-based.ts | sed -n '1,120p' を読んで、現在の実装を確認しています。",
+      "narration": "今の対象は「apps/server/src/commentary/orchestrator.ts」や。",
+      "explanation": "rule-based.ts | sed -n '1,120p' を読んで、現在の実装を確認しています。",
       "glossaryNotes": [],
       "meta": {
         "narrationProvider": "rules",
@@ -85,8 +85,8 @@
         "detail": "⏺ Grep(rg -n \"buildSpeechText|queueSpeech|commentaryDisplayMode\" apps/web/src; nl -ba apps/web/src/lib/tsx-runner.ts | sed -n '1,80p')",
         "priority": "progress"
       },
-      "narration": "今の対象は「apps/web/src」や。 原因っぽいとこ探してるで。",
-      "explanation": "現在は調査段階です。 「buildSpeechText|queueSpeech|commentaryDisplayMode」を手がかりにプロジェクト全体を横断検索して、関係する場所を絞っています。",
+      "narration": "今の対象は「apps/web/src」や。",
+      "explanation": "「buildSpeechText|queueSpeech|commentaryDisplayMode」を手がかりにプロジェクト全体を横断検索して、関係する場所を絞っています。",
       "glossaryNotes": [
         "補足: rg はプロジェクト全体を高速検索するコマンド"
       ],
@@ -126,8 +126,8 @@
         "detail": "⏺ Read(nl -ba apps/server/src/extract.ts | sed -n '1,180p'; nl -ba apps/server/src/event-priority.ts | sed -n '1,120p')",
         "priority": "progress"
       },
-      "narration": "今の対象は「apps/server/src/extract.ts」や。 ファイル読んで状況確認してるで。",
-      "explanation": "現在は調査段階です。 event-priority.ts | sed -n '1,120p' を読んで、現在の実装を確認しています。",
+      "narration": "今の対象は「apps/server/src/extract.ts」や。",
+      "explanation": "event-priority.ts | sed -n '1,120p' を読んで、現在の実装を確認しています。",
       "glossaryNotes": [],
       "meta": {
         "narrationProvider": "rules",
@@ -202,8 +202,8 @@
         "explanation": "「\"name\": \"cli-commentator\"」を手がかりにプロジェクト全体を横断検索して、関係する場所を絞っています。"
       },
       "withContext": {
-        "narration": "調査段階に入って、「pnpm-workspace.yaml」を扱ってるで。 原因っぽいとこ探してるで。",
-        "explanation": "目的「Phase Bの実況品質について、反復・目的説明・状態変化・用語補足・読み上げ密度を調査する」に向けた調査段階です。 「\"name\": \"cli-commentator\"」を手がかりにプロジェクト全体を横断検索して、関係する場所を絞っています。"
+        "narration": "調査段階に入って、「pnpm-workspace.yaml」を扱ってるで。",
+        "explanation": "目的「Phase Bの実況品質について、反復・目的説明・状態変化・用…」に向けた調査段階です。"
       }
     },
     {
@@ -214,8 +214,8 @@
         "explanation": "rule-based.ts | sed -n '1,120p' を読んで、現在の実装を確認しています。"
       },
       "withContext": {
-        "narration": "今の対象は「apps/server/src/commentary/orchestrator.ts」や。 ファイル読んで状況確認してるで。",
-        "explanation": "現在は調査段階です。 rule-based.ts | sed -n '1,120p' を読んで、現在の実装を確認しています。"
+        "narration": "今の対象は「apps/server/src/commentary/orchestrator.ts」や。",
+        "explanation": "rule-based.ts | sed -n '1,120p' を読んで、現在の実装を確認しています。"
       }
     },
     {
@@ -226,8 +226,8 @@
         "explanation": "「buildSpeechText|queueSpeech|commentaryDisplayMode」を手がかりにプロジェクト全体を横断検索して、関係する場所を絞っています。"
       },
       "withContext": {
-        "narration": "今の対象は「apps/web/src」や。 原因っぽいとこ探してるで。",
-        "explanation": "現在は調査段階です。 「buildSpeechText|queueSpeech|commentaryDisplayMode」を手がかりにプロジェクト全体を横断検索して、関係する場所を絞っています。"
+        "narration": "今の対象は「apps/web/src」や。",
+        "explanation": "「buildSpeechText|queueSpeech|commentaryDisplayMode」を手がかりにプロジェクト全体を横断検索して、関係する場所を絞っています。"
       }
     },
     {
@@ -238,8 +238,8 @@
         "explanation": "event-priority.ts | sed -n '1,120p' を読んで、現在の実装を確認しています。"
       },
       "withContext": {
-        "narration": "今の対象は「apps/server/src/extract.ts」や。 ファイル読んで状況確認してるで。",
-        "explanation": "現在は調査段階です。 event-priority.ts | sed -n '1,120p' を読んで、現在の実装を確認しています。"
+        "narration": "今の対象は「apps/server/src/extract.ts」や。",
+        "explanation": "event-priority.ts | sed -n '1,120p' を読んで、現在の実装を確認しています。"
       }
     }
   ],

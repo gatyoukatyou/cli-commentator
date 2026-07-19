@@ -48,7 +48,7 @@ describe("Phase B evaluation replay", () => {
       humanRequired: false,
     });
     expect(result.commentaryComparisons[0].withContext.explanation).toContain(
-      fixture.taskContext.objective
+      fixture.taskContext.objective.slice(0, 24)
     );
     expect(result.commentaryComparisons.some(({ withoutContext, withContext }) =>
       withoutContext.narration !== withContext.narration

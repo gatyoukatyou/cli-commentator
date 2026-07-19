@@ -7,8 +7,8 @@ exports[`Phase B evaluation replay > replays the minimal sanitized session deter
       "eventType": "search",
       "offsetMs": 400,
       "withContext": {
-        "explanation": "目的「Phase Bの実況品質について、反復・目的説明・状態変化・用語補足・読み上げ密度を調査する」に向けた調査段階です。 「"name": "cli-commentator"」を手がかりにプロジェクト全体を横断検索して、関係する場所を絞っています。",
-        "narration": "調査段階に入って、「pnpm-workspace.yaml」を扱ってるで。 原因っぽいとこ探してるで。",
+        "explanation": "目的「Phase Bの実況品質について、反復・目的説明・状態変化・用…」に向けた調査段階です。",
+        "narration": "調査段階に入って、「pnpm-workspace.yaml」を扱ってるで。",
       },
       "withoutContext": {
         "explanation": "「"name": "cli-commentator"」を手がかりにプロジェクト全体を横断検索して、関係する場所を絞っています。",
@@ -19,8 +19,8 @@ exports[`Phase B evaluation replay > replays the minimal sanitized session deter
       "eventType": "read",
       "offsetMs": 3218,
       "withContext": {
-        "explanation": "現在は調査段階です。 rule-based.ts | sed -n '1,120p' を読んで、現在の実装を確認しています。",
-        "narration": "今の対象は「apps/server/src/commentary/orchestrator.ts」や。 ファイル読んで状況確認してるで。",
+        "explanation": "rule-based.ts | sed -n '1,120p' を読んで、現在の実装を確認しています。",
+        "narration": "今の対象は「apps/server/src/commentary/orchestrator.ts」や。",
       },
       "withoutContext": {
         "explanation": "rule-based.ts | sed -n '1,120p' を読んで、現在の実装を確認しています。",
@@ -31,8 +31,8 @@ exports[`Phase B evaluation replay > replays the minimal sanitized session deter
       "eventType": "search",
       "offsetMs": 7355,
       "withContext": {
-        "explanation": "現在は調査段階です。 「buildSpeechText|queueSpeech|commentaryDisplayMode」を手がかりにプロジェクト全体を横断検索して、関係する場所を絞っています。",
-        "narration": "今の対象は「apps/web/src」や。 原因っぽいとこ探してるで。",
+        "explanation": "「buildSpeechText|queueSpeech|commentaryDisplayMode」を手がかりにプロジェクト全体を横断検索して、関係する場所を絞っています。",
+        "narration": "今の対象は「apps/web/src」や。",
       },
       "withoutContext": {
         "explanation": "「buildSpeechText|queueSpeech|commentaryDisplayMode」を手がかりにプロジェクト全体を横断検索して、関係する場所を絞っています。",
@@ -43,8 +43,8 @@ exports[`Phase B evaluation replay > replays the minimal sanitized session deter
       "eventType": "read",
       "offsetMs": 10573,
       "withContext": {
-        "explanation": "現在は調査段階です。 event-priority.ts | sed -n '1,120p' を読んで、現在の実装を確認しています。",
-        "narration": "今の対象は「apps/server/src/extract.ts」や。 ファイル読んで状況確認してるで。",
+        "explanation": "event-priority.ts | sed -n '1,120p' を読んで、現在の実装を確認しています。",
+        "narration": "今の対象は「apps/server/src/extract.ts」や。",
       },
       "withoutContext": {
         "explanation": "event-priority.ts | sed -n '1,120p' を読んで、現在の実装を確認しています。",
@@ -129,7 +129,7 @@ exports[`Phase B evaluation replay > replays the minimal sanitized session deter
         "ts": 400,
         "type": "search",
       },
-      "explanation": "目的「Phase Bの実況品質について、反復・目的説明・状態変化・用語補足・読み上げ密度を調査する」に向けた調査段階です。 「"name": "cli-commentator"」を手がかりにプロジェクト全体を横断検索して、関係する場所を絞っています。",
+      "explanation": "目的「Phase Bの実況品質について、反復・目的説明・状態変化・用…」に向けた調査段階です。",
       "glossaryNotes": [],
       "kind": "commentary",
       "meta": {
@@ -137,7 +137,7 @@ exports[`Phase B evaluation replay > replays the minimal sanitized session deter
         "mode": "both",
         "narrationProvider": "rules",
       },
-      "narration": "調査段階に入って、「pnpm-workspace.yaml」を扱ってるで。 原因っぽいとこ探してるで。",
+      "narration": "調査段階に入って、「pnpm-workspace.yaml」を扱ってるで。",
       "ts": 400,
     },
     {
@@ -158,7 +158,7 @@ exports[`Phase B evaluation replay > replays the minimal sanitized session deter
         "ts": 3218,
         "type": "read",
       },
-      "explanation": "現在は調査段階です。 rule-based.ts | sed -n '1,120p' を読んで、現在の実装を確認しています。",
+      "explanation": "rule-based.ts | sed -n '1,120p' を読んで、現在の実装を確認しています。",
       "glossaryNotes": [],
       "kind": "commentary",
       "meta": {
@@ -166,7 +166,7 @@ exports[`Phase B evaluation replay > replays the minimal sanitized session deter
         "mode": "both",
         "narrationProvider": "rules",
       },
-      "narration": "今の対象は「apps/server/src/commentary/orchestrator.ts」や。 ファイル読んで状況確認してるで。",
+      "narration": "今の対象は「apps/server/src/commentary/orchestrator.ts」や。",
       "ts": 3218,
     },
     {
@@ -187,7 +187,7 @@ exports[`Phase B evaluation replay > replays the minimal sanitized session deter
         "ts": 7355,
         "type": "search",
       },
-      "explanation": "現在は調査段階です。 「buildSpeechText|queueSpeech|commentaryDisplayMode」を手がかりにプロジェクト全体を横断検索して、関係する場所を絞っています。",
+      "explanation": "「buildSpeechText|queueSpeech|commentaryDisplayMode」を手がかりにプロジェクト全体を横断検索して、関係する場所を絞っています。",
       "glossaryNotes": [
         "補足: rg はプロジェクト全体を高速検索するコマンド",
       ],
@@ -197,7 +197,7 @@ exports[`Phase B evaluation replay > replays the minimal sanitized session deter
         "mode": "both",
         "narrationProvider": "rules",
       },
-      "narration": "今の対象は「apps/web/src」や。 原因っぽいとこ探してるで。",
+      "narration": "今の対象は「apps/web/src」や。",
       "ts": 7355,
     },
     {
@@ -228,7 +228,7 @@ exports[`Phase B evaluation replay > replays the minimal sanitized session deter
         "ts": 10573,
         "type": "read",
       },
-      "explanation": "現在は調査段階です。 event-priority.ts | sed -n '1,120p' を読んで、現在の実装を確認しています。",
+      "explanation": "event-priority.ts | sed -n '1,120p' を読んで、現在の実装を確認しています。",
       "glossaryNotes": [],
       "kind": "commentary",
       "meta": {
@@ -236,7 +236,7 @@ exports[`Phase B evaluation replay > replays the minimal sanitized session deter
         "mode": "both",
         "narrationProvider": "rules",
       },
-      "narration": "今の対象は「apps/server/src/extract.ts」や。 ファイル読んで状況確認してるで。",
+      "narration": "今の対象は「apps/server/src/extract.ts」や。",
       "ts": 10573,
     },
   ],

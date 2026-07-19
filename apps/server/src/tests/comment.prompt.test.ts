@@ -135,6 +135,19 @@ describe("session context prompts", () => {
     expect(prompt).toContain("不明な目的・結果・成功見込みを補わない");
   });
 
+  it("labels a preset without presenting it as a confirmed objective", () => {
+    const context = createSessionContext();
+    context.reset({ presetName: "Claude Code 開発用" });
+    const prompt = buildNarrationPrompt(
+      { ts: 1, type: "start", summary: "開始" },
+      "standard",
+      context.snapshot()
+    );
+    expect(prompt).toContain("作業目的: 不明");
+    expect(prompt).toContain("起動プリセット: Claude Code 開発用");
+    expect(prompt).not.toContain("確認済みの作業目的: Claude Code 開発用");
+  });
+
   it("adds only bounded observed context and omits prior raw event details", () => {
     const context = createSessionContext();
     context.setTaskContext({

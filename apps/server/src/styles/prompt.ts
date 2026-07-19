@@ -131,6 +131,7 @@ function buildContextSection(context?: SessionContextSnapshot): string {
     "観測済みセッション文脈:",
     context.task.objective ? `- 確認済みの作業目的: ${context.task.objective}` : "- 作業目的: 不明",
     context.task.userPrompt ? `- 確認済みのHUMAN依頼: ${context.task.userPrompt}` : "- HUMAN依頼: 不明",
+    ...(context.task.sessionLabel ? [`- 起動プリセット: ${context.task.sessionLabel}`] : []),
     `- 現在フェーズ: ${SESSION_PHASE_LABELS[context.phase]} (${context.phase})`,
     context.phaseChanged
       ? `- フェーズ変化: ${SESSION_PHASE_LABELS[context.previousPhase]} → ${SESSION_PHASE_LABELS[context.phase]}`
