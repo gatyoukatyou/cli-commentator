@@ -8,8 +8,13 @@ import {
   type CommentaryItem,
   type LogEventTypeFilter,
 } from "../lib/log-filter";
-import type { CommentaryDisplayMode } from "../types";
+import type { CommentaryDisplayMode, EventPriority } from "../types";
 import { normalizeSuggestion } from "../lib/text";
+
+const PRIORITY_BADGES: Partial<Record<EventPriority, { label: string; className: string }>> = {
+  urgent: { label: "要対応", className: "log-item__priority-badge--urgent" },
+  notice: { label: "通知", className: "log-item__priority-badge--notice" },
+};
 
 const LOG_AUTO_SCROLL_THRESHOLD_PX = 64;
 const GENERIC_LOG_SUMMARIES = new Set(["ログ更新"]);
@@ -131,12 +136,25 @@ export function CommentaryLog({ items, displayMode }: CommentaryLogProps) {
                 ? parts.explanationText
                 : null;
             const showExplanationBody = showNarration && showExplanation;
+            const priority = item.priority ?? "progress";
+            const priorityBadge = PRIORITY_BADGES[priority];
+            const itemClassName =
+              priority === "urgent"
+                ? "log-item log-item--urgent"
+                : priority === "notice"
+                  ? "log-item log-item--notice"
+                  : "log-item";
 
             return (
-              <div key={`${group.key}-${index}`} className="log-item">
+              <div key={`${group.key}-${index}`} className={itemClassName}>
                 <div className="log-item__header">
                   <div className="log-item__time">{formatLogTimeRange(group.startTs, group.endTs)}</div>
                   <div className="log-item__header-meta">
+                    {priorityBadge && (
+                      <div className={`log-item__priority-badge ${priorityBadge.className}`}>
+                        {priorityBadge.label}
+                      </div>
+                    )}
                     <div className="log-item__type">{EVENT_TYPE_LABELS[item.eventType]}</div>
                     {isGrouped && <div className="log-item__group-badge">{group.count}件まとめ</div>}
                   </div>

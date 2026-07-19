@@ -640,6 +640,37 @@
   padding: 1px var(--space-2);
 }
 
+/* Priority badge (#309: 監督イベントの優先度表示) */
+.log-item--urgent {
+  border-left: 3px solid var(--color-danger);
+  padding-left: var(--space-2);
+  background: color-mix(in srgb, var(--color-danger) 6%, transparent);
+}
+
+.log-item--notice {
+  border-left: 3px solid var(--color-warning);
+  padding-left: var(--space-2);
+}
+
+.log-item__priority-badge {
+  font-size: var(--text-xs);
+  font-weight: var(--font-bold);
+  border-radius: 999px;
+  padding: 1px var(--space-2);
+}
+
+.log-item__priority-badge--urgent {
+  color: var(--color-danger);
+  background: color-mix(in srgb, var(--color-danger) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-danger) 45%, transparent);
+}
+
+.log-item__priority-badge--notice {
+  color: var(--color-warning);
+  background: color-mix(in srgb, var(--color-warning) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-warning) 45%, transparent);
+}
+
 .log-item__text {
   font-size: 1.1rem;
   line-height: 1.5;
@@ -932,6 +963,36 @@
 .notice--error {
   border: 1px solid rgba(220, 38, 38, 0.35);
   background: rgba(220, 38, 38, 0.08);
+}
+
+/* 要対応バナー (#309: urgentイベントの即時表示) */
+.notice--urgent {
+  border: 2px solid var(--color-danger);
+  border-left-width: 6px;
+  background: color-mix(in srgb, var(--color-danger) 8%, transparent);
+}
+
+.notice--urgent .notice__title {
+  color: var(--color-danger);
+  font-size: var(--text-lg);
+}
+
+.notice__urgent-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.notice__time {
+  color: var(--color-fg-muted);
+  font-size: var(--text-xs);
+}
+
+.notice__dismiss {
+  flex-shrink: 0;
+  padding: 6px 12px;
+  font-size: var(--text-sm);
 }
 
 .notice__title {

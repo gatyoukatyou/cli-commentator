@@ -5,6 +5,7 @@ import type { CommentaryItem } from "../lib/log-filter";
 import { normalizeSuggestion } from "../lib/text";
 import { parseServerMessage } from "@cli-commentator/shared";
 import type {
+  Event,
   Profile,
   ProfileSummary,
   SourceState,
@@ -42,6 +43,8 @@ type UseCommentatorSocketOptions = {
   queueSpeech: (item: CommentaryItem) => void;
   clearPendingSpeech: () => void;
   stopAndClearSpeech: () => void;
+  onServerEvent: (ev: Event) => void;
+  clearAttention: () => void;
 };
 
 function stubProfileFromSummary(summary: ProfileSummary): Profile {
@@ -79,6 +82,8 @@ export function useCommentatorSocket({
   queueSpeech,
   clearPendingSpeech,
   stopAndClearSpeech,
+  onServerEvent,
+  clearAttention,
 }: UseCommentatorSocketOptions) {
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>("connecting");
   const wsRef = useRef<WebSocket | null>(null);
@@ -204,6 +209,7 @@ export function useCommentatorSocket({
               clearTerminal();
               terminalPaneRef.current?.resetInputGate();
               stopAndClearSpeech();
+              clearAttention();
               setProfileError(null);
               setPtyError(null);
               setCurrentSessionLabel([message.cmd, ...message.args].filter(Boolean).join(" ") || "session");
@@ -220,6 +226,8 @@ export function useCommentatorSocket({
               });
               break;
             case "event":
+              // ルールベースの即時イベント。urgentの要対応表示・定型TTSに使う
+              onServerEvent(message.ev);
               break;
           }
         } catch (err) {
@@ -269,8 +277,10 @@ export function useCommentatorSocket({
       }
     };
   }, [
+    clearAttention,
     clearPendingSpeech,
     clearTerminal,
+    onServerEvent,
     pendingEditIdRef,
     profilesRef,
     queueSpeech,

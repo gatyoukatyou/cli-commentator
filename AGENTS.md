@@ -74,7 +74,7 @@ CLIの出力を別ウィンドウで実況するMVP。PTY経由でCLI出力を�
 - PTY (node-pty) によるCLI出力キャプチャ
 - 実況スタイル: 標準 / 関西弁 / ずんだもん風
 - LLM Adapter: OpenAI, Groq, Gemini, Anthropic, local (Ollama)
-- スキン: Standard / Brutalism / Paper
+- スキン: Standard / CLI
 
 ## Conventions
 

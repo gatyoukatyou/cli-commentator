@@ -9,6 +9,13 @@ import { WorkspaceLeft } from "./components/WorkspaceLeft";
 import { useTTS } from "./hooks/useTTS";
 import { useCommentatorSocket, type PtyUnavailableNotice } from "./hooks/useCommentatorSocket";
 import { useProfileActions } from "./hooks/useProfileActions";
+import {
+  buildUrgentEventSpeechText,
+  createSpokenEventRegistry,
+  eventSpeechKey,
+  toAttentionNotice,
+  type AttentionNotice,
+} from "./lib/event-notify";
 import type { CommentaryItem } from "./lib/log-filter";
 import {
   buildLaunchDraft,
@@ -20,6 +27,7 @@ import { copyWithFallback, getTauriCore, type ServerStatusDetail } from "./lib/t
 import { normalizeSuggestion } from "./lib/text";
 import type {
   CommentaryDisplayMode,
+  Event,
   Style,
   SourceState,
   Profile,
@@ -78,6 +86,11 @@ export default function App() {
   const [profileError, setProfileError] = useState<string | null>(null);
   const profilesRef = useRef<ProfileSummary[]>([]);
 
+  // 要対応状態（urgentイベントの最新1件を表示）
+  const [attention, setAttention] = useState<AttentionNotice | null>(null);
+  // 即時イベントで読み上げ済みのキー（後続commentaryの二重読み上げ防止）
+  const spokenEventsRef = useRef(createSpokenEventRegistry());
+
   // PTY unavailable state (when node-pty build fails)
   const [ptyUnavailable, setPtyUnavailable] = useState<PtyUnavailableNotice | null>(null);
   const [ptyError, setPtyError] = useState<string | null>(null);
@@ -96,11 +109,38 @@ export default function App() {
     clearPendingSpeech,
     stopAndClearSpeech,
     queueSpeech,
+    speakUrgentNow,
     handleTTSToggle,
     handleTTSSettingsChange,
     handleTTSPresetChange,
     handleTestSpeak,
   } = useTTS({ commentaryDisplayMode });
+
+  // ルールベースの即時イベント: urgentは要対応表示＋定型文の割り込み読み上げ
+  const handleServerEvent = useCallback(
+    (ev: Event) => {
+      if ((ev.priority ?? "progress") !== "urgent") return;
+      setAttention(toAttentionNotice(ev));
+      if (speakUrgentNow(buildUrgentEventSpeechText(ev))) {
+        // 読み上げ済みを記録し、同一イベントのcommentary読み上げをスキップする
+        spokenEventsRef.current.add(eventSpeechKey(ev.ts, ev.type));
+      }
+    },
+    [speakUrgentNow]
+  );
+
+  const clearAttention = useCallback(() => {
+    setAttention(null);
+  }, []);
+
+  // 即時イベントで読み上げ済みのcommentaryはTTSしない（表示はする）
+  const queueSpeechDeduped = useCallback(
+    (item: CommentaryItem) => {
+      if (spokenEventsRef.current.has(eventSpeechKey(item.ts, item.eventType))) return;
+      queueSpeech(item);
+    },
+    [queueSpeech]
+  );
 
   const defaultWsPort = useMemo(() => {
     const parsed = Number(import.meta.env.VITE_WS_PORT ?? "8787");
@@ -195,9 +235,11 @@ export default function App() {
     setCurrentSessionLabel,
     writeToTerminal,
     clearTerminal,
-    queueSpeech,
+    queueSpeech: queueSpeechDeduped,
     clearPendingSpeech,
     stopAndClearSpeech,
+    onServerEvent: handleServerEvent,
+    clearAttention,
   });
   const {
     handleSelectProfile,
@@ -288,6 +330,8 @@ export default function App() {
         </Suspense>
       )}
       <Notices
+        attention={attention}
+        onDismissAttention={clearAttention}
         ptyUnavailable={ptyUnavailable}
         profileError={profileError}
         ptyError={ptyError}

@@ -9,6 +9,7 @@ import {
   setTTSEnabled,
   setTTSSettings,
   speak,
+  speakWithPriority,
   stopSpeech,
   waitForVoices,
   type TTSPresetId,
@@ -106,7 +107,8 @@ export function useTTS({ commentaryDisplayMode }: UseTTSOptions) {
       commentaryDisplayMode
     );
     if (!speechText) return;
-    speak(speechText, ttsSettingsRef.current);
+    // notice（完了/沈黙）は進行中の発話を止めずキュー末尾、progressは従来のcancel方式
+    speakWithPriority(speechText, pending.latest.priority ?? "progress", ttsSettingsRef.current);
   }, [commentaryDisplayMode]);
 
   const schedulePendingSpeech = useCallback(() => {
@@ -150,6 +152,15 @@ export function useTTS({ commentaryDisplayMode }: UseTTSOptions) {
     [flushPendingSpeech, schedulePendingSpeech]
   );
 
+  /**
+   * urgentイベントの即時読み上げ（進行中の発話に割り込む）
+   * @returns 実際に読み上げた場合 true（TTS無効時は false）
+   */
+  const speakUrgentNow = useCallback((text: string): boolean => {
+    if (!ttsEnabledRef.current) return false;
+    return speakWithPriority(text, "urgent", ttsSettingsRef.current);
+  }, []);
+
   const handleTTSToggle = useCallback(
     (enabled: boolean) => {
       setTtsEnabledState(enabled);
@@ -192,6 +203,7 @@ export function useTTS({ commentaryDisplayMode }: UseTTSOptions) {
     clearPendingSpeech,
     stopAndClearSpeech,
     queueSpeech,
+    speakUrgentNow,
     handleTTSToggle,
     handleTTSSettingsChange,
     handleTTSPresetChange,
