@@ -8,6 +8,7 @@ import {
   buildNarrationPrompt,
   normalizeGeneratedCommentaryText,
 } from "../styles/prompt.js";
+import { createSessionContext } from "../session-context.js";
 
 type PromptFixture = {
   id: string;
@@ -97,6 +98,70 @@ describe("rule-based supervision layer", () => {
     expect(kansai.explanation).toBe(standard.explanation);
     expect(zundamon.explanation).toBe(standard.explanation);
     expect(kansai.explanation).not.toMatch(/やで|や。|へん|なのだ/u);
+  });
+
+  it("keeps context-free output compatible and uses observed context when provided", async () => {
+    const { comment } = await import("../styles/index.js");
+    const event: Event = {
+      ts: 1,
+      type: "read",
+      summary: "ファイルを読み込んでいる",
+      detail: "⏺ Read(apps/server/src/index.ts)",
+    };
+    const context = createSessionContext();
+    expect(await comment(event, "standard", {}, context.snapshot())).toEqual(
+      await comment(event, "standard")
+    );
+
+    context.setTaskContext({
+      objective: "実況のセッション文脈を確認する",
+      userPrompt: "実装を読んでください",
+      source: "fixture",
+    });
+    const snapshot = context.observeEvent(event);
+    const contextual = await comment(event, "standard", {}, snapshot);
+    expect(contextual.narration).toContain("調査段階");
+    expect(contextual.narration).toContain("apps/server/src/index.ts");
+    expect(contextual.explanation).toContain("実況のセッション文脈を確認する");
+    expect(contextual.explanation).not.toMatch(/成功|完了見込み/u);
+  });
+});
+
+describe("session context prompts", () => {
+  it("keeps an unobserved purpose explicitly unknown", () => {
+    const event: Event = { ts: 1, type: "stdout", summary: "進行中" };
+    const prompt = buildNarrationPrompt(event, "standard", createSessionContext().snapshot());
+    expect(prompt).toContain("作業目的: 不明");
+    expect(prompt).toContain("不明な目的・結果・成功見込みを補わない");
+  });
+
+  it("adds only bounded observed context and omits prior raw event details", () => {
+    const context = createSessionContext();
+    context.setTaskContext({
+      objective: "実況の流れを確認する",
+      userPrompt: "関連実装を読んでください",
+      source: "fixture",
+    });
+    context.observeEvent({
+      ts: 1,
+      type: "search",
+      summary: "関連箇所を検索している",
+      detail: "rg secret-pattern-that-must-not-enter-history apps/server/src",
+    });
+    const current: Event = {
+      ts: 2,
+      type: "read",
+      summary: "ファイルを読み込んでいる",
+      detail: "⏺ Read(apps/server/src/index.ts)",
+    };
+    const prompt = buildExplanationPrompt(current, "standard", context.observeEvent(current));
+
+    expect(prompt).toContain("観測済みセッション文脈");
+    expect(prompt).toContain("実況の流れを確認する");
+    expect(prompt).toContain("調査 (investigation)");
+    expect(prompt).toContain("apps/server/src/index.ts");
+    expect(prompt).toContain("search:関連箇所を検索している");
+    expect(prompt).not.toContain("secret-pattern-that-must-not-enter-history");
   });
 });
 

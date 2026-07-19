@@ -8,6 +8,7 @@ import { withTimeout } from "../utils/timeout.js";
 import type { ProfileLLMProviders } from "../profile/types.js";
 import { buildExplanationPrompt, buildNarrationPrompt, normalizeGeneratedCommentaryText } from "../styles/prompt.js";
 import { commentByRules, isSuppressedCommentaryEvent, withCommentaryMode } from "./rule-based.js";
+import type { SessionContextSnapshot } from "../session-context.js";
 
 const COMMENT_TIMEOUT_MS = parseInt(process.env.COMMENT_TIMEOUT_MS ?? "3000", 10);
 const adapterCache = new Map<ProviderName, LLMAdapter | null>();
@@ -96,13 +97,14 @@ async function commentInternal(
   ev: Event,
   style: Style,
   providers: ProfileLLMProviders = {},
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  context?: SessionContextSnapshot
 ): Promise<CommentaryPayload> {
   if (isSuppressedCommentaryEvent(ev)) {
-    return commentByRules(ev, style);
+    return commentByRules(ev, style, context);
   }
 
-  const rules = commentByRules(ev, style);
+  const rules = commentByRules(ev, style, context);
   const resolvedProviders = resolveCommentaryProviders(providers);
   const narrationAdapter = getAdapter(resolvedProviders.narrationProvider);
   const explanationAdapter = getAdapter(resolvedProviders.explanationProvider);
@@ -113,7 +115,7 @@ async function commentInternal(
 
   const [narration, explanation] = await Promise.all([
     narrationAdapter
-      ? generateLLMText(narrationAdapter, buildNarrationPrompt(ev, style), signal)
+      ? generateLLMText(narrationAdapter, buildNarrationPrompt(ev, style, context), signal)
           .then((text) => ({
             text: normalizeGeneratedCommentaryText(text, "narration"),
             provider: narrationAdapter.name,
@@ -121,7 +123,7 @@ async function commentInternal(
           .catch(() => null)
       : Promise.resolve(null),
     explanationAdapter
-      ? generateLLMText(explanationAdapter, buildExplanationPrompt(ev, style), signal)
+      ? generateLLMText(explanationAdapter, buildExplanationPrompt(ev, style, context), signal)
           .then((text) => ({
             text: normalizeGeneratedCommentaryText(text, "explanation"),
             provider: explanationAdapter.name,
@@ -152,7 +154,8 @@ async function commentInternal(
 export async function comment(
   ev: Event,
   style: Style,
-  providers: ProfileLLMProviders = {}
+  providers: ProfileLLMProviders = {},
+  context?: SessionContextSnapshot
 ): Promise<CommentaryPayload> {
   const resolvedProviders = resolveCommentaryProviders(providers);
   const narrationAdapter = getAdapter(resolvedProviders.narrationProvider);
@@ -168,7 +171,7 @@ export async function comment(
 
   // ルールベースのみの場合はタイムアウト不要
   if (!narrationAdapter && !explanationAdapter) {
-    return commentByRules(ev, style);
+    return commentByRules(ev, style, context);
   }
 
   const controller = new AbortController();
@@ -176,7 +179,7 @@ export async function comment(
 
   try {
     const result = await withTimeout(
-      commentInternal(ev, style, providers, controller.signal),
+      commentInternal(ev, style, providers, controller.signal, context),
       {
         ms: COMMENT_TIMEOUT_MS,
         timeoutError: () => new CommentError("comment_timeout"),
@@ -193,6 +196,6 @@ export async function comment(
     } else {
       logComment("llm_error", duration, meta);
     }
-    return commentByRules(ev, style);
+    return commentByRules(ev, style, context);
   }
 }
