@@ -19,6 +19,7 @@
     "check:doc-sync": "node ./scripts/check-doc-sync.mjs",
     "smoke:desktop-distribution": "node ./scripts/desktop-distribution-smoke.mjs",
     "smoke:llm": "bash ./scripts/smoke-llm.sh",
+    "eval:phase-b": "pnpm -C apps/server exec tsx ../../scripts/run-phase-b-evaluation.mts",
     "verify:apple-signing:detect": "node ./scripts/verify-apple-signing-secrets.mjs --mode detect",
     "verify:apple-signing": "node ./scripts/verify-apple-signing-secrets.mjs --mode require",
     "verify:desktop-bundle-artifacts": "node ./scripts/verify-desktop-bundle-artifacts.mjs",
