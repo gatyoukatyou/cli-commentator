@@ -1,5 +1,5 @@
 import type { Dispatch, SetStateAction } from "react";
-import { LAUNCH_PRESETS, type LaunchDraft, type LaunchPresetId } from "../lib/session-launcher";
+import { LAUNCH_PRESETS, getLaunchButtonLabel, type LaunchDraft, type LaunchPresetId } from "../lib/session-launcher";
 import type { Style } from "../types";
 
 type LauncherPanelProps = {
@@ -15,45 +15,55 @@ export function LauncherPanel({ launchDraft, setLaunchDraft, style, connected, o
   return (
     <div className="panel launcher-panel">
       <div className="launcher-panel__header">
-        <div className="launcher-panel__title">Quick Launch</div>
-        <div className="launcher-panel__hint">ここから直接 CLI を起動します。</div>
+        <div className="launcher-panel__title">実況を始める</div>
+        <div className="launcher-panel__hint">3ステップでAIの作業をこの画面から監督できます。</div>
       </div>
       <div className="launcher-panel__toolbar">
-        <div className="launcher-panel__presets" role="tablist" aria-label="launch presets">
-          {LAUNCH_PRESETS.map((preset) => (
-            <button
-              key={preset.id}
-              type="button"
-              className={`launcher-panel__preset ${launchDraft.presetId === preset.id ? "launcher-panel__preset--active" : ""}`}
-              onClick={() => onSelectPreset(preset.id)}
-              title={preset.description}
-            >
-              {preset.label}
-            </button>
-          ))}
+        <div className="launcher-panel__step">
+          <div className="launcher-panel__step-label">1. 起動するAIを選ぶ</div>
+          <div className="launcher-panel__presets" role="tablist" aria-label="起動するCLI">
+            {LAUNCH_PRESETS.map((preset) => (
+              <button
+                key={preset.id}
+                type="button"
+                role="tab"
+                aria-selected={launchDraft.presetId === preset.id}
+                className={`launcher-panel__preset ${launchDraft.presetId === preset.id ? "launcher-panel__preset--active" : ""}`}
+                onClick={() => onSelectPreset(preset.id)}
+                title={preset.description}
+              >
+                {preset.label}{preset.recommended ? "（推奨）" : ""}
+              </button>
+            ))}
+          </div>
         </div>
         <label className="launcher-panel__field launcher-panel__field--cwd">
-          <span>作業ディレクトリ</span>
-          <input value={launchDraft.cwd} onChange={(e) => setLaunchDraft((prev) => ({ ...prev, cwd: e.target.value }))} placeholder="/path/to/repo" />
-        </label>
-        <label className="launcher-panel__field launcher-panel__field--cmd">
-          <span>コマンド</span>
-          <input
-            value={launchDraft.cmd}
-            onChange={(e) => setLaunchDraft((prev) => ({ ...prev, cmd: e.target.value, presetId: "custom", name: prev.presetId === "custom" ? prev.name : "Custom" }))}
-            placeholder="bash / codex / claude"
-          />
-        </label>
-        <label className="launcher-panel__field launcher-panel__field--args">
-          <span>引数</span>
-          <input value={launchDraft.args} onChange={(e) => setLaunchDraft((prev) => ({ ...prev, args: e.target.value }))} placeholder="--no-alt-screen" />
+          <span>2. 作業フォルダを指定（空欄なら既定のフォルダ）</span>
+          <input value={launchDraft.cwd} onChange={(e) => setLaunchDraft((prev) => ({ ...prev, cwd: e.target.value }))} placeholder="例: /path/to/project" />
         </label>
         <button type="button" className="debug-panel__btn debug-panel__btn--primary launcher-panel__launch-btn" onClick={onLaunch} disabled={!connected}>
-          起動
+          3. {getLaunchButtonLabel(launchDraft, connected)}
         </button>
       </div>
+      <details className="launcher-panel__advanced">
+        <summary>詳細設定（通常は変更不要）</summary>
+        <div className="launcher-panel__advanced-fields">
+          <label className="launcher-panel__field launcher-panel__field--cmd">
+            <span>コマンド</span>
+            <input
+              value={launchDraft.cmd}
+              onChange={(e) => setLaunchDraft((prev) => ({ ...prev, cmd: e.target.value, presetId: "custom", name: prev.presetId === "custom" ? prev.name : "Custom" }))}
+              placeholder="bash / codex / claude"
+            />
+          </label>
+          <label className="launcher-panel__field launcher-panel__field--args">
+            <span>引数</span>
+            <input value={launchDraft.args} onChange={(e) => setLaunchDraft((prev) => ({ ...prev, args: e.target.value }))} placeholder="--no-alt-screen" />
+          </label>
+        </div>
+      </details>
       <div className="launcher-panel__meta">
-        口調 `{style}` / source `{launchDraft.logSource}` で起動します。
+        実況口調: {style} ／ ログ判定: {launchDraft.logSource}
       </div>
     </div>
   );

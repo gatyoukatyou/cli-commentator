@@ -16,11 +16,12 @@ export type LaunchPreset = {
   id: LaunchPresetId;
   label: string;
   description: string;
+  recommended?: boolean;
 };
 
 const PRESET_CONFIG: Record<
   LaunchPresetId,
-  { label: string; description: string; cmd: string; args: string; logSource: SourceState["mode"] }
+  { label: string; description: string; cmd: string; args: string; logSource: SourceState["mode"]; recommended?: boolean }
 > = {
   bash: {
     label: "bash",
@@ -42,6 +43,7 @@ const PRESET_CONFIG: Record<
     cmd: "claude",
     args: "",
     logSource: "claude",
+    recommended: true,
   },
   custom: {
     label: "Custom",
@@ -52,12 +54,13 @@ const PRESET_CONFIG: Record<
   },
 };
 
-export const LAUNCH_PRESETS: LaunchPreset[] = (Object.entries(PRESET_CONFIG) as Array<
-  [LaunchPresetId, (typeof PRESET_CONFIG)[LaunchPresetId]]
->).map(([id, config]) => ({
+const PRESET_ORDER: LaunchPresetId[] = ["claude", "codex", "bash", "custom"];
+
+export const LAUNCH_PRESETS: LaunchPreset[] = PRESET_ORDER.map((id) => ({
   id,
-  label: config.label,
-  description: config.description,
+  label: PRESET_CONFIG[id].label,
+  description: PRESET_CONFIG[id].description,
+  recommended: PRESET_CONFIG[id].recommended,
 }));
 
 export function buildLaunchDraft(presetId: LaunchPresetId, style: Style, cwd = ""): LaunchDraft {
@@ -86,4 +89,10 @@ export function buildLaunchSessionInput(draft: LaunchDraft): LaunchSessionInput 
     style: draft.style,
     logSource: draft.logSource,
   };
+}
+
+export function getLaunchButtonLabel(draft: LaunchDraft, connected: boolean): string {
+  if (!connected) return "サーバー接続待ち";
+  if (draft.presetId === "custom") return "CLIを起動";
+  return `${PRESET_CONFIG[draft.presetId].label}を起動`;
 }

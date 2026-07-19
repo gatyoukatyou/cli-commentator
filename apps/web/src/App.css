@@ -182,9 +182,20 @@
 
 .launcher-panel__toolbar {
   display: grid;
-  grid-template-columns: auto minmax(220px, 1fr) minmax(120px, 0.7fr) minmax(140px, 0.9fr) auto;
+  grid-template-columns: auto minmax(260px, 1fr) auto;
   gap: var(--space-2);
   align-items: end;
+}
+
+.launcher-panel__step {
+  display: grid;
+  gap: 2px;
+}
+
+.launcher-panel__step-label {
+  color: var(--color-fg-secondary);
+  font-size: var(--text-xs);
+  text-align: left;
 }
 
 .launcher-panel__presets {
@@ -230,7 +241,25 @@
 
 .launcher-panel__launch-btn {
   align-self: stretch;
-  min-width: 72px;
+  min-width: 150px;
+}
+
+.launcher-panel__advanced {
+  color: var(--color-fg-secondary);
+  font-size: var(--text-xs);
+  text-align: left;
+}
+
+.launcher-panel__advanced summary {
+  cursor: pointer;
+  width: fit-content;
+}
+
+.launcher-panel__advanced-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-2);
+  margin-top: var(--space-1);
 }
 
 .terminal-panel {
@@ -494,6 +523,10 @@
 
 @media (max-width: 768px) {
   .launcher-panel__toolbar {
+    grid-template-columns: 1fr;
+  }
+
+  .launcher-panel__advanced-fields {
     grid-template-columns: 1fr;
   }
 

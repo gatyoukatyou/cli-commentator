@@ -1,9 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { LAUNCH_PRESETS, buildLaunchDraft, buildLaunchSessionInput } from "./session-launcher";
+import { LAUNCH_PRESETS, buildLaunchDraft, buildLaunchSessionInput, getLaunchButtonLabel } from "./session-launcher";
 
 describe("session-launcher", () => {
   it("exposes expected built-in presets", () => {
-    expect(LAUNCH_PRESETS.map((preset) => preset.id)).toEqual(["bash", "codex", "claude", "custom"]);
+    expect(LAUNCH_PRESETS.map((preset) => preset.id)).toEqual(["claude", "codex", "bash", "custom"]);
+    expect(LAUNCH_PRESETS.find((preset) => preset.recommended)?.id).toBe("claude");
   });
 
   it("builds codex preset with fixed source mode", () => {
@@ -33,5 +34,12 @@ describe("session-launcher", () => {
       style: "standard",
       logSource: "auto",
     });
+  });
+
+  it("describes the next launch action without requiring instructions", () => {
+    const draft = buildLaunchDraft("claude", "standard");
+    expect(getLaunchButtonLabel(draft, false)).toBe("サーバー接続待ち");
+    expect(getLaunchButtonLabel(draft, true)).toBe("Claude Codeを起動");
+    expect(getLaunchButtonLabel(buildLaunchDraft("custom", "standard"), true)).toBe("CLIを起動");
   });
 });
