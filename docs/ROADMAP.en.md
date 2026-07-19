@@ -146,16 +146,16 @@ Supervision and entertaining commentary share one event-detection result; only t
 - PR #259 made Desktop sidecar preparation idempotent, so `dev:desktop:managed` can safely verify and regenerate bundled sidecar assets before startup
 
 **Now**
-- Issue #300 establishes the long-term direction. Supervision event detection is the top priority, beginning with a Phase A-0 dogfooding observation period
-- During Phase A-0, record moments that mattered for supervision but were missed during one week of real work sessions, then use them to specify the five event classes
+- Issue #300 establishes the long-term direction. **Phase A-1 (#304, five supervision event classes) was completed on 2026-07-19**
+  - #305 fixture capture → PR #310; #306 four Claude TUI supervision classes → PR #311
+  - #307 prolonged thinking/silence detection → PR #316; #308 priority-aware event pipeline → PR #317
+  - #309 priority-aware TTS and the Web UI action-required state → PR #321, accepted on real hardware by HUMAN
+- Repeated-error detection promotes the third identical error within two minutes to an urgent “same error is repeating” event
 - Because we are not issuing an Apple Developer ID certificate for now, `#138` is treated as Deferred. Signed distribution readiness remains important, but we will return to it when certificate issuance and external distribution preparation resume
-- Keep local desktop app polish / local readiness sufficient to start Phase A-0 observations reliably
-- Main is current after PR #259, with GitHub CI green across `test`, `test_windows`, `desktop_check`, `desktop_distribution_smoke`, and CodeQL
+- Keep local desktop app polish / local readiness as the launch path for real supervision-event checks
 
 **Next**
-- Break Phase A-0 into an issue with observation fields, recording format, and completion criteria
-- Use the observations to specify permission requests, questions, errors, completion, and prolonged thinking or silence, with priority-aware TTS (Phase A-1)
-- Improve Japanese explanations and summarization, with separate serious and play-by-play presentation layers (Phase B)
+- Improve Japanese explanations and summarization, with separate serious and play-by-play presentation layers (Phase B). Confirm priorities with HUMAN/Gino before implementation
 
 **Later**
 - Complete a manual-free path from launch to live commentary (Phase C)
