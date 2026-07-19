@@ -2,7 +2,7 @@ import { SESSION_PHASE_LABELS, type SessionContextSnapshot } from "../session-co
 import type { CommentaryPayload, Event } from "../types.js";
 
 const RAW_COMMAND_RE =
-  /(?:^[⏺•]\s*|\b(?:Bash|Read|Grep|Glob|Update|Write)\(|\bapply_patch\b|\b(?:rg|grep|nl|sed|git|gh|pnpm|npm|yarn)\s+-|\|)/iu;
+  /(?:^[⏺•]\s*|\b(?:Bash|Read|Grep|Glob|Update|Write)\(|\bapply_patch\b|\b(?:rg|grep|nl|sed|git|gh|pnpm|npm|yarn|cat|find|ls|cd|pwd|node|tsx|cargo|docker|curl)\b(?:\s+|$)|\|)/iu;
 const MAX_SPEECH_LENGTH = 100;
 
 function firstSentence(text: string): string {
@@ -12,7 +12,12 @@ function firstSentence(text: string): string {
 
 function safeFallback(event: Event, context: SessionContextSnapshot): string {
   if (context.humanRequired) return "HUMANの対応を待っています。";
-  if (event.type === "done") return "作業が完了しました。";
+  if (context.speech.reason === "failure") return "処理が正常に終了しませんでした。";
+  if (event.type === "done") {
+    return /\b(?:exit[_ ]?code|code)\s*=\s*0\b/iu.test(`${event.summary} ${event.detail ?? ""}`)
+      ? "作業が完了しました。"
+      : "処理が終了しました。";
+  }
   if (event.type === "error") return "エラーを確認しています。";
   if (context.phaseChanged && context.phase !== "unknown") {
     return `${SESSION_PHASE_LABELS[context.phase]}段階に移りました。`;
@@ -41,6 +46,9 @@ function speechSentence(
   event: Event,
   context: SessionContextSnapshot
 ): string {
+  if (event.type === "done") {
+    return safeFallback(event, context);
+  }
   const candidate = firstSentence(payload.narration ?? payload.explanation ?? "");
   if (!candidate || candidate.length > MAX_SPEECH_LENGTH || RAW_COMMAND_RE.test(candidate)) {
     return safeFallback(event, context);

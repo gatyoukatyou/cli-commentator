@@ -46,6 +46,44 @@ describe("commentary speech policy", () => {
     expect(result.speech?.text).not.toContain("|");
   });
 
+  it.each([
+    "git status を確認しています。",
+    "pnpm test を実行しています。",
+    "gh pr view を確認しています。",
+  ])("does not speak a common raw command: %s", (narration) => {
+    const event: Event = { ts: 1, type: "read", summary: "確認", detail: "src/a.ts" };
+    const result = applySpeechContract({ narration }, event, observed(event));
+    expect(result.speech?.text).toBe("調査段階に移りました。");
+    expect(result.speech?.text).not.toBe(narration);
+  });
+
+  it("uses a failure sentence for a non-zero PTY exit", () => {
+    const event: Event = { ts: 1, type: "done", summary: "終了 code=1" };
+    const result = applySpeechContract(
+      { narration: "作業が完了しました。" },
+      event,
+      observed(event)
+    );
+    expect(result.speech).toEqual({
+      disposition: "speak",
+      reason: "failure",
+      text: "処理が正常に終了しませんでした。",
+    });
+  });
+
+  it.each([
+    ["終了 code=0", "作業が完了しました。"],
+    ["終了", "処理が終了しました。"],
+  ])("uses an exit-code-safe sentence for %s", (summary, expectedText) => {
+    const event: Event = { ts: 1, type: "done", summary };
+    const result = applySpeechContract(
+      { narration: "作業が完了しました。" },
+      event,
+      observed(event)
+    );
+    expect(result.speech?.text).toBe(expectedText);
+  });
+
   it("omits speech text for display-only decisions", () => {
     let now = 0;
     const context = createSessionContext({ now: () => now });

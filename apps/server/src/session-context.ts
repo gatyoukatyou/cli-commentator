@@ -69,6 +69,7 @@ type MutableState = {
   acceptsHumanInput: boolean;
   lastProgressSpeechAt: number;
   lastProgressKey: string | null;
+  lastSpokenTarget: string | null;
   seenGlossaryNotes: Set<string>;
 };
 
@@ -232,6 +233,7 @@ function initialState(): MutableState {
     acceptsHumanInput: false,
     lastProgressSpeechAt: Number.NEGATIVE_INFINITY,
     lastProgressKey: null,
+    lastSpokenTarget: null,
     seenGlossaryNotes: new Set(),
   };
 }
@@ -263,6 +265,12 @@ function immutableSnapshot(
 
 function observedOutcome(event: Event): "success" | "failure" | null {
   if (event.type === "error") return "failure";
+  if (event.type === "done") {
+    const exitCode = `${event.summary} ${event.detail ?? ""}`
+      .match(/\b(?:exit[_ ]?code|code)\s*=\s*(-?\d+)\b/iu)?.[1];
+    if (exitCode !== undefined) return Number(exitCode) === 0 ? "success" : "failure";
+    return null;
+  }
   if (!["stdout", "test", "build", "lint", "server", "done"].includes(event.type)) return null;
   const text = `${event.summary} ${event.detail ?? ""}`;
   if (/(?:失敗|異常終了|\bFAIL(?:ED)?\b|\bERROR\b)/iu.test(text)) return "failure";
@@ -289,8 +297,8 @@ function decideSpeech(
 
   if (state.humanRequired) reason = "human_required";
   else if (priority === "urgent") reason = "urgent";
-  else if (event.type === "done") reason = "completion";
   else if (outcome === "failure") reason = "failure";
+  else if (event.type === "done") reason = "completion";
   else if (outcome === "success") reason = "success";
   else if (state.sequence === 1) reason = "new_task";
   else if (state.phaseChanged) reason = "phase_change";
@@ -311,6 +319,9 @@ function decideSpeech(
   if (commentaryEligible && priority === "progress") {
     state.lastProgressKey = progressKey(state);
     state.lastProgressSpeechAt = now;
+  }
+  if (commentaryEligible && (reason === "new_task" || reason === "new_target")) {
+    state.lastSpokenTarget = state.target;
   }
   return { disposition: "speak", reason };
 }
@@ -405,10 +416,11 @@ export function createSessionContext(options?: {
     observeEvent(event, observeOptions) {
       const commentaryEligible = observeOptions?.commentaryEligible ?? true;
       state.sequence += 1;
-      const previousTarget = state.target;
       const target = inferEventTarget(event);
       if (target) state.target = target;
-      state.targetChanged = Boolean(target && target !== previousTarget);
+      // Compare with the last target that was actually announced. A target first
+      // observed behind the 2-second commentary gate must remain pending.
+      state.targetChanged = Boolean(state.target && state.target !== state.lastSpokenTarget);
 
       const priorPhase = state.phase;
       const resolvedPhase = nextPhase(state, event);
