@@ -10,3 +10,6 @@ dist
 
 # Raw PTY diagnostic captures can contain secrets and local paths.
 *.pty-capture.jsonl
+
+# Local raw evaluation captures may contain session identifiers and prompts.
+/evaluation/

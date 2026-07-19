@@ -1,0 +1,168 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`Phase B evaluation replay > replays the minimal sanitized session deterministically 1`] = `
+{
+  "fixtureId": "phase-b-codex-session",
+  "messages": [
+    {
+      "ev": {
+        "detail": "⏺ Grep(test -f pnpm-workspace.yaml && grep -q '"name": "cli-commentator"' package.json && git remote -v)",
+        "priority": "progress",
+        "summary": "該当箇所を検索している",
+        "ts": 400,
+        "type": "search",
+      },
+      "kind": "event",
+    },
+    {
+      "ev": {
+        "detail": "⏺ Grep(test -f pnpm-workspace.yaml && grep -q '"name": "cli-commentator"' package.json && git remote -v)",
+        "priority": "progress",
+        "summary": "該当箇所を検索している",
+        "ts": 400,
+        "type": "search",
+      },
+      "explanation": "「name」を手がかりにプロジェクト全体を横断検索して、関係する場所を絞っています。",
+      "glossaryNotes": [
+        "補足: pnpm/npm/yarn は依存関係やスクリプト実行に使う",
+        "補足: git は変更履歴を管理する仕組み",
+      ],
+      "kind": "commentary",
+      "meta": {
+        "explanationProvider": "rules",
+        "mode": "both",
+        "narrationProvider": "rules",
+      },
+      "narration": "原因っぽいとこ探してるで。",
+      "ts": 400,
+    },
+    {
+      "ev": {
+        "detail": "⏺ Bash(nl -ba apps/server/src/commentary/orchestrator.ts | sed -n '1,120p'; nl -ba apps/server/src/commentary/rule-based.ts | sed -n '1,120p')",
+        "priority": "progress",
+        "summary": "コマンドを実行している",
+        "ts": 3218,
+        "type": "stdout",
+      },
+      "kind": "event",
+    },
+    {
+      "ev": {
+        "detail": "⏺ Bash(nl -ba apps/server/src/commentary/orchestrator.ts | sed -n '1,120p'; nl -ba apps/server/src/commentary/rule-based.ts | sed -n '1,120p')",
+        "priority": "progress",
+        "summary": "コマンドを実行している",
+        "ts": 3218,
+        "type": "stdout",
+      },
+      "explanation": "設定やログの実物を見て、仮説が合っているか確かめています。",
+      "glossaryNotes": [],
+      "kind": "commentary",
+      "meta": {
+        "explanationProvider": "rules",
+        "mode": "both",
+        "narrationProvider": "rules",
+      },
+      "narration": "今やってるのは、ファイルの中身を直接確認する作業や。",
+      "ts": 3218,
+    },
+    {
+      "ev": {
+        "detail": "⏺ Grep(rg -n "buildSpeechText|queueSpeech|commentaryDisplayMode" apps/web/src; nl -ba apps/web/src/lib/tsx-runner.ts | sed -n '1,80p')",
+        "priority": "progress",
+        "summary": "該当箇所を検索している",
+        "ts": 7355,
+        "type": "search",
+      },
+      "kind": "event",
+    },
+    {
+      "ev": {
+        "detail": "⏺ Grep(rg -n "buildSpeechText|queueSpeech|commentaryDisplayMode" apps/web/src; nl -ba apps/web/src/lib/tsx-runner.ts | sed -n '1,80p')",
+        "priority": "progress",
+        "summary": "該当箇所を検索している",
+        "ts": 7355,
+        "type": "search",
+      },
+      "explanation": "「buildSpeechText|queueSpeech|commentaryDisplayMode」を手がかりにプロジェクト全体を横断検索して、関係する場所を絞っています。",
+      "glossaryNotes": [
+        "補足: rg はプロジェクト全体を高速検索するコマンド",
+        "補足: tsx は TypeScript をそのまま実行する仕組み",
+      ],
+      "kind": "commentary",
+      "meta": {
+        "explanationProvider": "rules",
+        "mode": "both",
+        "narrationProvider": "rules",
+      },
+      "narration": "原因っぽいとこ探してるで。",
+      "ts": 7355,
+    },
+    {
+      "ev": {
+        "detail": "⏺ Bash(nl -ba apps/server/src/tests/commentary.test.ts | sed -n '1,160p'; nl -ba apps/server/src/tests/state-event.test.ts | sed -n '1,160p')",
+        "priority": "progress",
+        "summary": "テスト/型チェックを実行している",
+        "ts": 8734,
+        "type": "test",
+      },
+      "kind": "event",
+    },
+    {
+      "ev": {
+        "detail": "⏺ Bash(nl -ba apps/server/src/extract.ts | sed -n '1,180p'; nl -ba apps/server/src/event-priority.ts | sed -n '1,120p')",
+        "priority": "progress",
+        "summary": "コマンドを実行している",
+        "ts": 10573,
+        "type": "stdout",
+      },
+      "kind": "event",
+    },
+    {
+      "ev": {
+        "detail": "⏺ Bash(nl -ba apps/server/src/extract.ts | sed -n '1,180p'; nl -ba apps/server/src/event-priority.ts | sed -n '1,120p')",
+        "priority": "progress",
+        "summary": "コマンドを実行している",
+        "ts": 10573,
+        "type": "stdout",
+      },
+      "explanation": "設定やログの実物を見て、仮説が合っているか確かめています。",
+      "glossaryNotes": [],
+      "kind": "commentary",
+      "meta": {
+        "explanationProvider": "rules",
+        "mode": "both",
+        "narrationProvider": "rules",
+      },
+      "narration": "今やってるのは、ファイルの中身を直接確認する作業や。",
+      "ts": 10573,
+    },
+  ],
+  "metrics": {
+    "commentaries": 4,
+    "events": 5,
+    "eventsByType": {
+      "search": 2,
+      "stdout": 2,
+      "test": 1,
+    },
+    "exactNarrationRepeats": 2,
+    "glossaryNotes": 4,
+    "suppressed": 1,
+  },
+  "source": "codex",
+  "style": "kansai",
+  "suppressions": [
+    {
+      "event": {
+        "detail": "⏺ Bash(nl -ba apps/server/src/tests/commentary.test.ts | sed -n '1,160p'; nl -ba apps/server/src/tests/state-event.test.ts | sed -n '1,160p')",
+        "priority": "progress",
+        "summary": "テスト/型チェックを実行している",
+        "ts": 8734,
+        "type": "test",
+      },
+      "offsetMs": 8734,
+      "reason": "progress_interval",
+    },
+  ],
+}
+`;

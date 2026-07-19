@@ -1,0 +1,40 @@
+{
+  "notice": [
+    "This fixture was derived from a real Codex CLI session and sanitized.",
+    "Identifiers, paths, timestamps, and user-authored content are synthetic."
+  ],
+  "id": "phase-b-codex-session",
+  "source": "codex",
+  "style": "kansai",
+  "commentaryIntervalMs": 2000,
+  "lines": [
+    { "offsetMs": 0, "line": "2030-01-01T00:00:00.000Z INFO codex_core::client: close time.busy=1ms" },
+    { "offsetMs": 100, "line": "2030-01-01T00:00:00.100Z INFO codex_core::client: close time.idle=2ms" },
+    { "offsetMs": 200, "line": "2030-01-01T00:00:00.200Z INFO session_loop{thread_id=thread-demo}:turn{turn.id=turn-001}: codex_core::client: close" },
+    { "offsetMs": 300, "line": "2030-01-01T00:00:00.300Z INFO session_loop{thread_id=thread-demo}:turn{turn.id=turn-001}: codex_core::client: close" },
+    { "offsetMs": 400, "line": "2030-01-01T00:00:00.400Z INFO session_loop{thread_id=thread-demo}:turn{turn.id=turn-001}: codex_core::stream_events_utils: ToolCall: exec const r = await tools.exec_command({\"cmd\":\"test -f pnpm-workspace.yaml && grep -q '\\\"name\\\": \\\"cli-commentator\\\"' package.json && git remote -v\",\"workdir\":\"/Users/demo/project\"}); text(r.output);" },
+    { "offsetMs": 500, "line": "2030-01-01T00:00:00.500Z INFO session_loop{thread_id=thread-demo}:turn{turn.id=turn-001}: tool call completed call_id=call-001" },
+    { "offsetMs": 600, "line": "2030-01-01T00:00:00.600Z INFO codex_core::client: close time.idle=3ms" },
+    { "offsetMs": 1000, "line": "2030-01-01T00:00:01.000Z INFO codex_core::client: close time.idle=4ms" },
+    { "offsetMs": 1500, "line": "2030-01-01T00:00:01.500Z INFO session_loop{thread_id=thread-demo}:turn{turn.id=turn-001}: tool call completed call_id=call-002" },
+    { "offsetMs": 2000, "line": "2030-01-01T00:00:02.000Z INFO codex_core::client: close time.idle=5ms" },
+    { "offsetMs": 3000, "line": "2030-01-01T00:00:03.000Z INFO codex_core::client: close time.idle=6ms" },
+    { "offsetMs": 3218, "line": "2030-01-01T00:00:03.218Z INFO session_loop{thread_id=thread-demo}:turn{turn.id=turn-001}: codex_core::stream_events_utils: ToolCall: exec const r = await tools.exec_command({\"cmd\":\"nl -ba apps/server/src/commentary/orchestrator.ts | sed -n '1,120p'; nl -ba apps/server/src/commentary/rule-based.ts | sed -n '1,120p'\",\"workdir\":\"/Users/demo/project\"}); text(r.output);" },
+    { "offsetMs": 3500, "line": "2030-01-01T00:00:03.500Z INFO session_loop{thread_id=thread-demo}:turn{turn.id=turn-001}: tool call completed call_id=call-003" },
+    { "offsetMs": 4000, "line": "2030-01-01T00:00:04.000Z INFO codex_core::client: close time.idle=7ms" },
+    { "offsetMs": 5000, "line": "2030-01-01T00:00:05.000Z INFO codex_core::client: close time.idle=8ms" },
+    { "offsetMs": 6000, "line": "2030-01-01T00:00:06.000Z INFO session_loop{thread_id=thread-demo}:turn{turn.id=turn-001}: tool call completed call_id=call-004" },
+    { "offsetMs": 6500, "line": "2030-01-01T00:00:06.500Z INFO codex_core::client: close time.idle=9ms" },
+    { "offsetMs": 7000, "line": "2030-01-01T00:00:07.000Z INFO codex_core::client: close time.idle=10ms" },
+    { "offsetMs": 7200, "line": "2030-01-01T00:00:07.200Z INFO session_loop{thread_id=thread-demo}:turn{turn.id=turn-001}: tool call completed call_id=call-005" },
+    { "offsetMs": 7300, "line": "2030-01-01T00:00:07.300Z INFO codex_core::client: close time.idle=11ms" },
+    { "offsetMs": 7355, "line": "2030-01-01T00:00:07.355Z INFO session_loop{thread_id=thread-demo}:turn{turn.id=turn-001}: codex_core::stream_events_utils: ToolCall: exec const r = await tools.exec_command({\"cmd\":\"rg -n \\\"buildSpeechText|queueSpeech|commentaryDisplayMode\\\" apps/web/src; nl -ba apps/web/src/lib/tsx-runner.ts | sed -n '1,80p'\",\"workdir\":\"/Users/demo/project\"}); text(r.output);" },
+    { "offsetMs": 7500, "line": "2030-01-01T00:00:07.500Z INFO session_loop{thread_id=thread-demo}:turn{turn.id=turn-001}: tool call completed call_id=call-006" },
+    { "offsetMs": 8000, "line": "2030-01-01T00:00:08.000Z INFO codex_core::client: close time.idle=12ms" },
+    { "offsetMs": 8734, "line": "2030-01-01T00:00:08.734Z INFO session_loop{thread_id=thread-demo}:turn{turn.id=turn-001}: codex_core::stream_events_utils: ToolCall: exec const r = await tools.exec_command({\"cmd\":\"nl -ba apps/server/src/tests/commentary.test.ts | sed -n '1,160p'; nl -ba apps/server/src/tests/state-event.test.ts | sed -n '1,160p'\",\"workdir\":\"/Users/demo/project\"}); text(r.output);" },
+    { "offsetMs": 9000, "line": "2030-01-01T00:00:09.000Z INFO session_loop{thread_id=thread-demo}:turn{turn.id=turn-001}: tool call completed call_id=call-007" },
+    { "offsetMs": 10000, "line": "2030-01-01T00:00:10.000Z INFO codex_core::client: close time.idle=13ms" },
+    { "offsetMs": 10500, "line": "2030-01-01T00:00:10.500Z INFO session_loop{thread_id=thread-demo}:turn{turn.id=turn-001}: tool call completed call_id=call-008" },
+    { "offsetMs": 10573, "line": "2030-01-01T00:00:10.573Z INFO session_loop{thread_id=thread-demo}:turn{turn.id=turn-001}: codex_core::stream_events_utils: ToolCall: exec const r = await tools.exec_command({\"cmd\":\"nl -ba apps/server/src/extract.ts | sed -n '1,180p'; nl -ba apps/server/src/event-priority.ts | sed -n '1,120p'\",\"workdir\":\"/Users/demo/project\"}); text(r.output);" }
+  ]
+}
