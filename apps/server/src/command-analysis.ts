@@ -99,8 +99,14 @@ function executableIndex(segment: string[]): number {
   return index;
 }
 
-function skipPackageManagerOptions(tokens: string[], start: number): number {
-  const valueOptions = new Set(["-C", "--dir", "--filter", "--workspace-concurrency", "--config"]);
+const PACKAGE_MANAGER_VALUE_OPTIONS: Record<string, Set<string>> = {
+  pnpm: new Set(["-C", "--dir", "--filter", "--workspace-concurrency", "--config"]),
+  npm: new Set(["-w", "--workspace", "--prefix"]),
+  yarn: new Set(["--cwd"]),
+};
+
+function skipPackageManagerOptions(manager: string, tokens: string[], start: number): number {
+  const valueOptions = PACKAGE_MANAGER_VALUE_OPTIONS[manager] ?? new Set<string>();
   let index = start;
   while (index < tokens.length && tokens[index].startsWith("-")) {
     const option = tokens[index];
@@ -119,8 +125,13 @@ function isRunnerInvocation(tokens: string[], start: number): boolean {
 
 function isPackageTestInvocation(segment: string[], start: number): boolean {
   const manager = commandName(segment[start] ?? "");
-  let index = skipPackageManagerOptions(segment, start + 1);
-  const action = segment[index]?.toLowerCase();
+  let index = skipPackageManagerOptions(manager, segment, start + 1);
+  let action = segment[index]?.toLowerCase();
+
+  if (manager === "yarn" && action === "workspace") {
+    index += 2;
+    action = segment[index]?.toLowerCase();
+  }
 
   if (action === "test" || action?.startsWith("test:")) return true;
   if (action === "run") return /^test(?::|$)/i.test(segment[index + 1] ?? "");

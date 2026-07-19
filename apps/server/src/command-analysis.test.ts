@@ -36,9 +36,18 @@ describe("shell command analysis", () => {
     ["rg __tests__ src", false],
     ["test -f package.json", false],
     ["pnpm -C apps/server test", true],
+    ["pnpm --filter server test", true],
     ["pnpm exec vitest run", true],
     ["npm run test:unit", true],
+    ["npm --prefix apps/server test", true],
+    ["npm --workspace web test", true],
+    ["npm -w web run test:unit", true],
     ["yarn jest", true],
+    ["yarn --cwd apps/server test", true],
+    ["yarn workspace server test", true],
+    ["yarn workspace server run test:unit", true],
+    ["npm --prefix test-fixtures run build", false],
+    ["yarn workspace test-utils build", false],
     ["playwright test", true],
   ])("detects only executable test commands: %s", (command, expected) => {
     expect(isTestExecution(`⏺ Bash(${command})`)).toBe(expected);

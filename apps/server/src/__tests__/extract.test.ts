@@ -160,6 +160,10 @@ describe("extractEvents fixtures", () => {
   it.each([
     "pnpm -C apps/server test",
     "pnpm -C apps/server exec vitest run",
+    "npm --prefix apps/server test",
+    "npm --workspace web test",
+    "yarn --cwd apps/server test",
+    "yarn workspace server test",
     "npx jest --runInBand",
     "playwright test",
     "playwright test --grep smoke",
