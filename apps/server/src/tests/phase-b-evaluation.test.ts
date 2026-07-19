@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import {
   comparePhaseBEventTypes,
+  hasRawCommandSpeech,
   replayPhaseBFixture,
   type PhaseBReplayFixture,
 } from "../evaluation/phase-b-replay.js";
@@ -17,6 +18,14 @@ async function loadFixture(): Promise<PhaseBReplayFixture> {
 }
 
 describe("Phase B evaluation replay", () => {
+  it.each([
+    "git status を確認しています。",
+    "pnpm test を実行しています。",
+    "gh pr view を確認しています。",
+  ])("detects common raw commands with the production TTS policy: %s", (speech) => {
+    expect(hasRawCommandSpeech(speech)).toBe(true);
+  });
+
   it("replays the minimal sanitized session deterministically", async () => {
     const fixture = await loadFixture();
     const result = await replayPhaseBFixture(fixture);

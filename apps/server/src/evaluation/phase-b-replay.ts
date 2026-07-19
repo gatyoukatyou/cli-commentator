@@ -5,6 +5,7 @@ import { redact } from "../redact.js";
 import { createRepeatedErrorDetector } from "../repeated-error-detector.js";
 import type { CommentaryPayload, Event, SourceMode, Style, WsOutgoing } from "../types.js";
 import { createSessionContext, type SessionPhase } from "../session-context.js";
+import { hasRawCommandText } from "../commentary/speech-policy.js";
 
 export type PhaseBReplayFixture = {
   notice: string[];
@@ -114,11 +115,8 @@ function speechSentenceCount(text?: string): number {
   return compact.match(/[。！？!?]+/gu)?.length ?? 1;
 }
 
-function hasRawCommandSpeech(text?: string): boolean {
-  return Boolean(
-    text &&
-    /(?:^[⏺•]\s*|\b(?:Bash|Read|Grep|Glob|Update|Write)\(|\bapply_patch\b|\b(?:rg|grep|nl|sed|git|gh|pnpm|npm|yarn)\s+-|\|)/iu.test(text)
-  );
+export function hasRawCommandSpeech(text?: string): boolean {
+  return hasRawCommandText(text);
 }
 
 function expectedUrgent(event: Event): boolean {

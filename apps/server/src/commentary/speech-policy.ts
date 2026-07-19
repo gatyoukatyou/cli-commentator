@@ -5,6 +5,10 @@ const RAW_COMMAND_RE =
   /(?:^[⏺•]\s*|\b(?:Bash|Read|Grep|Glob|Update|Write)\(|\bapply_patch\b|\b(?:rg|grep|nl|sed|git|gh|pnpm|npm|yarn|cat|find|ls|cd|pwd|node|tsx|cargo|docker|curl)\b(?:\s+|$)|\|)/iu;
 const MAX_SPEECH_LENGTH = 100;
 
+export function hasRawCommandText(text?: string): boolean {
+  return Boolean(text && RAW_COMMAND_RE.test(text));
+}
+
 function firstSentence(text: string): string {
   const compact = text.replace(/\s+/g, " ").trim();
   return compact.match(/^.+?[。！？!?](?:[」』”"])?/u)?.[0]?.trim() ?? compact;
@@ -50,7 +54,7 @@ function speechSentence(
     return safeFallback(event, context);
   }
   const candidate = firstSentence(payload.narration ?? payload.explanation ?? "");
-  if (!candidate || candidate.length > MAX_SPEECH_LENGTH || RAW_COMMAND_RE.test(candidate)) {
+  if (!candidate || candidate.length > MAX_SPEECH_LENGTH || hasRawCommandText(candidate)) {
     return safeFallback(event, context);
   }
   return candidate;
