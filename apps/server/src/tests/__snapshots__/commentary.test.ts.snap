@@ -24,7 +24,7 @@ exports[`commentary quality fixtures > renders styles consistently 1`] = `
       },
       {
         "commentary": {
-          "explanation": "「TODO」を手がかりにプロジェクト全体を横断検索して、関係ある場所しぼってるで。",
+          "explanation": "「TODO」を手がかりにプロジェクト全体を横断検索して、関係する場所を絞っています。",
           "glossaryNotes": [
             "補足: rg はプロジェクト全体を高速検索するコマンド",
             "補足: pnpm/npm/yarn は依存関係やスクリプト実行に使う",
@@ -40,7 +40,7 @@ exports[`commentary quality fixtures > renders styles consistently 1`] = `
       },
       {
         "commentary": {
-          "explanation": "「TODO」を手がかりにプロジェクト全体を横断検索して、関係ある場所をしぼってるのだ。",
+          "explanation": "「TODO」を手がかりにプロジェクト全体を横断検索して、関係する場所を絞っています。",
           "glossaryNotes": [
             "補足: rg はプロジェクト全体を高速検索するコマンド",
             "補足: pnpm/npm/yarn は依存関係やスクリプト実行に使う",
@@ -78,7 +78,7 @@ exports[`commentary quality fixtures > renders styles consistently 1`] = `
       },
       {
         "commentary": {
-          "explanation": "問題直すために中身を更新してるで。",
+          "explanation": "問題を直すために内容を更新しています。",
           "glossaryNotes": [
             "補足: pty は CLI を仮想端末として包んで動かす仕組み",
             "補足: WebSocket は画面とサーバーをつなぐ常時接続",
@@ -94,7 +94,7 @@ exports[`commentary quality fixtures > renders styles consistently 1`] = `
       },
       {
         "commentary": {
-          "explanation": "問題を直すために中身を更新してるのだ。",
+          "explanation": "問題を直すために内容を更新しています。",
           "glossaryNotes": [
             "補足: pty は CLI を仮想端末として包んで動かす仕組み",
             "補足: WebSocket は画面とサーバーをつなぐ常時接続",
@@ -132,7 +132,7 @@ exports[`commentary quality fixtures > renders styles consistently 1`] = `
       },
       {
         "commentary": {
-          "explanation": "PRの自動チェック結果見て、公開前の安全確認してるで。",
+          "explanation": "PRの自動チェック結果を見て、公開前の安全確認をしています。",
           "glossaryNotes": [
             "補足: gh は GitHub を操作する公式CLI",
             "補足: git は変更履歴を管理する仕組み",
@@ -148,7 +148,7 @@ exports[`commentary quality fixtures > renders styles consistently 1`] = `
       },
       {
         "commentary": {
-          "explanation": "PRの自動チェック結果を見て、公開前の安全確認をしてるのだ。",
+          "explanation": "PRの自動チェック結果を見て、公開前の安全確認をしています。",
           "glossaryNotes": [
             "補足: gh は GitHub を操作する公式CLI",
             "補足: git は変更履歴を管理する仕組み",
@@ -185,7 +185,7 @@ exports[`commentary quality fixtures > renders styles consistently 1`] = `
       },
       {
         "commentary": {
-          "explanation": "TypeScript が『データや部品のつながり合ってへん』場所を知らせてるで。",
+          "explanation": "TypeScript が『データや部品のつながりが合っていない』箇所を知らせています。",
           "glossaryNotes": [
             "補足: tsc/typecheck は型の整合性を自動確認するチェック",
           ],
@@ -200,7 +200,7 @@ exports[`commentary quality fixtures > renders styles consistently 1`] = `
       },
       {
         "commentary": {
-          "explanation": "TypeScript が『データや部品のつながりが合ってない』場所を知らせてるのだ。",
+          "explanation": "TypeScript が『データや部品のつながりが合っていない』箇所を知らせています。",
           "glossaryNotes": [
             "補足: tsc/typecheck は型の整合性を自動確認するチェック",
           ],
@@ -234,7 +234,7 @@ exports[`commentary quality fixtures > renders styles consistently 1`] = `
       },
       {
         "commentary": {
-          "explanation": "README.md を読んで、手順や前提を確認してるで。",
+          "explanation": "README.md を読んで、手順や前提を確認しています。",
           "glossaryNotes": [],
           "meta": {
             "explanationProvider": "rules",
@@ -247,7 +247,7 @@ exports[`commentary quality fixtures > renders styles consistently 1`] = `
       },
       {
         "commentary": {
-          "explanation": "README.md を読んで、手順や前提を確認してるのだ。",
+          "explanation": "README.md を読んで、手順や前提を確認しています。",
           "glossaryNotes": [],
           "meta": {
             "explanationProvider": "rules",
@@ -281,7 +281,7 @@ exports[`commentary quality fixtures > renders styles consistently 1`] = `
       },
       {
         "commentary": {
-          "explanation": "変更されたファイル一覧を見て、今どこまで触ったか確認してるで。",
+          "explanation": "変更されたファイル一覧を見て、今どこまで触ったか確認しています。",
           "glossaryNotes": [
             "補足: git は変更履歴を管理する仕組み",
           ],
@@ -296,7 +296,7 @@ exports[`commentary quality fixtures > renders styles consistently 1`] = `
       },
       {
         "commentary": {
-          "explanation": "変更されたファイル一覧を見て、今どこまで触ったか確認してるのだ。",
+          "explanation": "変更されたファイル一覧を見て、今どこまで触ったか確認しています。",
           "glossaryNotes": [
             "補足: git は変更履歴を管理する仕組み",
           ],
@@ -330,7 +330,7 @@ exports[`commentary quality fixtures > renders styles consistently 1`] = `
       },
       {
         "commentary": {
-          "explanation": "変更差分まとめて当てて、複数箇所を一気に更新してるで。",
+          "explanation": "変更差分をまとめて当てて、複数箇所を一気に更新しています。",
           "glossaryNotes": [],
           "meta": {
             "explanationProvider": "rules",
@@ -343,7 +343,7 @@ exports[`commentary quality fixtures > renders styles consistently 1`] = `
       },
       {
         "commentary": {
-          "explanation": "変更差分をまとめて当てて、複数箇所を一気に更新してるのだ。",
+          "explanation": "変更差分をまとめて当てて、複数箇所を一気に更新しています。",
           "glossaryNotes": [],
           "meta": {
             "explanationProvider": "rules",
@@ -375,7 +375,7 @@ exports[`commentary quality fixtures > renders styles consistently 1`] = `
       },
       {
         "commentary": {
-          "explanation": "README.md を読んで、手順や前提を確認してるで。",
+          "explanation": "README.md を読んで、手順や前提を確認しています。",
           "glossaryNotes": [],
           "meta": {
             "explanationProvider": "rules",
@@ -388,7 +388,7 @@ exports[`commentary quality fixtures > renders styles consistently 1`] = `
       },
       {
         "commentary": {
-          "explanation": "README.md を読んで、手順や前提を確認してるのだ。",
+          "explanation": "README.md を読んで、手順や前提を確認しています。",
           "glossaryNotes": [],
           "meta": {
             "explanationProvider": "rules",
@@ -420,7 +420,7 @@ exports[`commentary quality fixtures > renders styles consistently 1`] = `
       },
       {
         "commentary": {
-          "explanation": "接続先が合ってるか確かめつつ、サーバー上で今どのサービス動いてるか棚卸ししてるで。",
+          "explanation": "接続先が正しいかを確かめつつ、サーバー上で今どのサービスが動いているか棚卸ししています。",
           "glossaryNotes": [],
           "meta": {
             "explanationProvider": "rules",
@@ -433,7 +433,7 @@ exports[`commentary quality fixtures > renders styles consistently 1`] = `
       },
       {
         "commentary": {
-          "explanation": "接続先が合ってるか確かめつつ、サーバー上で今どのサービスが動いてるか棚卸ししてるのだ。",
+          "explanation": "接続先が正しいかを確かめつつ、サーバー上で今どのサービスが動いているか棚卸ししています。",
           "glossaryNotes": [],
           "meta": {
             "explanationProvider": "rules",
@@ -465,7 +465,7 @@ exports[`commentary quality fixtures > renders styles consistently 1`] = `
       },
       {
         "commentary": {
-          "explanation": "ひと区切りついたから結果を確認してるで。",
+          "explanation": "作業がひと区切りで、結果を確認しています。",
           "glossaryNotes": [],
           "meta": {
             "explanationProvider": "rules",
@@ -478,7 +478,7 @@ exports[`commentary quality fixtures > renders styles consistently 1`] = `
       },
       {
         "commentary": {
-          "explanation": "ひと区切りついたので結果を確認してるのだ。",
+          "explanation": "作業がひと区切りで、結果を確認しています。",
           "glossaryNotes": [],
           "meta": {
             "explanationProvider": "rules",
@@ -510,7 +510,7 @@ exports[`commentary quality fixtures > renders styles consistently 1`] = `
       },
       {
         "commentary": {
-          "explanation": "これから作業の流れを順に追うで。",
+          "explanation": "これから作業の流れを順に追います。",
           "glossaryNotes": [],
           "meta": {
             "explanationProvider": "rules",
@@ -523,7 +523,7 @@ exports[`commentary quality fixtures > renders styles consistently 1`] = `
       },
       {
         "commentary": {
-          "explanation": "これから作業の流れを順に追うのだ。",
+          "explanation": "これから作業の流れを順に追います。",
           "glossaryNotes": [],
           "meta": {
             "explanationProvider": "rules",
@@ -555,7 +555,7 @@ exports[`commentary quality fixtures > renders styles consistently 1`] = `
       },
       {
         "commentary": {
-          "explanation": "エラー出力を見て原因しぼってるで。",
+          "explanation": "エラー出力を確認して原因を絞っています。",
           "glossaryNotes": [],
           "meta": {
             "explanationProvider": "rules",
@@ -568,7 +568,7 @@ exports[`commentary quality fixtures > renders styles consistently 1`] = `
       },
       {
         "commentary": {
-          "explanation": "エラー出力を見て原因をしぼってるのだ。",
+          "explanation": "エラー出力を確認して原因を絞っています。",
           "glossaryNotes": [],
           "meta": {
             "explanationProvider": "rules",
@@ -603,7 +603,7 @@ exports[`commentary quality fixtures > renders styles consistently 1`] = `
       },
       {
         "commentary": {
-          "explanation": "変更の副作用ないか、自動テストで機械的に確認してるで。",
+          "explanation": "変更の副作用がないか、自動テストで機械的に確認しています。",
           "glossaryNotes": [
             "補足: pnpm/npm/yarn は依存関係やスクリプト実行に使う",
             "補足: Vitest/Jest は自動テストを走らせる仕組み",
@@ -619,7 +619,7 @@ exports[`commentary quality fixtures > renders styles consistently 1`] = `
       },
       {
         "commentary": {
-          "explanation": "変更の副作用がないか、自動テストで機械的に確認してるのだ。",
+          "explanation": "変更の副作用がないか、自動テストで機械的に確認しています。",
           "glossaryNotes": [
             "補足: pnpm/npm/yarn は依存関係やスクリプト実行に使う",
             "補足: Vitest/Jest は自動テストを走らせる仕組み",
@@ -657,7 +657,7 @@ exports[`commentary quality fixtures > renders styles consistently 1`] = `
       },
       {
         "commentary": {
-          "explanation": "プログラム同士のつながり合ってるか、型ルールで機械確認してるで。",
+          "explanation": "プログラム同士のつながりが噛み合っているか、型ルールで機械確認しています。",
           "glossaryNotes": [
             "補足: tsc/typecheck は型の整合性を自動確認するチェック",
             "補足: pnpm/npm/yarn は依存関係やスクリプト実行に使う",
@@ -673,7 +673,7 @@ exports[`commentary quality fixtures > renders styles consistently 1`] = `
       },
       {
         "commentary": {
-          "explanation": "プログラム同士のつながりが合ってるか、型ルールで機械確認してるのだ。",
+          "explanation": "プログラム同士のつながりが噛み合っているか、型ルールで機械確認しています。",
           "glossaryNotes": [
             "補足: tsc/typecheck は型の整合性を自動確認するチェック",
             "補足: pnpm/npm/yarn は依存関係やスクリプト実行に使う",
@@ -710,7 +710,7 @@ exports[`commentary quality fixtures > renders styles consistently 1`] = `
       },
       {
         "commentary": {
-          "explanation": "読みやすさと品質ルールを確認してるで。",
+          "explanation": "読みやすさと品質ルールを確認しています。",
           "glossaryNotes": [
             "補足: pnpm/npm/yarn は依存関係やスクリプト実行に使う",
           ],
@@ -725,7 +725,7 @@ exports[`commentary quality fixtures > renders styles consistently 1`] = `
       },
       {
         "commentary": {
-          "explanation": "読みやすさと品質ルールを確認してるのだ。",
+          "explanation": "読みやすさと品質ルールを確認しています。",
           "glossaryNotes": [
             "補足: pnpm/npm/yarn は依存関係やスクリプト実行に使う",
           ],
@@ -761,7 +761,7 @@ exports[`commentary quality fixtures > renders styles consistently 1`] = `
       },
       {
         "commentary": {
-          "explanation": "実行・配布できる形にまとめてるで。",
+          "explanation": "実行・配布できる形にまとめています。",
           "glossaryNotes": [
             "補足: pnpm/npm/yarn は依存関係やスクリプト実行に使う",
           ],
@@ -776,7 +776,7 @@ exports[`commentary quality fixtures > renders styles consistently 1`] = `
       },
       {
         "commentary": {
-          "explanation": "実行・配布できる形にまとめてるのだ。",
+          "explanation": "実行・配布できる形にまとめています。",
           "glossaryNotes": [
             "補足: pnpm/npm/yarn は依存関係やスクリプト実行に使う",
           ],
@@ -812,7 +812,7 @@ exports[`commentary quality fixtures > renders styles consistently 1`] = `
       },
       {
         "commentary": {
-          "explanation": "動作確認のため実行環境を立ち上げてるで。",
+          "explanation": "動作確認のため実行環境を立ち上げています。",
           "glossaryNotes": [
             "補足: pnpm/npm/yarn は依存関係やスクリプト実行に使う",
           ],
@@ -827,7 +827,7 @@ exports[`commentary quality fixtures > renders styles consistently 1`] = `
       },
       {
         "commentary": {
-          "explanation": "動作確認のため実行環境を立ち上げてるのだ。",
+          "explanation": "動作確認のため実行環境を立ち上げています。",
           "glossaryNotes": [
             "補足: pnpm/npm/yarn は依存関係やスクリプト実行に使う",
           ],
@@ -863,7 +863,7 @@ exports[`commentary quality fixtures > renders styles consistently 1`] = `
       },
       {
         "commentary": {
-          "explanation": "必要なツールや依存をそろえてるで。",
+          "explanation": "必要なツールや依存を揃えています。",
           "glossaryNotes": [
             "補足: pnpm/npm/yarn は依存関係やスクリプト実行に使う",
           ],
@@ -878,7 +878,7 @@ exports[`commentary quality fixtures > renders styles consistently 1`] = `
       },
       {
         "commentary": {
-          "explanation": "必要なツールや依存をそろえてるのだ。",
+          "explanation": "必要なツールや依存を揃えています。",
           "glossaryNotes": [
             "補足: pnpm/npm/yarn は依存関係やスクリプト実行に使う",
           ],

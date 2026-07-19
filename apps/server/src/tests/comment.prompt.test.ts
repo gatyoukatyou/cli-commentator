@@ -59,6 +59,45 @@ describe("commentary prompt fixtures", () => {
 
     expect(output).toMatchSnapshot();
   });
+
+  it("keeps supervision explanations in plain Japanese across narration styles", () => {
+    const event: Event = {
+      ts: 1,
+      type: "search",
+      summary: "該当箇所を検索している",
+      detail: "rg commentary apps/server/src",
+    };
+
+    const prompts = styles.map((style) => buildExplanationPrompt(event, style));
+
+    expect(new Set(prompts).size).toBe(1);
+    expect(prompts[0]).toContain("口調プリセットに影響されない");
+    expect(prompts[0]).toContain("イベントの目的を1つに絞り");
+    expect(prompts[0]).not.toContain("関西弁");
+    expect(prompts[0]).not.toContain("ずんだもん");
+  });
+});
+
+describe("rule-based supervision layer", () => {
+  it("keeps explanations in standard Japanese while narration follows the selected style", async () => {
+    const { comment } = await import("../styles/index.js");
+    const event: Event = {
+      ts: 1,
+      type: "test",
+      summary: "テストを実行している",
+      detail: "pnpm vitest",
+    };
+
+    const standard = await comment(event, "standard");
+    const kansai = await comment(event, "kansai");
+    const zundamon = await comment(event, "zundamon");
+
+    expect(kansai.narration).not.toBe(standard.narration);
+    expect(zundamon.narration).not.toBe(standard.narration);
+    expect(kansai.explanation).toBe(standard.explanation);
+    expect(zundamon.explanation).toBe(standard.explanation);
+    expect(kansai.explanation).not.toMatch(/やで|や。|へん|なのだ/u);
+  });
 });
 
 describe("normalizeGeneratedCommentaryText", () => {

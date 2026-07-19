@@ -2,12 +2,20 @@ import type { Event, Style } from "../types.js";
 
 type CommentaryRole = "narration" | "explanation";
 
-function styleDescriptor(style: Style): string {
+function narrationStyleDescriptor(style: Style): string {
   return style === "kansai"
     ? "関西弁で"
     : style === "zundamon"
       ? "ずんだもん風（〜なのだ）で"
       : "標準的な日本語で";
+}
+
+function deliveryDescriptor(role: CommentaryRole, style: Style): string {
+  // The narration is the entertaining layer. The explanation is the stable
+  // supervision layer, so it must stay plain even when a character style is selected.
+  return role === "narration"
+    ? narrationStyleDescriptor(style)
+    : "口調プリセットに影響されない、平易で落ち着いた標準的な日本語で";
 }
 
 function isAmbiguousEvent(ev: Event): boolean {
@@ -132,6 +140,7 @@ function buildPrompt(
       : [
           "出力は1文だけ。",
           "初心者向けの補足にする。",
+          "イベントの目的を1つに絞り、複数の推測や工程を詰め込まない。",
           "実況の言い換えだけで終わらせない。",
           "観測できる事実から外れる推測はしない。",
           "できるだけ『何を見ていて』『それで何が分かるか』を一文にまとめる。",
@@ -145,7 +154,7 @@ function buildPrompt(
       : "回答は補足説明1文のみ。";
 
   return [
-    `${roleLine}${styleDescriptor(style)}話してください。`,
+    `${roleLine}${deliveryDescriptor(role, style)}話してください。`,
     "品質ルール:",
     ...qualityRules.map((rule) => `- ${rule}`),
     `イベント別の指示: ${eventGuidance}`,
