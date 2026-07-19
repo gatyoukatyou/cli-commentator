@@ -2,6 +2,7 @@ import type { Event } from "./types.js";
 import { rulesForLine } from "./rulesets/index.js";
 import { isCodexProgressNoise } from "./progress-noise.js";
 import { extractClaudeSupervisionEvents } from "./rulesets/claude-supervision.js";
+import { isFileListExecution, isSearchExecution } from "./command-analysis.js";
 
 // Remove ANSI/VT control sequences so TUI apps like Claude Code still match rules.
 const ANSI_ESCAPE_RE =
@@ -302,15 +303,15 @@ function classifyExecCommand(cmd: string): string {
   const compact = cmd.trim();
   if (!compact) return "⏺ Bash(exec_command)";
 
-  if (/\b(rg\s+--files|find|fd)\b/i.test(compact)) {
+  if (isFileListExecution(compact)) {
     return `⏺ Glob(${compact})`;
   }
 
-  if (/\b(rg|grep)\b/i.test(compact)) {
+  if (isSearchExecution(compact)) {
     return `⏺ Grep(${compact})`;
   }
 
-  if (/^\s*(cat|sed|head|tail|less|more)\b/i.test(compact)) {
+  if (/^\s*(cat|sed|head|tail|less|more|nl)\b/i.test(compact)) {
     return `⏺ Read(${compact})`;
   }
 
@@ -335,6 +336,7 @@ function canonicalizeCodexToolCall(rawLine: string): string | null {
     }
     case "apply_patch":
       return "apply_patch";
+    case "wait":
     case "write_stdin":
       return "";
     case "list_mcp_resources":
@@ -431,7 +433,7 @@ export function extractEvents(chunk: string, sourceEnv: string | undefined = pro
     if (!line) continue;
 
     const rules = rulesForLine(sourceLine, sourceEnv);
-    const hit = rules.find((rule) => rule.re.test(line));
+    const hit = rules.find((rule) => rule.match ? rule.match(line) : rule.re.test(line));
     if (hit) events.push({ ts, type: hit.type, summary: hit.summary, detail: line });
     else events.push({ ts, type: "stdout", summary: "ログ更新", detail: line });
   }

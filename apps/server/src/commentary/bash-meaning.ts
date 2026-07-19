@@ -1,4 +1,5 @@
 import type { Style } from "../types.js";
+import { extractSearchPattern } from "../command-analysis.js";
 
 export function say(style: Style, text: Record<Style, string>): string {
   return text[style];
@@ -26,14 +27,7 @@ export function extractWriteTarget(detail?: string): string | null {
 
 export function extractSearchTerm(detail?: string): string | null {
   if (!detail) return null;
-  const quoted =
-    detail.match(/"(.*?)"/)?.[1] ??
-    detail.match(/'(.*?)'/)?.[1] ??
-    detail.match(/`(.*?)`/)?.[1];
-  if (quoted) return quoted.trim();
-
-  const grepMatch = detail.match(/\b(?:rg|grep)\b(?:\s+-\S+|\s+--\S+)*\s+([^\s][^|&;]*)/i);
-  return grepMatch ? grepMatch[1].trim() : null;
+  return extractSearchPattern(detail);
 }
 
 export function detailCommand(detail?: string): string {

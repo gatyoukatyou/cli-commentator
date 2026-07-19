@@ -1,3 +1,6 @@
+import type { EventType } from "../types.js";
+import { representativeGlossaryTerm } from "../command-analysis.js";
+
 const GLOSSARY: Array<{ re: RegExp; note: string }> = [
   { re: /\brg\b/, note: "補足: rg はプロジェクト全体を高速検索するコマンド" },
   { re: /\btsc\b|\btypecheck\b/i, note: "補足: tsc/typecheck は型の整合性を自動確認するチェック" },
@@ -12,7 +15,10 @@ const GLOSSARY: Array<{ re: RegExp; note: string }> = [
   { re: /\bgit\b/i, note: "補足: git は変更履歴を管理する仕組み" }
 ];
 
-export function getGlossaryNotes(detail?: string): string[] {
+export function getGlossaryNotes(detail?: string, eventType?: EventType): string[] {
   if (!detail) return [];
-  return Array.from(new Set(GLOSSARY.filter((g) => g.re.test(detail)).map((g) => g.note)));
+  const term = representativeGlossaryTerm(detail, eventType);
+  if (!term) return [];
+  const match = GLOSSARY.find((entry) => entry.re.test(term));
+  return match ? [match.note] : [];
 }
