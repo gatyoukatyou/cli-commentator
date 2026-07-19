@@ -3,7 +3,11 @@
  * Sprint 24: cancel方式（最新のみ読み上げ）
  * Sprint 25: TTS設定（voice/rate/pitch/volume）
  * Sprint 26: 読み上げプリセット
+ * #309: 優先度つき読み上げ（urgent割り込み / noticeキュー / progress従来）
  */
+
+import { createSpeechScheduler } from "./speech-scheduler";
+import type { EventPriority } from "../types";
 
 /** TTS 設定 */
 export interface TTSSettings {
@@ -177,15 +181,70 @@ export function normalizeForSpeech(text: string, maxLength = 500): string {
   return cleaned.length > maxLength ? cleaned.slice(0, maxLength) + "..." : cleaned;
 }
 
-/** 読み上げ停止 */
+type SpeakOptions = {
+  settings: Partial<TTSSettings>;
+  lang: string;
+};
+
+const scheduler = createSpeechScheduler<SpeakOptions>({
+  cancel() {
+    if (isTTSSupported()) speechSynthesis.cancel();
+  },
+  speak(text, { settings: options, lang }, onSettled) {
+    const settings = { ...DEFAULT_TTS_SETTINGS, ...options };
+
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = lang;
+    utterance.rate = settings.rate;
+    utterance.pitch = settings.pitch;
+    utterance.volume = settings.volume;
+
+    // 指定された音声を設定
+    if (settings.voiceURI) {
+      const voices = speechSynthesis.getVoices();
+      const voice = voices.find((v) => v.voiceURI === settings.voiceURI);
+      if (voice) {
+        utterance.voice = voice;
+      }
+    }
+
+    utterance.onend = onSettled;
+    utterance.onerror = onSettled;
+    speechSynthesis.speak(utterance);
+  },
+});
+
+/** 読み上げ停止（待機中の発話・優先度状態も破棄） */
 export function stopSpeech(): void {
   if (isTTSSupported()) {
-    speechSynthesis.cancel();
+    scheduler.cancel();
   }
 }
 
 /**
+ * 優先度つき読み上げ
+ * - urgent: 進行中の発話に割り込む（従来のcancel方式と同じ即時性）
+ * - notice: 進行中の発話を止めずキュー末尾に追加
+ * - progress: 従来のcancel方式。ただしurgent/notice消化中は間引く
+ * @returns 読み上げをキューに積んだら true、間引いた場合は false
+ */
+export function speakWithPriority(
+  text: string,
+  priority: EventPriority,
+  options: Partial<TTSSettings> = {},
+  lang = "ja-JP"
+): boolean {
+  if (!isTTSSupported()) return false;
+
+  const normalized = normalizeForSpeech(text);
+  if (!normalized) return false;
+
+  return scheduler.speak(priority, normalized, { settings: options, lang });
+}
+
+/**
  * 読み上げ実行（cancel方式：前の発話をキャンセルして最新のみ）
+ * ユーザー操作起点（開始アナウンス・テスト読み上げ）用。urgent扱いで割り込む。
  * @param text 読み上げるテキスト
  * @param options TTS設定（省略時はデフォルト）
  * @param lang 言語コード（デフォルト: ja-JP）
@@ -195,31 +254,7 @@ export function speak(
   options: Partial<TTSSettings> = {},
   lang = "ja-JP"
 ): void {
-  if (!isTTSSupported()) return;
-
-  speechSynthesis.cancel(); // 前の発話をキャンセル
-
-  const normalized = normalizeForSpeech(text);
-  if (!normalized) return;
-
-  const settings = { ...DEFAULT_TTS_SETTINGS, ...options };
-
-  const utterance = new SpeechSynthesisUtterance(normalized);
-  utterance.lang = lang;
-  utterance.rate = settings.rate;
-  utterance.pitch = settings.pitch;
-  utterance.volume = settings.volume;
-
-  // 指定された音声を設定
-  if (settings.voiceURI) {
-    const voices = speechSynthesis.getVoices();
-    const voice = voices.find((v) => v.voiceURI === settings.voiceURI);
-    if (voice) {
-      utterance.voice = voice;
-    }
-  }
-
-  speechSynthesis.speak(utterance);
+  speakWithPriority(text, "urgent", options, lang);
 }
 
 // localStorage キー
