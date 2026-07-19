@@ -39,6 +39,8 @@ This project started from the MVP, "wrap a target CLI with a PTY and stream begi
   - PowerShell transcript, etc.
 - **TTS**
   - Read commentary via a queue
+  - Record queued, started, ended, cancelled, and dropped speech per session and export the real-speech evaluation log as one JSON file
+  - Verify urgent interruption, notice append, progress thinning, repeated progress within 30 seconds, speech duration, and queue residence from the exported log
 
 ## Non-functional (MVP baseline)
 

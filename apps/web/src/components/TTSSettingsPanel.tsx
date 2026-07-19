@@ -15,6 +15,7 @@ type TTSSettingsPanelProps = {
   onPresetChange: (presetId: TTSPresetSelectValue) => void;
   onSettingsChange: (settings: TTSSettings) => void;
   onTestSpeak: () => void;
+  onResetLog: () => void;
 };
 
 export function TTSSettingsPanel({
@@ -24,6 +25,7 @@ export function TTSSettingsPanel({
   onPresetChange,
   onSettingsChange,
   onTestSpeak,
+  onResetLog,
 }: TTSSettingsPanelProps) {
   const presetValue: TTSPresetSelectValue = detectTTSPreset(settings) ?? "custom";
 
@@ -137,8 +139,20 @@ export function TTSSettingsPanel({
           テスト読み上げ
         </button>
         <button onClick={() => onSettingsChange(DEFAULT_TTS_SETTINGS)} className="btn-secondary">
-          リセット
+          設定をリセット
         </button>
+      </div>
+
+      <div className="tts-settings__field tts-evaluation">
+        <div className="tts-settings__label">実音声評価ログ</div>
+        <div className="tts-settings__helper">
+          発話の投入・開始・終了・キャンセル・間引きを現在の計測セッション単位で記録します。
+        </div>
+        <div className="tts-settings__actions">
+          <button onClick={onResetLog} className="btn-secondary">
+            計測ログをリセット
+          </button>
+        </div>
       </div>
     </div>
   );

@@ -108,12 +108,15 @@ export default function App() {
     ttsSupported,
     clearPendingSpeech,
     stopAndClearSpeech,
+    resetTTSLifecycleSession,
     queueSpeech,
     speakUrgentNow,
     handleTTSToggle,
     handleTTSSettingsChange,
     handleTTSPresetChange,
     handleTestSpeak,
+    handleExportTTSLog,
+    handleResetTTSLog,
   } = useTTS({ commentaryDisplayMode });
 
   // ルールベースの即時イベント: urgentは要対応表示＋定型文の割り込み読み上げ
@@ -238,6 +241,7 @@ export default function App() {
     queueSpeech: queueSpeechDeduped,
     clearPendingSpeech,
     stopAndClearSpeech,
+    resetTTSLifecycleSession,
     onServerEvent: handleServerEvent,
     clearAttention,
   });
@@ -379,6 +383,8 @@ export default function App() {
           onTTSPresetChange={handleTTSPresetChange}
           onTTSSettingsChange={handleTTSSettingsChange}
           onTestSpeak={handleTestSpeak}
+          onExportTTSLog={handleExportTTSLog}
+          onResetTTSLog={handleResetTTSLog}
         />
       </div>
 

@@ -6,7 +6,12 @@
  * #309: 優先度つき読み上げ（urgent割り込み / noticeキュー / progress従来）
  */
 
-import { createSpeechScheduler } from "./speech-scheduler";
+import {
+  createSpeechScheduler,
+  type ScheduledSpeech,
+  type SpeechCancellationReason,
+} from "./speech-scheduler";
+import { createSpeechLifecycleRecorder, type SpeechLifecycleExport } from "./speech-lifecycle";
 import type { EventPriority } from "../types";
 
 /** TTS 設定 */
@@ -186,14 +191,30 @@ type SpeakOptions = {
   lang: string;
 };
 
+const lifecycleRecorder = createSpeechLifecycleRecorder();
+const activeSpeech = new Map<string, ScheduledSpeech<SpeakOptions>>();
+let speechId = 0;
+
 const scheduler = createSpeechScheduler<SpeakOptions>({
-  cancel() {
+  cancel(reason: SpeechCancellationReason, causeSpeechId?: string) {
+    for (const request of activeSpeech.values()) {
+      lifecycleRecorder.record({
+        kind: "cancelled",
+        speechId: request.id,
+        priority: request.priority,
+        text: request.text,
+        reason,
+        causeSpeechId,
+      });
+    }
+    activeSpeech.clear();
     if (isTTSSupported()) speechSynthesis.cancel();
   },
-  speak(text, { settings: options, lang }, onSettled) {
+  speak(request, onSettled) {
+    const { settings: options, lang } = request.opts;
     const settings = { ...DEFAULT_TTS_SETTINGS, ...options };
 
-    const utterance = new SpeechSynthesisUtterance(text);
+    const utterance = new SpeechSynthesisUtterance(request.text);
     utterance.lang = lang;
     utterance.rate = settings.rate;
     utterance.pitch = settings.pitch;
@@ -208,11 +229,92 @@ const scheduler = createSpeechScheduler<SpeakOptions>({
       }
     }
 
-    utterance.onend = onSettled;
-    utterance.onerror = onSettled;
+    activeSpeech.set(request.id, request);
+    lifecycleRecorder.record({
+      kind: "queued",
+      speechId: request.id,
+      priority: request.priority,
+      text: request.text,
+      reason: request.queueReason,
+      queueDepth: request.queueDepth,
+    });
+    utterance.onstart = () => {
+      if (!activeSpeech.has(request.id)) return;
+      lifecycleRecorder.record({
+        kind: "started",
+        speechId: request.id,
+        priority: request.priority,
+        text: request.text,
+      });
+    };
+    utterance.onend = () => {
+      if (!activeSpeech.delete(request.id)) return;
+      lifecycleRecorder.record({
+        kind: "ended",
+        speechId: request.id,
+        priority: request.priority,
+        text: request.text,
+      });
+      onSettled();
+    };
+    utterance.onerror = (event) => {
+      if (!activeSpeech.delete(request.id)) return;
+      lifecycleRecorder.record({
+        kind: "cancelled",
+        speechId: request.id,
+        priority: request.priority,
+        text: request.text,
+        reason: `speech_error:${event.error}`,
+      });
+      onSettled();
+    };
     speechSynthesis.speak(utterance);
   },
+}, {
+  nextId: () => `speech-${Date.now()}-${++speechId}`,
+  onDropped(request, reason) {
+    lifecycleRecorder.record({
+      kind: "dropped",
+      speechId: request.id,
+      priority: request.priority,
+      text: request.text,
+      reason,
+      queueDepth: request.queueDepth,
+    });
+  },
 });
+
+function exportSettings(settings?: Partial<TTSSettings>): Record<string, unknown> | undefined {
+  if (!settings) return undefined;
+  return {
+    voiceURI: settings.voiceURI ?? null,
+    rate: settings.rate ?? DEFAULT_TTS_SETTINGS.rate,
+    pitch: settings.pitch ?? DEFAULT_TTS_SETTINGS.pitch,
+    volume: settings.volume ?? DEFAULT_TTS_SETTINGS.volume,
+    includeRawDetail: settings.includeRawDetail === true,
+  };
+}
+
+export function getTTSLifecycleLog(settings?: Partial<TTSSettings>): SpeechLifecycleExport {
+  return lifecycleRecorder.export(exportSettings(settings));
+}
+
+export function resetTTSLifecycleLog(trigger = "manual_reset"): void {
+  scheduler.cancel();
+  lifecycleRecorder.reset(trigger);
+}
+
+export function downloadTTSLifecycleLog(settings?: Partial<TTSSettings>): SpeechLifecycleExport {
+  const exported = getTTSLifecycleLog(settings);
+  const blob = new Blob([`${JSON.stringify(exported, null, 2)}\n`], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = `cli-commentator-tts-evaluation-${exported.exportedAt.replace(/[:.]/g, "-")}.json`;
+  anchor.click();
+  setTimeout(() => URL.revokeObjectURL(url), 0);
+  return exported;
+}
 
 /** 読み上げ停止（待機中の発話・優先度状態も破棄） */
 export function stopSpeech(): void {

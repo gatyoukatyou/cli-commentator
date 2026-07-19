@@ -1,23 +1,34 @@
 import { describe, expect, it } from "vitest";
-import { createSpeechScheduler, type SpeechSink } from "./speech-scheduler";
+import {
+  createSpeechScheduler,
+  type ScheduledSpeech,
+  type SpeechCancellationReason,
+  type SpeechSink,
+} from "./speech-scheduler";
 
 type Call = { kind: "cancel" } | { kind: "speak"; text: string };
 
 function createFakeSink() {
   const calls: Call[] = [];
   const settlers: Array<() => void> = [];
+  const requests: Array<ScheduledSpeech<undefined>> = [];
+  const cancelReasons: SpeechCancellationReason[] = [];
   const sink: SpeechSink<undefined> = {
-    cancel() {
+    cancel(reason) {
       calls.push({ kind: "cancel" });
+      cancelReasons.push(reason);
     },
-    speak(text, _opts, onSettled) {
-      calls.push({ kind: "speak", text });
+    speak(request, onSettled) {
+      calls.push({ kind: "speak", text: request.text });
+      requests.push(request);
       settlers.push(onSettled);
     },
   };
   return {
     sink,
     calls,
+    requests,
+    cancelReasons,
     /** n番目にspeakされた発話の終了を通知する */
     settle(index: number) {
       settlers[index]();
@@ -123,5 +134,26 @@ describe("createSpeechScheduler", () => {
     fake.settle(2);
     expect(scheduler.hasPendingHighPriority()).toBe(false);
     expect(scheduler.speak("progress", "実況", undefined)).toBe(true);
+  });
+
+  it("assigns stable IDs and records urgent interruption, notice append, and progress thinning", () => {
+    const fake = createFakeSink();
+    const dropped: Array<{ id: string; reason: string }> = [];
+    let id = 0;
+    const scheduler = createSpeechScheduler(fake.sink, {
+      nextId: () => `speech-${++id}`,
+      onDropped: (request, reason) => dropped.push({ id: request.id, reason }),
+    });
+
+    expect(scheduler.speak("notice", "完了を追記", undefined)).toBe(true);
+    expect(scheduler.speak("progress", "間引かれる進捗", undefined)).toBe(false);
+    expect(scheduler.speak("urgent", "割り込み", undefined)).toBe(true);
+
+    expect(fake.requests.map(({ id, priority, queueDepth, queueReason }) => ({ id, priority, queueDepth, queueReason }))).toEqual([
+      { id: "speech-1", priority: "notice", queueDepth: 1, queueReason: "notice_append" },
+      { id: "speech-3", priority: "urgent", queueDepth: 1, queueReason: "urgent_interrupt" },
+    ]);
+    expect(dropped).toEqual([{ id: "speech-2", reason: "high_priority_pending" }]);
+    expect(fake.cancelReasons).toContain("urgent_interrupt");
   });
 });

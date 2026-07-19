@@ -3,9 +3,11 @@ import { buildSpeechText, getCommentaryTextParts } from "../lib/glossary-note";
 import { getCommentaryGroupKey, type CommentaryItem } from "../lib/log-filter";
 import {
   applyTTSPreset,
+  downloadTTSLifecycleLog,
   getTTSEnabled,
   getTTSSettings,
   isTTSSupported,
+  resetTTSLifecycleLog,
   setTTSEnabled,
   setTTSSettings,
   speak,
@@ -168,6 +170,7 @@ export function useTTS({ commentaryDisplayMode }: UseTTSOptions) {
       setTtsEnabledState(enabled);
       setTTSEnabled(enabled);
       if (enabled) {
+        resetTTSLifecycleLog("tts_enabled");
         speak("読み上げを開始します", ttsSettings);
       } else {
         stopAndClearSpeech();
@@ -194,6 +197,18 @@ export function useTTS({ commentaryDisplayMode }: UseTTSOptions) {
     speak("これはテスト読み上げです。設定を確認してください。", ttsSettings);
   }, [ttsSettings]);
 
+  const handleExportTTSLog = useCallback(() => {
+    downloadTTSLifecycleLog(ttsSettingsRef.current);
+  }, []);
+
+  const handleResetTTSLog = useCallback(() => {
+    resetTTSLifecycleLog("manual_reset");
+  }, []);
+
+  const resetTTSLifecycleSession = useCallback((trigger: string) => {
+    resetTTSLifecycleLog(trigger);
+  }, []);
+
   return {
     ttsEnabled,
     ttsSettings,
@@ -210,5 +225,8 @@ export function useTTS({ commentaryDisplayMode }: UseTTSOptions) {
     handleTTSSettingsChange,
     handleTTSPresetChange,
     handleTestSpeak,
+    handleExportTTSLog,
+    handleResetTTSLog,
+    resetTTSLifecycleSession,
   };
 }
