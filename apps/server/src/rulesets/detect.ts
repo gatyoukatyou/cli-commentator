@@ -22,8 +22,8 @@ const CODEX_STRONG = [
   /would you like to run the following command\?/i,
   /you approved .* to run/i,
   /^(apply_patch|apply patch|\*\*\* Begin Patch\b)/i,
-  /(?:^|\s)codex_core::.*\bToolCall:\s*(?:exec_command|write_stdin|apply_patch|read_mcp_resource|update_plan)\b/i,
-  /^ToolCall:\s*(?:exec_command|write_stdin|apply_patch|read_mcp_resource|update_plan)\b/i
+  /(?:^|\s)codex_core::.*\bToolCall:\s*(?:exec|exec_command|write_stdin|apply_patch|read_mcp_resource|update_plan)\b/i,
+  /^ToolCall:\s*(?:exec|exec_command|write_stdin|apply_patch|read_mcp_resource|update_plan)\b/i
 ];
 const CODEX_MEDIUM = [/^codex$/i, /\bcodex_core::/i];
 const CODEX_WEAK = [/\bELIFECYCLE\b/i, /exit code/i];
