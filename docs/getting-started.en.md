@@ -32,7 +32,7 @@ This is the primary path for checking the app locally as a desktop app.
 pnpm dev:desktop:managed
 ```
 
-`dev:desktop:managed` runs `pnpm ensure:desktop-sidecar` before startup. If `src-tauri/binaries`, `resources/server`, or `sidecar-manifest.json` is missing or incomplete, it regenerates the sidecar assets through `prepare:desktop-sidecar`. You can also run the same ensure command directly when you only want to validate the sidecar state.
+`dev:desktop:managed` runs `pnpm ensure:desktop-sidecar` before startup. If `src-tauri/binaries`, `resources/server`, or `sidecar-manifest.json` is missing or incomplete, or if the server/shared sources, lockfile, or build configuration changed since the previous preparation, it regenerates the sidecar assets through `prepare:desktop-sidecar`. You can also run the same ensure command directly when you only want to validate the sidecar state.
 
 The Desktop Server panel controls server lifecycle (`Start` / `Stop`) and shows status (`stopped` / `starting` / `running` / `stopping` / `failed`).
 

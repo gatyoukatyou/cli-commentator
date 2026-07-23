@@ -4,6 +4,10 @@ import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import {
+  computeDesktopSidecarFingerprint,
+  SIDECAR_FINGERPRINT_VERSION,
+} from "./desktop-sidecar-fingerprint.mjs";
 
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(scriptDir, "..");
@@ -57,6 +61,21 @@ function check() {
   }
   if (!fs.existsSync(entryPath)) {
     return { ok: false, reason: `serverEntry not found: ${manifest.serverEntry}` };
+  }
+
+  if (manifest.inputFingerprintVersion !== SIDECAR_FINGERPRINT_VERSION) {
+    return {
+      ok: false,
+      reason: "missing/outdated sidecar input fingerprint",
+    };
+  }
+
+  const currentFingerprint = computeDesktopSidecarFingerprint(repoRoot);
+  if (manifest.inputFingerprint !== currentFingerprint) {
+    return {
+      ok: false,
+      reason: "sidecar inputs changed",
+    };
   }
 
   return { ok: true, reason: "ok" };

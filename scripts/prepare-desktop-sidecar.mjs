@@ -18,6 +18,10 @@ import {
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import {
+  computeDesktopSidecarFingerprint,
+  SIDECAR_FINGERPRINT_VERSION,
+} from "./desktop-sidecar-fingerprint.mjs";
 
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(scriptDir, "..");
@@ -197,6 +201,8 @@ try {
     targetTriple,
     nodeVersion: process.version,
     serverVersion: readPackageVersion(path.join(serverDir, "package.json")),
+    inputFingerprintVersion: SIDECAR_FINGERPRINT_VERSION,
+    inputFingerprint: computeDesktopSidecarFingerprint(repoRoot),
     nodeBinary: toPosix(path.relative(tauriDir, sidecarNodePath)),
     serverRoot: toPosix(path.relative(tauriDir, bundledServerDir)),
     serverEntry,
