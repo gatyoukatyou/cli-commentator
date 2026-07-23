@@ -19,6 +19,7 @@ const SIDECAR_INPUTS = [
   "packages/shared/package.json",
   "packages/shared/src",
   "scripts/desktop-sidecar-fingerprint.mjs",
+  "scripts/desktop-sidecar-runtime.mjs",
   "scripts/prepare-desktop-sidecar.mjs",
 ];
 

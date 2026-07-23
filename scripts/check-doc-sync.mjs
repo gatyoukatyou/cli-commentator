@@ -26,6 +26,7 @@ export const RULES = [
     triggers: [
       /^apps\/desktop\//,
       /^scripts\/prepare-desktop-sidecar\.mjs$/,
+      /^scripts\/desktop-sidecar-runtime\.mjs$/,
       /^\.github\/workflows\/ci\.yml$/,
       /^\.github\/workflows\/release-desktop\.yml$/,
     ],

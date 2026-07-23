@@ -22,6 +22,10 @@ import {
   computeDesktopSidecarFingerprint,
   SIDECAR_FINGERPRINT_VERSION,
 } from "./desktop-sidecar-fingerprint.mjs";
+import {
+  assertNodeRuntimePortable,
+  smokeTestNodeRuntime,
+} from "./desktop-sidecar-runtime.mjs";
 
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(scriptDir, "..");
@@ -130,8 +134,12 @@ const sidecarNodePath = path.join(
   sidecarNodeDir,
   targetTriple.includes("windows") ? "node.exe" : "node"
 );
+const nodeSource = realpathSync(process.execPath);
 
 try {
+  console.log("[sidecar] Validating node runtime portability...");
+  assertNodeRuntimePortable(nodeSource);
+
   console.log("[sidecar] Building server dist...");
   rmForce(serverDistDir);
   run("pnpm", ["-C", "apps/server", "build"]);
@@ -173,13 +181,13 @@ try {
   rmForce(path.join(bundledServerDir, ".env.production"));
 
   console.log("[sidecar] Copying node runtime...");
-  const nodeSource = realpathSync(process.execPath);
   rmForce(sidecarNodeDir);
   ensureDir(sidecarNodeDir);
   copyFileSync(nodeSource, sidecarNodePath);
   if (!targetTriple.includes("windows")) {
     chmodSync(sidecarNodePath, 0o755);
   }
+  smokeTestNodeRuntime(sidecarNodePath, process.version);
 
   const serverEntryCandidates = [
     "resources/server/dist/index.js",

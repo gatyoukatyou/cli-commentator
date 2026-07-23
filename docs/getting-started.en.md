@@ -34,6 +34,13 @@ pnpm dev:desktop:managed
 
 `dev:desktop:managed` runs `pnpm ensure:desktop-sidecar` before startup. If `src-tauri/binaries`, `resources/server`, or `sidecar-manifest.json` is missing or incomplete, or if the server/shared sources, lockfile, or build configuration changed since the previous preparation, it regenerates the sidecar assets through `prepare:desktop-sidecar`. You can also run the same ensure command directly when you only want to validate the sidecar state.
 
+On macOS, sidecar preparation requires a self-contained Node runtime. If your
+Node executable depends on Homebrew libraries such as
+`@rpath/libnode.*.dylib` or files under `/opt/homebrew`, preparation stops with
+`[sidecar_node_not_portable]` before building. Install Node from nodejs.org (or
+use another self-contained distribution) and rerun
+`pnpm prepare:desktop-sidecar`.
+
 The Desktop Server panel controls server lifecycle (`Start` / `Stop`) and shows status (`stopped` / `starting` / `running` / `stopping` / `failed`).
 
 If status becomes `failed`, use the guidance shown in the panel and check logs from the same terminal.

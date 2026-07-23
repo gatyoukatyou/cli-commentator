@@ -57,6 +57,15 @@ test("still requires docs for desktop runtime source changes", () => {
   assert.equal(violations[0].ruleId, "desktop-distribution-doc-sync");
 });
 
+test("still requires docs for desktop sidecar runtime validation changes", () => {
+  const violations = findViolations([
+    "scripts/desktop-sidecar-runtime.mjs",
+  ]);
+
+  assert.equal(violations.length, 1);
+  assert.equal(violations[0].ruleId, "desktop-distribution-doc-sync");
+});
+
 function createFingerprintFixture() {
   const repoRoot = mkdtempSync(path.join(os.tmpdir(), "sidecar-fingerprint-"));
   const files = {
@@ -69,6 +78,7 @@ function createFingerprintFixture() {
     "packages/shared/package.json": "{}\n",
     "packages/shared/src/index.ts": "export const shared = true;\n",
     "scripts/desktop-sidecar-fingerprint.mjs": "fingerprint helper\n",
+    "scripts/desktop-sidecar-runtime.mjs": "runtime helper\n",
     "scripts/prepare-desktop-sidecar.mjs": "prepare script\n",
   };
 
@@ -96,6 +106,18 @@ test("desktop sidecar fingerprint changes with server source", () => {
   writeFileSync(
     path.join(repoRoot, "apps/server/src/index.ts"),
     "export const server = false;\n"
+  );
+
+  assert.notEqual(computeDesktopSidecarFingerprint(repoRoot), before);
+});
+
+test("desktop sidecar fingerprint changes with runtime validation", () => {
+  const repoRoot = createFingerprintFixture();
+  const before = computeDesktopSidecarFingerprint(repoRoot);
+
+  writeFileSync(
+    path.join(repoRoot, "scripts/desktop-sidecar-runtime.mjs"),
+    "updated runtime helper\n"
   );
 
   assert.notEqual(computeDesktopSidecarFingerprint(repoRoot), before);
