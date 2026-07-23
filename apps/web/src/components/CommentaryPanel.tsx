@@ -29,6 +29,8 @@ type CommentaryPanelProps = {
   onTTSPresetChange: (presetId: TTSPresetId | "custom") => void;
   onTTSSettingsChange: (settings: TTSSettings) => void;
   onTestSpeak: () => void;
+  onExportTTSLog: () => void;
+  onResetTTSLog: () => void;
 };
 
 export function CommentaryPanel({
@@ -49,6 +51,8 @@ export function CommentaryPanel({
   onTTSPresetChange,
   onTTSSettingsChange,
   onTestSpeak,
+  onExportTTSLog,
+  onResetTTSLog,
 }: CommentaryPanelProps) {
   const sourceLabel =
     source.mode === "auto"
@@ -113,6 +117,11 @@ export function CommentaryPanel({
               {ttsSettingsOpen ? "▼ 設定" : "▶ 設定"}
             </button>
           )}
+          {ttsSupported && (
+            <button onClick={onExportTTSLog} className="settings-toggle">
+              評価ログをJSON出力
+            </button>
+          )}
           {!ttsSupported && (
             <span style={{ fontSize: "var(--text-sm)", color: "var(--color-danger)" }}>
               ※ このブラウザはTTS非対応です
@@ -128,6 +137,7 @@ export function CommentaryPanel({
             onPresetChange={onTTSPresetChange}
             onSettingsChange={onTTSSettingsChange}
             onTestSpeak={onTestSpeak}
+            onResetLog={onResetTTSLog}
           />
         )}
 
