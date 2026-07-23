@@ -16,6 +16,7 @@
     "ensure:desktop-sidecar": "node ./scripts/ensure-desktop-sidecar-prepared.mjs",
     "prepare:desktop-sidecar": "node ./scripts/prepare-desktop-sidecar.mjs",
     "build:sidecar": "pnpm prepare:desktop-sidecar",
+    "test:desktop-sidecar-runtime": "node --test ./scripts/desktop-sidecar-runtime.test.mjs",
     "check:doc-sync": "node ./scripts/check-doc-sync.mjs",
     "smoke:desktop-distribution": "node ./scripts/desktop-distribution-smoke.mjs",
     "smoke:llm": "bash ./scripts/smoke-llm.sh",

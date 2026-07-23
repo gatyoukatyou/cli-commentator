@@ -34,6 +34,8 @@ pnpm dev:desktop:managed
 
 `dev:desktop:managed` は起動前に `pnpm ensure:desktop-sidecar` を実行し、`src-tauri/binaries`・`resources/server`・`sidecar-manifest.json` が欠けている場合、または server/shared ソース・lockfile・build設定が前回生成時から変わっている場合は、`prepare:desktop-sidecar` で再生成します。手動で状態確認だけしたい場合も同じコマンドを直接実行できます。
 
+macOSでsidecarを生成する場合は、自己完結型のNodeランタイムが必要です。Node実行ファイルが`@rpath/libnode.*.dylib`や`/opt/homebrew`配下のHomebrewライブラリへ依存していると、ビルド前に`[sidecar_node_not_portable]`で停止します。nodejs.org版などの自己完結型Nodeへ切り替え、`pnpm prepare:desktop-sidecar`を再実行してください。
+
 Desktop Server パネルで server の状態を操作します（`Start` / `Stop`、`stopped` / `starting` / `running` / `stopping` / `failed`）。
 
 `failed` になった場合は、パネルの復旧ガイダンスと同じターミナルのログを確認してください。

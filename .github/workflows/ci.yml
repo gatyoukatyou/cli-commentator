@@ -129,6 +129,9 @@ jobs:
       - name: Web lint
         run: pnpm -C apps/web lint
 
+      - name: Desktop sidecar runtime tests
+        run: pnpm test:desktop-sidecar-runtime
+
   desktop_check:
     runs-on: windows-latest
 
