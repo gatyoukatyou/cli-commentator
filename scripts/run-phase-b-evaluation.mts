@@ -8,15 +8,33 @@ import {
   type PhaseBReplayFixture,
   type PhaseBReplayResult,
 } from "../apps/server/src/evaluation/phase-b-replay.js";
+import { buildPhaseBEvaluationArtifacts } from "../apps/server/src/evaluation/phase-b-artifacts.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const repoRoot = path.resolve(path.dirname(__filename), "..");
-const fixturePath = path.join(repoRoot, "apps/server/test/fixtures/phase-b-codex-session.json");
-const baselinePath = path.join(repoRoot, "apps/server/test/fixtures/phase-b-codex-session.expected.json");
+const defaultFixturePath = path.join(
+  repoRoot,
+  "apps/server/test/fixtures/phase-b-codex-session.json"
+);
 
 function getArg(name: string): string | undefined {
   const index = process.argv.indexOf(name);
-  return index >= 0 ? process.argv[index + 1] : undefined;
+  if (index < 0) return undefined;
+  const value = process.argv[index + 1];
+  if (!value || value.startsWith("--")) {
+    throw new Error(`${name} requires a path`);
+  }
+  return value;
+}
+
+function resolveRepoPath(value: string): string {
+  return path.resolve(repoRoot, value);
+}
+
+function inferredBaselinePath(fixturePath: string): string {
+  return fixturePath.endsWith(".json")
+    ? fixturePath.replace(/\.json$/u, ".expected.json")
+    : `${fixturePath}.expected.json`;
 }
 
 function configuredModel(provider: string): string {
@@ -94,7 +112,7 @@ function markdownReport(
     "",
     `- fixture: \`${candidate.fixtureId}\``,
     `- snapshot: ${matches ? "MATCH" : "DIFF"}`,
-    "- scope: 28 sanitized lines / 5 extracted events",
+    `- scope: ${candidate.metrics.events} extracted events`,
     `- LLM measurement: ${llmStatus}`,
     ...(providerMetrics
       ? [
@@ -146,6 +164,10 @@ function markdownReport(
   ].join("\n");
 }
 
+const fixturePath = resolveRepoPath(getArg("--fixture") ?? defaultFixturePath);
+const baselinePath = resolveRepoPath(
+  getArg("--baseline") ?? inferredBaselinePath(fixturePath)
+);
 const fixture = JSON.parse(await fs.readFile(fixturePath, "utf8")) as PhaseBReplayFixture;
 const withLlm = process.argv.includes("--with-llm");
 const llmProvider = process.env.LLM_PROVIDER ?? "disabled";
@@ -183,6 +205,11 @@ const outputDir = path.resolve(getArg("--output-dir") ?? path.join(os.tmpdir(), 
 await fs.mkdir(outputDir, { recursive: true });
 const candidatePath = path.join(outputDir, "candidate.json");
 const reportPath = path.join(outputDir, "report.md");
+const answerKeyPath = path.join(outputDir, "checkpoint-answer-key.json");
+const blindDir = path.join(outputDir, "blind");
+const blindSpeechPath = path.join(blindDir, "speech.json");
+const artifacts = buildPhaseBEvaluationArtifacts(candidate);
+await fs.mkdir(blindDir, { recursive: true });
 await fs.writeFile(candidatePath, `${JSON.stringify(candidate, null, 2)}\n`, "utf8");
 const llmStatus = llmEnabled
   ? "enabled"
@@ -190,8 +217,20 @@ const llmStatus = llmEnabled
     ? `skipped (${missingCredential ? `${missingCredential} is not set` : "LLM_PROVIDER is not set"})`
     : "disabled";
 await fs.writeFile(reportPath, markdownReport(baseline, candidate, matches, llmStatus), "utf8");
+await fs.writeFile(
+  answerKeyPath,
+  `${JSON.stringify(artifacts.answerKey, null, 2)}\n`,
+  "utf8"
+);
+await fs.writeFile(
+  blindSpeechPath,
+  `${JSON.stringify(artifacts.blindSpeech, null, 2)}\n`,
+  "utf8"
+);
 
 console.log(`Candidate: ${candidatePath}`);
 console.log(`Report: ${reportPath}`);
+console.log(`Checkpoint answer key: ${answerKeyPath}`);
+console.log(`Blind respondent directory: ${blindDir}`);
 console.log(`Snapshot: ${matches ? "MATCH" : "DIFF"}`);
 if (!matches) process.exitCode = 1;

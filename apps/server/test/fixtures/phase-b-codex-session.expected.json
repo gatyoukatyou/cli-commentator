@@ -154,6 +154,42 @@
         "reason": "new_target",
         "text": "今の対象は「apps/server/src/extract.ts」や。"
       }
+    },
+    {
+      "kind": "event",
+      "ev": {
+        "ts": 13000,
+        "type": "test",
+        "summary": "テスト/型チェックを実行している",
+        "detail": "⏺ Bash(pnpm -C apps/server test)",
+        "priority": "progress"
+      }
+    },
+    {
+      "kind": "commentary",
+      "ts": 13000,
+      "ev": {
+        "ts": 13000,
+        "type": "test",
+        "summary": "テスト/型チェックを実行している",
+        "detail": "⏺ Bash(pnpm -C apps/server test)",
+        "priority": "progress"
+      },
+      "narration": "検証段階に入って、「apps/server」を扱ってるで。",
+      "explanation": "目的「Phase Bの実況品質について、反復・目的説明・状態変化・用…」に向けた検証段階です。",
+      "glossaryNotes": [
+        "補足: pnpm/npm/yarn は依存関係やスクリプト実行に使う"
+      ],
+      "meta": {
+        "narrationProvider": "rules",
+        "explanationProvider": "rules",
+        "mode": "both"
+      },
+      "speech": {
+        "disposition": "speak",
+        "reason": "phase_change",
+        "text": "検証段階に入って、「apps/server」を扱ってるで。"
+      }
     }
   ],
   "contextTimeline": [
@@ -226,6 +262,20 @@
       "humanRequired": false,
       "speechDisposition": "speak",
       "speechReason": "new_target"
+    },
+    {
+      "offsetMs": 13000,
+      "eventType": "test",
+      "eventSummary": "テスト/型チェックを実行している",
+      "sequence": 6,
+      "phase": "verification",
+      "previousPhase": "investigation",
+      "phaseChanged": true,
+      "targetChanged": true,
+      "target": "apps/server",
+      "humanRequired": false,
+      "speechDisposition": "speak",
+      "speechReason": "phase_change"
     }
   ],
   "commentaryComparisons": [
@@ -296,6 +346,23 @@
           "text": "今の対象は「apps/server/src/extract.ts」や。"
         }
       }
+    },
+    {
+      "offsetMs": 13000,
+      "eventType": "test",
+      "withoutContext": {
+        "narration": "テスト/型チェック回して確認中や。",
+        "explanation": "変更の副作用がないか、自動テストで機械的に確認しています。"
+      },
+      "withContext": {
+        "narration": "検証段階に入って、「apps/server」を扱ってるで。",
+        "explanation": "目的「Phase Bの実況品質について、反復・目的説明・状態変化・用…」に向けた検証段階です。",
+        "speech": {
+          "disposition": "speak",
+          "reason": "phase_change",
+          "text": "検証段階に入って、「apps/server」を扱ってるで。"
+        }
+      }
     }
   ],
   "suppressions": [
@@ -312,16 +379,17 @@
     }
   ],
   "metrics": {
-    "events": 5,
-    "commentaries": 4,
+    "events": 6,
+    "commentaries": 5,
     "suppressed": 1,
     "eventsByType": {
       "search": 2,
-      "read": 3
+      "read": 3,
+      "test": 1
     },
-    "glossaryNotes": 1,
+    "glossaryNotes": 2,
     "exactNarrationRepeats": 0,
-    "spokenCommentaries": 4,
+    "spokenCommentaries": 5,
     "displayOnlyCommentaries": 0,
     "speechSuppressionsByReason": {},
     "maxSpeechSentences": 1,

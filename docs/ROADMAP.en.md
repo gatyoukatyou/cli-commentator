@@ -156,6 +156,7 @@ Supervision and entertaining commentary share one event-detection result; only t
 
 **Next**
 - Improve Japanese explanations and summarization, with separate serious and play-by-play presentation layers (Phase B). Confirm priorities with HUMAN/Gino before implementation
+  - Phase B blind-evaluation exports preserve the actual spoken text. When interpreting results, note that the rule-based TTS intentionally makes the phase explicit, which can make the phase question easy
 
 **Later**
 - Complete a manual-free path from launch to live commentary (Phase C)

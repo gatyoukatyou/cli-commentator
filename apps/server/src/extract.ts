@@ -383,6 +383,14 @@ function preprocessLine(rawLine: string, sourceEnv?: string): string | null {
     return "Would you like to run the following command?";
   }
 
+  if (/^Question \d+\/\d+ \(0+ unanswered\)$/i.test(normalized)) {
+    return null;
+  }
+
+  if (/^Question \d+\/\d+ \((?:[1-9]\d*) unanswered\)$/i.test(normalized)) {
+    return normalized;
+  }
+
   const approvedMatch = normalized.match(/you approved .* to run:\s*(.+)$/i);
   if (approvedMatch) {
     return `You approved codex to run: ${approvedMatch[1].trim()}`;

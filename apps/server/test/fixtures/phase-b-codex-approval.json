@@ -1,0 +1,22 @@
+{
+  "notice": [
+    "This fixture was derived from a Codex approval fixture and sanitized.",
+    "Identifiers, paths, timestamps, and user-authored content are synthetic."
+  ],
+  "id": "phase-b-codex-approval",
+  "source": "codex",
+  "style": "standard",
+  "taskContext": {
+    "objective": "依存関係を準備し、対象ファイルへ必要な修正を反映する",
+    "userPrompt": "必要な依存関係を準備して、対象ファイルの修正を進めてください。"
+  },
+  "commentaryIntervalMs": 2000,
+  "lines": [
+    { "offsetMs": 0, "line": "Would you like to run the following command?" },
+    { "offsetMs": 1000, "line": "You approved codex to run: pnpm install" },
+    { "offsetMs": 3500, "line": "apply_patch" },
+    { "offsetMs": 4000, "line": "⏺ Read(/Users/demo/project/src/index.ts)" },
+    { "offsetMs": 4500, "line": "⏺ Bash(pnpm install)" },
+    { "offsetMs": 6000, "line": "Question 1/1 (1 unanswered)" }
+  ]
+}

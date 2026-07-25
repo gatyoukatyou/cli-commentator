@@ -8,13 +8,22 @@ import {
   replayPhaseBFixture,
   type PhaseBReplayFixture,
 } from "../evaluation/phase-b-replay.js";
+import {
+  buildPhaseBEvaluationArtifacts,
+  evaluatedPhaseOptions,
+} from "../evaluation/phase-b-artifacts.js";
+import { SESSION_PHASE_LABELS } from "../session-context.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const fixturePath = path.resolve(__dirname, "../../test/fixtures/phase-b-codex-session.json");
+const fixturesDir = path.resolve(__dirname, "../../test/fixtures");
 
-async function loadFixture(): Promise<PhaseBReplayFixture> {
-  return JSON.parse(await fs.readFile(fixturePath, "utf8")) as PhaseBReplayFixture;
+async function loadFixture(
+  name = "phase-b-codex-session.json"
+): Promise<PhaseBReplayFixture> {
+  return JSON.parse(
+    await fs.readFile(path.join(fixturesDir, name), "utf8")
+  ) as PhaseBReplayFixture;
 }
 
 describe("Phase B evaluation replay", () => {
@@ -34,16 +43,16 @@ describe("Phase B evaluation replay", () => {
       "This fixture was derived from a real Codex CLI session and sanitized.",
       "Identifiers, paths, timestamps, and user-authored content are synthetic.",
     ]);
-    expect(fixture.lines).toHaveLength(28);
+    expect(fixture.lines).toHaveLength(29);
     expect(result.taskContext).toEqual(fixture.taskContext);
     expect(result.metrics).toMatchObject({
-      events: 5,
-      commentaries: 4,
+      events: 6,
+      commentaries: 5,
       suppressed: 1,
-      eventsByType: { search: 2, read: 3 },
-      glossaryNotes: 1,
+      eventsByType: { search: 2, read: 3, test: 1 },
+      glossaryNotes: 2,
       exactNarrationRepeats: 0,
-      spokenCommentaries: 4,
+      spokenCommentaries: 5,
       displayOnlyCommentaries: 0,
       speechSuppressionsByReason: {},
       maxSpeechSentences: 1,
@@ -60,6 +69,7 @@ describe("Phase B evaluation replay", () => {
       "investigation",
       "investigation",
       "investigation",
+      "verification",
     ]);
     expect(result.contextTimeline[0]).toMatchObject({
       previousPhase: "unknown",
@@ -82,7 +92,7 @@ describe("Phase B evaluation replay", () => {
       llmModel: "mock",
     });
 
-    expect(result.providerComparisons).toHaveLength(4);
+    expect(result.providerComparisons).toHaveLength(5);
     expect(result.providerComparisons?.[0]).toMatchObject({
       eventType: "search",
       rules: {
@@ -104,18 +114,120 @@ describe("Phase B evaluation replay", () => {
       provider: "mock",
       model: "mock",
       timeoutMs: 3000,
-      attempted: 4,
-      withinTimeoutSuccesses: 4,
+      attempted: 5,
+      withinTimeoutSuccesses: 5,
       withinTimeoutSuccessRate: 1,
       results: {
-        comment_ok: 4,
+        comment_ok: 5,
         comment_timeout: 0,
         comment_aborted: 0,
         comment_llm_error: 0,
       },
-      inputTokens: 80,
-      outputTokens: 160,
+      inputTokens: 100,
+      outputTokens: 200,
     });
+  });
+
+  it("builds an error fixture with verification checkpoints", async () => {
+    const fixture = await loadFixture("phase-b-codex-lifecycle-error.json");
+    const result = await replayPhaseBFixture(fixture);
+    const artifacts = buildPhaseBEvaluationArtifacts(result);
+
+    expect(result.metrics.eventsByType).toEqual({ read: 1, test: 1, error: 3 });
+    expect(result.contextTimeline.map(({ phase }) => phase)).toEqual([
+      "investigation",
+      "verification",
+      "verification",
+      "verification",
+      "verification",
+    ]);
+    expect(artifacts.answerKey.checkpoints).toHaveLength(5);
+    expect(new Set(
+      artifacts.answerKey.checkpoints.map(({ phase }) => phase)
+    )).toEqual(new Set(["investigation", "verification"]));
+  });
+
+  it("exports a waiting HUMAN checkpoint and speech-only blind material", async () => {
+    const fixture = await loadFixture("phase-b-codex-approval.json");
+    const result = await replayPhaseBFixture(fixture);
+    const artifacts = buildPhaseBEvaluationArtifacts(result);
+    const waitingCheckpoint = artifacts.answerKey.checkpoints.find(
+      ({ phase }) => phase === "waiting"
+    );
+    const humanRequiredCheckpoints = artifacts.answerKey.checkpoints.filter(
+      ({ humanRequired }) => humanRequired
+    );
+
+    expect(waitingCheckpoint).toMatchObject({
+      phaseLabel: SESSION_PHASE_LABELS.waiting,
+      humanRequired: true,
+      objective: fixture.taskContext.objective,
+    });
+    expect(humanRequiredCheckpoints).toHaveLength(2);
+    expect(new Set(
+      artifacts.answerKey.checkpoints.map(({ phase }) => phase)
+    )).toEqual(new Set(["waiting", "editing"]));
+    expect(artifacts.answerKey.phaseOptions).toEqual(evaluatedPhaseOptions());
+    expect(artifacts.answerKey.phaseOptions).not.toContainEqual(
+      expect.objectContaining({ phase: "unknown" })
+    );
+    expect(artifacts.blindSpeech).toHaveLength(
+      artifacts.answerKey.checkpoints.length
+    );
+    for (const item of artifacts.blindSpeech) {
+      expect(Object.keys(item).sort()).toEqual(["cpId", "speechText"]);
+      expect(item.speechText.trim()).not.toBe("");
+    }
+    expect(artifacts.blindSpeech[0]?.speechText).toBe(
+      result.commentaryComparisons[0].withContext.speech?.text
+    );
+    expect(artifacts.blindSpeech[0]?.speechText).toContain(
+      SESSION_PHASE_LABELS.waiting
+    );
+    expect(artifacts.blindSpeech[1]?.speechText).toContain(
+      SESSION_PHASE_LABELS.editing
+    );
+    expect(artifacts.blindSpeech[2]?.speechText).toContain(
+      SESSION_PHASE_LABELS.waiting
+    );
+    expect(JSON.stringify(artifacts.blindSpeech)).not.toMatch(
+      /narration|explanation|humanRequired|phase|provider|withoutContext|withContext/u
+    );
+    expect(result.commentaryComparisons[0].withContext.speech?.text).toContain(
+      SESSION_PHASE_LABELS.waiting
+    );
+  });
+
+  it("records a skipped checkpoint instead of throwing when speech is missing", async () => {
+    const fixture = await loadFixture();
+    const result = await replayPhaseBFixture(fixture);
+    const first = result.commentaryComparisons[0];
+    const suppressedResult = {
+      ...result,
+      commentaryComparisons: [
+        {
+          ...first,
+          withContext: {
+            ...first.withContext,
+            speech: undefined,
+          },
+        },
+        ...result.commentaryComparisons.slice(1),
+      ],
+    };
+
+    const artifacts = buildPhaseBEvaluationArtifacts(suppressedResult);
+
+    expect(artifacts.answerKey.skippedCheckpoints).toContainEqual({
+      offsetMs: first.offsetMs,
+      eventType: first.eventType,
+      reason: "speech_not_spoken",
+      speechDisposition: "missing",
+      speechReason: "new_task",
+    });
+    expect(artifacts.answerKey.checkpoints).toHaveLength(
+      result.commentaryComparisons.length - 1
+    );
   });
 
   it("compares event classifications in a stable order", () => {
