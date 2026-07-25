@@ -79,6 +79,10 @@ describe("extractEvents fixtures", () => {
     ]);
   });
 
+  it("does not emit a waiting event for a completed Codex question counter", () => {
+    expect(extractEvents("Question 1/1 (0 unanswered)", "codex")).toEqual([]);
+  });
+
   it("extracts current Codex exec tool calls without surfacing routine plugin logs", async () => {
     const content = await fs.readFile(path.join(fixturesDir, "codex-current-toolcall.log"), "utf8");
     const events = extractEvents(content, "codex");
