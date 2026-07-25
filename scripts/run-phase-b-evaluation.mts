@@ -167,17 +167,17 @@ const candidate = await replayPhaseBFixture(
       }
     : {}
 );
+const snapshotCandidate = { ...candidate };
+delete snapshotCandidate.providerComparisons;
+delete snapshotCandidate.providerMetrics;
 
 if (process.argv.includes("--update-baseline")) {
-  await fs.writeFile(baselinePath, `${JSON.stringify(candidate, null, 2)}\n`, "utf8");
+  await fs.writeFile(baselinePath, `${JSON.stringify(snapshotCandidate, null, 2)}\n`, "utf8");
   console.log(`Updated baseline: ${baselinePath}`);
   process.exit(0);
 }
 
 const baseline = JSON.parse(await fs.readFile(baselinePath, "utf8")) as PhaseBReplayResult;
-const snapshotCandidate = { ...candidate };
-delete snapshotCandidate.providerComparisons;
-delete snapshotCandidate.providerMetrics;
 const matches = JSON.stringify(baseline) === JSON.stringify(snapshotCandidate);
 const outputDir = path.resolve(getArg("--output-dir") ?? path.join(os.tmpdir(), "cli-commentator-phase-b-eval"));
 await fs.mkdir(outputDir, { recursive: true });
