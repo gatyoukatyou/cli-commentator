@@ -12,7 +12,7 @@ export const codexRuleset: RuleSet = {
     { id: "codex.update", priority: 90, re: /^[⏺•]\s*Update\(/, type: "write", summary: "ファイルを更新している" },
     { id: "codex.write", priority: 80, re: /^[⏺•]\s*Write\(/, type: "write", summary: "ファイルを書き込んでいる" },
     { id: "codex.patch", priority: 75, re: /\bapply_patch\b|apply patch/i, type: "write", summary: "パッチを適用している" },
-    { id: "codex.question", priority: 66, re: /which .* do you (?:choose|prefer)\?/i, type: "stdout", summary: "質問への回答を待っている" },
+    { id: "codex.question", priority: 66, re: /^Question \d+\/\d+ \(\d+ unanswered\)$/i, type: "stdout", summary: "質問への回答を待っている" },
     { id: "codex.approval.ask", priority: 65, re: /would you like to run the following command/i, type: "stdout", summary: "コマンド実行の確認待ち" },
     { id: "codex.approval.ok", priority: 64, re: /you approved .* to run/i, type: "stdout", summary: "コマンド実行が承認された" },
 

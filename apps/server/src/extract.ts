@@ -383,7 +383,7 @@ function preprocessLine(rawLine: string, sourceEnv?: string): string | null {
     return "Would you like to run the following command?";
   }
 
-  if (/which .* do you (?:choose|prefer)\?/i.test(normalized)) {
+  if (/^Question \d+\/\d+ \(\d+ unanswered\)$/i.test(normalized)) {
     return normalized;
   }
 

@@ -11,7 +11,6 @@ import {
 import {
   buildPhaseBEvaluationArtifacts,
   evaluatedPhaseOptions,
-  sanitizeBlindSpeechText,
 } from "../evaluation/phase-b-artifacts.js";
 import { SESSION_PHASE_LABELS } from "../session-context.js";
 
@@ -178,10 +177,19 @@ describe("Phase B evaluation replay", () => {
     for (const item of artifacts.blindSpeech) {
       expect(Object.keys(item).sort()).toEqual(["cpId", "speechText"]);
       expect(item.speechText.trim()).not.toBe("");
-      for (const { label } of evaluatedPhaseOptions()) {
-        expect(item.speechText).not.toContain(label);
-      }
     }
+    expect(artifacts.blindSpeech[0]?.speechText).toBe(
+      result.commentaryComparisons[0].withContext.speech?.text
+    );
+    expect(artifacts.blindSpeech[0]?.speechText).toContain(
+      SESSION_PHASE_LABELS.waiting
+    );
+    expect(artifacts.blindSpeech[1]?.speechText).toContain(
+      SESSION_PHASE_LABELS.editing
+    );
+    expect(artifacts.blindSpeech[2]?.speechText).toContain(
+      SESSION_PHASE_LABELS.waiting
+    );
     expect(JSON.stringify(artifacts.blindSpeech)).not.toMatch(
       /narration|explanation|humanRequired|phase|provider|withoutContext|withContext/u
     );
@@ -219,12 +227,6 @@ describe("Phase B evaluation replay", () => {
     });
     expect(artifacts.answerKey.checkpoints).toHaveLength(
       result.commentaryComparisons.length - 1
-    );
-  });
-
-  it("replaces phase labels only in respondent-facing speech", () => {
-    expect(sanitizeBlindSpeechText("検証段階に入り、対象を扱っています。")).toBe(
-      "作業段階に入り、対象を扱っています。"
     );
   });
 

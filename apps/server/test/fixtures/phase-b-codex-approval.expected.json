@@ -137,7 +137,7 @@
         "ts": 6000,
         "type": "stdout",
         "summary": "質問への回答を待っている",
-        "detail": "Which option do you prefer?",
+        "detail": "Question 1/1 (1 unanswered)",
         "priority": "urgent"
       }
     },
@@ -148,10 +148,10 @@
         "ts": 6000,
         "type": "stdout",
         "summary": "質問への回答を待っている",
-        "detail": "Which option do you prefer?",
+        "detail": "Question 1/1 (1 unanswered)",
         "priority": "urgent"
       },
-      "narration": "待機段階に入り、HUMANの入力を待っています。 今見えている出力は「Which option do you prefer?」です。",
+      "narration": "待機段階に入り、HUMANの入力を待っています。 今見えている出力は「Question 1/1 (1 unanswered)」です。",
       "explanation": "目的「依存関係を準備し、対象ファイルへ必要な修正を反映する」に向けた待機段階です。",
       "glossaryNotes": [],
       "meta": {
@@ -308,11 +308,11 @@
       "offsetMs": 6000,
       "eventType": "stdout",
       "withoutContext": {
-        "narration": "今見えている出力は「Which option do you prefer?」です。",
+        "narration": "今見えている出力は「Question 1/1 (1 unanswered)」です。",
         "explanation": "コマンドの通常出力を確認しています。"
       },
       "withContext": {
-        "narration": "待機段階に入り、HUMANの入力を待っています。 今見えている出力は「Which option do you prefer?」です。",
+        "narration": "待機段階に入り、HUMANの入力を待っています。 今見えている出力は「Question 1/1 (1 unanswered)」です。",
         "explanation": "目的「依存関係を準備し、対象ファイルへ必要な修正を反映する」に向けた待機段階です。",
         "speech": {
           "disposition": "speak",

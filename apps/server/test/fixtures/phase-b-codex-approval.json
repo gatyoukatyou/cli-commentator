@@ -17,6 +17,6 @@
     { "offsetMs": 3500, "line": "apply_patch" },
     { "offsetMs": 4000, "line": "⏺ Read(/Users/demo/project/src/index.ts)" },
     { "offsetMs": 4500, "line": "⏺ Bash(pnpm install)" },
-    { "offsetMs": 6000, "line": "Which option do you prefer?" }
+    { "offsetMs": 6000, "line": "Question 1/1 (1 unanswered)" }
   ]
 }

@@ -51,21 +51,6 @@ export function evaluatedPhaseOptions(): PhaseBPhaseOption[] {
     .map(([phase, label]) => ({ phase, label }));
 }
 
-function escapeRegExp(value: string): string {
-  return value.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
-}
-
-export function sanitizeBlindSpeechText(text: string): string {
-  const phaseLabels = evaluatedPhaseOptions()
-    .map(({ label }) => label)
-    .sort((left, right) => right.length - left.length);
-  const phaseLabelPattern = new RegExp(
-    phaseLabels.map(escapeRegExp).join("|"),
-    "gu"
-  );
-  return text.replace(phaseLabelPattern, "作業").replace(/\s+/gu, " ").trim();
-}
-
 export function buildPhaseBEvaluationArtifacts(
   result: PhaseBReplayResult
 ): PhaseBEvaluationArtifacts {
@@ -126,7 +111,7 @@ export function buildPhaseBEvaluationArtifacts(
     });
     blindSpeech.push({
       cpId,
-      speechText: sanitizeBlindSpeechText(speechText),
+      speechText,
     });
   }
 

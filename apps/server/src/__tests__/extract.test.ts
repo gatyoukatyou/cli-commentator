@@ -69,12 +69,12 @@ describe("extractEvents fixtures", () => {
   });
 
   it("extracts a Codex question as waiting for a HUMAN response", () => {
-    expect(extractEvents("Which option do you prefer?", "codex")).toEqual([
+    expect(extractEvents("Question 1/1 (1 unanswered)", "codex")).toEqual([
       {
         ts: new Date("2025-01-01T00:00:00.000Z").getTime(),
         type: "stdout",
         summary: "質問への回答を待っている",
-        detail: "Which option do you prefer?",
+        detail: "Question 1/1 (1 unanswered)",
       },
     ]);
   });
