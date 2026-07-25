@@ -39,6 +39,7 @@
     { "offsetMs": 9000, "line": "2030-01-01T00:00:09.000Z INFO session_loop{thread_id=thread-demo}:turn{turn.id=turn-001}: tool call completed call_id=call-007" },
     { "offsetMs": 10000, "line": "2030-01-01T00:00:10.000Z INFO codex_core::client: close time.idle=13ms" },
     { "offsetMs": 10500, "line": "2030-01-01T00:00:10.500Z INFO session_loop{thread_id=thread-demo}:turn{turn.id=turn-001}: tool call completed call_id=call-008" },
-    { "offsetMs": 10573, "line": "2030-01-01T00:00:10.573Z INFO session_loop{thread_id=thread-demo}:turn{turn.id=turn-001}: codex_core::stream_events_utils: ToolCall: exec const r = await tools.exec_command({\"cmd\":\"nl -ba apps/server/src/extract.ts | sed -n '1,180p'; nl -ba apps/server/src/event-priority.ts | sed -n '1,120p'\",\"workdir\":\"/Users/demo/project\"}); text(r.output);" }
+    { "offsetMs": 10573, "line": "2030-01-01T00:00:10.573Z INFO session_loop{thread_id=thread-demo}:turn{turn.id=turn-001}: codex_core::stream_events_utils: ToolCall: exec const r = await tools.exec_command({\"cmd\":\"nl -ba apps/server/src/extract.ts | sed -n '1,180p'; nl -ba apps/server/src/event-priority.ts | sed -n '1,120p'\",\"workdir\":\"/Users/demo/project\"}); text(r.output);" },
+    { "offsetMs": 13000, "line": "2030-01-01T00:00:13.000Z INFO session_loop{thread_id=thread-demo}:turn{turn.id=turn-001}: codex_core::stream_events_utils: ToolCall: exec const r = await tools.exec_command({\"cmd\":\"pnpm -C apps/server test\",\"workdir\":\"/Users/demo/project\"}); text(r.output);" }
   ]
 }

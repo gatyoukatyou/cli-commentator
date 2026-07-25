@@ -11,9 +11,9 @@
       "kind": "event",
       "ev": {
         "ts": 0,
-        "type": "test",
-        "summary": "テスト/型チェックを実行している",
-        "detail": "> pnpm test",
+        "type": "read",
+        "summary": "ファイルを読み込んでいる",
+        "detail": "⏺ Read(/Users/demo/project/package.json)",
         "priority": "progress"
       }
     },
@@ -22,12 +22,46 @@
       "ts": 0,
       "ev": {
         "ts": 0,
+        "type": "read",
+        "summary": "ファイルを読み込んでいる",
+        "detail": "⏺ Read(/Users/demo/project/package.json)",
+        "priority": "progress"
+      },
+      "narration": "調査段階に入り、「/Users/demo/project/package.json」を扱っています。",
+      "explanation": "目的「テスト失敗の原因を特定し、修正後に検証を完了する」に向けた調査段階です。",
+      "glossaryNotes": [],
+      "meta": {
+        "narrationProvider": "rules",
+        "explanationProvider": "rules",
+        "mode": "both"
+      },
+      "speech": {
+        "disposition": "speak",
+        "reason": "new_task",
+        "text": "調査段階に入り、「/Users/demo/project/package.json」を扱っています。"
+      }
+    },
+    {
+      "kind": "event",
+      "ev": {
+        "ts": 2400,
+        "type": "test",
+        "summary": "テスト/型チェックを実行している",
+        "detail": "> pnpm test",
+        "priority": "progress"
+      }
+    },
+    {
+      "kind": "commentary",
+      "ts": 2400,
+      "ev": {
+        "ts": 2400,
         "type": "test",
         "summary": "テスト/型チェックを実行している",
         "detail": "> pnpm test",
         "priority": "progress"
       },
-      "narration": "検証段階に入り、対象を扱っています。",
+      "narration": "検証段階に入り、「/Users/demo/project/package.json」を扱っています。",
       "explanation": "目的「テスト失敗の原因を特定し、修正後に検証を完了する」に向けた検証段階です。",
       "glossaryNotes": [
         "補足: pnpm/npm/yarn は依存関係やスクリプト実行に使う"
@@ -39,14 +73,14 @@
       },
       "speech": {
         "disposition": "speak",
-        "reason": "new_task",
-        "text": "検証段階に入り、対象を扱っています。"
+        "reason": "phase_change",
+        "text": "検証段階に入り、「/Users/demo/project/package.json」を扱っています。"
       }
     },
     {
       "kind": "event",
       "ev": {
-        "ts": 800,
+        "ts": 3200,
         "type": "error",
         "summary": "スクリプトが異常終了している",
         "detail": "ELIFECYCLE",
@@ -55,9 +89,9 @@
     },
     {
       "kind": "commentary",
-      "ts": 800,
+      "ts": 3200,
       "ev": {
-        "ts": 800,
+        "ts": 3200,
         "type": "error",
         "summary": "スクリプトが異常終了している",
         "detail": "ELIFECYCLE",
@@ -80,7 +114,7 @@
     {
       "kind": "event",
       "ev": {
-        "ts": 1600,
+        "ts": 4000,
         "type": "error",
         "summary": "終了コードで失敗している",
         "detail": "Command failed with exit code 1",
@@ -89,9 +123,9 @@
     },
     {
       "kind": "commentary",
-      "ts": 1600,
+      "ts": 4000,
       "ev": {
-        "ts": 1600,
+        "ts": 4000,
         "type": "error",
         "summary": "終了コードで失敗している",
         "detail": "Command failed with exit code 1",
@@ -114,7 +148,7 @@
     {
       "kind": "event",
       "ev": {
-        "ts": 2400,
+        "ts": 4800,
         "type": "error",
         "summary": "エラーが出ている",
         "detail": "error: failed",
@@ -123,9 +157,9 @@
     },
     {
       "kind": "commentary",
-      "ts": 2400,
+      "ts": 4800,
       "ev": {
-        "ts": 2400,
+        "ts": 4800,
         "type": "error",
         "summary": "エラーが出ている",
         "detail": "error: failed",
@@ -149,56 +183,70 @@
   "contextTimeline": [
     {
       "offsetMs": 0,
-      "eventType": "test",
-      "eventSummary": "テスト/型チェックを実行している",
+      "eventType": "read",
+      "eventSummary": "ファイルを読み込んでいる",
       "sequence": 1,
-      "phase": "verification",
+      "phase": "investigation",
       "previousPhase": "unknown",
       "phaseChanged": true,
-      "targetChanged": false,
-      "target": null,
+      "targetChanged": true,
+      "target": "/Users/demo/project/package.json",
       "humanRequired": false,
       "speechDisposition": "speak",
       "speechReason": "new_task"
     },
     {
-      "offsetMs": 800,
-      "eventType": "error",
-      "eventSummary": "スクリプトが異常終了している",
+      "offsetMs": 2400,
+      "eventType": "test",
+      "eventSummary": "テスト/型チェックを実行している",
       "sequence": 2,
       "phase": "verification",
-      "previousPhase": "verification",
-      "phaseChanged": false,
+      "previousPhase": "investigation",
+      "phaseChanged": true,
       "targetChanged": false,
-      "target": null,
+      "target": "/Users/demo/project/package.json",
       "humanRequired": false,
       "speechDisposition": "speak",
-      "speechReason": "urgent"
+      "speechReason": "phase_change"
     },
     {
-      "offsetMs": 1600,
+      "offsetMs": 3200,
       "eventType": "error",
-      "eventSummary": "終了コードで失敗している",
+      "eventSummary": "スクリプトが異常終了している",
       "sequence": 3,
       "phase": "verification",
       "previousPhase": "verification",
       "phaseChanged": false,
       "targetChanged": false,
-      "target": null,
+      "target": "/Users/demo/project/package.json",
       "humanRequired": false,
       "speechDisposition": "speak",
       "speechReason": "urgent"
     },
     {
-      "offsetMs": 2400,
+      "offsetMs": 4000,
       "eventType": "error",
-      "eventSummary": "エラーが出ている",
+      "eventSummary": "終了コードで失敗している",
       "sequence": 4,
       "phase": "verification",
       "previousPhase": "verification",
       "phaseChanged": false,
       "targetChanged": false,
-      "target": null,
+      "target": "/Users/demo/project/package.json",
+      "humanRequired": false,
+      "speechDisposition": "speak",
+      "speechReason": "urgent"
+    },
+    {
+      "offsetMs": 4800,
+      "eventType": "error",
+      "eventSummary": "エラーが出ている",
+      "sequence": 5,
+      "phase": "verification",
+      "previousPhase": "verification",
+      "phaseChanged": false,
+      "targetChanged": false,
+      "target": "/Users/demo/project/package.json",
       "humanRequired": false,
       "speechDisposition": "speak",
       "speechReason": "urgent"
@@ -207,23 +255,40 @@
   "commentaryComparisons": [
     {
       "offsetMs": 0,
+      "eventType": "read",
+      "withoutContext": {
+        "narration": "ファイルを読んで状況を確認しています。",
+        "explanation": "package.json を読んで、現在の実装を確認しています。"
+      },
+      "withContext": {
+        "narration": "調査段階に入り、「/Users/demo/project/package.json」を扱っています。",
+        "explanation": "目的「テスト失敗の原因を特定し、修正後に検証を完了する」に向けた調査段階です。",
+        "speech": {
+          "disposition": "speak",
+          "reason": "new_task",
+          "text": "調査段階に入り、「/Users/demo/project/package.json」を扱っています。"
+        }
+      }
+    },
+    {
+      "offsetMs": 2400,
       "eventType": "test",
       "withoutContext": {
         "narration": "テスト/型チェックで壊れていないか確認しています。",
         "explanation": "変更の副作用がないか、自動テストで機械的に確認しています。"
       },
       "withContext": {
-        "narration": "検証段階に入り、対象を扱っています。",
+        "narration": "検証段階に入り、「/Users/demo/project/package.json」を扱っています。",
         "explanation": "目的「テスト失敗の原因を特定し、修正後に検証を完了する」に向けた検証段階です。",
         "speech": {
           "disposition": "speak",
-          "reason": "new_task",
-          "text": "検証段階に入り、対象を扱っています。"
+          "reason": "phase_change",
+          "text": "検証段階に入り、「/Users/demo/project/package.json」を扱っています。"
         }
       }
     },
     {
-      "offsetMs": 800,
+      "offsetMs": 3200,
       "eventType": "error",
       "withoutContext": {
         "narration": "エラーが出ています。原因特定→修正の流れになりそうです。 引っかかっている行は「ELIFECYCLE」です。",
@@ -240,7 +305,7 @@
       }
     },
     {
-      "offsetMs": 1600,
+      "offsetMs": 4000,
       "eventType": "error",
       "withoutContext": {
         "narration": "エラーが出ています。原因特定→修正の流れになりそうです。 引っかかっている行は「Command failed with exit code 1」です。",
@@ -257,7 +322,7 @@
       }
     },
     {
-      "offsetMs": 2400,
+      "offsetMs": 4800,
       "eventType": "error",
       "withoutContext": {
         "narration": "エラーが出ています。原因特定→修正の流れになりそうです。 引っかかっている行は「error: failed」です。",
@@ -276,16 +341,17 @@
   ],
   "suppressions": [],
   "metrics": {
-    "events": 4,
-    "commentaries": 4,
+    "events": 5,
+    "commentaries": 5,
     "suppressed": 0,
     "eventsByType": {
+      "read": 1,
       "test": 1,
       "error": 3
     },
     "glossaryNotes": 1,
     "exactNarrationRepeats": 0,
-    "spokenCommentaries": 4,
+    "spokenCommentaries": 5,
     "displayOnlyCommentaries": 0,
     "speechSuppressionsByReason": {},
     "maxSpeechSentences": 1,

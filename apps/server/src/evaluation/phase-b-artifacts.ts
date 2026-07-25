@@ -24,11 +24,20 @@ export type PhaseBCheckpointAnswerKey = {
   fixtureId: string;
   phaseOptions: PhaseBPhaseOption[];
   checkpoints: PhaseBCheckpoint[];
+  skippedCheckpoints: PhaseBSkippedCheckpoint[];
 };
 
 export type PhaseBBlindSpeechItem = {
   cpId: string;
   speechText: string;
+};
+
+export type PhaseBSkippedCheckpoint = {
+  offsetMs: number;
+  eventType: string;
+  reason: "speech_not_spoken" | "missing_speech_text";
+  speechDisposition: "speak" | "display_only" | "missing";
+  speechReason: string;
 };
 
 export type PhaseBEvaluationArtifacts = {
@@ -42,11 +51,27 @@ export function evaluatedPhaseOptions(): PhaseBPhaseOption[] {
     .map(([phase, label]) => ({ phase, label }));
 }
 
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
+}
+
+export function sanitizeBlindSpeechText(text: string): string {
+  const phaseLabels = evaluatedPhaseOptions()
+    .map(({ label }) => label)
+    .sort((left, right) => right.length - left.length);
+  const phaseLabelPattern = new RegExp(
+    phaseLabels.map(escapeRegExp).join("|"),
+    "gu"
+  );
+  return text.replace(phaseLabelPattern, "作業").replace(/\s+/gu, " ").trim();
+}
+
 export function buildPhaseBEvaluationArtifacts(
   result: PhaseBReplayResult
 ): PhaseBEvaluationArtifacts {
   const checkpoints: PhaseBCheckpoint[] = [];
   const blindSpeech: PhaseBBlindSpeechItem[] = [];
+  const skippedCheckpoints: PhaseBSkippedCheckpoint[] = [];
   let timelineAt = 0;
 
   for (const commentary of result.commentaryComparisons) {
@@ -66,11 +91,28 @@ export function buildPhaseBEvaluationArtifacts(
     const context = result.contextTimeline[matchingIndex];
     if (context.phase === "unknown") continue;
 
-    const speechText = commentary.withContext.speech?.text?.trim();
+    const speech = commentary.withContext.speech;
+    if (speech?.disposition !== "speak") {
+      skippedCheckpoints.push({
+        offsetMs: commentary.offsetMs,
+        eventType: commentary.eventType,
+        reason: "speech_not_spoken",
+        speechDisposition: speech?.disposition ?? "missing",
+        speechReason: speech?.reason ?? context.speechReason,
+      });
+      continue;
+    }
+
+    const speechText = speech.text?.trim();
     if (!speechText) {
-      throw new Error(
-        `Checkpoint at ${commentary.offsetMs}ms has no speech text`
-      );
+      skippedCheckpoints.push({
+        offsetMs: commentary.offsetMs,
+        eventType: commentary.eventType,
+        reason: "missing_speech_text",
+        speechDisposition: "speak",
+        speechReason: speech.reason,
+      });
+      continue;
     }
 
     const cpId = `CP-${String(checkpoints.length + 1).padStart(3, "0")}`;
@@ -82,7 +124,10 @@ export function buildPhaseBEvaluationArtifacts(
       humanRequired: context.humanRequired,
       objective: result.taskContext.objective,
     });
-    blindSpeech.push({ cpId, speechText });
+    blindSpeech.push({
+      cpId,
+      speechText: sanitizeBlindSpeechText(speechText),
+    });
   }
 
   return {
@@ -90,6 +135,7 @@ export function buildPhaseBEvaluationArtifacts(
       fixtureId: result.fixtureId,
       phaseOptions: evaluatedPhaseOptions(),
       checkpoints,
+      skippedCheckpoints,
     },
     blindSpeech,
   };

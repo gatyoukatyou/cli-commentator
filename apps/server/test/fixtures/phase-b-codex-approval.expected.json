@@ -130,6 +130,40 @@
         "detail": "⏺ Bash(pnpm install)",
         "priority": "progress"
       }
+    },
+    {
+      "kind": "event",
+      "ev": {
+        "ts": 6000,
+        "type": "stdout",
+        "summary": "質問への回答を待っている",
+        "detail": "Which option do you prefer?",
+        "priority": "urgent"
+      }
+    },
+    {
+      "kind": "commentary",
+      "ts": 6000,
+      "ev": {
+        "ts": 6000,
+        "type": "stdout",
+        "summary": "質問への回答を待っている",
+        "detail": "Which option do you prefer?",
+        "priority": "urgent"
+      },
+      "narration": "待機段階に入り、HUMANの入力を待っています。 今見えている出力は「Which option do you prefer?」です。",
+      "explanation": "目的「依存関係を準備し、対象ファイルへ必要な修正を反映する」に向けた待機段階です。",
+      "glossaryNotes": [],
+      "meta": {
+        "narrationProvider": "rules",
+        "explanationProvider": "rules",
+        "mode": "both"
+      },
+      "speech": {
+        "disposition": "speak",
+        "reason": "human_required",
+        "text": "待機段階に入り、HUMANの入力を待っています。"
+      }
     }
   ],
   "contextTimeline": [
@@ -202,6 +236,20 @@
       "humanRequired": false,
       "speechDisposition": "speak",
       "speechReason": "new_target"
+    },
+    {
+      "offsetMs": 6000,
+      "eventType": "stdout",
+      "eventSummary": "質問への回答を待っている",
+      "sequence": 6,
+      "phase": "waiting",
+      "previousPhase": "editing",
+      "phaseChanged": true,
+      "targetChanged": true,
+      "target": "/Users/demo/project/src/index.ts",
+      "humanRequired": true,
+      "speechDisposition": "speak",
+      "speechReason": "human_required"
     }
   ],
   "commentaryComparisons": [
@@ -255,6 +303,23 @@
           "text": "編集段階に入り、対象を扱っています。"
         }
       }
+    },
+    {
+      "offsetMs": 6000,
+      "eventType": "stdout",
+      "withoutContext": {
+        "narration": "今見えている出力は「Which option do you prefer?」です。",
+        "explanation": "コマンドの通常出力を確認しています。"
+      },
+      "withContext": {
+        "narration": "待機段階に入り、HUMANの入力を待っています。 今見えている出力は「Which option do you prefer?」です。",
+        "explanation": "目的「依存関係を準備し、対象ファイルへ必要な修正を反映する」に向けた待機段階です。",
+        "speech": {
+          "disposition": "speak",
+          "reason": "human_required",
+          "text": "待機段階に入り、HUMANの入力を待っています。"
+        }
+      }
     }
   ],
   "suppressions": [
@@ -282,18 +347,18 @@
     }
   ],
   "metrics": {
-    "events": 5,
-    "commentaries": 3,
+    "events": 6,
+    "commentaries": 4,
     "suppressed": 2,
     "eventsByType": {
-      "stdout": 2,
+      "stdout": 3,
       "write": 1,
       "read": 1,
       "install": 1
     },
     "glossaryNotes": 1,
     "exactNarrationRepeats": 0,
-    "spokenCommentaries": 3,
+    "spokenCommentaries": 4,
     "displayOnlyCommentaries": 0,
     "speechSuppressionsByReason": {},
     "maxSpeechSentences": 1,

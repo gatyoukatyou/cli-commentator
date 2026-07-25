@@ -206,8 +206,10 @@ await fs.mkdir(outputDir, { recursive: true });
 const candidatePath = path.join(outputDir, "candidate.json");
 const reportPath = path.join(outputDir, "report.md");
 const answerKeyPath = path.join(outputDir, "checkpoint-answer-key.json");
-const blindSpeechPath = path.join(outputDir, "blind-speech.json");
+const blindDir = path.join(outputDir, "blind");
+const blindSpeechPath = path.join(blindDir, "speech.json");
 const artifacts = buildPhaseBEvaluationArtifacts(candidate);
+await fs.mkdir(blindDir, { recursive: true });
 await fs.writeFile(candidatePath, `${JSON.stringify(candidate, null, 2)}\n`, "utf8");
 const llmStatus = llmEnabled
   ? "enabled"
@@ -229,6 +231,6 @@ await fs.writeFile(
 console.log(`Candidate: ${candidatePath}`);
 console.log(`Report: ${reportPath}`);
 console.log(`Checkpoint answer key: ${answerKeyPath}`);
-console.log(`Blind speech: ${blindSpeechPath}`);
+console.log(`Blind respondent directory: ${blindDir}`);
 console.log(`Snapshot: ${matches ? "MATCH" : "DIFF"}`);
 if (!matches) process.exitCode = 1;

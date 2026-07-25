@@ -68,6 +68,17 @@ describe("extractEvents fixtures", () => {
     expect(events).toEqual([]);
   });
 
+  it("extracts a Codex question as waiting for a HUMAN response", () => {
+    expect(extractEvents("Which option do you prefer?", "codex")).toEqual([
+      {
+        ts: new Date("2025-01-01T00:00:00.000Z").getTime(),
+        type: "stdout",
+        summary: "質問への回答を待っている",
+        detail: "Which option do you prefer?",
+      },
+    ]);
+  });
+
   it("extracts current Codex exec tool calls without surfacing routine plugin logs", async () => {
     const content = await fs.readFile(path.join(fixturesDir, "codex-current-toolcall.log"), "utf8");
     const events = extractEvents(content, "codex");
