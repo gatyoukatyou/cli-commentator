@@ -8,13 +8,22 @@ import {
   replayPhaseBFixture,
   type PhaseBReplayFixture,
 } from "../evaluation/phase-b-replay.js";
+import {
+  buildPhaseBEvaluationArtifacts,
+  evaluatedPhaseOptions,
+} from "../evaluation/phase-b-artifacts.js";
+import { SESSION_PHASE_LABELS } from "../session-context.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const fixturePath = path.resolve(__dirname, "../../test/fixtures/phase-b-codex-session.json");
+const fixturesDir = path.resolve(__dirname, "../../test/fixtures");
 
-async function loadFixture(): Promise<PhaseBReplayFixture> {
-  return JSON.parse(await fs.readFile(fixturePath, "utf8")) as PhaseBReplayFixture;
+async function loadFixture(
+  name = "phase-b-codex-session.json"
+): Promise<PhaseBReplayFixture> {
+  return JSON.parse(
+    await fs.readFile(path.join(fixturesDir, name), "utf8")
+  ) as PhaseBReplayFixture;
 }
 
 describe("Phase B evaluation replay", () => {
@@ -116,6 +125,53 @@ describe("Phase B evaluation replay", () => {
       inputTokens: 80,
       outputTokens: 160,
     });
+  });
+
+  it("builds an error fixture with verification checkpoints", async () => {
+    const fixture = await loadFixture("phase-b-codex-lifecycle-error.json");
+    const result = await replayPhaseBFixture(fixture);
+    const artifacts = buildPhaseBEvaluationArtifacts(result);
+
+    expect(result.metrics.eventsByType).toEqual({ test: 1, error: 3 });
+    expect(result.contextTimeline.map(({ phase }) => phase)).toEqual([
+      "verification",
+      "verification",
+      "verification",
+      "verification",
+    ]);
+    expect(artifacts.answerKey.checkpoints).toHaveLength(4);
+    expect(
+      artifacts.answerKey.checkpoints.every(({ phase }) => phase === "verification")
+    ).toBe(true);
+  });
+
+  it("exports a waiting HUMAN checkpoint and speech-only blind material", async () => {
+    const fixture = await loadFixture("phase-b-codex-approval.json");
+    const result = await replayPhaseBFixture(fixture);
+    const artifacts = buildPhaseBEvaluationArtifacts(result);
+    const waitingCheckpoint = artifacts.answerKey.checkpoints.find(
+      ({ phase }) => phase === "waiting"
+    );
+
+    expect(waitingCheckpoint).toMatchObject({
+      phaseLabel: SESSION_PHASE_LABELS.waiting,
+      humanRequired: true,
+      objective: fixture.taskContext.objective,
+    });
+    expect(artifacts.answerKey.phaseOptions).toEqual(evaluatedPhaseOptions());
+    expect(artifacts.answerKey.phaseOptions).not.toContainEqual(
+      expect.objectContaining({ phase: "unknown" })
+    );
+    expect(artifacts.blindSpeech).toHaveLength(
+      artifacts.answerKey.checkpoints.length
+    );
+    for (const item of artifacts.blindSpeech) {
+      expect(Object.keys(item).sort()).toEqual(["cpId", "speechText"]);
+      expect(item.speechText.trim()).not.toBe("");
+    }
+    expect(JSON.stringify(artifacts.blindSpeech)).not.toMatch(
+      /narration|explanation|humanRequired|phase|provider|withoutContext|withContext/u
+    );
   });
 
   it("compares event classifications in a stable order", () => {

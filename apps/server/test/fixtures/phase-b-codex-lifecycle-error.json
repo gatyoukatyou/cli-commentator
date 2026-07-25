@@ -1,0 +1,20 @@
+{
+  "notice": [
+    "This fixture was derived from a Codex lifecycle-error fixture and sanitized.",
+    "Identifiers, paths, timestamps, and user-authored content are synthetic."
+  ],
+  "id": "phase-b-codex-lifecycle-error",
+  "source": "codex",
+  "style": "standard",
+  "taskContext": {
+    "objective": "テスト失敗の原因を特定し、修正後に検証を完了する",
+    "userPrompt": "テストを実行し、失敗内容を調べて修正方針を整理してください。"
+  },
+  "commentaryIntervalMs": 0,
+  "lines": [
+    { "offsetMs": 0, "line": "> pnpm test" },
+    { "offsetMs": 800, "line": "ELIFECYCLE" },
+    { "offsetMs": 1600, "line": "Command failed with exit code 1" },
+    { "offsetMs": 2400, "line": "error: failed" }
+  ]
+}

@@ -1,0 +1,299 @@
+{
+  "fixtureId": "phase-b-codex-lifecycle-error",
+  "source": "codex",
+  "style": "standard",
+  "taskContext": {
+    "objective": "テスト失敗の原因を特定し、修正後に検証を完了する",
+    "userPrompt": "テストを実行し、失敗内容を調べて修正方針を整理してください。"
+  },
+  "messages": [
+    {
+      "kind": "event",
+      "ev": {
+        "ts": 0,
+        "type": "test",
+        "summary": "テスト/型チェックを実行している",
+        "detail": "> pnpm test",
+        "priority": "progress"
+      }
+    },
+    {
+      "kind": "commentary",
+      "ts": 0,
+      "ev": {
+        "ts": 0,
+        "type": "test",
+        "summary": "テスト/型チェックを実行している",
+        "detail": "> pnpm test",
+        "priority": "progress"
+      },
+      "narration": "検証段階に入り、対象を扱っています。",
+      "explanation": "目的「テスト失敗の原因を特定し、修正後に検証を完了する」に向けた検証段階です。",
+      "glossaryNotes": [
+        "補足: pnpm/npm/yarn は依存関係やスクリプト実行に使う"
+      ],
+      "meta": {
+        "narrationProvider": "rules",
+        "explanationProvider": "rules",
+        "mode": "both"
+      },
+      "speech": {
+        "disposition": "speak",
+        "reason": "new_task",
+        "text": "検証段階に入り、対象を扱っています。"
+      }
+    },
+    {
+      "kind": "event",
+      "ev": {
+        "ts": 800,
+        "type": "error",
+        "summary": "スクリプトが異常終了している",
+        "detail": "ELIFECYCLE",
+        "priority": "urgent"
+      }
+    },
+    {
+      "kind": "commentary",
+      "ts": 800,
+      "ev": {
+        "ts": 800,
+        "type": "error",
+        "summary": "スクリプトが異常終了している",
+        "detail": "ELIFECYCLE",
+        "priority": "urgent"
+      },
+      "narration": "エラーが出ています。原因特定→修正の流れになりそうです。 引っかかっている行は「ELIFECYCLE」です。",
+      "explanation": "失敗ログを手がかりに修正方針を決めます。",
+      "glossaryNotes": [],
+      "meta": {
+        "narrationProvider": "rules",
+        "explanationProvider": "rules",
+        "mode": "both"
+      },
+      "speech": {
+        "disposition": "speak",
+        "reason": "urgent",
+        "text": "エラーが出ています。"
+      }
+    },
+    {
+      "kind": "event",
+      "ev": {
+        "ts": 1600,
+        "type": "error",
+        "summary": "終了コードで失敗している",
+        "detail": "Command failed with exit code 1",
+        "priority": "urgent"
+      }
+    },
+    {
+      "kind": "commentary",
+      "ts": 1600,
+      "ev": {
+        "ts": 1600,
+        "type": "error",
+        "summary": "終了コードで失敗している",
+        "detail": "Command failed with exit code 1",
+        "priority": "urgent"
+      },
+      "narration": "エラーが出ています。原因特定→修正の流れになりそうです。 引っかかっている行は「Command failed with exit code 1」です。",
+      "explanation": "失敗ログを手がかりに修正方針を決めます。",
+      "glossaryNotes": [],
+      "meta": {
+        "narrationProvider": "rules",
+        "explanationProvider": "rules",
+        "mode": "both"
+      },
+      "speech": {
+        "disposition": "speak",
+        "reason": "urgent",
+        "text": "エラーが出ています。"
+      }
+    },
+    {
+      "kind": "event",
+      "ev": {
+        "ts": 2400,
+        "type": "error",
+        "summary": "エラーが出ている",
+        "detail": "error: failed",
+        "priority": "urgent"
+      }
+    },
+    {
+      "kind": "commentary",
+      "ts": 2400,
+      "ev": {
+        "ts": 2400,
+        "type": "error",
+        "summary": "エラーが出ている",
+        "detail": "error: failed",
+        "priority": "urgent"
+      },
+      "narration": "エラーが出ています。原因特定→修正の流れになりそうです。 引っかかっている行は「error: failed」です。",
+      "explanation": "失敗ログを手がかりに修正方針を決めます。",
+      "glossaryNotes": [],
+      "meta": {
+        "narrationProvider": "rules",
+        "explanationProvider": "rules",
+        "mode": "both"
+      },
+      "speech": {
+        "disposition": "speak",
+        "reason": "urgent",
+        "text": "エラーが出ています。"
+      }
+    }
+  ],
+  "contextTimeline": [
+    {
+      "offsetMs": 0,
+      "eventType": "test",
+      "eventSummary": "テスト/型チェックを実行している",
+      "sequence": 1,
+      "phase": "verification",
+      "previousPhase": "unknown",
+      "phaseChanged": true,
+      "targetChanged": false,
+      "target": null,
+      "humanRequired": false,
+      "speechDisposition": "speak",
+      "speechReason": "new_task"
+    },
+    {
+      "offsetMs": 800,
+      "eventType": "error",
+      "eventSummary": "スクリプトが異常終了している",
+      "sequence": 2,
+      "phase": "verification",
+      "previousPhase": "verification",
+      "phaseChanged": false,
+      "targetChanged": false,
+      "target": null,
+      "humanRequired": false,
+      "speechDisposition": "speak",
+      "speechReason": "urgent"
+    },
+    {
+      "offsetMs": 1600,
+      "eventType": "error",
+      "eventSummary": "終了コードで失敗している",
+      "sequence": 3,
+      "phase": "verification",
+      "previousPhase": "verification",
+      "phaseChanged": false,
+      "targetChanged": false,
+      "target": null,
+      "humanRequired": false,
+      "speechDisposition": "speak",
+      "speechReason": "urgent"
+    },
+    {
+      "offsetMs": 2400,
+      "eventType": "error",
+      "eventSummary": "エラーが出ている",
+      "sequence": 4,
+      "phase": "verification",
+      "previousPhase": "verification",
+      "phaseChanged": false,
+      "targetChanged": false,
+      "target": null,
+      "humanRequired": false,
+      "speechDisposition": "speak",
+      "speechReason": "urgent"
+    }
+  ],
+  "commentaryComparisons": [
+    {
+      "offsetMs": 0,
+      "eventType": "test",
+      "withoutContext": {
+        "narration": "テスト/型チェックで壊れていないか確認しています。",
+        "explanation": "変更の副作用がないか、自動テストで機械的に確認しています。"
+      },
+      "withContext": {
+        "narration": "検証段階に入り、対象を扱っています。",
+        "explanation": "目的「テスト失敗の原因を特定し、修正後に検証を完了する」に向けた検証段階です。",
+        "speech": {
+          "disposition": "speak",
+          "reason": "new_task",
+          "text": "検証段階に入り、対象を扱っています。"
+        }
+      }
+    },
+    {
+      "offsetMs": 800,
+      "eventType": "error",
+      "withoutContext": {
+        "narration": "エラーが出ています。原因特定→修正の流れになりそうです。 引っかかっている行は「ELIFECYCLE」です。",
+        "explanation": "失敗ログを手がかりに修正方針を決めます。"
+      },
+      "withContext": {
+        "narration": "エラーが出ています。原因特定→修正の流れになりそうです。 引っかかっている行は「ELIFECYCLE」です。",
+        "explanation": "失敗ログを手がかりに修正方針を決めます。",
+        "speech": {
+          "disposition": "speak",
+          "reason": "urgent",
+          "text": "エラーが出ています。"
+        }
+      }
+    },
+    {
+      "offsetMs": 1600,
+      "eventType": "error",
+      "withoutContext": {
+        "narration": "エラーが出ています。原因特定→修正の流れになりそうです。 引っかかっている行は「Command failed with exit code 1」です。",
+        "explanation": "失敗ログを手がかりに修正方針を決めます。"
+      },
+      "withContext": {
+        "narration": "エラーが出ています。原因特定→修正の流れになりそうです。 引っかかっている行は「Command failed with exit code 1」です。",
+        "explanation": "失敗ログを手がかりに修正方針を決めます。",
+        "speech": {
+          "disposition": "speak",
+          "reason": "urgent",
+          "text": "エラーが出ています。"
+        }
+      }
+    },
+    {
+      "offsetMs": 2400,
+      "eventType": "error",
+      "withoutContext": {
+        "narration": "エラーが出ています。原因特定→修正の流れになりそうです。 引っかかっている行は「error: failed」です。",
+        "explanation": "失敗ログを手がかりに修正方針を決めます。"
+      },
+      "withContext": {
+        "narration": "エラーが出ています。原因特定→修正の流れになりそうです。 引っかかっている行は「error: failed」です。",
+        "explanation": "失敗ログを手がかりに修正方針を決めます。",
+        "speech": {
+          "disposition": "speak",
+          "reason": "urgent",
+          "text": "エラーが出ています。"
+        }
+      }
+    }
+  ],
+  "suppressions": [],
+  "metrics": {
+    "events": 4,
+    "commentaries": 4,
+    "suppressed": 0,
+    "eventsByType": {
+      "test": 1,
+      "error": 3
+    },
+    "glossaryNotes": 1,
+    "exactNarrationRepeats": 0,
+    "spokenCommentaries": 4,
+    "displayOnlyCommentaries": 0,
+    "speechSuppressionsByReason": {},
+    "maxSpeechSentences": 1,
+    "multiSentenceSpeech": 0,
+    "rawCommandSpeech": 0,
+    "repeatedProgressSpeechWithin30s": 0,
+    "glossaryRedisplays": 0,
+    "urgentMisses": 0,
+    "falseUrgent": 0
+  }
+}

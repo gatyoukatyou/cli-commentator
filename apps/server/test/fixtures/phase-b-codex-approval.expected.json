@@ -1,0 +1,307 @@
+{
+  "fixtureId": "phase-b-codex-approval",
+  "source": "codex",
+  "style": "standard",
+  "taskContext": {
+    "objective": "依存関係を準備し、対象ファイルへ必要な修正を反映する",
+    "userPrompt": "必要な依存関係を準備して、対象ファイルの修正を進めてください。"
+  },
+  "messages": [
+    {
+      "kind": "event",
+      "ev": {
+        "ts": 0,
+        "type": "stdout",
+        "summary": "コマンド実行の確認待ち",
+        "detail": "Would you like to run the following command?",
+        "priority": "urgent"
+      }
+    },
+    {
+      "kind": "commentary",
+      "ts": 0,
+      "ev": {
+        "ts": 0,
+        "type": "stdout",
+        "summary": "コマンド実行の確認待ち",
+        "detail": "Would you like to run the following command?",
+        "priority": "urgent"
+      },
+      "narration": "待機段階に入り、HUMANの入力を待っています。 今見えている出力は「Would you like to run the following command?」です。",
+      "explanation": "目的「依存関係を準備し、対象ファイルへ必要な修正を反映する」に向けた待機段階です。",
+      "glossaryNotes": [],
+      "meta": {
+        "narrationProvider": "rules",
+        "explanationProvider": "rules",
+        "mode": "both"
+      },
+      "speech": {
+        "disposition": "speak",
+        "reason": "human_required",
+        "text": "待機段階に入り、HUMANの入力を待っています。"
+      }
+    },
+    {
+      "kind": "event",
+      "ev": {
+        "ts": 1000,
+        "type": "stdout",
+        "summary": "コマンド実行が承認された",
+        "detail": "You approved codex to run: pnpm install",
+        "priority": "progress"
+      }
+    },
+    {
+      "kind": "commentary",
+      "ts": 1000,
+      "ev": {
+        "ts": 1000,
+        "type": "stdout",
+        "summary": "コマンド実行が承認された",
+        "detail": "You approved codex to run: pnpm install",
+        "priority": "progress"
+      },
+      "narration": "未判定段階に入り、対象を扱っています。 今見えている出力は「You approved codex to run: pnpm install」です。",
+      "explanation": "コマンドの通常出力を確認しています。",
+      "glossaryNotes": [
+        "補足: pnpm/npm/yarn は依存関係やスクリプト実行に使う"
+      ],
+      "meta": {
+        "narrationProvider": "rules",
+        "explanationProvider": "rules",
+        "mode": "both"
+      },
+      "speech": {
+        "disposition": "speak",
+        "reason": "phase_change",
+        "text": "未判定段階に入り、対象を扱っています。"
+      }
+    },
+    {
+      "kind": "event",
+      "ev": {
+        "ts": 3500,
+        "type": "write",
+        "summary": "パッチを適用している",
+        "detail": "apply_patch",
+        "priority": "progress"
+      }
+    },
+    {
+      "kind": "commentary",
+      "ts": 3500,
+      "ev": {
+        "ts": 3500,
+        "type": "write",
+        "summary": "パッチを適用している",
+        "detail": "apply_patch",
+        "priority": "progress"
+      },
+      "narration": "編集段階に入り、対象を扱っています。",
+      "explanation": "目的「依存関係を準備し、対象ファイルへ必要な修正を反映する」に向けた編集段階です。",
+      "glossaryNotes": [],
+      "meta": {
+        "narrationProvider": "rules",
+        "explanationProvider": "rules",
+        "mode": "both"
+      },
+      "speech": {
+        "disposition": "speak",
+        "reason": "phase_change",
+        "text": "編集段階に入り、対象を扱っています。"
+      }
+    },
+    {
+      "kind": "event",
+      "ev": {
+        "ts": 4000,
+        "type": "read",
+        "summary": "ファイルを読み込んでいる",
+        "detail": "⏺ Read(/Users/demo/project/src/index.ts)",
+        "priority": "progress"
+      }
+    },
+    {
+      "kind": "event",
+      "ev": {
+        "ts": 4500,
+        "type": "install",
+        "summary": "依存関係/スクリプトを処理している",
+        "detail": "⏺ Bash(pnpm install)",
+        "priority": "progress"
+      }
+    }
+  ],
+  "contextTimeline": [
+    {
+      "offsetMs": 0,
+      "eventType": "stdout",
+      "eventSummary": "コマンド実行の確認待ち",
+      "sequence": 1,
+      "phase": "waiting",
+      "previousPhase": "unknown",
+      "phaseChanged": true,
+      "targetChanged": false,
+      "target": null,
+      "humanRequired": true,
+      "speechDisposition": "speak",
+      "speechReason": "human_required"
+    },
+    {
+      "offsetMs": 1000,
+      "eventType": "stdout",
+      "eventSummary": "コマンド実行が承認された",
+      "sequence": 2,
+      "phase": "unknown",
+      "previousPhase": "waiting",
+      "phaseChanged": true,
+      "targetChanged": false,
+      "target": null,
+      "humanRequired": false,
+      "speechDisposition": "speak",
+      "speechReason": "phase_change"
+    },
+    {
+      "offsetMs": 3500,
+      "eventType": "write",
+      "eventSummary": "パッチを適用している",
+      "sequence": 3,
+      "phase": "editing",
+      "previousPhase": "unknown",
+      "phaseChanged": true,
+      "targetChanged": false,
+      "target": null,
+      "humanRequired": false,
+      "speechDisposition": "speak",
+      "speechReason": "phase_change"
+    },
+    {
+      "offsetMs": 4000,
+      "eventType": "read",
+      "eventSummary": "ファイルを読み込んでいる",
+      "sequence": 4,
+      "phase": "editing",
+      "previousPhase": "editing",
+      "phaseChanged": false,
+      "targetChanged": true,
+      "target": "/Users/demo/project/src/index.ts",
+      "humanRequired": false,
+      "speechDisposition": "speak",
+      "speechReason": "new_target"
+    },
+    {
+      "offsetMs": 4500,
+      "eventType": "install",
+      "eventSummary": "依存関係/スクリプトを処理している",
+      "sequence": 5,
+      "phase": "editing",
+      "previousPhase": "editing",
+      "phaseChanged": false,
+      "targetChanged": true,
+      "target": "/Users/demo/project/src/index.ts",
+      "humanRequired": false,
+      "speechDisposition": "speak",
+      "speechReason": "new_target"
+    }
+  ],
+  "commentaryComparisons": [
+    {
+      "offsetMs": 0,
+      "eventType": "stdout",
+      "withoutContext": {
+        "narration": "今見えている出力は「Would you like to run the following command?」です。",
+        "explanation": "コマンドの通常出力を確認しています。"
+      },
+      "withContext": {
+        "narration": "待機段階に入り、HUMANの入力を待っています。 今見えている出力は「Would you like to run the following command?」です。",
+        "explanation": "目的「依存関係を準備し、対象ファイルへ必要な修正を反映する」に向けた待機段階です。",
+        "speech": {
+          "disposition": "speak",
+          "reason": "human_required",
+          "text": "待機段階に入り、HUMANの入力を待っています。"
+        }
+      }
+    },
+    {
+      "offsetMs": 1000,
+      "eventType": "stdout",
+      "withoutContext": {
+        "narration": "今見えている出力は「You approved codex to run: pnpm install」です。",
+        "explanation": "コマンドの通常出力を確認しています。"
+      },
+      "withContext": {
+        "narration": "未判定段階に入り、対象を扱っています。 今見えている出力は「You approved codex to run: pnpm install」です。",
+        "explanation": "コマンドの通常出力を確認しています。",
+        "speech": {
+          "disposition": "speak",
+          "reason": "phase_change",
+          "text": "未判定段階に入り、対象を扱っています。"
+        }
+      }
+    },
+    {
+      "offsetMs": 3500,
+      "eventType": "write",
+      "withoutContext": {
+        "narration": "ファイルを書き換えて修正を反映しています。",
+        "explanation": "変更差分をまとめて当てて、複数箇所を一気に更新しています。"
+      },
+      "withContext": {
+        "narration": "編集段階に入り、対象を扱っています。",
+        "explanation": "目的「依存関係を準備し、対象ファイルへ必要な修正を反映する」に向けた編集段階です。",
+        "speech": {
+          "disposition": "speak",
+          "reason": "phase_change",
+          "text": "編集段階に入り、対象を扱っています。"
+        }
+      }
+    }
+  ],
+  "suppressions": [
+    {
+      "offsetMs": 4000,
+      "reason": "progress_interval",
+      "event": {
+        "ts": 4000,
+        "type": "read",
+        "summary": "ファイルを読み込んでいる",
+        "detail": "⏺ Read(/Users/demo/project/src/index.ts)",
+        "priority": "progress"
+      }
+    },
+    {
+      "offsetMs": 4500,
+      "reason": "progress_interval",
+      "event": {
+        "ts": 4500,
+        "type": "install",
+        "summary": "依存関係/スクリプトを処理している",
+        "detail": "⏺ Bash(pnpm install)",
+        "priority": "progress"
+      }
+    }
+  ],
+  "metrics": {
+    "events": 5,
+    "commentaries": 3,
+    "suppressed": 2,
+    "eventsByType": {
+      "stdout": 2,
+      "write": 1,
+      "read": 1,
+      "install": 1
+    },
+    "glossaryNotes": 1,
+    "exactNarrationRepeats": 0,
+    "spokenCommentaries": 3,
+    "displayOnlyCommentaries": 0,
+    "speechSuppressionsByReason": {},
+    "maxSpeechSentences": 1,
+    "multiSentenceSpeech": 0,
+    "rawCommandSpeech": 0,
+    "repeatedProgressSpeechWithin30s": 0,
+    "glossaryRedisplays": 0,
+    "urgentMisses": 0,
+    "falseUrgent": 0
+  }
+}
