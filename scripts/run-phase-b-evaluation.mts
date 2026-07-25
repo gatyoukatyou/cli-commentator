@@ -9,6 +9,7 @@ import {
   type PhaseBReplayResult,
 } from "../apps/server/src/evaluation/phase-b-replay.js";
 import { buildPhaseBEvaluationArtifacts } from "../apps/server/src/evaluation/phase-b-artifacts.js";
+import { DEFAULT_GEMINI_MODEL } from "../apps/server/src/llm/providers/gemini.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const repoRoot = path.resolve(path.dirname(__filename), "..");
@@ -38,7 +39,7 @@ function inferredBaselinePath(fixturePath: string): string {
 }
 
 function configuredModel(provider: string): string {
-  if (provider === "gemini") return process.env.GEMINI_MODEL || "gemini-2.0-flash";
+  if (provider === "gemini") return process.env.GEMINI_MODEL || DEFAULT_GEMINI_MODEL;
   if (provider === "anthropic") return process.env.ANTHROPIC_MODEL || "claude-3-5-sonnet-20240620";
   if (provider === "openai") return process.env.OPENAI_MODEL || "gpt-4o-mini";
   if (provider === "groq") return process.env.GROQ_MODEL || "llama-3.3-70b-versatile";

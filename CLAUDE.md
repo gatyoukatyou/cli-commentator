@@ -174,7 +174,7 @@ INPUT_MODE=file INPUT_FILE=./ci-output.log pnpm dev:server
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `GOOGLE_API_KEY` | (required) | Google AI APIキー |
-| `GEMINI_MODEL` | gemini-2.0-flash | 使用モデル |
+| `GEMINI_MODEL` | gemini-3.5-flash | 使用モデル（短文実況向けに思考を無効化） |
 
 #### Anthropic (`LLM_PROVIDER=anthropic`)
 | Variable | Default | Description |
