@@ -1,4 +1,8 @@
-import { comment } from "../commentary/orchestrator.js";
+import {
+  COMMENT_TIMEOUT_MS,
+  comment,
+  type CommentMeasurement,
+} from "../commentary/orchestrator.js";
 import { withEventPriority, createCommentaryGate } from "../event-priority.js";
 import { extractEvents } from "../extract.js";
 import { redact } from "../redact.js";
@@ -6,6 +10,9 @@ import { createRepeatedErrorDetector } from "../repeated-error-detector.js";
 import type { CommentaryPayload, Event, SourceMode, Style, WsOutgoing } from "../types.js";
 import { createSessionContext, type SessionPhase } from "../session-context.js";
 import { hasRawCommandText } from "../commentary/speech-policy.js";
+import { commentByRules } from "../commentary/rule-based.js";
+import { applySpeechContract } from "../commentary/speech-policy.js";
+import type { ProviderName } from "../llm/types.js";
 
 export type PhaseBReplayFixture = {
   notice: string[];
@@ -73,8 +80,33 @@ export type PhaseBReplayResult = {
     withoutContext: Pick<CommentaryPayload, "narration" | "explanation" | "speech">;
     withContext: Pick<CommentaryPayload, "narration" | "explanation" | "speech">;
   }>;
+  providerComparisons?: Array<{
+    offsetMs: number;
+    eventType: Event["type"];
+    rules: Pick<CommentaryPayload, "narration" | "explanation" | "speech">;
+    llm: Pick<CommentaryPayload, "narration" | "explanation" | "speech">;
+    measurement: CommentMeasurement;
+  }>;
+  providerMetrics?: PhaseBProviderMetrics;
   suppressions: PhaseBSuppression[];
   metrics: PhaseBReplayMetrics;
+};
+
+export type PhaseBProviderMetrics = {
+  provider: ProviderName;
+  model: string;
+  timeoutMs: number;
+  attempted: number;
+  withinTimeoutSuccesses: number;
+  withinTimeoutSuccessRate: number;
+  results: Record<CommentMeasurement["result"], number>;
+  inputTokens: number;
+  outputTokens: number;
+};
+
+export type PhaseBReplayOptions = {
+  llmProvider?: ProviderName;
+  llmModel?: string;
 };
 
 export type PhaseBEventTypeComparison = {
@@ -195,7 +227,41 @@ function buildMetrics(
   };
 }
 
-export async function replayPhaseBFixture(fixture: PhaseBReplayFixture): Promise<PhaseBReplayResult> {
+function buildProviderMetrics(
+  provider: ProviderName,
+  model: string,
+  measurements: CommentMeasurement[]
+): PhaseBProviderMetrics {
+  const results: PhaseBProviderMetrics["results"] = {
+    comment_ok: 0,
+    comment_timeout: 0,
+    comment_aborted: 0,
+    comment_llm_error: 0,
+  };
+  for (const measurement of measurements) {
+    results[measurement.result] += 1;
+  }
+  const withinTimeoutSuccesses = measurements.filter(
+    ({ result, durationMs }) => result === "comment_ok" && durationMs <= COMMENT_TIMEOUT_MS
+  ).length;
+  return {
+    provider,
+    model,
+    timeoutMs: COMMENT_TIMEOUT_MS,
+    attempted: measurements.length,
+    withinTimeoutSuccesses,
+    withinTimeoutSuccessRate:
+      measurements.length === 0 ? 0 : withinTimeoutSuccesses / measurements.length,
+    results,
+    inputTokens: measurements.reduce((total, item) => total + item.inputTokens, 0),
+    outputTokens: measurements.reduce((total, item) => total + item.outputTokens, 0),
+  };
+}
+
+export async function replayPhaseBFixture(
+  fixture: PhaseBReplayFixture,
+  options: PhaseBReplayOptions = {}
+): Promise<PhaseBReplayResult> {
   let currentOffsetMs = 0;
   const gate = createCommentaryGate({
     intervalMs: fixture.commentaryIntervalMs,
@@ -205,6 +271,8 @@ export async function replayPhaseBFixture(fixture: PhaseBReplayFixture): Promise
   const messages: PhaseBReplayResult["messages"] = [];
   const contextTimeline: PhaseBReplayResult["contextTimeline"] = [];
   const commentaryComparisons: PhaseBReplayResult["commentaryComparisons"] = [];
+  const providerComparisons: NonNullable<PhaseBReplayResult["providerComparisons"]> = [];
+  const providerMeasurements: CommentMeasurement[] = [];
   const suppressions: PhaseBSuppression[] = [];
   const sessionContext = createSessionContext({ now: () => currentOffsetMs });
   sessionContext.setTaskContext({ ...fixture.taskContext, source: "fixture" });
@@ -261,11 +329,50 @@ export async function replayPhaseBFixture(fixture: PhaseBReplayFixture): Promise
           speech: payload.speech,
         },
       });
+      if (options.llmProvider && options.llmProvider !== "disabled") {
+        const rules = applySpeechContract(
+          commentByRules(event, fixture.style, context),
+          event,
+          context
+        );
+        let measurement: CommentMeasurement | undefined;
+        const llm = await comment(
+          event,
+          fixture.style,
+          {
+            narrationProvider: options.llmProvider,
+            explanationProvider: options.llmProvider,
+          },
+          context,
+          (item) => {
+            measurement = item;
+            providerMeasurements.push(item);
+          }
+        );
+        if (!measurement) {
+          throw new Error("LLM commentary completed without a measurement");
+        }
+        providerComparisons.push({
+          offsetMs: currentOffsetMs,
+          eventType: event.type,
+          rules: {
+            narration: rules.narration,
+            explanation: rules.explanation,
+            speech: rules.speech,
+          },
+          llm: {
+            narration: llm.narration,
+            explanation: llm.explanation,
+            speech: llm.speech,
+          },
+          measurement,
+        });
+      }
       messages.push({ kind: "commentary", ts: currentOffsetMs, ev: event, ...payload });
     }
   }
 
-  return {
+  const result: PhaseBReplayResult = {
     fixtureId: fixture.id,
     source: fixture.source,
     style: fixture.style,
@@ -276,4 +383,13 @@ export async function replayPhaseBFixture(fixture: PhaseBReplayFixture): Promise
     suppressions,
     metrics: buildMetrics(messages, suppressions),
   };
+  if (options.llmProvider && options.llmProvider !== "disabled") {
+    result.providerComparisons = providerComparisons;
+    result.providerMetrics = buildProviderMetrics(
+      options.llmProvider,
+      options.llmModel ?? "unknown",
+      providerMeasurements
+    );
+  }
+  return result;
 }

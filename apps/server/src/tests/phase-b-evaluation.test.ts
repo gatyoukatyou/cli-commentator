@@ -75,6 +75,49 @@ describe("Phase B evaluation replay", () => {
     expect(result).toMatchSnapshot();
   });
 
+  it("compares context-aware rules with an LLM provider and aggregates measurements", async () => {
+    const fixture = await loadFixture();
+    const result = await replayPhaseBFixture(fixture, {
+      llmProvider: "mock",
+      llmModel: "mock",
+    });
+
+    expect(result.providerComparisons).toHaveLength(4);
+    expect(result.providerComparisons?.[0]).toMatchObject({
+      eventType: "search",
+      rules: {
+        narration: expect.any(String),
+        explanation: expect.any(String),
+      },
+      llm: {
+        narration: expect.stringContaining("[mock-"),
+        explanation: expect.stringContaining("[mock-"),
+      },
+      measurement: {
+        result: "comment_ok",
+        provider: "mock/mock",
+        inputTokens: 20,
+        outputTokens: 40,
+      },
+    });
+    expect(result.providerMetrics).toEqual({
+      provider: "mock",
+      model: "mock",
+      timeoutMs: 3000,
+      attempted: 4,
+      withinTimeoutSuccesses: 4,
+      withinTimeoutSuccessRate: 1,
+      results: {
+        comment_ok: 4,
+        comment_timeout: 0,
+        comment_aborted: 0,
+        comment_llm_error: 0,
+      },
+      inputTokens: 80,
+      outputTokens: 160,
+    });
+  });
+
   it("compares event classifications in a stable order", () => {
     expect(comparePhaseBEventTypes(
       {

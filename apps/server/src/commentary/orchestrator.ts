@@ -11,7 +11,7 @@ import { commentByRules, isSuppressedCommentaryEvent, withCommentaryMode } from 
 import type { SessionContextSnapshot } from "../session-context.js";
 import { applySpeechContract } from "./speech-policy.js";
 
-const COMMENT_TIMEOUT_MS = parseInt(process.env.COMMENT_TIMEOUT_MS ?? "3000", 10);
+export const COMMENT_TIMEOUT_MS = parseInt(process.env.COMMENT_TIMEOUT_MS ?? "3000", 10);
 const adapterCache = new Map<ProviderName, LLMAdapter | null>();
 
 // --- Logging ---
@@ -21,18 +21,43 @@ type CommentLogMeta = {
   eventType: string;
 };
 
+export type CommentMeasurement = {
+  result: "comment_ok" | "comment_timeout" | "comment_aborted" | "comment_llm_error";
+  durationMs: number;
+  provider: string;
+  style: string;
+  eventType: string;
+  inputTokens: number;
+  outputTokens: number;
+};
+
+export type CommentMeasurementObserver = (measurement: CommentMeasurement) => void;
+
 function logComment(
   result: "ok" | "timeout" | "aborted" | "llm_error",
   durationMs: number,
-  meta: CommentLogMeta
+  meta: CommentLogMeta,
+  usage: { inputTokens?: number; outputTokens?: number } = {},
+  observe?: CommentMeasurementObserver
 ): void {
-  const msg = `comment_${result} duration_ms=${durationMs} provider=${meta.provider} style=${meta.style} event=${meta.eventType}`;
+  const inputTokens = usage.inputTokens ?? 0;
+  const outputTokens = usage.outputTokens ?? 0;
+  const resultName = `comment_${result}` as CommentMeasurement["result"];
+  const msg = `${resultName} duration_ms=${durationMs} provider=${meta.provider} style=${meta.style} event=${meta.eventType} input_tokens=${inputTokens} output_tokens=${outputTokens}`;
   if (result === "ok") {
     if (process.env.DEBUG) console.log(msg);
   } else {
     console.warn(msg);
   }
-
+  observe?.({
+    result: resultName,
+    durationMs,
+    provider: meta.provider,
+    style: meta.style,
+    eventType: meta.eventType,
+    inputTokens,
+    outputTokens,
+  });
 }
 
 function resolveCommentaryProviders(providers: ProfileLLMProviders = {}): {
@@ -76,7 +101,7 @@ async function generateLLMText(
   adapter: LLMAdapter,
   prompt: string,
   signal?: AbortSignal
-): Promise<string> {
+): Promise<{ text: string; usage?: { inputTokens?: number; outputTokens?: number } }> {
   const res = await adapter.generateText({
     messages: [{ role: "user", content: prompt }],
     signal,
@@ -87,7 +112,7 @@ async function generateLLMText(
     throw new CommentError("comment_llm_error", "Empty LLM response");
   }
 
-  return text;
+  return { text, usage: res.usage };
 }
 
 function providerLabel(narrationProvider?: ProviderName, explanationProvider?: ProviderName): string {
@@ -100,9 +125,15 @@ async function commentInternal(
   providers: ProfileLLMProviders = {},
   signal?: AbortSignal,
   context?: SessionContextSnapshot
-): Promise<CommentaryPayload> {
+): Promise<{
+  payload: CommentaryPayload;
+  usage: { inputTokens: number; outputTokens: number };
+}> {
   if (isSuppressedCommentaryEvent(ev)) {
-    return commentByRules(ev, style, context);
+    return {
+      payload: commentByRules(ev, style, context),
+      usage: { inputTokens: 0, outputTokens: 0 },
+    };
   }
 
   const rules = commentByRules(ev, style, context);
@@ -111,23 +142,28 @@ async function commentInternal(
   const explanationAdapter = getAdapter(resolvedProviders.explanationProvider);
 
   if (!narrationAdapter && !explanationAdapter) {
-    return rules;
+    return {
+      payload: rules,
+      usage: { inputTokens: 0, outputTokens: 0 },
+    };
   }
 
   const [narration, explanation] = await Promise.all([
     narrationAdapter
       ? generateLLMText(narrationAdapter, buildNarrationPrompt(ev, style, context), signal)
-          .then((text) => ({
-            text: normalizeGeneratedCommentaryText(text, "narration"),
+          .then((response) => ({
+            text: normalizeGeneratedCommentaryText(response.text, "narration"),
             provider: narrationAdapter.name,
+            usage: response.usage,
           }))
           .catch(() => null)
       : Promise.resolve(null),
     explanationAdapter
       ? generateLLMText(explanationAdapter, buildExplanationPrompt(ev, style, context), signal)
-          .then((text) => ({
-            text: normalizeGeneratedCommentaryText(text, "explanation"),
+          .then((response) => ({
+            text: normalizeGeneratedCommentaryText(response.text, "explanation"),
             provider: explanationAdapter.name,
+            usage: response.usage,
           }))
           .catch(() => null)
       : Promise.resolve(null),
@@ -137,15 +173,23 @@ async function commentInternal(
     throw new CommentError("comment_llm_error", "All configured commentary providers failed");
   }
 
-  return withCommentaryMode({
-    narration: narration?.text ?? rules.narration,
-    explanation: explanation?.text ?? rules.explanation,
-    glossaryNotes: rules.glossaryNotes,
-    meta: {
-      narrationProvider: narration?.provider ?? rules.meta?.narrationProvider ?? "rules",
-      explanationProvider: explanation?.provider ?? rules.meta?.explanationProvider ?? "rules",
+  return {
+    payload: withCommentaryMode({
+      narration: narration?.text ?? rules.narration,
+      explanation: explanation?.text ?? rules.explanation,
+      glossaryNotes: rules.glossaryNotes,
+      meta: {
+        narrationProvider: narration?.provider ?? rules.meta?.narrationProvider ?? "rules",
+        explanationProvider: explanation?.provider ?? rules.meta?.explanationProvider ?? "rules",
+      },
+    }),
+    usage: {
+      inputTokens:
+        (narration?.usage?.inputTokens ?? 0) + (explanation?.usage?.inputTokens ?? 0),
+      outputTokens:
+        (narration?.usage?.outputTokens ?? 0) + (explanation?.usage?.outputTokens ?? 0),
     },
-  });
+  };
 }
 
 /**
@@ -156,7 +200,8 @@ export async function comment(
   ev: Event,
   style: Style,
   providers: ProfileLLMProviders = {},
-  context?: SessionContextSnapshot
+  context?: SessionContextSnapshot,
+  observe?: CommentMeasurementObserver
 ): Promise<CommentaryPayload> {
   const resolvedProviders = resolveCommentaryProviders(providers);
   const narrationAdapter = getAdapter(resolvedProviders.narrationProvider);
@@ -187,15 +232,15 @@ export async function comment(
         onTimeout: () => controller.abort(),
       }
     );
-    logComment("ok", Date.now() - start, meta);
-    return applySpeechContract(result, ev, context);
+    logComment("ok", Date.now() - start, meta, result.usage, observe);
+    return applySpeechContract(result.payload, ev, context);
   } catch (err) {
     const duration = Date.now() - start;
     if (err instanceof CommentError) {
       const resultType = err.code.replace("comment_", "") as "timeout" | "aborted" | "llm_error";
-      logComment(resultType, duration, meta);
+      logComment(resultType, duration, meta, {}, observe);
     } else {
-      logComment("llm_error", duration, meta);
+      logComment("llm_error", duration, meta, {}, observe);
     }
     return applySpeechContract(commentByRules(ev, style, context), ev, context);
   }

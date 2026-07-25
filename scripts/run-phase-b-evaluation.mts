@@ -19,7 +19,32 @@ function getArg(name: string): string | undefined {
   return index >= 0 ? process.argv[index + 1] : undefined;
 }
 
-function markdownReport(baseline: PhaseBReplayResult, candidate: PhaseBReplayResult, matches: boolean): string {
+function configuredModel(provider: string): string {
+  if (provider === "gemini") return process.env.GEMINI_MODEL || "gemini-2.0-flash";
+  if (provider === "anthropic") return process.env.ANTHROPIC_MODEL || "claude-3-5-sonnet-20240620";
+  if (provider === "openai") return process.env.OPENAI_MODEL || "gpt-4o-mini";
+  if (provider === "groq") return process.env.GROQ_MODEL || "llama-3.3-70b-versatile";
+  if (provider === "local") return process.env.LOCAL_MODEL || "llama3.2";
+  return provider === "mock" ? "mock" : "unknown";
+}
+
+function missingProviderCredential(provider: string): string | undefined {
+  const required: Record<string, string> = {
+    gemini: "GOOGLE_API_KEY",
+    anthropic: "ANTHROPIC_API_KEY",
+    openai: "OPENAI_API_KEY",
+    groq: "GROQ_API_KEY",
+  };
+  const name = required[provider];
+  return name && !process.env[name] ? name : undefined;
+}
+
+function markdownReport(
+  baseline: PhaseBReplayResult,
+  candidate: PhaseBReplayResult,
+  matches: boolean,
+  llmStatus: string
+): string {
   const rows = [
     ["events", baseline.metrics.events, candidate.metrics.events],
     ["commentaries", baseline.metrics.commentaries, candidate.metrics.commentaries],
@@ -52,12 +77,32 @@ function markdownReport(baseline: PhaseBReplayResult, candidate: PhaseBReplayRes
     withContext.narration ?? "-",
     withContext.speech?.text ?? "-",
   ]);
+  const providerRows = (candidate.providerComparisons ?? []).map(
+    ({ offsetMs, rules, llm, measurement }) => [
+      offsetMs,
+      rules.narration ?? "-",
+      llm.narration ?? "-",
+      measurement.result,
+      measurement.durationMs,
+      measurement.inputTokens,
+      measurement.outputTokens,
+    ]
+  );
+  const providerMetrics = candidate.providerMetrics;
   return [
     "# Phase B fixture replay report",
     "",
     `- fixture: \`${candidate.fixtureId}\``,
     `- snapshot: ${matches ? "MATCH" : "DIFF"}`,
     "- scope: 28 sanitized lines / 5 extracted events",
+    `- LLM measurement: ${llmStatus}`,
+    ...(providerMetrics
+      ? [
+          `- provider: \`${providerMetrics.provider}\``,
+          `- model: \`${providerMetrics.model}\``,
+          `- COMMENT_TIMEOUT_MS: ${providerMetrics.timeoutMs}`,
+        ]
+      : []),
     "",
     "| metric | baseline | candidate |",
     "|---|---:|---:|",
@@ -84,11 +129,44 @@ function markdownReport(baseline: PhaseBReplayResult, candidate: PhaseBReplayRes
     "|---:|---|---|---|",
     ...commentaryRows.map((row) => `| ${row.join(" | ")} |`),
     "",
+    ...(providerMetrics
+      ? [
+          "## Context-aware rules / LLM provider comparison",
+          "",
+          `- successes within timeout: ${providerMetrics.withinTimeoutSuccesses}/${providerMetrics.attempted} (${(providerMetrics.withinTimeoutSuccessRate * 100).toFixed(1)}%)`,
+          `- results: \`${JSON.stringify(providerMetrics.results)}\``,
+          `- tokens: input=${providerMetrics.inputTokens}, output=${providerMetrics.outputTokens}`,
+          "",
+          "| offset (ms) | rules | LLM | result | duration (ms) | input tokens | output tokens |",
+          "|---:|---|---|---|---:|---:|---:|",
+          ...providerRows.map((row) => `| ${row.join(" | ")} |`),
+          "",
+        ]
+      : []),
   ].join("\n");
 }
 
 const fixture = JSON.parse(await fs.readFile(fixturePath, "utf8")) as PhaseBReplayFixture;
-const candidate = await replayPhaseBFixture(fixture);
+const withLlm = process.argv.includes("--with-llm");
+const llmProvider = process.env.LLM_PROVIDER ?? "disabled";
+const missingCredential = withLlm ? missingProviderCredential(llmProvider) : undefined;
+const llmEnabled = withLlm && llmProvider !== "disabled" && !missingCredential;
+const llmModel = configuredModel(llmProvider);
+if (withLlm && missingCredential) {
+  console.warn(`Skipping LLM measurement: ${missingCredential} is not set`);
+}
+if (withLlm && llmProvider === "disabled") {
+  console.warn("Skipping LLM measurement: LLM_PROVIDER is not set");
+}
+const candidate = await replayPhaseBFixture(
+  fixture,
+  llmEnabled
+    ? {
+        llmProvider: llmProvider as NonNullable<Parameters<typeof replayPhaseBFixture>[1]>["llmProvider"],
+        llmModel,
+      }
+    : {}
+);
 
 if (process.argv.includes("--update-baseline")) {
   await fs.writeFile(baselinePath, `${JSON.stringify(candidate, null, 2)}\n`, "utf8");
@@ -97,13 +175,21 @@ if (process.argv.includes("--update-baseline")) {
 }
 
 const baseline = JSON.parse(await fs.readFile(baselinePath, "utf8")) as PhaseBReplayResult;
-const matches = JSON.stringify(baseline) === JSON.stringify(candidate);
+const snapshotCandidate = { ...candidate };
+delete snapshotCandidate.providerComparisons;
+delete snapshotCandidate.providerMetrics;
+const matches = JSON.stringify(baseline) === JSON.stringify(snapshotCandidate);
 const outputDir = path.resolve(getArg("--output-dir") ?? path.join(os.tmpdir(), "cli-commentator-phase-b-eval"));
 await fs.mkdir(outputDir, { recursive: true });
 const candidatePath = path.join(outputDir, "candidate.json");
 const reportPath = path.join(outputDir, "report.md");
 await fs.writeFile(candidatePath, `${JSON.stringify(candidate, null, 2)}\n`, "utf8");
-await fs.writeFile(reportPath, markdownReport(baseline, candidate, matches), "utf8");
+const llmStatus = llmEnabled
+  ? "enabled"
+  : withLlm
+    ? `skipped (${missingCredential ? `${missingCredential} is not set` : "LLM_PROVIDER is not set"})`
+    : "disabled";
+await fs.writeFile(reportPath, markdownReport(baseline, candidate, matches, llmStatus), "utf8");
 
 console.log(`Candidate: ${candidatePath}`);
 console.log(`Report: ${reportPath}`);
