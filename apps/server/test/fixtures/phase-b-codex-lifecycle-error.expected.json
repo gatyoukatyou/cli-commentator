@@ -357,7 +357,7 @@
     "maxSpeechSentences": 1,
     "multiSentenceSpeech": 0,
     "rawCommandSpeech": 0,
-    "repeatedProgressSpeechWithin30s": 0,
+    "repeatedProgressSpeechWithin120s": 1,
     "glossaryRedisplays": 0,
     "urgentMisses": 0,
     "falseUrgent": 0

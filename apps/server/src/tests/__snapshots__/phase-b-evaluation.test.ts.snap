@@ -383,7 +383,7 @@ exports[`Phase B evaluation replay > replays the minimal sanitized session deter
     "maxSpeechSentences": 1,
     "multiSentenceSpeech": 0,
     "rawCommandSpeech": 0,
-    "repeatedProgressSpeechWithin30s": 0,
+    "repeatedProgressSpeechWithin120s": 0,
     "speechSuppressionsByReason": {},
     "spokenCommentaries": 5,
     "suppressed": 1,

@@ -1,0 +1,28 @@
+{
+  "notice": [
+    "This fixture is a sanitized reconstruction of repeated speech observed in a real session.",
+    "The quoted target is synthetic."
+  ],
+  "samples": [
+    {
+      "offsetMs": 53000,
+      "text": "お、画面に「Navigate to cli-commentator repository」っちゅうログが出てきたで！"
+    },
+    {
+      "offsetMs": 143000,
+      "text": "お、画面に「Navigate to cli-commentator repository」っちゅう文字が出てきたで！"
+    },
+    {
+      "offsetMs": 156000,
+      "text": "画面に「Navigate to cli-commentator repository」っちゅうログが出てきたで！"
+    },
+    {
+      "offsetMs": 244000,
+      "text": "お、画面に「Navigate to cli-commentator repository」っちゅう文字が出てきたで！"
+    },
+    {
+      "offsetMs": 270000,
+      "text": "画面に「Navigate to cli-commentator repository」っちゅうログが表示されたで！"
+    }
+  ]
+}

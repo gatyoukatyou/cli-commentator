@@ -75,7 +75,7 @@ function markdownReport(
     ["maxSpeechSentences", baseline.metrics.maxSpeechSentences ?? 0, candidate.metrics.maxSpeechSentences],
     ["multiSentenceSpeech", baseline.metrics.multiSentenceSpeech ?? 0, candidate.metrics.multiSentenceSpeech],
     ["rawCommandSpeech", baseline.metrics.rawCommandSpeech ?? 0, candidate.metrics.rawCommandSpeech],
-    ["repeatedProgressSpeechWithin30s", baseline.metrics.repeatedProgressSpeechWithin30s ?? 0, candidate.metrics.repeatedProgressSpeechWithin30s],
+    ["repeatedProgressSpeechWithin120s", baseline.metrics.repeatedProgressSpeechWithin120s ?? 0, candidate.metrics.repeatedProgressSpeechWithin120s],
     ["glossaryRedisplays", baseline.metrics.glossaryRedisplays ?? 0, candidate.metrics.glossaryRedisplays],
     ["urgentMisses", baseline.metrics.urgentMisses ?? 0, candidate.metrics.urgentMisses],
     ["falseUrgent", baseline.metrics.falseUrgent ?? 0, candidate.metrics.falseUrgent],

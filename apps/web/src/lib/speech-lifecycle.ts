@@ -1,4 +1,8 @@
 import type { EventPriority } from "../types";
+import {
+  normalizeSpeechRepetitionKey,
+  REPEATED_PROGRESS_SPEECH_WINDOW_MS,
+} from "@cli-commentator/shared";
 
 export type SpeechLifecycleKind = "queued" | "started" | "ended" | "cancelled" | "dropped";
 
@@ -28,7 +32,7 @@ export type SpeechLifecycleMetrics = {
   noticeQueued: number;
   progressDropped: number;
   urgentMisses: number;
-  repeatedProgressStartsWithin30s: number;
+  repeatedProgressSpeechWithin120s: number;
   totalSpeechMs: number;
   averageQueueWaitMs: number;
   maxQueueWaitMs: number;
@@ -65,7 +69,6 @@ type RecorderOptions = {
 };
 
 const DEFAULT_MAX_EVENTS = 2_000;
-const REPEATED_PROGRESS_WINDOW_MS = 30_000;
 
 function defaultSessionId(): string {
   if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
@@ -91,7 +94,7 @@ export function createSpeechLifecycleRecorder(options: RecorderOptions = {}) {
   let sessionStartedWall = wallNow();
   let session = { id: sessionId(), trigger: "page_load" };
   let tracked = new Map<string, TrackedSpeech>();
-  let lastProgressStartByText = new Map<string, number>();
+  let lastProgressStartByKey = new Map<string, number>();
   let queueWaitTotal = 0;
   let queueWaitSamples = 0;
   let metrics: Omit<SpeechLifecycleMetrics, "urgentMisses" | "averageQueueWaitMs" | "pendingAtExport"> = {
@@ -103,7 +106,7 @@ export function createSpeechLifecycleRecorder(options: RecorderOptions = {}) {
     urgentInterruptions: 0,
     noticeQueued: 0,
     progressDropped: 0,
-    repeatedProgressStartsWithin30s: 0,
+    repeatedProgressSpeechWithin120s: 0,
     totalSpeechMs: 0,
     maxQueueWaitMs: 0,
     maxQueueDepth: 0,
@@ -120,7 +123,7 @@ export function createSpeechLifecycleRecorder(options: RecorderOptions = {}) {
     sessionStartedWall = wallNow();
     session = { id: sessionId(), trigger };
     tracked = new Map();
-    lastProgressStartByText = new Map();
+    lastProgressStartByKey = new Map();
     queueWaitTotal = 0;
     queueWaitSamples = 0;
     urgentQueued = 0;
@@ -135,7 +138,7 @@ export function createSpeechLifecycleRecorder(options: RecorderOptions = {}) {
       urgentInterruptions: 0,
       noticeQueued: 0,
       progressDropped: 0,
-      repeatedProgressStartsWithin30s: 0,
+      repeatedProgressSpeechWithin120s: 0,
       totalSpeechMs: 0,
       maxQueueWaitMs: 0,
       maxQueueDepth: 0,
@@ -190,11 +193,15 @@ export function createSpeechLifecycleRecorder(options: RecorderOptions = {}) {
         metrics.maxQueueWaitMs = Math.max(metrics.maxQueueWaitMs, Math.round(wait));
       }
       if (input.priority === "progress") {
-        const lastStart = lastProgressStartByText.get(text);
-        if (lastStart !== undefined && current - lastStart < REPEATED_PROGRESS_WINDOW_MS) {
-          metrics.repeatedProgressStartsWithin30s += 1;
+        const key = normalizeSpeechRepetitionKey(text);
+        const lastStart = lastProgressStartByKey.get(key);
+        if (
+          lastStart !== undefined &&
+          current - lastStart <= REPEATED_PROGRESS_SPEECH_WINDOW_MS
+        ) {
+          metrics.repeatedProgressSpeechWithin120s += 1;
         }
-        lastProgressStartByText.set(text, current);
+        lastProgressStartByKey.set(key, current);
       }
       return;
     }

@@ -97,20 +97,24 @@ describe("speech lifecycle recorder", () => {
     ]);
   });
 
-  it("detects repeated progress starts within 30 seconds and urgent misses", () => {
+  it("detects style-varied repeated progress within 120 seconds and urgent misses", () => {
     let now = 0;
     const recorder = createSpeechLifecycleRecorder({ now: () => now, wallNow: () => now, sessionId: () => "s" });
     const queueAndStart = (speechId: string, priority: "progress" | "urgent", text: string) => {
       recorder.record({ kind: "queued", speechId, priority, text, queueDepth: 1 });
       recorder.record({ kind: "started", speechId, priority, text });
     };
-    queueAndStart("p1", "progress", "同じ進捗です。");
-    now = 29_999;
-    queueAndStart("p2", "progress", "同じ進捗です。");
+    queueAndStart("p1", "progress", "画面に「対象ファイル」が表示されました。");
+    now = 119_999;
+    queueAndStart("p2", "progress", "お、画面に「対象ファイル」が出てきたで！");
+    now = 120_000;
+    queueAndStart("p3", "progress", "画面に「対象ファイル」が出てきたのだ！");
+    now = 240_001;
+    queueAndStart("p4", "progress", "画面に「対象ファイル」が表示されました。");
     recorder.record({ kind: "queued", speechId: "u1", priority: "urgent", text: "許可待ちです。", queueDepth: 2 });
 
     expect(recorder.export().metrics).toMatchObject({
-      repeatedProgressStartsWithin30s: 1,
+      repeatedProgressSpeechWithin120s: 2,
       urgentMisses: 1,
     });
   });

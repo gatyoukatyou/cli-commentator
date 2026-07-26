@@ -9,6 +9,10 @@ import {
   type PhaseBReplayFixture,
 } from "../evaluation/phase-b-replay.js";
 import {
+  countRepeatedSpeechWithinWindow,
+  normalizeSpeechRepetitionKey,
+} from "@cli-commentator/shared";
+import {
   buildPhaseBEvaluationArtifacts,
   evaluatedPhaseOptions,
 } from "../evaluation/phase-b-artifacts.js";
@@ -58,7 +62,7 @@ describe("Phase B evaluation replay", () => {
       maxSpeechSentences: 1,
       multiSentenceSpeech: 0,
       rawCommandSpeech: 0,
-      repeatedProgressSpeechWithin30s: 0,
+      repeatedProgressSpeechWithin120s: 0,
       glossaryRedisplays: 0,
       urgentMisses: 0,
       falseUrgent: 0,
@@ -83,6 +87,21 @@ describe("Phase B evaluation replay", () => {
       withoutContext.narration !== withContext.narration
     )).toBe(true);
     expect(result).toMatchSnapshot();
+  });
+
+  it("counts four normalized repeats in the sanitized observed-session fixture", async () => {
+    const fixture = JSON.parse(
+      await fs.readFile(
+        path.join(fixturesDir, "repeated-progress-speech.json"),
+        "utf8"
+      )
+    ) as { samples: Array<{ offsetMs: number; text: string }> };
+    expect(new Set(fixture.samples.map(({ text }) =>
+      normalizeSpeechRepetitionKey(text)
+    ))).toHaveLength(1);
+    expect(countRepeatedSpeechWithinWindow(
+      fixture.samples.map(({ offsetMs, text }) => ({ timestampMs: offsetMs, text }))
+    )).toBe(4);
   });
 
   it("compares context-aware rules with an LLM provider and aggregates measurements", async () => {
@@ -241,7 +260,7 @@ describe("Phase B evaluation replay", () => {
         maxSpeechSentences: 0,
         multiSentenceSpeech: 0,
         rawCommandSpeech: 0,
-        repeatedProgressSpeechWithin30s: 0,
+        repeatedProgressSpeechWithin120s: 0,
         glossaryRedisplays: 0,
         urgentMisses: 0,
         falseUrgent: 0,
@@ -259,7 +278,7 @@ describe("Phase B evaluation replay", () => {
         maxSpeechSentences: 0,
         multiSentenceSpeech: 0,
         rawCommandSpeech: 0,
-        repeatedProgressSpeechWithin30s: 0,
+        repeatedProgressSpeechWithin120s: 0,
         glossaryRedisplays: 0,
         urgentMisses: 0,
         falseUrgent: 0,
