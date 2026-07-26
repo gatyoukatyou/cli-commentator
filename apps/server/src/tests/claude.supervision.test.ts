@@ -12,6 +12,18 @@ function loadChunks(name: string): string {
   return fixture.chunks.join("");
 }
 
+function loadRenderingFixture(): {
+  noiseChunks: string[];
+  meaningfulChunks: string[];
+} {
+  return JSON.parse(
+    fs.readFileSync(path.join(fixtureDir, "render-noise.json"), "utf8")
+  ) as {
+    noiseChunks: string[];
+    meaningfulChunks: string[];
+  };
+}
+
 describe("Claude TUI supervision detection", () => {
   beforeEach(() => {
     vi.useFakeTimers();
@@ -53,5 +65,21 @@ describe("Claude TUI supervision detection", () => {
         expect.objectContaining({ summary: expect.stringMatching(/許可を待っている|質問への回答を待っている|エラーが発生している|作業が完了した/) }),
       ])
     );
+  });
+
+  it("suppresses terminal rendering noise from a Claude Code source", () => {
+    const { noiseChunks } = loadRenderingFixture();
+
+    for (const chunk of noiseChunks) {
+      expect(extractEvents(chunk, "claude"), chunk).toEqual([]);
+    }
+  });
+
+  it("keeps meaningful Claude Code redraw content", () => {
+    const { meaningfulChunks } = loadRenderingFixture();
+
+    for (const chunk of meaningfulChunks) {
+      expect(extractEvents(chunk, "claude"), chunk).not.toEqual([]);
+    }
   });
 });

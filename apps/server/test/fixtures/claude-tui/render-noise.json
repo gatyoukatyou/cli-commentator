@@ -1,0 +1,21 @@
+{
+  "noiseChunks": [
+    "\u001b(B",
+    "\u001b[Mo66",
+    "\u001b[<35;17;4M",
+    "\u001b[35m\u001b[17m",
+    "\u001b[2J\u001b[H",
+    "\u001b[?1000h",
+    "\u001b[1;35H",
+    "Sublimating…46",
+    "(B",
+    "o66",
+    "35",
+    "17M"
+  ],
+  "meaningfulChunks": [
+    "handoff/status-2026-07-26.md の内容を確認しています",
+    "F1 F2 F3 の実行結果: thinkingBudget=0",
+    "着手待ち3件はすべてクローズ済み"
+  ]
+}
