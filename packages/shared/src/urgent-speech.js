@@ -1,17 +1,13 @@
-import type { Event } from "./protocol.js";
-
-type UrgentEvent = Pick<Event, "summary" | "detail">;
-
 const APPROVAL_PROMPT_RE = /would you like to run the following command\?/iu;
 const QUESTION_RE = /Question\s+(\d+)\/\d+\s+\((?:[1-9]\d*) unanswered\)/iu;
 const COMMAND_START_RE =
   /^(?:(?:sudo|command|env)\s+)?(?:[A-Za-z_][A-Za-z0-9_]*=\S+\s+)*(?:pnpm|npm|yarn|bun|npx|node|git|gh|cargo|docker|make|go|python\d*|deno|rm|mv|cp|mkdir|chmod|curl)\b/iu;
 
-function commandName(value: string): string {
+function commandName(value) {
   return value.replace(/\\/g, "/").split("/").at(-1)?.toLowerCase() ?? value.toLowerCase();
 }
 
-function commandLine(detail: string): string | null {
+function commandLine(detail) {
   const lines = detail.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
   const promptAt = lines.findIndex((line) => APPROVAL_PROMPT_RE.test(line));
   if (promptAt < 0) return null;
@@ -23,13 +19,13 @@ function commandLine(detail: string): string | null {
   return null;
 }
 
-function tokenizeCommand(command: string): string[] {
+function tokenizeCommand(command) {
   return command.match(/(?:[^\s"'`]+|["'`][^"'`]*["'`])/gu)?.map((token) =>
     token.replace(/^(["'`])|(["'`])$/gu, "")
   ) ?? [];
 }
 
-function commandSummary(command: string): string | null {
+function commandSummary(command) {
   const tokens = tokenizeCommand(command);
   let index = 0;
   while (index < tokens.length && /^[A-Za-z_][A-Za-z0-9_]*=/u.test(tokens[index])) index += 1;
@@ -76,13 +72,13 @@ function commandSummary(command: string): string | null {
   return "コマンド操作";
 }
 
-function withoutTrailingSentencePunctuation(text: string): string {
+function withoutTrailingSentencePunctuation(text) {
   let end = text.length;
   while (end > 0 && "。.!！".includes(text[end - 1])) end -= 1;
   return text.slice(0, end);
 }
 
-export function buildUrgentSpeechText(event: UrgentEvent): string {
+export function buildUrgentSpeechText(event) {
   const detail = event.detail ?? "";
   if (event.summary === "コマンド実行の確認待ち" || APPROVAL_PROMPT_RE.test(detail)) {
     const command = commandLine(detail);

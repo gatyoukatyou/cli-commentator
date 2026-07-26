@@ -1,5 +1,5 @@
 import { SESSION_PHASE_LABELS, type SessionContextSnapshot } from "../session-context.js";
-import { buildUrgentSpeechText } from "@cli-commentator/shared";
+import { buildUrgentSpeechText } from "@cli-commentator/shared/urgent-speech";
 import { getEventPriority } from "../event-priority.js";
 import type { CommentaryPayload, Event } from "../types.js";
 

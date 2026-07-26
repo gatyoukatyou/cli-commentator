@@ -1,5 +1,5 @@
 import type { Event, EventType } from "../types";
-import { buildUrgentSpeechText } from "@cli-commentator/shared";
+import { buildUrgentSpeechText } from "@cli-commentator/shared/urgent-speech";
 
 /**
  * 即時イベント（kind: "event"）の要対応表示・定型読み上げと、
