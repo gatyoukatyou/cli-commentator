@@ -147,6 +147,17 @@ INPUT_MODE=file INPUT_FILE=./ci-output.log pnpm dev:server
 | `gemini` | Google Gemini API（要: `GOOGLE_API_KEY`） |
 | `anthropic` | Anthropic API（要: `ANTHROPIC_API_KEY`） |
 
+**推奨構成（2026-07-26決裁）:** 実況と解説の両方でLLMプロバイダーを
+明示的に選び、失敗時はルール版へ自動フォールバックさせる。プロファイルで
+`ルール版のみ（LLMを使わない）` を選ぶか、`LLM_PROVIDER=disabled` を設定すれば
+ルール版だけに固定できる。コードの既定値は `disabled` のままとし、利用者が
+プロファイルごとに明示的に選ぶ方式を維持する。
+
+判断時の実測では、`gemini-3.5-flash` が14/14件で
+`COMMENT_TIMEOUT_MS=3000` 以内に成功し、レイテンシ中央値は約1.1秒だった。
+この結果は `thinkingConfig.thinkingBudget=0` を適用した構成（PR #351）が前提。
+方針決裁と比較結果は Issue #331 に記録している。
+
 ### プロバイダー別環境変数
 
 #### OpenAI (`LLM_PROVIDER=openai`)
