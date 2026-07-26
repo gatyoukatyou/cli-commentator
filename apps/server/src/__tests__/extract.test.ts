@@ -83,6 +83,22 @@ describe("extractEvents fixtures", () => {
     expect(extractEvents("Question 1/1 (0 unanswered)", "codex")).toEqual([]);
   });
 
+  it("attaches the displayed command to a Codex approval request without treating it as executed", () => {
+    expect(
+      extractEvents(
+        "Would you like to run the following command?\npnpm test -- --runInBand",
+        "codex"
+      )
+    ).toEqual([
+      {
+        ts: new Date("2025-01-01T00:00:00.000Z").getTime(),
+        type: "stdout",
+        summary: "コマンド実行の確認待ち",
+        detail: "Would you like to run the following command?\npnpm test -- --runInBand",
+      },
+    ]);
+  });
+
   it("extracts current Codex exec tool calls without surfacing routine plugin logs", async () => {
     const content = await fs.readFile(path.join(fixturesDir, "codex-current-toolcall.log"), "utf8");
     const events = extractEvents(content, "codex");

@@ -126,7 +126,7 @@ export default function App() {
       setAttention(toAttentionNotice(ev));
       if (speakUrgentNow(buildUrgentEventSpeechText(ev))) {
         // 読み上げ済みを記録し、同一イベントのcommentary読み上げをスキップする
-        spokenEventsRef.current.add(eventSpeechKey(ev.ts, ev.type));
+        spokenEventsRef.current.add(eventSpeechKey(ev));
       }
     },
     [speakUrgentNow]
@@ -139,7 +139,12 @@ export default function App() {
   // 即時イベントで読み上げ済みのcommentaryはTTSしない（表示はする）
   const queueSpeechDeduped = useCallback(
     (item: CommentaryItem) => {
-      if (spokenEventsRef.current.has(eventSpeechKey(item.ts, item.eventType))) return;
+      if (spokenEventsRef.current.has(eventSpeechKey({
+        ts: item.ts,
+        type: item.eventType,
+        summary: item.summary ?? "",
+        detail: item.detail,
+      }))) return;
       queueSpeech(item);
     },
     [queueSpeech]

@@ -46,6 +46,36 @@ describe("commentary speech policy", () => {
     expect(result.speech?.text).not.toContain("|");
   });
 
+  it("summarizes an urgent approval command without speaking the full command", () => {
+    const event: Event = {
+      ts: 1,
+      type: "stdout",
+      summary: "コマンド実行の確認待ち",
+      detail: "Would you like to run the following command?\npnpm test -- --runInBand",
+    };
+    const result = applySpeechContract(
+      { narration: "HUMANの入力を待っています。" },
+      event,
+      observed(event)
+    );
+
+    expect(result.speech?.text).toBe("要対応です：「テスト」の実行許可を求めています。");
+    expect(result.speech?.text).not.toContain("pnpm");
+    expect(result.speech?.text).not.toContain("--runInBand");
+  });
+
+  it("uses a spoken fallback when an urgent approval target cannot be extracted", () => {
+    const event: Event = {
+      ts: 1,
+      type: "stdout",
+      summary: "コマンド実行の確認待ち",
+      detail: "Would you like to run the following command?",
+    };
+    const result = applySpeechContract({}, event, observed(event));
+
+    expect(result.speech?.text).toBe("要対応です：コマンドの実行許可を求めています。");
+  });
+
   it.each([
     "git status を確認しています。",
     "pnpm test を実行しています。",

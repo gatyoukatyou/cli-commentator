@@ -13,7 +13,7 @@
         "ts": 0,
         "type": "stdout",
         "summary": "コマンド実行の確認待ち",
-        "detail": "Would you like to run the following command?",
+        "detail": "Would you like to run the following command?\npnpm test -- --runInBand",
         "priority": "urgent"
       }
     },
@@ -24,12 +24,14 @@
         "ts": 0,
         "type": "stdout",
         "summary": "コマンド実行の確認待ち",
-        "detail": "Would you like to run the following command?",
+        "detail": "Would you like to run the following command?\npnpm test -- --runInBand",
         "priority": "urgent"
       },
-      "narration": "待機段階に入り、HUMANの入力を待っています。 今見えている出力は「Would you like to run the following command?」です。",
+      "narration": "待機段階に入り、HUMANの入力を待っています。 今見えている出力は「Would you like to run the following command? pnpm test -- --runInBand」です。",
       "explanation": "目的「依存関係を準備し、対象ファイルへ必要な修正を反映する」に向けた待機段階です。",
-      "glossaryNotes": [],
+      "glossaryNotes": [
+        "補足: pnpm/npm/yarn は依存関係やスクリプト実行に使う"
+      ],
       "meta": {
         "narrationProvider": "rules",
         "explanationProvider": "rules",
@@ -38,7 +40,7 @@
       "speech": {
         "disposition": "speak",
         "reason": "human_required",
-        "text": "待機段階に入り、HUMANの入力を待っています。"
+        "text": "要対応です：「テスト」の実行許可を求めています。"
       }
     },
     {
@@ -47,7 +49,7 @@
         "ts": 1000,
         "type": "stdout",
         "summary": "コマンド実行が承認された",
-        "detail": "You approved codex to run: pnpm install",
+        "detail": "You approved codex to run: pnpm test -- --runInBand",
         "priority": "progress"
       }
     },
@@ -58,14 +60,12 @@
         "ts": 1000,
         "type": "stdout",
         "summary": "コマンド実行が承認された",
-        "detail": "You approved codex to run: pnpm install",
+        "detail": "You approved codex to run: pnpm test -- --runInBand",
         "priority": "progress"
       },
-      "narration": "未判定段階に入り、対象を扱っています。 今見えている出力は「You approved codex to run: pnpm install」です。",
+      "narration": "未判定段階に入り、対象を扱っています。 今見えている出力は「You approved codex to run: pnpm test -- --runInBand」です。",
       "explanation": "コマンドの通常出力を確認しています。",
-      "glossaryNotes": [
-        "補足: pnpm/npm/yarn は依存関係やスクリプト実行に使う"
-      ],
+      "glossaryNotes": [],
       "meta": {
         "narrationProvider": "rules",
         "explanationProvider": "rules",
@@ -162,7 +162,7 @@
       "speech": {
         "disposition": "speak",
         "reason": "human_required",
-        "text": "待機段階に入り、HUMANの入力を待っています。"
+        "text": "要対応です：質問1への回答を求めています。"
       }
     }
   ],
@@ -257,16 +257,16 @@
       "offsetMs": 0,
       "eventType": "stdout",
       "withoutContext": {
-        "narration": "今見えている出力は「Would you like to run the following command?」です。",
+        "narration": "今見えている出力は「Would you like to run the following command? pnpm test -- --runInBand」です。",
         "explanation": "コマンドの通常出力を確認しています。"
       },
       "withContext": {
-        "narration": "待機段階に入り、HUMANの入力を待っています。 今見えている出力は「Would you like to run the following command?」です。",
+        "narration": "待機段階に入り、HUMANの入力を待っています。 今見えている出力は「Would you like to run the following command? pnpm test -- --runInBand」です。",
         "explanation": "目的「依存関係を準備し、対象ファイルへ必要な修正を反映する」に向けた待機段階です。",
         "speech": {
           "disposition": "speak",
           "reason": "human_required",
-          "text": "待機段階に入り、HUMANの入力を待っています。"
+          "text": "要対応です：「テスト」の実行許可を求めています。"
         }
       }
     },
@@ -274,11 +274,11 @@
       "offsetMs": 1000,
       "eventType": "stdout",
       "withoutContext": {
-        "narration": "今見えている出力は「You approved codex to run: pnpm install」です。",
+        "narration": "今見えている出力は「You approved codex to run: pnpm test -- --runInBand」です。",
         "explanation": "コマンドの通常出力を確認しています。"
       },
       "withContext": {
-        "narration": "未判定段階に入り、対象を扱っています。 今見えている出力は「You approved codex to run: pnpm install」です。",
+        "narration": "未判定段階に入り、対象を扱っています。 今見えている出力は「You approved codex to run: pnpm test -- --runInBand」です。",
         "explanation": "コマンドの通常出力を確認しています。",
         "speech": {
           "disposition": "speak",
@@ -317,7 +317,7 @@
         "speech": {
           "disposition": "speak",
           "reason": "human_required",
-          "text": "待機段階に入り、HUMANの入力を待っています。"
+          "text": "要対応です：質問1への回答を求めています。"
         }
       }
     }
