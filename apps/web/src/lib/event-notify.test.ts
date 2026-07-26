@@ -40,6 +40,9 @@ describe("event-notify", () => {
     expect(buildUrgentEventSpeechText({ summary: "許可を待っている" })).toBe(
       "要対応です：許可を待っている。"
     );
+    expect(buildUrgentEventSpeechText({ summary: "エラー発生!!" })).toBe(
+      "要対応です：エラー発生。"
+    );
   });
 
   it("許可対象を短く要約し、コマンド全文は読み上げない", () => {

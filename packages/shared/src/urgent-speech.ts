@@ -76,6 +76,12 @@ function commandSummary(command: string): string | null {
   return "コマンド操作";
 }
 
+function withoutTrailingSentencePunctuation(text: string): string {
+  let end = text.length;
+  while (end > 0 && "。.!！".includes(text[end - 1])) end -= 1;
+  return text.slice(0, end);
+}
+
 export function buildUrgentSpeechText(event: UrgentEvent): string {
   const detail = event.detail ?? "";
   if (event.summary === "コマンド実行の確認待ち" || APPROVAL_PROMPT_RE.test(detail)) {
@@ -93,5 +99,5 @@ export function buildUrgentSpeechText(event: UrgentEvent): string {
       : "要対応です：質問への回答を求めています。";
   }
 
-  return `要対応です：${event.summary.replace(/[。.!！]+$/u, "")}。`;
+  return `要対応です：${withoutTrailingSentencePunctuation(event.summary)}。`;
 }
