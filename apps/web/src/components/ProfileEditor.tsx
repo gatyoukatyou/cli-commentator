@@ -42,8 +42,8 @@ const INPUT_MODES: { value: InputMode; label: string }[] = [
 ];
 
 const LLM_PROVIDERS: { value: ProviderName | ""; label: string }[] = [
-  { value: "", label: "（未設定）" },
-  { value: "disabled", label: "無効" },
+  { value: "", label: "（既定の設定に従う）" },
+  { value: "disabled", label: "ルール版のみ（LLMを使わない）" },
   { value: "openai", label: "OpenAI" },
   { value: "anthropic", label: "Anthropic" },
   { value: "gemini", label: "Gemini" },
