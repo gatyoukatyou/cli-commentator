@@ -7,13 +7,18 @@ LLMプロバイダーを差し替え可能にするAdapter層。
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `LLM_PROVIDER` | disabled | 使用するプロバイダー (disabled/mock/openai/anthropic/gemini) |
+| `LLM_PROVIDER` | disabled | 使用するプロバイダー (disabled/mock/openai/groq/local/anthropic/gemini) |
 | `MOCK_LLM_MODE` | (empty) | `error` でmockがエラーを投げる（テスト用） |
+| `GOOGLE_API_KEY` | (required) | Gemini APIキー（`x-goog-api-key` ヘッダーで送信） |
+| `GEMINI_MODEL` | gemini-3.5-flash | Geminiの使用モデル |
 
 ## 現状
-- **統合はまだ行っていない**
-- factory + mock + disabled のみ実装
-- openai/anthropic/gemini は未実装（呼ぶとエラー）
+- factory と実況生成への統合は完了
+- disabled / mock / OpenAI / Groq / local / Anthropic / Gemini を実装済み
+- LLM呼び出しが失敗した場合は、文脈付きルールベース実況へフォールバック
+- Geminiの既定モデルは、短文実況のレイテンシと出力完結性を優先して
+  `thinkingConfig.thinkingBudget=0` を送信する
+- 旧カスタムモデルとの互換性のため、思考無効化設定は対応モデルだけに送信する
 
 ## ファイル構成
 
@@ -24,8 +29,11 @@ apps/server/src/llm/
 ├── factory.ts         # createLLMAdapter(env)
 ├── index.ts           # re-export
 └── providers/
-    ├── mock.ts        # 決定論的mock（テスト用）
-    └── disabled.ts    # 未設定時の明示的エラー
+    ├── mock.ts          # 決定論的mock（テスト用）
+    ├── disabled.ts      # 未設定時の明示的エラー
+    ├── openai_compat.ts # OpenAI / Groq / local
+    ├── anthropic.ts     # Anthropic
+    └── gemini.ts        # Gemini
 ```
 
 ## 使い方
@@ -36,15 +44,16 @@ import { createLLMAdapter } from "./llm/index.js";
 const adapter = createLLMAdapter();
 // LLM_PROVIDER 未設定 → disabledAdapter (呼ぶとエラー)
 // LLM_PROVIDER=mock → mockAdapter (決定論的レスポンス)
+// LLM_PROVIDER=gemini → createGeminiAdapter (GOOGLE_API_KEY が必要)
 
 const response = await adapter.generateText({
   messages: [{ role: "user", content: "Hello" }],
 });
 ```
 
-## 将来の統合ポイント
-`apps/server/src/styles/index.ts` の `comment()` 関数で、
-ルールベース実況の代わりにLLMを呼ぶ分岐を追加予定。
+## 統合ポイント
+`apps/server/src/commentary/orchestrator.ts` がLLM実況を呼び出し、失敗時は
+ルールベース実況へフォールバックする。
 
 ## テスト
 

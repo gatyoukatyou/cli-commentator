@@ -2,7 +2,7 @@ import type { LLMAdapter } from "../adapter.js";
 import type { GenerateTextRequest, GenerateTextResponse } from "../types.js";
 import { CommentError } from "../../errors.js";
 
-const DEFAULT_MODEL = "gemini-2.0-flash";
+export const DEFAULT_GEMINI_MODEL = "gemini-3.5-flash";
 const API_BASE = "https://generativelanguage.googleapis.com/v1beta/models";
 
 interface GeminiContent {
@@ -15,6 +15,9 @@ interface GeminiRequest {
   generationConfig?: {
     temperature?: number;
     maxOutputTokens?: number;
+    thinkingConfig?: {
+      thinkingBudget: number;
+    };
   };
 }
 
@@ -40,7 +43,7 @@ interface GeminiResponse {
  *
  * Environment variables:
  * - GOOGLE_API_KEY (required)
- * - GEMINI_MODEL (optional, defaults to gemini-2.0-flash)
+ * - GEMINI_MODEL (optional, defaults to gemini-3.5-flash)
  */
 export function createGeminiAdapter(
   env: Record<string, string | undefined> = process.env
@@ -51,7 +54,7 @@ export function createGeminiAdapter(
     throw new Error("GOOGLE_API_KEY is required for Gemini provider");
   }
 
-  const model = env.GEMINI_MODEL || DEFAULT_MODEL;
+  const model = env.GEMINI_MODEL || DEFAULT_GEMINI_MODEL;
 
   return {
     name: "gemini",
@@ -61,7 +64,7 @@ export function createGeminiAdapter(
         throw new CommentError("comment_aborted");
       }
 
-      const endpoint = `${API_BASE}/${model}:generateContent?key=${apiKey}`;
+      const endpoint = `${API_BASE}/${model}:generateContent`;
 
       // Convert OpenAI-style messages to Gemini format
       const contents: GeminiContent[] = req.messages.map((m) => ({
@@ -74,6 +77,9 @@ export function createGeminiAdapter(
         generationConfig: {
           temperature: req.temperature ?? 0.7,
           maxOutputTokens: req.maxTokens ?? 256,
+          ...(supportsZeroThinkingBudget(model)
+            ? { thinkingConfig: { thinkingBudget: 0 } }
+            : {}),
         },
       };
 
@@ -83,6 +89,7 @@ export function createGeminiAdapter(
           method: "POST",
           headers: {
             "Content-Type": "application/json",
+            "x-goog-api-key": apiKey,
           },
           body: JSON.stringify(body),
           signal: req.signal,
@@ -138,4 +145,10 @@ export function createGeminiAdapter(
       };
     },
   };
+}
+
+function supportsZeroThinkingBudget(model: string): boolean {
+  return /^gemini-(?:2\.5-(?:flash|flash-lite)|3\.5-(?:flash|flash-lite))(?:$|-)/u.test(
+    model
+  );
 }

@@ -57,7 +57,7 @@ describe("createGeminiAdapter", () => {
     });
   });
 
-  it("uses default model gemini-2.0-flash", async () => {
+  it("uses default model gemini-3.5-flash", async () => {
     globalThis.fetch = vi.fn().mockResolvedValue({
       ok: true,
       json: () =>
@@ -72,7 +72,7 @@ describe("createGeminiAdapter", () => {
     });
 
     expect(fetch).toHaveBeenCalledWith(
-      expect.stringContaining("gemini-2.0-flash:generateContent"),
+      expect.stringContaining("gemini-3.5-flash:generateContent"),
       expect.anything()
     );
   });
@@ -100,7 +100,7 @@ describe("createGeminiAdapter", () => {
     );
   });
 
-  it("includes API key in URL query parameter", async () => {
+  it("sends API key in x-goog-api-key header", async () => {
     globalThis.fetch = vi.fn().mockResolvedValue({
       ok: true,
       json: () =>
@@ -115,9 +115,58 @@ describe("createGeminiAdapter", () => {
     });
 
     expect(fetch).toHaveBeenCalledWith(
-      expect.stringContaining("key=my-api-key"),
-      expect.anything()
+      expect.not.stringContaining("key=my-api-key"),
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          "x-goog-api-key": "my-api-key",
+        }),
+      })
     );
+  });
+
+  it("disables thinking for the default short-commentary model", async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () =>
+        Promise.resolve({
+          candidates: [{ content: { parts: [{ text: "OK" }] } }],
+        }),
+    });
+
+    const adapter = createGeminiAdapter({ GOOGLE_API_KEY: "test-key" });
+    await adapter.generateText({
+      messages: [{ role: "user", content: "Hi" }],
+    });
+
+    const fetchCall = vi.mocked(fetch).mock.calls[0];
+    const body = JSON.parse(fetchCall[1]?.body as string);
+
+    expect(body.generationConfig.thinkingConfig).toEqual({
+      thinkingBudget: 0,
+    });
+  });
+
+  it("does not send thinkingConfig to legacy custom models", async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () =>
+        Promise.resolve({
+          candidates: [{ content: { parts: [{ text: "OK" }] } }],
+        }),
+    });
+
+    const adapter = createGeminiAdapter({
+      GOOGLE_API_KEY: "test-key",
+      GEMINI_MODEL: "gemini-1.5-pro",
+    });
+    await adapter.generateText({
+      messages: [{ role: "user", content: "Hi" }],
+    });
+
+    const fetchCall = vi.mocked(fetch).mock.calls[0];
+    const body = JSON.parse(fetchCall[1]?.body as string);
+
+    expect(body.generationConfig.thinkingConfig).toBeUndefined();
   });
 
   it("converts messages to Gemini format", async () => {
