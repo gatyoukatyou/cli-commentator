@@ -12,7 +12,7 @@ exports[`Phase B evaluation replay > replays the minimal sanitized session deter
         "speech": {
           "disposition": "speak",
           "reason": "new_task",
-          "text": "調査段階に入って、「pnpm-workspace.yaml」を扱ってるで。",
+          "text": "調査で「…-workspace.yaml」を確認しています。",
         },
       },
       "withoutContext": {
@@ -30,7 +30,7 @@ exports[`Phase B evaluation replay > replays the minimal sanitized session deter
         "speech": {
           "disposition": "speak",
           "reason": "new_target",
-          "text": "今の対象は「apps/server/src/commentary/orchestrator.ts」や。",
+          "text": "「orchestrator.ts」を確認しています。",
         },
       },
       "withoutContext": {
@@ -66,7 +66,7 @@ exports[`Phase B evaluation replay > replays the minimal sanitized session deter
         "speech": {
           "disposition": "speak",
           "reason": "new_target",
-          "text": "今の対象は「apps/server/src/extract.ts」や。",
+          "text": "「extract.ts」を確認しています。",
         },
       },
       "withoutContext": {
@@ -212,7 +212,7 @@ exports[`Phase B evaluation replay > replays the minimal sanitized session deter
       "speech": {
         "disposition": "speak",
         "reason": "new_task",
-        "text": "調査段階に入って、「pnpm-workspace.yaml」を扱ってるで。",
+        "text": "調査で「…-workspace.yaml」を確認しています。",
       },
       "ts": 400,
     },
@@ -246,7 +246,7 @@ exports[`Phase B evaluation replay > replays the minimal sanitized session deter
       "speech": {
         "disposition": "speak",
         "reason": "new_target",
-        "text": "今の対象は「apps/server/src/commentary/orchestrator.ts」や。",
+        "text": "「orchestrator.ts」を確認しています。",
       },
       "ts": 3218,
     },
@@ -326,7 +326,7 @@ exports[`Phase B evaluation replay > replays the minimal sanitized session deter
       "speech": {
         "disposition": "speak",
         "reason": "new_target",
-        "text": "今の対象は「apps/server/src/extract.ts」や。",
+        "text": "「extract.ts」を確認しています。",
       },
       "ts": 10573,
     },

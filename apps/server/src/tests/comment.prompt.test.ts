@@ -77,6 +77,15 @@ describe("commentary prompt fixtures", () => {
     expect(prompts[0]).not.toContain("関西弁");
     expect(prompts[0]).not.toContain("ずんだもん");
   });
+
+  it("gives narration an explicit Japanese character budget", () => {
+    const prompt = buildNarrationPrompt(
+      { ts: 1, type: "read", summary: "設定を確認" },
+      "standard"
+    );
+
+    expect(prompt).toContain("日本語25〜30文字を目安");
+  });
 });
 
 describe("rule-based supervision layer", () => {

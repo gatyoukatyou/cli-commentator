@@ -6,6 +6,7 @@ import type { CommentaryPayload, Event } from "../types.js";
 const RAW_COMMAND_RE =
   /(?:^[⏺•]\s*|\b(?:Bash|Read|Grep|Glob|Update|Write)\(|\bapply_patch\b|\b(?:rg|grep|nl|sed|git|gh|pnpm|npm|yarn|cat|find|ls|cd|pwd|node|tsx|cargo|docker|curl)\b(?:\s+|$)|\|)/iu;
 const MAX_SPEECH_LENGTH = 100;
+const MAX_PROGRESS_SPEECH_LENGTH = 30;
 
 export function hasRawCommandText(text?: string): boolean {
   return Boolean(text && RAW_COMMAND_RE.test(text));
@@ -14,6 +15,37 @@ export function hasRawCommandText(text?: string): boolean {
 function firstSentence(text: string): string {
   const compact = text.replace(/\s+/g, " ").trim();
   return compact.match(/^.+?[。！？!?](?:[」』”"])?/u)?.[0]?.trim() ?? compact;
+}
+
+function shortenProgressSpeech(text: string): string {
+  if (text.length <= MAX_PROGRESS_SPEECH_LENGTH) return text;
+
+  const quotedTarget = text.match(/「([^」]+)」/u)?.[1];
+  if (quotedTarget) {
+    const targetName = quotedTarget.replace(/\\/g, "/").split("/").at(-1) ?? quotedTarget;
+    const phase = text.match(/^(調査|編集|検証|公開|待機)段階/u)?.[1];
+    const prefix = phase ? `${phase}で` : "";
+    const frame = `${prefix}「」を確認しています。`;
+    const targetLimit = MAX_PROGRESS_SPEECH_LENGTH - frame.length;
+    const compactTarget = targetName.length <= targetLimit
+      ? targetName
+      : `…${targetName.slice(-(targetLimit - 1))}`;
+    return `${prefix}「${compactTarget}」を確認しています。`;
+  }
+
+  const contentLimit = MAX_PROGRESS_SPEECH_LENGTH - 1;
+  const prefix = text.slice(0, contentLimit);
+  const boundary = Math.max(
+    prefix.lastIndexOf("、"),
+    prefix.lastIndexOf(" "),
+    prefix.lastIndexOf("・"),
+    prefix.lastIndexOf("："),
+    prefix.lastIndexOf(":")
+  );
+  const shortened = boundary >= Math.floor(contentLimit * 0.6)
+    ? prefix.slice(0, boundary)
+    : prefix;
+  return `${shortened.trimEnd()}。`;
 }
 
 function safeFallback(event: Event, context: SessionContextSnapshot): string {
@@ -62,7 +94,7 @@ function speechSentence(
   if (!candidate || candidate.length > MAX_SPEECH_LENGTH || hasRawCommandText(candidate)) {
     return safeFallback(event, context);
   }
-  return candidate;
+  return getEventPriority(event) === "progress" ? shortenProgressSpeech(candidate) : candidate;
 }
 
 export function applySpeechContract(

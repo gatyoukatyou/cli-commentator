@@ -28,6 +28,63 @@ describe("commentary speech policy", () => {
     });
   });
 
+  it("shortens progress speech without replacing its specific content", () => {
+    const event: Event = {
+      ts: 1,
+      type: "read",
+      summary: "設定ファイルを確認",
+      detail: "apps/server/src/commentary/speech-policy.ts",
+    };
+    const narration = "読み上げポリシーの設定ファイルを確認し、進捗の文字数制限を調べています。";
+    const result = applySpeechContract({ narration }, event, observed(event));
+
+    expect(result.narration).toBe(narration);
+    expect(result.speech?.text?.length).toBeLessThanOrEqual(30);
+    expect(result.speech?.text).toBe("読み上げポリシーの設定ファイルを確認し。");
+    expect(result.speech?.text).not.toBe("対象ファイルを確認しています。");
+  });
+
+  it("does not apply the progress length limit to urgent speech", () => {
+    const event: Event = {
+      ts: 1,
+      type: "error",
+      summary: "承認が必要",
+      detail: "HUMANの承認を待っています",
+    };
+    const narration = "公開操作を続けるにはHUMANによる内容確認と明示的な承認が必要です。";
+    const result = applySpeechContract({ narration }, event, observed(event));
+
+    expect(result.speech?.text).toBe(narration);
+    expect(result.speech?.text?.length).toBeGreaterThan(30);
+  });
+
+  it("keeps a quoted target intact when shortening progress speech", () => {
+    const event: Event = {
+      ts: 1,
+      type: "read",
+      summary: "対象を確認",
+      detail: "apps/server/src/commentary/orchestrator.ts",
+    };
+    const narration = "今の対象は「apps/server/src/commentary/orchestrator.ts」です。";
+    const result = applySpeechContract({ narration }, event, observed(event));
+
+    expect(result.speech?.text).toBe("「orchestrator.ts」を確認しています。");
+    expect(result.speech?.text?.length).toBeLessThanOrEqual(30);
+  });
+
+  it("keeps the phase when shortening a quoted progress target", () => {
+    const event: Event = {
+      ts: 1,
+      type: "test",
+      summary: "検証",
+      detail: "package.json",
+    };
+    const narration = "検証段階に入り、「apps/server/package.json」を扱っています。";
+    const result = applySpeechContract({ narration }, event, observed(event));
+
+    expect(result.speech?.text).toBe("検証で「package.json」を確認しています。");
+  });
+
   it("falls back to a safe sentence instead of speaking a raw command", () => {
     const event: Event = {
       ts: 1,

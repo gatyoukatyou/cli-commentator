@@ -38,7 +38,7 @@
       "speech": {
         "disposition": "speak",
         "reason": "new_task",
-        "text": "調査段階に入り、「/Users/demo/project/package.json」を扱っています。"
+        "text": "調査で「package.json」を確認しています。"
       }
     },
     {
@@ -74,7 +74,7 @@
       "speech": {
         "disposition": "speak",
         "reason": "phase_change",
-        "text": "検証段階に入り、「/Users/demo/project/package.json」を扱っています。"
+        "text": "検証で「package.json」を確認しています。"
       }
     },
     {
@@ -266,7 +266,7 @@
         "speech": {
           "disposition": "speak",
           "reason": "new_task",
-          "text": "調査段階に入り、「/Users/demo/project/package.json」を扱っています。"
+          "text": "調査で「package.json」を確認しています。"
         }
       }
     },
@@ -283,7 +283,7 @@
         "speech": {
           "disposition": "speak",
           "reason": "phase_change",
-          "text": "検証段階に入り、「/Users/demo/project/package.json」を扱っています。"
+          "text": "検証で「package.json」を確認しています。"
         }
       }
     },
