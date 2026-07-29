@@ -1,0 +1,14 @@
+{
+  "noiseChunks": [
+    "\u001b[35m35\u001b[0m 17M o66",
+    "35 17M",
+    "(B 35 17M o66",
+    "Sublimating… 46s"
+  ],
+  "meaningfulChunks": [
+    "apps/server/src/extract.ts\t42",
+    "handoff/status-2026-07-26.md の内容を確認しています",
+    "F1 F2 F3 の実行結果: thinkingBudget=0",
+    "着手待ち3件はすべてクローズ済み"
+  ]
+}

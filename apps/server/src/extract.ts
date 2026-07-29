@@ -1,8 +1,20 @@
 import type { Event } from "./types.js";
 import { rulesForLine } from "./rulesets/index.js";
-import { isCodexProgressNoise } from "./progress-noise.js";
+import { isCodexProgressNoise, isTerminalRenderingNoise } from "./progress-noise.js";
 import { extractClaudeSupervisionEvents } from "./rulesets/claude-supervision.js";
 import { isFileListExecution, isSearchExecution } from "./command-analysis.js";
+
+// Legacy X10 mouse reports include three coordinate bytes after CSI M. Strip
+// them before the generic CSI matcher consumes only the introducer.
+const LEGACY_MOUSE_REPORT_RE =
+  // biome-ignore lint/suspicious/noControlCharactersInRegex: terminal mouse reports contain ESC.
+  /\u001B\[M[\u0020-\u00ff]{3}/g;
+
+// Character-set designation sequences such as ESC ( B otherwise leave "(B"
+// behind after ordinary ANSI stripping.
+const CHARSET_DESIGNATION_RE =
+  // biome-ignore lint/suspicious/noControlCharactersInRegex: ANSI escapes are control characters by definition.
+  /\u001B[()*+][0-2A-Z]/g;
 
 // Remove ANSI/VT control sequences so TUI apps like Claude Code still match rules.
 const ANSI_ESCAPE_RE =
@@ -10,7 +22,14 @@ const ANSI_ESCAPE_RE =
   /\u001B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~]|\][^\u0007]*(?:\u0007|\u001B\\))/g;
 
 function normalizeLine(line: string): string {
-  return line.replace(ANSI_ESCAPE_RE, "").trim();
+  return line
+    .replace(LEGACY_MOUSE_REPORT_RE, "")
+    .replace(CHARSET_DESIGNATION_RE, "")
+    .replace(ANSI_ESCAPE_RE, "")
+    .replace(/\t/g, " ")
+    // Tab (0x09) was normalized above; remove the remaining C0 controls, including LF.
+    .replace(/[\u0000-\u0008\u000a-\u001f\u007f]/g, "")
+    .trim();
 }
 
 function extractJsonObject(text: string): string | null {
@@ -375,6 +394,9 @@ function preprocessLine(rawLine: string, sourceEnv?: string): string | null {
   if (!normalized) return null;
 
   const source = (sourceEnv ?? "").trim().toLowerCase();
+  if (source !== "generic" && isTerminalRenderingNoise(normalized)) {
+    return null;
+  }
   if (source === "codex" && isCodexProgressNoise(normalized)) {
     return null;
   }

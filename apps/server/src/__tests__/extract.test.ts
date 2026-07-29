@@ -68,6 +68,17 @@ describe("extractEvents fixtures", () => {
     expect(events).toEqual([]);
   });
 
+  it("keeps short numeric output from an explicit generic log source", () => {
+    expect(extractEvents("35", "generic")).toEqual([
+      {
+        ts: new Date("2025-01-01T00:00:00.000Z").getTime(),
+        type: "stdout",
+        summary: "ログ更新",
+        detail: "35",
+      },
+    ]);
+  });
+
   it("extracts a Codex question as waiting for a HUMAN response", () => {
     expect(extractEvents("Question 1/1 (1 unanswered)", "codex")).toEqual([
       {
