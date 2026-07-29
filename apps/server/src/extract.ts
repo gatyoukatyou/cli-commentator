@@ -26,7 +26,8 @@ function normalizeLine(line: string): string {
     .replace(LEGACY_MOUSE_REPORT_RE, "")
     .replace(CHARSET_DESIGNATION_RE, "")
     .replace(ANSI_ESCAPE_RE, "")
-    .replace(/[\u0000-\u001f\u007f]/g, "")
+    .replace(/\t/g, " ")
+    .replace(/[\u0000-\u0008\u000b-\u001f\u007f]/g, "")
     .trim();
 }
 

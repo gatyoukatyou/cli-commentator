@@ -82,4 +82,12 @@ describe("Claude TUI supervision detection", () => {
       expect(extractEvents(chunk, "claude"), chunk).not.toEqual([]);
     }
   });
+
+  it("preserves a separator when normalizing tab-delimited output", () => {
+    expect(extractEvents("apps/server/src/extract.ts\t42", "claude")).toEqual([
+      expect.objectContaining({
+        detail: "apps/server/src/extract.ts 42",
+      }),
+    ]);
+  });
 });

@@ -3,11 +3,14 @@ export function isTerminalRenderingNoise(text: string): boolean {
   if (!compact) return true;
 
   return (
+    /^(?:\(B|\d{1,3}[A-Z]?|[A-Za-z]\d{2,3})(?:\s+(?:\(B|\d{1,3}[A-Z]?|[A-Za-z]\d{2,3}))+$/u.test(
+      text.trim()
+    ) ||
     /^\([A-Z0-2]$/u.test(compact) ||
     /^\d{1,3}[A-Z]?$/u.test(compact) ||
     /^[A-Za-z]\d{2,3}$/u.test(compact) ||
     /^[.•·]+\d*$/u.test(compact) ||
-    /^[A-Za-z][A-Za-z ]{1,24}(?:…|\.{3})\d+$/u.test(compact) ||
+    /^[A-Za-z][A-Za-z]{1,24}(?:…|\.{3})\d+s?$/u.test(compact) ||
     !/[\p{L}\p{N}]/u.test(compact)
   );
 }
