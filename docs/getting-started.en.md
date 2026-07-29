@@ -24,6 +24,29 @@ Development flow (`pnpm dev*` / `tauri:build`) still requires local Node/pnpm.
 pnpm install
 ```
 
+## Local Readiness Check (verify the checkout works)
+
+Run this first after a fresh clone, or when returning to the repository after a break.
+
+```bash
+pnpm check:local-readiness
+```
+
+It runs sidecar preparation, web lint and build, server tests and typecheck, and the desktop (Rust) tests in order, then prints a PASS / FAIL / SKIP summary.
+
+- Every step runs even if an earlier one fails, so you see the full picture in one pass
+- Failed steps print a recovery hint and the command to retry
+- Desktop tests report `SKIP` (not a failure) when the Rust toolchain is unavailable
+- The exit code is `1` if any step reports `FAIL`
+
+To check only web and server, skip the Tauri/Rust steps:
+
+```bash
+pnpm check:local-readiness --skip-desktop
+```
+
+Use `--list` to print the commands without running them.
+
 ## Run in Desktop Managed Mode (Tauri + web)
 
 This is the primary path for checking the app locally as a desktop app.

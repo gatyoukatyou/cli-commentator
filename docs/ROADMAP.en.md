@@ -153,6 +153,7 @@ Supervision and entertaining commentary share one event-detection result; only t
 - Repeated-error detection promotes the third identical error within two minutes to an urgent “same error is repeating” event
 - Because we are not issuing an Apple Developer ID certificate for now, `#138` is treated as Deferred. Signed distribution readiness remains important, but we will return to it when certificate issuance and external distribution preparation resume
 - Keep local desktop app polish / local readiness as the launch path for real supervision-event checks
+- Added `pnpm check:local-readiness` as the local verification entrypoint: sidecar preparation → web lint/build → server test/typecheck → desktop cargo test, reported as a PASS/FAIL/SKIP summary
 
 **Next**
 - Improve Japanese explanations and summarization, with separate serious and play-by-play presentation layers (Phase B). Confirm priorities with HUMAN/Gino before implementation

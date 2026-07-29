@@ -132,6 +132,9 @@ jobs:
       - name: Desktop sidecar runtime tests
         run: pnpm test:desktop-sidecar-runtime
 
+      - name: Local readiness entrypoint tests
+        run: pnpm test:local-readiness
+
   desktop_check:
     runs-on: windows-latest
 
