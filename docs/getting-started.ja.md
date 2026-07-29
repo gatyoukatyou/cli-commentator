@@ -24,6 +24,29 @@ CLI Commentator は CLI 出力（PTY またはログファイル tail）を取�
 pnpm install
 ```
 
+## ローカル検証（動く状態かをまとめて確認する）
+
+clone 直後や、しばらくぶりに触るときは、まずこれを実行します。
+
+```bash
+pnpm check:local-readiness
+```
+
+sidecar の準備、Web UI の lint とビルド、サーバーのテストと型チェック、デスクトップ（Rust）のテストを順に実行し、最後に PASS / FAIL / SKIP の一覧を表示します。
+
+- 途中で失敗しても最後まで実行します。「何がどれだけ壊れているか」を1回で確認するためです
+- 失敗したステップには、直し方の入口と再実行コマンドが表示されます
+- Rust ツールチェーンが無い環境では、デスクトップのテストは `SKIP` になります（失敗にはなりません）
+- 1件でも `FAIL` があれば終了コードは `1` です
+
+Web とサーバーだけ確認したい場合は、Tauri/Rust 関連を飛ばせます。
+
+```bash
+pnpm check:local-readiness --skip-desktop
+```
+
+実行されるコマンドを確認するだけなら `--list` を使います。
+
 ## Desktop managed モードで起動（Tauri + web）
 
 ローカルでデスクトップアプリとして確認する場合の主導線です。
