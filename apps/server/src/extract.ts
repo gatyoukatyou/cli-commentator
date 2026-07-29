@@ -27,7 +27,8 @@ function normalizeLine(line: string): string {
     .replace(CHARSET_DESIGNATION_RE, "")
     .replace(ANSI_ESCAPE_RE, "")
     .replace(/\t/g, " ")
-    .replace(/[\u0000-\u0008\u000b-\u001f\u007f]/g, "")
+    // Tab (0x09) was normalized above; remove the remaining C0 controls, including LF.
+    .replace(/[\u0000-\u0008\u000a-\u001f\u007f]/g, "")
     .trim();
 }
 
