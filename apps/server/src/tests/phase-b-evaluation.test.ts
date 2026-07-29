@@ -181,20 +181,16 @@ describe("Phase B evaluation replay", () => {
     expect(artifacts.blindSpeech[0]?.speechText).toBe(
       result.commentaryComparisons[0].withContext.speech?.text
     );
-    expect(artifacts.blindSpeech[0]?.speechText).toContain(
-      SESSION_PHASE_LABELS.waiting
-    );
+    expect(artifacts.blindSpeech[0]?.speechText).toContain("テスト");
     expect(artifacts.blindSpeech[1]?.speechText).toContain(
       SESSION_PHASE_LABELS.editing
     );
-    expect(artifacts.blindSpeech[2]?.speechText).toContain(
-      SESSION_PHASE_LABELS.waiting
-    );
+    expect(artifacts.blindSpeech[2]?.speechText).toContain("質問1");
     expect(JSON.stringify(artifacts.blindSpeech)).not.toMatch(
       /narration|explanation|humanRequired|phase|provider|withoutContext|withContext/u
     );
     expect(result.commentaryComparisons[0].withContext.speech?.text).toContain(
-      SESSION_PHASE_LABELS.waiting
+      "実行許可"
     );
   });
 

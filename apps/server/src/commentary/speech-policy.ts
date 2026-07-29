@@ -1,4 +1,6 @@
 import { SESSION_PHASE_LABELS, type SessionContextSnapshot } from "../session-context.js";
+import { buildUrgentSpeechText } from "@cli-commentator/shared/urgent-speech";
+import { getEventPriority } from "../event-priority.js";
 import type { CommentaryPayload, Event } from "../types.js";
 
 const RAW_COMMAND_RE =
@@ -50,6 +52,9 @@ function speechSentence(
   event: Event,
   context: SessionContextSnapshot
 ): string {
+  if (getEventPriority(event) === "urgent") {
+    return buildUrgentSpeechText(event);
+  }
   if (event.type === "done") {
     return safeFallback(event, context);
   }

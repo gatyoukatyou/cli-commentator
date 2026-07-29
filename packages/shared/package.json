@@ -5,6 +5,10 @@
   "type": "module",
   "types": "./src/index.ts",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./urgent-speech": {
+      "types": "./src/urgent-speech.d.ts",
+      "default": "./src/urgent-speech.js"
+    }
   }
 }

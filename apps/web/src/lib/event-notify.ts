@@ -1,4 +1,5 @@
 import type { Event, EventType } from "../types";
+import { buildUrgentSpeechText } from "@cli-commentator/shared/urgent-speech";
 
 /**
  * 即時イベント（kind: "event"）の要対応表示・定型読み上げと、
@@ -23,13 +24,23 @@ export function toAttentionNotice(ev: Event): AttentionNotice {
 }
 
 /** 同一イベントの即時TTSとcommentary TTSを相関づけるキー */
-export function eventSpeechKey(ts: number, eventType: EventType): string {
-  return `${ts}:${eventType}`;
+export function eventSpeechKey(
+  event: Pick<Event, "ts" | "type" | "summary" | "detail">
+): string {
+  const content = `${event.summary}\u0000${event.detail ?? ""}`;
+  let hash = 2166136261;
+  for (let index = 0; index < content.length; index += 1) {
+    hash ^= content.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return `${event.ts}:${event.type}:${(hash >>> 0).toString(36)}`;
 }
 
 /** urgentイベントの定型読み上げ文 */
-export function buildUrgentEventSpeechText(ev: Pick<Event, "summary">): string {
-  return `要対応です。${ev.summary}。`;
+export function buildUrgentEventSpeechText(
+  ev: Pick<Event, "summary" | "detail">
+): string {
+  return buildUrgentSpeechText(ev);
 }
 
 export type SpokenEventRegistry = {

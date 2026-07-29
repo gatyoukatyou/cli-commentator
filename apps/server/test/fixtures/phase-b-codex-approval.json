@@ -12,8 +12,8 @@
   },
   "commentaryIntervalMs": 2000,
   "lines": [
-    { "offsetMs": 0, "line": "Would you like to run the following command?" },
-    { "offsetMs": 1000, "line": "You approved codex to run: pnpm install" },
+    { "offsetMs": 0, "line": "Would you like to run the following command?\npnpm test -- --runInBand" },
+    { "offsetMs": 1000, "line": "You approved codex to run: pnpm test -- --runInBand" },
     { "offsetMs": 3500, "line": "apply_patch" },
     { "offsetMs": 4000, "line": "⏺ Read(/Users/demo/project/src/index.ts)" },
     { "offsetMs": 4500, "line": "⏺ Bash(pnpm install)" },

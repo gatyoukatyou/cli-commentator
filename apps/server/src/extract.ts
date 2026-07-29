@@ -454,8 +454,10 @@ export function extractEvents(chunk: string, sourceEnv: string | undefined = pro
     if (supervisionEvents.length > 0) return supervisionEvents;
   }
 
+  const rawLines = chunk.split(/\r?\n/);
   const events: Event[] = [];
-  for (const rawLine of chunk.split(/\r?\n/)) {
+  for (let index = 0; index < rawLines.length; index += 1) {
+    const rawLine = rawLines[index];
     const sourceLine = normalizeLine(rawLine);
     if (!sourceLine) continue;
 
@@ -464,8 +466,28 @@ export function extractEvents(chunk: string, sourceEnv: string | undefined = pro
 
     const rules = rulesForLine(sourceLine, sourceEnv);
     const hit = rules.find((rule) => rule.match ? rule.match(line) : rule.re.test(line));
-    if (hit) events.push({ ts, type: hit.type, summary: hit.summary, detail: line });
-    else events.push({ ts, type: "stdout", summary: "ログ更新", detail: line });
+    if (hit) {
+      let detail = line;
+      if (hit.id === "codex.approval.ask") {
+        for (
+          let commandIndex = index + 1;
+          commandIndex < Math.min(rawLines.length, index + 6);
+          commandIndex += 1
+        ) {
+          const command = normalizeLine(rawLines[commandIndex])
+            .replace(/^(?:[$›❯>]\s*)+/u, "")
+            .trim();
+          if (
+            /^(?:(?:sudo|command|env)\s+)?(?:[A-Za-z_][A-Za-z0-9_]*=\S+\s+)*(?:pnpm|npm|yarn|bun|npx|node|git|gh|cargo|docker|make|go|python\d*|deno|rm|mv|cp|mkdir|chmod|curl)\b/iu.test(command)
+          ) {
+            detail = `${line}\n${command}`;
+            index = commandIndex;
+            break;
+          }
+        }
+      }
+      events.push({ ts, type: hit.type, summary: hit.summary, detail });
+    } else events.push({ ts, type: "stdout", summary: "ログ更新", detail: line });
   }
   return events;
 }
