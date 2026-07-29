@@ -23,6 +23,7 @@ import {
   type LaunchDraft,
   type LaunchPresetId,
 } from "./lib/session-launcher";
+import type { DesktopServerState } from "./lib/recovery";
 import { copyWithFallback, getTauriCore, type ServerStatusDetail } from "./lib/tauri";
 import { normalizeSuggestion } from "./lib/text";
 import type {
@@ -68,6 +69,7 @@ export default function App() {
   const [launchDraft, setLaunchDraft] = useState<LaunchDraft>(() => buildLaunchDraft("claude", "kansai"));
   const [currentSessionLabel, setCurrentSessionLabel] = useState("bash");
   const [tauriServerPort, setTauriServerPort] = useState<number | null>(null);
+  const [desktopServerState, setDesktopServerState] = useState<DesktopServerState | null>(null);
   const [skin, setSkin] = useState<Skin>(() => {
     const saved = localStorage.getItem("cli-commentator-skin");
     return isSkin(saved) ? saved : "standard";
@@ -157,6 +159,7 @@ export default function App() {
 
   const handleDesktopStatusChange = useCallback((status: ServerStatusDetail | null) => {
     setTauriServerPort(status?.port ?? null);
+    setDesktopServerState(status?.state ?? null);
   }, []);
 
   const wsUrl = useMemo(() => {
@@ -347,7 +350,13 @@ export default function App() {
         copyState={copyState}
         onCopySuggestion={handleCopySuggestion}
       />
-      <AppHeader skin={skin} connectionStatus={connectionStatus} onSkinChange={setSkin} />
+      <AppHeader
+        skin={skin}
+        connectionStatus={connectionStatus}
+        isDesktopRuntime={isTauriRuntime}
+        desktopServerState={desktopServerState}
+        onSkinChange={setSkin}
+      />
       <div className="workspace-layout">
         <WorkspaceLeft
           launchDraft={launchDraft}

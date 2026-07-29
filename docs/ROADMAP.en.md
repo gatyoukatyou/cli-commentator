@@ -154,6 +154,7 @@ Supervision and entertaining commentary share one event-detection result; only t
 - Because we are not issuing an Apple Developer ID certificate for now, `#138` is treated as Deferred. Signed distribution readiness remains important, but we will return to it when certificate issuance and external distribution preparation resume
 - Keep local desktop app polish / local readiness as the launch path for real supervision-event checks
 - Added `pnpm check:local-readiness` as the local verification entrypoint: sidecar preparation → web lint/build → server test/typecheck → desktop cargo test, reported as a PASS/FAIL/SKIP summary
+- Disconnected-state header text now varies by runtime (standalone web vs desktop managed) and desktop server state: standalone web names the start command, while desktop managed points to Start, the recovery card, or a port mismatch
 
 **Next**
 - Improve Japanese explanations and summarization, with separate serious and play-by-play presentation layers (Phase B). Confirm priorities with HUMAN/Gino before implementation

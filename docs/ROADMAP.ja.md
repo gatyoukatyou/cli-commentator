@@ -159,6 +159,7 @@ CLI Commentator は、非エンジニアで英語に不慣れな人が、CLI上�
 - Apple Developer ID 証明書は当面発行しない方針のため、`#138` は Deferred / 保留扱いにする。signed/notarized release readiness は重要項目として残すが、証明書発行と外部配布準備を再開する段階で再着手する
 - local desktop app polish / local readiness は、監督イベントの実機確認へ入るための起動導線として維持する
 - ローカル検証の入口を `pnpm check:local-readiness` として追加。sidecar準備 → web lint/build → server test/typecheck → desktop cargo test を順に実行し、PASS/FAIL/SKIPで一覧表示する
+- 切断時のヘッダー表示を、実行環境（Web単体 / Desktop managed）とDesktop Serverの状態で出し分けるようにした。Web単体では起動コマンド、Desktop managedでは Start・復旧カード・ポート確認へ案内する
 
 **Next**
 - 日本語解説・要約と、真面目トーン／実況トーンを分けた提示層を改善する（Phase B）。着手前にHUMAN/Ginoと優先順位を確認する
