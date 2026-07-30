@@ -135,5 +135,24 @@ describe("getConnectionGuidance", () => {
         expect(guidance.hint ?? "").not.toContain("pnpm dev:server");
       }
     });
+
+    it.each([
+      ["stopped", "切断（サーバー停止中）", "Start"],
+      ["starting", "サーバーの起動を待っています", "running"],
+      ["failed", "切断（サーバーの起動に失敗）", "復旧カード"],
+      ["running", "切断（サーバーは動作中）", "ポート"],
+      ["stopping", "サーバーを停止しています", null],
+    ] as const)(
+      "keeps the %s guidance visible while the WebSocket reconnects",
+      (desktopServerState, label, hint) => {
+        expect(
+          getConnectionGuidance({
+            connectionStatus: "reconnecting",
+            ...desktop,
+            desktopServerState,
+          })
+        ).toEqual({ label, hint: hint === null ? null : expect.stringContaining(hint) });
+      }
+    );
   });
 });

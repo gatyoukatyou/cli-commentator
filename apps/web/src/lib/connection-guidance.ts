@@ -39,14 +39,13 @@ export function getConnectionGuidance({
     return { label: "接続しています...", hint: null };
   }
 
-  if (connectionStatus === "reconnecting") {
-    return {
-      label: "再接続しています...",
-      hint: "サーバーとの通信が切れました。自動で再接続を試しています。",
-    };
-  }
-
   if (!isDesktopRuntime) {
+    if (connectionStatus === "reconnecting") {
+      return {
+        label: "再接続しています...",
+        hint: "サーバーとの通信が切れました。自動で再接続を試しています。",
+      };
+    }
     return { label: "切断（サーバー未接続）", hint: WEB_STANDALONE_HINT };
   }
 
