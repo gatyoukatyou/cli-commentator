@@ -13,6 +13,7 @@ import { hasRawCommandText } from "../commentary/speech-policy.js";
 import { commentByRules } from "../commentary/rule-based.js";
 import { applySpeechContract } from "../commentary/speech-policy.js";
 import type { ProviderName } from "../llm/types.js";
+import { countRepeatedSpeechWithinWindow } from "@cli-commentator/shared";
 
 export type PhaseBReplayFixture = {
   notice: string[];
@@ -48,7 +49,7 @@ export type PhaseBReplayMetrics = {
   maxSpeechSentences: number;
   multiSentenceSpeech: number;
   rawCommandSpeech: number;
-  repeatedProgressSpeechWithin30s: number;
+  repeatedProgressSpeechWithin120s: number;
   glossaryRedisplays: number;
   urgentMisses: number;
   falseUrgent: number;
@@ -185,17 +186,14 @@ function buildMetrics(
       glossaryCounts.set(note, (glossaryCounts.get(note) ?? 0) + 1);
     }
   }
-  let repeatedProgressSpeechWithin30s = 0;
-  const lastProgressSpeech = new Map<string, number>();
-  for (const message of spoken) {
-    const text = message.speech?.text;
-    if (!text || message.ev.priority !== "progress") continue;
-    const lastAt = lastProgressSpeech.get(text);
-    if (lastAt !== undefined && message.ts - lastAt < 30_000) {
-      repeatedProgressSpeechWithin30s += 1;
-    }
-    lastProgressSpeech.set(text, message.ts);
-  }
+  const repeatedProgressSpeechWithin120s = countRepeatedSpeechWithinWindow(
+    spoken.flatMap((message) => {
+      const text = message.speech?.text;
+      return text && message.ev.priority === "progress"
+        ? [{ timestampMs: message.ts, text }]
+        : [];
+    })
+  );
   const commentaryByEvent = new Map(
     commentaryMessages.map((message) => [`${message.ev.ts}:${message.ev.type}`, message])
   );
@@ -217,7 +215,7 @@ function buildMetrics(
     maxSpeechSentences: Math.max(0, ...spoken.map((message) => speechSentenceCount(message.speech?.text))),
     multiSentenceSpeech: spoken.filter((message) => speechSentenceCount(message.speech?.text) > 1).length,
     rawCommandSpeech: spoken.filter((message) => hasRawCommandSpeech(message.speech?.text)).length,
-    repeatedProgressSpeechWithin30s,
+    repeatedProgressSpeechWithin120s,
     glossaryRedisplays: Array.from(glossaryCounts.values())
       .reduce((total, count) => total + Math.max(0, count - 1), 0),
     urgentMisses: urgentEvents.filter((message) =>

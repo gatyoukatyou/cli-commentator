@@ -9,6 +9,10 @@ import {
   type PhaseBReplayFixture,
 } from "../evaluation/phase-b-replay.js";
 import {
+  countRepeatedSpeechWithinWindow,
+  normalizeSpeechRepetitionKey,
+} from "@cli-commentator/shared";
+import {
   buildPhaseBEvaluationArtifacts,
   evaluatedPhaseOptions,
 } from "../evaluation/phase-b-artifacts.js";
@@ -58,7 +62,7 @@ describe("Phase B evaluation replay", () => {
       maxSpeechSentences: 1,
       multiSentenceSpeech: 0,
       rawCommandSpeech: 0,
-      repeatedProgressSpeechWithin30s: 0,
+      repeatedProgressSpeechWithin120s: 0,
       glossaryRedisplays: 0,
       urgentMisses: 0,
       falseUrgent: 0,
@@ -83,6 +87,69 @@ describe("Phase B evaluation replay", () => {
       withoutContext.narration !== withContext.narration
     )).toBe(true);
     expect(result).toMatchSnapshot();
+  });
+
+  it("counts four normalized repeats in the sanitized observed-session fixture", async () => {
+    const fixture = JSON.parse(
+      await fs.readFile(
+        path.join(fixturesDir, "repeated-progress-speech.json"),
+        "utf8"
+      )
+    ) as { samples: Array<{ offsetMs: number; text: string }> };
+    expect(new Set(fixture.samples.map(({ text }) =>
+      normalizeSpeechRepetitionKey(text)
+    ))).toHaveLength(1);
+    expect(countRepeatedSpeechWithinWindow(
+      fixture.samples.map(({ offsetMs, text }) => ({ timestampMs: offsetMs, text }))
+    )).toBe(4);
+  });
+
+  it("normalizes quoted progress style without collapsing different facts", () => {
+    const confirmationStyles = [
+      "「orchestrator.ts」を確認しています。",
+      "「orchestrator.ts」を確認しとるで。",
+      "「orchestrator.ts」を確認しているのだ。",
+    ];
+    expect(
+      new Set(confirmationStyles.map(normalizeSpeechRepetitionKey))
+    ).toHaveLength(1);
+    expect(countRepeatedSpeechWithinWindow(
+      confirmationStyles.map((text, index) => ({
+        timestampMs: index * 1_000,
+        text,
+      }))
+    )).toBe(2);
+
+    const differentQuotedFacts = [
+      "「handoff の最新ステータスを見せて」っちゅうログが出てきたで！",
+      "「handoff の最新ステータスを見せて」っちゅう入力があって、最新の…中身が表示されたで！",
+    ];
+    expect(
+      new Set(differentQuotedFacts.map(normalizeSpeechRepetitionKey))
+    ).toHaveLength(2);
+    expect(countRepeatedSpeechWithinWindow(
+      differentQuotedFacts.map((text, index) => ({
+        timestampMs: index * 1_000,
+        text,
+      }))
+    )).toBe(0);
+  });
+
+  it("keeps distinct unquoted progress reports on the text key path", () => {
+    const unquotedFacts = [
+      "画面に謎の制御コードみたいな文字列がずらっと並んで出てきとるな。",
+      "画面にマウスのドラッグ操作の座標データらしき文字列がずらっと並んどるな。",
+    ];
+    const keys = unquotedFacts.map(normalizeSpeechRepetitionKey);
+    expect(keys).toHaveLength(2);
+    expect(keys.every((key) => key.startsWith("text:"))).toBe(true);
+    expect(new Set(keys)).toHaveLength(2);
+    expect(countRepeatedSpeechWithinWindow(
+      unquotedFacts.map((text, index) => ({
+        timestampMs: index * 1_000,
+        text,
+      }))
+    )).toBe(0);
   });
 
   it("compares context-aware rules with an LLM provider and aggregates measurements", async () => {
@@ -241,7 +308,7 @@ describe("Phase B evaluation replay", () => {
         maxSpeechSentences: 0,
         multiSentenceSpeech: 0,
         rawCommandSpeech: 0,
-        repeatedProgressSpeechWithin30s: 0,
+        repeatedProgressSpeechWithin120s: 0,
         glossaryRedisplays: 0,
         urgentMisses: 0,
         falseUrgent: 0,
@@ -259,7 +326,7 @@ describe("Phase B evaluation replay", () => {
         maxSpeechSentences: 0,
         multiSentenceSpeech: 0,
         rawCommandSpeech: 0,
-        repeatedProgressSpeechWithin30s: 0,
+        repeatedProgressSpeechWithin120s: 0,
         glossaryRedisplays: 0,
         urgentMisses: 0,
         falseUrgent: 0,
