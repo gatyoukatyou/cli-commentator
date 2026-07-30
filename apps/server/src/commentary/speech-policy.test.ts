@@ -28,7 +28,7 @@ describe("commentary speech policy", () => {
     });
   });
 
-  it("shortens progress speech without replacing its specific content", () => {
+  it("uses a complete fallback instead of mechanically truncating long progress speech", () => {
     const event: Event = {
       ts: 1,
       type: "read",
@@ -36,15 +36,17 @@ describe("commentary speech policy", () => {
       detail: "apps/server/src/commentary/speech-policy.ts",
     };
     const narration = "読み上げポリシーの設定ファイルを確認し、進捗の文字数制限を調べています。";
-    const result = applySpeechContract({ narration }, event, observed(event));
+    const explanation = "詳しい確認内容は画面に残します。";
+    const result = applySpeechContract({ narration, explanation }, event, observed(event));
 
     expect(result.narration).toBe(narration);
+    expect(result.explanation).toBe(explanation);
     expect(result.speech?.text?.length).toBeLessThanOrEqual(30);
-    expect(result.speech?.text).toBe("読み上げポリシーの設定ファイルを確認し。");
-    expect(result.speech?.text).not.toBe("対象ファイルを確認しています。");
+    expect(result.speech?.text).toBe("「speech-policy.ts」を確認中です。");
+    expect(result.speech?.text).not.toContain("確認し。");
   });
 
-  it("does not apply the progress length limit to urgent speech", () => {
+  it("routes urgent speech through the dedicated urgent policy", () => {
     const event: Event = {
       ts: 1,
       type: "error",
@@ -54,11 +56,27 @@ describe("commentary speech policy", () => {
     const narration = "公開操作を続けるにはHUMANによる内容確認と明示的な承認が必要です。";
     const result = applySpeechContract({ narration }, event, observed(event));
 
-    expect(result.speech?.text).toBe(narration);
-    expect(result.speech?.text?.length).toBeGreaterThan(30);
+    expect(result.speech?.text).toBe("要対応です：承認が必要。");
+    expect(result.speech?.text).not.toBe("調査段階に移りました。");
   });
 
-  it("keeps a quoted target intact when shortening progress speech", () => {
+  it.each([
+    "差分の確認が終わったで。",
+    "差分の確認が終わったのだ。",
+  ])("keeps a complete short character-style sentence unchanged: %s", (narration) => {
+    const event: Event = {
+      ts: 1,
+      type: "read",
+      summary: "差分確認",
+      detail: "apps/server/src/commentary/orchestrator.ts",
+    };
+    const result = applySpeechContract({ narration }, event, observed(event));
+
+    expect(result.speech?.text).toBe(narration);
+    expect(result.speech?.text?.length).toBeLessThanOrEqual(30);
+  });
+
+  it("does not create a broken filename fragment from long quoted progress", () => {
     const event: Event = {
       ts: 1,
       type: "read",
@@ -68,11 +86,12 @@ describe("commentary speech policy", () => {
     const narration = "今の対象は「apps/server/src/commentary/orchestrator.ts」です。";
     const result = applySpeechContract({ narration }, event, observed(event));
 
-    expect(result.speech?.text).toBe("「orchestrator.ts」を確認しています。");
+    expect(result.speech?.text).toBe("「orchestrator.ts」を確認中です。");
     expect(result.speech?.text?.length).toBeLessThanOrEqual(30);
+    expect(result.speech?.text).not.toContain("…chestrator");
   });
 
-  it("keeps the phase when shortening a quoted progress target", () => {
+  it("uses the observed phase when overlong progress needs the safety valve", () => {
     const event: Event = {
       ts: 1,
       type: "test",
@@ -82,7 +101,7 @@ describe("commentary speech policy", () => {
     const narration = "検証段階に入り、「apps/server/package.json」を扱っています。";
     const result = applySpeechContract({ narration }, event, observed(event));
 
-    expect(result.speech?.text).toBe("検証で「package.json」を確認しています。");
+    expect(result.speech?.text).toBe("「package.json」を検証中です。");
   });
 
   it("falls back to a safe sentence instead of speaking a raw command", () => {

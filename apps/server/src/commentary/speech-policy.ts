@@ -17,37 +17,6 @@ function firstSentence(text: string): string {
   return compact.match(/^.+?[。！？!?](?:[」』”"])?/u)?.[0]?.trim() ?? compact;
 }
 
-function shortenProgressSpeech(text: string): string {
-  if (text.length <= MAX_PROGRESS_SPEECH_LENGTH) return text;
-
-  const quotedTarget = text.match(/「([^」]+)」/u)?.[1];
-  if (quotedTarget) {
-    const targetName = quotedTarget.replace(/\\/g, "/").split("/").at(-1) ?? quotedTarget;
-    const phase = text.match(/^(調査|編集|検証|公開|待機)段階/u)?.[1];
-    const prefix = phase ? `${phase}で` : "";
-    const frame = `${prefix}「」を確認しています。`;
-    const targetLimit = MAX_PROGRESS_SPEECH_LENGTH - frame.length;
-    const compactTarget = targetName.length <= targetLimit
-      ? targetName
-      : `…${targetName.slice(-(targetLimit - 1))}`;
-    return `${prefix}「${compactTarget}」を確認しています。`;
-  }
-
-  const contentLimit = MAX_PROGRESS_SPEECH_LENGTH - 1;
-  const prefix = text.slice(0, contentLimit);
-  const boundary = Math.max(
-    prefix.lastIndexOf("、"),
-    prefix.lastIndexOf(" "),
-    prefix.lastIndexOf("・"),
-    prefix.lastIndexOf("："),
-    prefix.lastIndexOf(":")
-  );
-  const shortened = boundary >= Math.floor(contentLimit * 0.6)
-    ? prefix.slice(0, boundary)
-    : prefix;
-  return `${shortened.trimEnd()}。`;
-}
-
 function safeFallback(event: Event, context: SessionContextSnapshot): string {
   if (context.humanRequired) return "HUMANの対応を待っています。";
   if (context.speech.reason === "failure") return "処理が正常に終了しませんでした。";
@@ -79,6 +48,33 @@ function safeFallback(event: Event, context: SessionContextSnapshot): string {
   }
 }
 
+function progressLengthFallback(
+  event: Event,
+  context: SessionContextSnapshot
+): string {
+  const target = context.target
+    ?.replace(/\\/gu, "/")
+    .split("/")
+    .at(-1)
+    ?.trim();
+  const action = event.type === "read"
+    ? "確認"
+    : event.type === "search"
+      ? "調査"
+      : event.type === "write"
+        ? "更新"
+        : event.type === "test" || event.type === "lint" || event.type === "build"
+          ? "検証"
+          : null;
+  if (target && action && !hasRawCommandText(target)) {
+    const targetSentence = `「${target}」を${action}中です。`;
+    if (targetSentence.length <= MAX_PROGRESS_SPEECH_LENGTH) {
+      return targetSentence;
+    }
+  }
+  return safeFallback(event, context);
+}
+
 function speechSentence(
   payload: CommentaryPayload,
   event: Event,
@@ -94,7 +90,17 @@ function speechSentence(
   if (!candidate || candidate.length > MAX_SPEECH_LENGTH || hasRawCommandText(candidate)) {
     return safeFallback(event, context);
   }
-  return getEventPriority(event) === "progress" ? shortenProgressSpeech(candidate) : candidate;
+  if (
+    getEventPriority(event) === "progress" &&
+    candidate.length > MAX_PROGRESS_SPEECH_LENGTH
+  ) {
+    // A mechanical substring is liable to drop the observed result, break
+    // Japanese grammar, or erase the selected character style. The prompt is
+    // responsible for producing a complete short sentence; this is only the
+    // safety valve for a provider that exceeds that contract.
+    return progressLengthFallback(event, context);
+  }
+  return candidate;
 }
 
 export function applySpeechContract(

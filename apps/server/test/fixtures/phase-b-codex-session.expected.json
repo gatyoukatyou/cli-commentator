@@ -38,7 +38,7 @@
       "speech": {
         "disposition": "speak",
         "reason": "new_task",
-        "text": "調査で「…-workspace.yaml」を確認しています。"
+        "text": "「pnpm-workspace.yaml」を調査中です。"
       }
     },
     {
@@ -72,7 +72,7 @@
       "speech": {
         "disposition": "speak",
         "reason": "new_target",
-        "text": "「orchestrator.ts」を確認しています。"
+        "text": "「orchestrator.ts」を確認中です。"
       }
     },
     {
@@ -152,7 +152,7 @@
       "speech": {
         "disposition": "speak",
         "reason": "new_target",
-        "text": "「extract.ts」を確認しています。"
+        "text": "「extract.ts」を確認中です。"
       }
     },
     {
@@ -292,7 +292,7 @@
         "speech": {
           "disposition": "speak",
           "reason": "new_task",
-          "text": "調査で「…-workspace.yaml」を確認しています。"
+          "text": "「pnpm-workspace.yaml」を調査中です。"
         }
       }
     },
@@ -309,7 +309,7 @@
         "speech": {
           "disposition": "speak",
           "reason": "new_target",
-          "text": "「orchestrator.ts」を確認しています。"
+          "text": "「orchestrator.ts」を確認中です。"
         }
       }
     },
@@ -343,7 +343,7 @@
         "speech": {
           "disposition": "speak",
           "reason": "new_target",
-          "text": "「extract.ts」を確認しています。"
+          "text": "「extract.ts」を確認中です。"
         }
       }
     },
