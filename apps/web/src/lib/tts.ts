@@ -247,6 +247,10 @@ const scheduler = createSpeechScheduler<SpeakOptions>({
         text: request.text,
       });
     };
+    utterance.onboundary = (event) => {
+      if (!activeSpeech.has(request.id)) return;
+      lifecycleRecorder.updateProgress(request.id, event.charIndex);
+    };
     utterance.onend = () => {
       if (!activeSpeech.delete(request.id)) return;
       lifecycleRecorder.record({

@@ -34,6 +34,7 @@ export type SpeechLifecycleMetrics = {
   urgentMisses: number;
   repeatedProgressSpeechWithin120s: number;
   totalSpeechMs: number;
+  speechCompletionRate: number;
   averageQueueWaitMs: number;
   maxQueueWaitMs: number;
   maxQueueDepth: number;
@@ -59,6 +60,7 @@ type TrackedSpeech = {
   text: string;
   queuedAt: number;
   startedAt: number | null;
+  spokenCharacters: number;
 };
 
 type RecorderOptions = {
@@ -97,7 +99,10 @@ export function createSpeechLifecycleRecorder(options: RecorderOptions = {}) {
   let lastProgressStartByKey = new Map<string, number>();
   let queueWaitTotal = 0;
   let queueWaitSamples = 0;
-  let metrics: Omit<SpeechLifecycleMetrics, "urgentMisses" | "averageQueueWaitMs" | "pendingAtExport"> = {
+  let metrics: Omit<
+    SpeechLifecycleMetrics,
+    "urgentMisses" | "speechCompletionRate" | "averageQueueWaitMs" | "pendingAtExport"
+  > = {
     queued: 0,
     started: 0,
     ended: 0,
@@ -113,6 +118,8 @@ export function createSpeechLifecycleRecorder(options: RecorderOptions = {}) {
   };
   let urgentQueued = 0;
   let urgentStarted = 0;
+  let completedSpeechCharacters = 0;
+  let totalSpeechCharacters = 0;
   let urgentInterruptCauses = new Set<string>();
 
   const reset = (trigger = "manual_reset"): void => {
@@ -128,6 +135,8 @@ export function createSpeechLifecycleRecorder(options: RecorderOptions = {}) {
     queueWaitSamples = 0;
     urgentQueued = 0;
     urgentStarted = 0;
+    completedSpeechCharacters = 0;
+    totalSpeechCharacters = 0;
     urgentInterruptCauses = new Set();
     metrics = {
       queued: 0,
@@ -171,6 +180,7 @@ export function createSpeechLifecycleRecorder(options: RecorderOptions = {}) {
         text,
         queuedAt: current,
         startedAt: null,
+        spokenCharacters: 0,
       });
       return;
     }
@@ -206,8 +216,10 @@ export function createSpeechLifecycleRecorder(options: RecorderOptions = {}) {
       return;
     }
 
-    if (input.kind === "ended") metrics.ended += 1;
-    else {
+    if (input.kind === "ended") {
+      metrics.ended += 1;
+      if (speech) speech.spokenCharacters = speech.text.length;
+    } else {
       metrics.cancelled += 1;
       if (input.reason === "urgent_interrupt") {
         const cause = input.causeSpeechId ?? `event-${event.sequence}`;
@@ -220,7 +232,20 @@ export function createSpeechLifecycleRecorder(options: RecorderOptions = {}) {
     if (speech?.startedAt !== null && speech?.startedAt !== undefined) {
       metrics.totalSpeechMs += Math.max(0, Math.round(current - speech.startedAt));
     }
+    if (speech) {
+      completedSpeechCharacters += Math.min(speech.spokenCharacters, speech.text.length);
+      totalSpeechCharacters += speech.text.length;
+    }
     tracked.delete(input.speechId);
+  };
+
+  const updateProgress = (speechId: string, spokenCharacters: number): void => {
+    const speech = tracked.get(speechId);
+    if (!speech || !Number.isFinite(spokenCharacters)) return;
+    speech.spokenCharacters = Math.max(
+      speech.spokenCharacters,
+      Math.min(speech.text.length, Math.max(0, Math.floor(spokenCharacters)))
+    );
   };
 
   const exportLog = (settings?: Record<string, unknown>): SpeechLifecycleExport => ({
@@ -234,6 +259,10 @@ export function createSpeechLifecycleRecorder(options: RecorderOptions = {}) {
     metrics: {
       ...metrics,
       urgentMisses: Math.max(0, urgentQueued - urgentStarted),
+      speechCompletionRate:
+        totalSpeechCharacters > 0
+          ? Number((completedSpeechCharacters / totalSpeechCharacters).toFixed(3))
+          : 0,
       averageQueueWaitMs: queueWaitSamples > 0 ? Math.round(queueWaitTotal / queueWaitSamples) : 0,
       pendingAtExport: tracked.size,
     },
@@ -241,7 +270,7 @@ export function createSpeechLifecycleRecorder(options: RecorderOptions = {}) {
     truncatedEvents,
   });
 
-  return { record, reset, export: exportLog };
+  return { record, updateProgress, reset, export: exportLog };
 }
 
 export type SpeechLifecycleRecorder = ReturnType<typeof createSpeechLifecycleRecorder>;

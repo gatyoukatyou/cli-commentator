@@ -6,6 +6,7 @@ import type { CommentaryPayload, Event } from "../types.js";
 const RAW_COMMAND_RE =
   /(?:^[⏺•]\s*|\b(?:Bash|Read|Grep|Glob|Update|Write)\(|\bapply_patch\b|\b(?:rg|grep|nl|sed|git|gh|pnpm|npm|yarn|cat|find|ls|cd|pwd|node|tsx|cargo|docker|curl)\b(?:\s+|$)|\|)/iu;
 const MAX_SPEECH_LENGTH = 100;
+const MAX_PROGRESS_SPEECH_LENGTH = 30;
 
 export function hasRawCommandText(text?: string): boolean {
   return Boolean(text && RAW_COMMAND_RE.test(text));
@@ -47,6 +48,33 @@ function safeFallback(event: Event, context: SessionContextSnapshot): string {
   }
 }
 
+function progressLengthFallback(
+  event: Event,
+  context: SessionContextSnapshot
+): string {
+  const target = context.target
+    ?.replace(/\\/gu, "/")
+    .split("/")
+    .at(-1)
+    ?.trim();
+  const action = event.type === "read"
+    ? "確認"
+    : event.type === "search"
+      ? "調査"
+      : event.type === "write"
+        ? "更新"
+        : event.type === "test" || event.type === "lint" || event.type === "build"
+          ? "検証"
+          : null;
+  if (target && action && !hasRawCommandText(target)) {
+    const targetSentence = `「${target}」を${action}中です。`;
+    if (targetSentence.length <= MAX_PROGRESS_SPEECH_LENGTH) {
+      return targetSentence;
+    }
+  }
+  return safeFallback(event, context);
+}
+
 function speechSentence(
   payload: CommentaryPayload,
   event: Event,
@@ -61,6 +89,16 @@ function speechSentence(
   const candidate = firstSentence(payload.narration ?? payload.explanation ?? "");
   if (!candidate || candidate.length > MAX_SPEECH_LENGTH || hasRawCommandText(candidate)) {
     return safeFallback(event, context);
+  }
+  if (
+    getEventPriority(event) === "progress" &&
+    candidate.length > MAX_PROGRESS_SPEECH_LENGTH
+  ) {
+    // A mechanical substring is liable to drop the observed result, break
+    // Japanese grammar, or erase the selected character style. The prompt is
+    // responsible for producing a complete short sentence; this is only the
+    // safety valve for a provider that exceeds that contract.
+    return progressLengthFallback(event, context);
   }
   return candidate;
 }

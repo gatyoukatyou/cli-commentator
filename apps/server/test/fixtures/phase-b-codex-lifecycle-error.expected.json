@@ -38,7 +38,7 @@
       "speech": {
         "disposition": "speak",
         "reason": "new_task",
-        "text": "調査段階に入り、「/Users/demo/project/package.json」を扱っています。"
+        "text": "「package.json」を確認中です。"
       }
     },
     {
@@ -74,7 +74,7 @@
       "speech": {
         "disposition": "speak",
         "reason": "phase_change",
-        "text": "検証段階に入り、「/Users/demo/project/package.json」を扱っています。"
+        "text": "「package.json」を検証中です。"
       }
     },
     {
@@ -266,7 +266,7 @@
         "speech": {
           "disposition": "speak",
           "reason": "new_task",
-          "text": "調査段階に入り、「/Users/demo/project/package.json」を扱っています。"
+          "text": "「package.json」を確認中です。"
         }
       }
     },
@@ -283,7 +283,7 @@
         "speech": {
           "disposition": "speak",
           "reason": "phase_change",
-          "text": "検証段階に入り、「/Users/demo/project/package.json」を扱っています。"
+          "text": "「package.json」を検証中です。"
         }
       }
     },
@@ -357,7 +357,7 @@
     "maxSpeechSentences": 1,
     "multiSentenceSpeech": 0,
     "rawCommandSpeech": 0,
-    "repeatedProgressSpeechWithin120s": 1,
+    "repeatedProgressSpeechWithin120s": 0,
     "glossaryRedisplays": 0,
     "urgentMisses": 0,
     "falseUrgent": 0

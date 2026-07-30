@@ -80,6 +80,7 @@ describe("speech lifecycle recorder", () => {
         progressDropped: 1,
         urgentMisses: 0,
         totalSpeechMs: 770,
+        speechCompletionRate: 0.438,
         maxQueueWaitMs: 120,
         maxQueueDepth: 2,
       },
@@ -95,6 +96,56 @@ describe("speech lifecycle recorder", () => {
       { sequence: 8, kind: "ended" },
       { sequence: 9, kind: "dropped" },
     ]);
+  });
+
+  it("calculates character-based speech completion from boundaries", () => {
+    const recorder = createSpeechLifecycleRecorder({
+      now: () => 0,
+      wallNow: () => 0,
+      sessionId: () => "s",
+    });
+    recorder.record({
+      kind: "queued",
+      speechId: "cancelled",
+      priority: "progress",
+      text: "1234567890",
+      queueDepth: 1,
+    });
+    recorder.record({
+      kind: "started",
+      speechId: "cancelled",
+      priority: "progress",
+      text: "1234567890",
+    });
+    recorder.updateProgress("cancelled", 4);
+    recorder.record({
+      kind: "cancelled",
+      speechId: "cancelled",
+      priority: "progress",
+      text: "1234567890",
+      reason: "progress_replace",
+    });
+    recorder.record({
+      kind: "queued",
+      speechId: "ended",
+      priority: "progress",
+      text: "abcdefghij",
+      queueDepth: 1,
+    });
+    recorder.record({
+      kind: "started",
+      speechId: "ended",
+      priority: "progress",
+      text: "abcdefghij",
+    });
+    recorder.record({
+      kind: "ended",
+      speechId: "ended",
+      priority: "progress",
+      text: "abcdefghij",
+    });
+
+    expect(recorder.export().metrics.speechCompletionRate).toBe(0.7);
   });
 
   it("detects style-varied repeated progress within 120 seconds and urgent misses", () => {
