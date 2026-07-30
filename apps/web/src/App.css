@@ -67,6 +67,18 @@
   background-color: var(--status-disconnected);
 }
 
+/* Why the connection is down and what to do next (see lib/connection-guidance) */
+.connection-hint {
+  margin: calc(var(--space-2) * -1) 0 var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--text-sm);
+  line-height: 1.6;
+  color: var(--color-fg-secondary);
+  background-color: var(--color-bg-secondary);
+  border-left: 2px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+}
+
 /* Panel (border is full shorthand token) */
 .panel {
   background-color: var(--panel-bg);

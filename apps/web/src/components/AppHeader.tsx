@@ -1,10 +1,14 @@
 import type { ConnectionStatus } from "../hooks/useCommentatorSocket";
+import { getConnectionGuidance } from "../lib/connection-guidance";
+import type { DesktopServerState } from "../lib/recovery";
 
 export type Skin = "standard" | "cli";
 
 type AppHeaderProps = {
   skin: Skin;
   connectionStatus: ConnectionStatus;
+  isDesktopRuntime: boolean;
+  desktopServerState: DesktopServerState | null;
   onSkinChange: (skin: Skin) => void;
 };
 
@@ -20,7 +24,19 @@ function getStatusIndicatorClass(connectionStatus: ConnectionStatus): string {
   }
 }
 
-export function AppHeader({ skin, connectionStatus, onSkinChange }: AppHeaderProps) {
+export function AppHeader({
+  skin,
+  connectionStatus,
+  isDesktopRuntime,
+  desktopServerState,
+  onSkinChange,
+}: AppHeaderProps) {
+  const guidance = getConnectionGuidance({
+    connectionStatus,
+    isDesktopRuntime,
+    desktopServerState,
+  });
+
   return (
     <>
       <h1>CLI 実況（MVP）</h1>
@@ -35,13 +51,14 @@ export function AppHeader({ skin, connectionStatus, onSkinChange }: AppHeaderPro
 
       <div className="control-row" style={{ fontSize: "var(--text-sm)" }}>
         <span className={getStatusIndicatorClass(connectionStatus)} />
-        <span style={{ color: "var(--color-fg-secondary)" }}>
-          {connectionStatus === "connected" && "接続中"}
-          {connectionStatus === "connecting" && "接続しています..."}
-          {connectionStatus === "reconnecting" && "再接続しています..."}
-          {connectionStatus === "disconnected" && "切断"}
-        </span>
+        <span style={{ color: "var(--color-fg-secondary)" }}>{guidance.label}</span>
       </div>
+
+      {guidance.hint && (
+        <p className="connection-hint" role="status">
+          {guidance.hint}
+        </p>
+      )}
     </>
   );
 }
