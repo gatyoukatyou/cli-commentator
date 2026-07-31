@@ -55,6 +55,23 @@ describe("extractEvents fixtures", () => {
     ]);
   });
 
+  it("does not mistake TypeScript Readonly types for a read-only CLI", () => {
+    process.env.LOG_SOURCE = "claude";
+
+    expect(
+      extractEvents(
+        "const replacements: ReadonlyArray<readonly [RegExp, string]> = [];"
+      )
+    ).toEqual([
+      {
+        ts: new Date("2025-01-01T00:00:00.000Z").getTime(),
+        type: "stdout",
+        summary: "ログ更新",
+        detail: "const replacements: ReadonlyArray<readonly [RegExp, string]> = [];",
+      },
+    ]);
+  });
+
   it("drops Codex progress-noise lines from extraction", () => {
     process.env.LOG_SOURCE = "codex";
     const chunk = ["Working (14s • esc to interrupt)", "w", "•2", "10s • esc to interrupt)"].join("\n");

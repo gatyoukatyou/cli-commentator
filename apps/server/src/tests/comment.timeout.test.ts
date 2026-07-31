@@ -45,7 +45,7 @@ describe("comment() timeout behavior", () => {
     // comment() は abort されてルールベースにフォールバック
     const result = await comment(ev, "standard");
 
-    expect(result.explanation).toBeTruthy();
+    expect(result.explanation).toBeUndefined();
     expect(result.narration).not.toBe("should not reach here");
   });
 

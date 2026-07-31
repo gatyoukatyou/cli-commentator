@@ -202,6 +202,12 @@ describe("normalizeGeneratedCommentaryText", () => {
       normalizeGeneratedCommentaryText("1行メモ: 設定の前提を確認しています。補足を続けます。", "explanation")
     ).toBe("設定の前提を確認しています。");
   });
+
+  it("repairs malformed visible-state phrasing without losing Kansai style", () => {
+    expect(
+      normalizeGeneratedCommentaryText("今見えていてるで、設定を確認中や。", "narration")
+    ).toBe("今見えてるで、設定を確認中や。");
+  });
 });
 
 describe("comment() quality fallback", () => {
@@ -242,7 +248,7 @@ describe("comment() quality fallback", () => {
     expect(out.meta?.narrationProvider).toBe("rules");
     expect(out.meta?.explanationProvider).toBe("rules");
     expect(out.narration).not.toContain("[mock-");
-    expect(out.explanation).toBeTruthy();
+    expect(out.explanation).toBeUndefined();
 
     vi.doUnmock("../llm/factory.js");
   });
