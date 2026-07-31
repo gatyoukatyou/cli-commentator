@@ -81,6 +81,35 @@ describe("createSpeechScheduler", () => {
     ]);
   });
 
+  it("120秒以内の同じprogressはスタイル違いでも間引く", () => {
+    const fake = createFakeSink();
+    const dropped: string[] = [];
+    let current = 1_000;
+    const scheduler = createSpeechScheduler(fake.sink, {
+      now: () => current,
+      onDropped: (_request, reason) => dropped.push(reason),
+    });
+
+    expect(scheduler.speak("progress", "『設定』を確認しています。", undefined)).toBe(true);
+    current += 60_000;
+    expect(scheduler.speak("progress", "『設定』を確認しているで。", undefined)).toBe(false);
+    expect(dropped).toEqual(["repeated_progress"]);
+    expect(fake.calls.filter((call) => call.kind === "speak")).toHaveLength(1);
+  });
+
+  it("反復抑止はurgent/noticeに適用せず、cancel後はprogress履歴をリセットする", () => {
+    const fake = createFakeSink();
+    let current = 1_000;
+    const scheduler = createSpeechScheduler(fake.sink, { now: () => current });
+
+    expect(scheduler.speak("progress", "状況を確認しています。", undefined)).toBe(true);
+    expect(scheduler.speak("notice", "状況を確認しています。", undefined)).toBe(true);
+    expect(scheduler.speak("urgent", "状況を確認しています。", undefined)).toBe(true);
+    scheduler.cancel();
+    current += 1;
+    expect(scheduler.speak("progress", "状況を確認しています。", undefined)).toBe(true);
+  });
+
   it("urgent/notice が未消化の間、progress は間引かれる", () => {
     const fake = createFakeSink();
     const scheduler = createSpeechScheduler(fake.sink);

@@ -5,6 +5,47 @@ function contextualBeginnerLine(ev: Event, style: Style): string | null {
   const detail = ev.detail?.trim();
   const command = detailCommand(detail);
 
+  if (ev.type === "stdout" && detail) {
+    if (/^(?:bash|zsh|sh)(?:-[\d.]+)?[$%#]\s*$/iu.test(detail)) {
+      return "";
+    }
+    if (/^(?:cat|head|tail)\b|^sed\s+(?:-[^\s]+\s+)*/iu.test(command)) {
+      return say(style, {
+        standard: "1行メモ: 指定したファイルの内容を読み、現在の実装を確認しています。",
+        kansai: "1行メモ: 指定したファイルの中身を読んで、今の実装を確認してるで。",
+        zundamon: "1行メモ: 指定したファイルの中身を読んで、今の実装を確認してるのだ。",
+      });
+    }
+    if (/^(?:ls\b|find\b|fd\b|rg\s+--files\b)/iu.test(command)) {
+      return say(style, {
+        standard: "1行メモ: ファイルやフォルダの一覧を見て、確認対象を絞っています。",
+        kansai: "1行メモ: ファイルやフォルダの一覧を見て、確認対象をしぼってるで。",
+        zundamon: "1行メモ: ファイルやフォルダの一覧を見て、確認対象をしぼってるのだ。",
+      });
+    }
+    if (/^(?:export\s+)?(?:const|let|var|function|class|interface|type|import)\b/iu.test(detail)) {
+      return say(style, {
+        standard: "1行メモ: ソースコードの一部を表示し、実装内容を確認しています。",
+        kansai: "1行メモ: ソースコードの一部を見て、実装内容を確認してるで。",
+        zundamon: "1行メモ: ソースコードの一部を見て、実装内容を確認してるのだ。",
+      });
+    }
+    if (/(?:Test Files|Tests?|passed|failed|PASS|FAIL)/u.test(detail)) {
+      return say(style, {
+        standard: "1行メモ: テスト結果を見て、変更後も正常に動くか確認しています。",
+        kansai: "1行メモ: テスト結果を見て、変更後も動くか確認してるで。",
+        zundamon: "1行メモ: テスト結果を見て、変更後も動くか確認してるのだ。",
+      });
+    }
+    if (/(?:^|\s)(?:[\w@+.-]+\/)+[\w@+.-]+(?:\s|$)/iu.test(detail)) {
+      return say(style, {
+        standard: "1行メモ: ファイルやフォルダの一覧を見て、確認対象を絞っています。",
+        kansai: "1行メモ: ファイルやフォルダの一覧を見て、確認対象をしぼってるで。",
+        zundamon: "1行メモ: ファイルやフォルダの一覧を見て、確認対象をしぼってるのだ。",
+      });
+    }
+  }
+
   if (detail && /^[⏺•]\s*Read\(/.test(detail)) {
     const target = extractReadTarget(detail) ?? "対象ファイル";
     const isDoc = /\.(md|txt|rst|adoc)$/i.test(target) || /readme|docs?/i.test(target);
@@ -101,7 +142,7 @@ type BeginnerLineTable = Record<Event["type"] | "default", Record<Style, string>
 
 const BEGINNER_LINES: BeginnerLineTable = {
   read: { standard: "1行メモ: 現状を把握して次の修正方針を決めています。", kansai: "1行メモ: 今の状況つかんで次の手を決めてるとこや。", zundamon: "1行メモ: 今の状況をつかんで次の手を決めてるのだ。" },
-  stdout: { standard: "1行メモ: コマンドの通常出力を確認しています。", kansai: "1行メモ: コマンドの通常出力を確認してるで。", zundamon: "1行メモ: コマンドの通常出力を確認してるのだ。" },
+  stdout: { standard: "", kansai: "", zundamon: "" },
   stderr: { standard: "1行メモ: エラー出力を確認して原因を絞っています。", kansai: "1行メモ: エラー出力を見て原因しぼってるで。", zundamon: "1行メモ: エラー出力を見て原因をしぼってるのだ。" },
   write: { standard: "1行メモ: 問題を直すために内容を更新しています。", kansai: "1行メモ: 問題直すために中身を更新してるで。", zundamon: "1行メモ: 問題を直すために中身を更新してるのだ。" },
   search: { standard: "1行メモ: 手がかりを探して調査範囲を絞っています。", kansai: "1行メモ: 手がかり探して調査範囲しぼってるで。", zundamon: "1行メモ: 手がかりを探して調査範囲をしぼってるのだ。" },
@@ -120,6 +161,6 @@ const BEGINNER_LINES: BeginnerLineTable = {
 
 export function beginnerOneLine(ev: Event, style: Style): string {
   const contextual = contextualBeginnerLine(ev, style);
-  if (contextual) return contextual;
+  if (contextual !== null) return contextual;
   return (BEGINNER_LINES[ev.type] ?? BEGINNER_LINES.default)[style];
 }

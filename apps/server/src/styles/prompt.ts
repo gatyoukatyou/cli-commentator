@@ -212,7 +212,10 @@ export function normalizeGeneratedCommentaryText(
   text: string,
   role: CommentaryRole
 ): string {
-  const compact = text.replace(/\s+/g, " ").trim();
+  const repaired = text
+    .replace(/今見えていてる(?=で(?:[、。！？!?]|$))/gu, "今見えてる")
+    .replace(/今見えていてる/gu, "今見えている");
+  const compact = repaired.replace(/\s+/g, " ").trim();
   const stripped = compact.replace(/^(実況|解説|補足|1行メモ)[:：]\s*/u, "").trim();
   const firstSentence = stripped.match(/^.+?[。！？!?]/u)?.[0] ?? stripped;
 

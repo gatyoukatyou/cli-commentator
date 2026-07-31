@@ -92,6 +92,10 @@ const ANSI_COLOR_CODE_RE = /\[(?:\d{1,3};)*\d{1,3}m/g;
 const BOX_DRAWING_CHARS_RE = /[─│┌┐└┘├┤┬┴┼╔╗╚╝╠╣╦╩╬═║]+/g;
 const CLI_DECORATIVE_SYMBOLS_RE =
   /(?:⏺|⎿|✅|✓|✔|✗|✘|➜|➤|●|○|◉|◎|■|□|▪|▫|►|▶|◀|◁|★|☆|❯|❮|⚡|⚠️|🔴|🟢|🟡|⬛|⬜)+/gu;
+const TTS_PRONUNCIATION_REPLACEMENTS: ReadonlyArray<readonly [RegExp, string]> = [
+  [/要確認/gu, "ようかくにん"],
+  [/要対応/gu, "ようたいおう"],
+];
 
 function stripControlChars(s: string): string {
   let out = "";
@@ -176,12 +180,15 @@ export function waitForVoices(timeoutMs = 3000): Promise<SpeechSynthesisVoice[]>
  * テキスト正規化（ログ記号除去、長さ制限）
  */
 export function normalizeForSpeech(text: string, maxLength = 500): string {
-  const cleaned = stripControlChars(text)
-    .replace(ANSI_COLOR_CODE_RE, "") // ANSI color payload remnants after ESC stripping
-    .replace(BOX_DRAWING_CHARS_RE, "") // Box drawing characters
-    .replace(CLI_DECORATIVE_SYMBOLS_RE, "") // CLI decorative symbols
-    .replace(/\n{2,}/g, "\n") // 連続改行
-    .trim();
+  const cleaned = TTS_PRONUNCIATION_REPLACEMENTS.reduce(
+    (value, [pattern, replacement]) => value.replace(pattern, replacement),
+    stripControlChars(text)
+      .replace(ANSI_COLOR_CODE_RE, "") // ANSI color payload remnants after ESC stripping
+      .replace(BOX_DRAWING_CHARS_RE, "") // Box drawing characters
+      .replace(CLI_DECORATIVE_SYMBOLS_RE, "") // CLI decorative symbols
+      .replace(/\n{2,}/g, "\n") // 連続改行
+      .trim()
+  );
 
   return cleaned.length > maxLength ? cleaned.slice(0, maxLength) + "..." : cleaned;
 }

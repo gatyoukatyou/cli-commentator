@@ -25,7 +25,7 @@ export const claudeRuleset: RuleSet = {
 
     { id: "claude.install", priority: 20, re: /\b(pnpm|npm|yarn)\s+(add|install|i|run)\b/i, type: "install", summary: "依存関係/スクリプトを処理している" },
 
-    { id: "claude.readonly", priority: 12, re: /read[-\s]?only|write is disabled/i, type: "error", summary: "書き込みが制限されている" },
+    { id: "claude.readonly", priority: 12, re: /\bread[-\s]?only mode\b|\bwrite is disabled\b/i, type: "error", summary: "書き込みが制限されている" },
     { id: "claude.error", priority: 10, re: /execution error|error|failed|exception|TS\d{5}/i, type: "error", summary: "エラーが出ている" }
   ]
 };

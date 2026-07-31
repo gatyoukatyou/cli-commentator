@@ -1,4 +1,8 @@
 import type { EventPriority } from "../types";
+import {
+  normalizeSpeechRepetitionKey,
+  REPEATED_PROGRESS_SPEECH_WINDOW_MS,
+} from "@cli-commentator/shared";
 
 /**
  * 優先度つき読み上げスケジューラ
@@ -18,7 +22,7 @@ export type SpeechSink<Opts> = {
 };
 
 export type SpeechCancellationReason = "urgent_interrupt" | "progress_replace" | "manual_stop";
-export type SpeechDropReason = "high_priority_pending";
+export type SpeechDropReason = "high_priority_pending" | "repeated_progress";
 export type SpeechQueueReason = "urgent_interrupt" | "notice_append" | "progress_latest";
 
 export type ScheduledSpeech<Opts> = {
@@ -32,6 +36,7 @@ export type ScheduledSpeech<Opts> = {
 
 type SpeechSchedulerOptions<Opts> = {
   nextId?: () => string;
+  now?: () => number;
   onDropped?: (request: ScheduledSpeech<Opts>, reason: SpeechDropReason) => void;
 };
 
@@ -53,6 +58,8 @@ export function createSpeechScheduler<Opts>(
   let pendingHighCount = 0;
   let pendingTotalCount = 0;
   let fallbackId = 0;
+  let lastProgressAtByKey = new Map<string, number>();
+  const now = options.now ?? Date.now;
 
   const submit = (
     request: Omit<ScheduledSpeech<Opts>, "queueDepth" | "queueReason">,
@@ -73,6 +80,18 @@ export function createSpeechScheduler<Opts>(
     generation += 1;
     pendingHighCount = 0;
     pendingTotalCount = 0;
+  };
+
+  const drop = (
+    request: Omit<ScheduledSpeech<Opts>, "queueDepth" | "queueReason">,
+    reason: SpeechDropReason
+  ): false => {
+    options.onDropped?.({
+      ...request,
+      queueDepth: pendingTotalCount,
+      queueReason: "progress_latest",
+    }, reason);
+    return false;
   };
 
   return {
@@ -97,13 +116,20 @@ export function createSpeechScheduler<Opts>(
 
       // progress: 高優先の発話が残っている間は間引く
       if (pendingHighCount > 0) {
-        options.onDropped?.({
-          ...request,
-          queueDepth: pendingTotalCount,
-          queueReason: "progress_latest",
-        }, "high_priority_pending");
-        return false;
+        return drop(request, "high_priority_pending");
       }
+
+      const repetitionKey = normalizeSpeechRepetitionKey(text);
+      const current = now();
+      const lastProgressAt = lastProgressAtByKey.get(repetitionKey);
+      if (
+        lastProgressAt !== undefined &&
+        current - lastProgressAt >= 0 &&
+        current - lastProgressAt <= REPEATED_PROGRESS_SPEECH_WINDOW_MS
+      ) {
+        return drop(request, "repeated_progress");
+      }
+      lastProgressAtByKey.set(repetitionKey, current);
       sink.cancel("progress_replace", request.id);
       reset();
       submit(request, false, "progress_latest");
@@ -112,6 +138,7 @@ export function createSpeechScheduler<Opts>(
     cancel() {
       sink.cancel("manual_stop");
       reset();
+      lastProgressAtByKey = new Map();
     },
     hasPendingHighPriority() {
       return pendingHighCount > 0;

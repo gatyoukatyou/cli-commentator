@@ -4,6 +4,7 @@ import {
   TTS_PRESETS,
   applyTTSPreset,
   detectTTSPreset,
+  normalizeForSpeech,
   type TTSSettings,
 } from "./tts";
 
@@ -53,5 +54,16 @@ describe("TTS presets", () => {
       includeRawDetail: false,
     };
     expect(detectTTSPreset(custom)).toBeNull();
+  });
+});
+
+describe("normalizeForSpeech", () => {
+  it("表示用テキストを変更せずTTS向けの要語を読み補正する", () => {
+    const displayText = "要確認です。要対応です：設定を見直します。";
+
+    expect(normalizeForSpeech(displayText)).toBe(
+      "ようかくにんです。ようたいおうです：設定を見直します。"
+    );
+    expect(displayText).toBe("要確認です。要対応です：設定を見直します。");
   });
 });
