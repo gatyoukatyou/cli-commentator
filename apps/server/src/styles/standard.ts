@@ -15,6 +15,8 @@ export function standardSubjectLine(subject: NarrationSubject): string | null {
       return "ファイル一覧を調べています。";
     case "check":
       return `${subject.label}を実行しています。`;
+    case "action":
+      return `${subject.phrase}しています。`;
     case "testResult":
       if (subject.failed) return `テストが${subject.failed}件失敗しました。`;
       if (subject.passed) return `テストが${subject.passed}件通りました。`;

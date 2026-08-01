@@ -11,6 +11,8 @@ function subjectLine(subject: NarrationSubject): string | null {
       return "ファイル一覧を調べてるで。";
     case "check":
       return `${subject.label}を回してるで。`;
+    case "action":
+      return `${subject.phrase}してるで。`;
     case "testResult":
       if (subject.failed) return `テストが${subject.failed}件こけたで。`;
       if (subject.passed) return `テストが${subject.passed}件通ったで。`;
