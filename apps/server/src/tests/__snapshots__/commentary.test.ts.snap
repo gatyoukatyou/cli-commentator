@@ -533,7 +533,7 @@ exports[`commentary quality fixtures > renders styles consistently 1`] = `
     "outputs": [
       {
         "commentary": {
-          "explanation": "エラー出力を確認して原因を絞っています。",
+          "explanation": "使おうとしたポートが既に別のプロセスに使われています。先に動いているものを止めるか、別のポートを使う場面です。",
           "glossaryNotes": [],
           "meta": {
             "explanationProvider": "rules",
@@ -546,7 +546,7 @@ exports[`commentary quality fixtures > renders styles consistently 1`] = `
       },
       {
         "commentary": {
-          "explanation": "エラー出力を確認して原因を絞っています。",
+          "explanation": "使おうとしたポートが既に別のプロセスに使われています。先に動いているものを止めるか、別のポートを使う場面です。",
           "glossaryNotes": [],
           "meta": {
             "explanationProvider": "rules",
@@ -559,7 +559,7 @@ exports[`commentary quality fixtures > renders styles consistently 1`] = `
       },
       {
         "commentary": {
-          "explanation": "エラー出力を確認して原因を絞っています。",
+          "explanation": "使おうとしたポートが既に別のプロセスに使われています。先に動いているものを止めるか、別のポートを使う場面です。",
           "glossaryNotes": [],
           "meta": {
             "explanationProvider": "rules",
@@ -680,7 +680,7 @@ exports[`commentary quality fixtures > renders styles consistently 1`] = `
     "outputs": [
       {
         "commentary": {
-          "explanation": "読みやすさと品質ルールを確認しています。",
+          "explanation": "書き方の統一と、よくある間違いを機械的に洗い出しています。動作そのものではなく品質の確認です。",
           "glossaryNotes": [
             "補足: pnpm/npm/yarn は依存関係やスクリプト実行に使う",
           ],
@@ -695,7 +695,7 @@ exports[`commentary quality fixtures > renders styles consistently 1`] = `
       },
       {
         "commentary": {
-          "explanation": "読みやすさと品質ルールを確認しています。",
+          "explanation": "書き方の統一と、よくある間違いを機械的に洗い出しています。動作そのものではなく品質の確認です。",
           "glossaryNotes": [
             "補足: pnpm/npm/yarn は依存関係やスクリプト実行に使う",
           ],
@@ -710,7 +710,7 @@ exports[`commentary quality fixtures > renders styles consistently 1`] = `
       },
       {
         "commentary": {
-          "explanation": "読みやすさと品質ルールを確認しています。",
+          "explanation": "書き方の統一と、よくある間違いを機械的に洗い出しています。動作そのものではなく品質の確認です。",
           "glossaryNotes": [
             "補足: pnpm/npm/yarn は依存関係やスクリプト実行に使う",
           ],
@@ -731,7 +731,7 @@ exports[`commentary quality fixtures > renders styles consistently 1`] = `
     "outputs": [
       {
         "commentary": {
-          "explanation": "実行・配布できる形にまとめています。",
+          "explanation": "配布や実行ができる形にまとめています。ここが通れば実際に動かせる状態になります。",
           "glossaryNotes": [
             "補足: pnpm/npm/yarn は依存関係やスクリプト実行に使う",
           ],
@@ -746,7 +746,7 @@ exports[`commentary quality fixtures > renders styles consistently 1`] = `
       },
       {
         "commentary": {
-          "explanation": "実行・配布できる形にまとめています。",
+          "explanation": "配布や実行ができる形にまとめています。ここが通れば実際に動かせる状態になります。",
           "glossaryNotes": [
             "補足: pnpm/npm/yarn は依存関係やスクリプト実行に使う",
           ],
@@ -761,7 +761,7 @@ exports[`commentary quality fixtures > renders styles consistently 1`] = `
       },
       {
         "commentary": {
-          "explanation": "実行・配布できる形にまとめています。",
+          "explanation": "配布や実行ができる形にまとめています。ここが通れば実際に動かせる状態になります。",
           "glossaryNotes": [
             "補足: pnpm/npm/yarn は依存関係やスクリプト実行に使う",
           ],
@@ -782,7 +782,7 @@ exports[`commentary quality fixtures > renders styles consistently 1`] = `
     "outputs": [
       {
         "commentary": {
-          "explanation": "動作確認のため実行環境を立ち上げています。",
+          "explanation": "動作確認用のサーバーを立ち上げています。実際の画面や応答を確かめる準備です。",
           "glossaryNotes": [
             "補足: pnpm/npm/yarn は依存関係やスクリプト実行に使う",
           ],
@@ -797,7 +797,7 @@ exports[`commentary quality fixtures > renders styles consistently 1`] = `
       },
       {
         "commentary": {
-          "explanation": "動作確認のため実行環境を立ち上げています。",
+          "explanation": "動作確認用のサーバーを立ち上げています。実際の画面や応答を確かめる準備です。",
           "glossaryNotes": [
             "補足: pnpm/npm/yarn は依存関係やスクリプト実行に使う",
           ],
@@ -812,7 +812,7 @@ exports[`commentary quality fixtures > renders styles consistently 1`] = `
       },
       {
         "commentary": {
-          "explanation": "動作確認のため実行環境を立ち上げています。",
+          "explanation": "動作確認用のサーバーを立ち上げています。実際の画面や応答を確かめる準備です。",
           "glossaryNotes": [
             "補足: pnpm/npm/yarn は依存関係やスクリプト実行に使う",
           ],
@@ -833,7 +833,7 @@ exports[`commentary quality fixtures > renders styles consistently 1`] = `
     "outputs": [
       {
         "commentary": {
-          "explanation": "必要なツールや依存を揃えています。",
+          "explanation": "新しい部品を追加して、使える機能を増やしています。",
           "glossaryNotes": [
             "補足: pnpm/npm/yarn は依存関係やスクリプト実行に使う",
           ],
@@ -848,7 +848,7 @@ exports[`commentary quality fixtures > renders styles consistently 1`] = `
       },
       {
         "commentary": {
-          "explanation": "必要なツールや依存を揃えています。",
+          "explanation": "新しい部品を追加して、使える機能を増やしています。",
           "glossaryNotes": [
             "補足: pnpm/npm/yarn は依存関係やスクリプト実行に使う",
           ],
@@ -863,7 +863,7 @@ exports[`commentary quality fixtures > renders styles consistently 1`] = `
       },
       {
         "commentary": {
-          "explanation": "必要なツールや依存を揃えています。",
+          "explanation": "新しい部品を追加して、使える機能を増やしています。",
           "glossaryNotes": [
             "補足: pnpm/npm/yarn は依存関係やスクリプト実行に使う",
           ],

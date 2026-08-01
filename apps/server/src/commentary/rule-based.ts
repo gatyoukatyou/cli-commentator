@@ -52,10 +52,6 @@ function detailSpotlight(ev: Event, style: Style): string {
 }
 
 
-function stripMemoPrefix(text: string): string {
-  return text.replace(/^1行メモ:\s*/u, "").trim();
-}
-
 function inferCommentaryMode(payload: CommentaryPayload): CommentaryMode {
   if (payload.narration && payload.explanation) return "both";
   if (payload.explanation) return "explanation";
@@ -146,9 +142,9 @@ export function commentByRules(
     });
   }
 
-  // Keep the beginner explanation useful as a supervision layer regardless of
-  // the selected entertainment/narration style.
-  const beginner = stripMemoPrefix(beginnerOneLine(ev, "standard"));
+  // The beginner explanation is the supervision layer, so it stays in plain
+  // Japanese regardless of the selected entertainment/narration style.
+  const beginner = beginnerOneLine(ev);
   const glossaryNotes = context ? [...context.glossaryNotes] : getGlossaryNotes(ev.detail, ev.type);
   const spotlight = detailSpotlight(ev, style);
 
