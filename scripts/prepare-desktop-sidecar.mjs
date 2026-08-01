@@ -124,6 +124,50 @@ function copyTreeDereference(sourcePath, destinationPath) {
   copyFileSync(sourcePath, destinationPath);
 }
 
+/**
+ * node-pty spawns its `spawn-helper` binary to open a PTY on macOS and Linux.
+ * `pnpm deploy` writes the staged copy without the executable bit, and the loss
+ * is silent: the sidecar starts, reports "running", and then fails every CLI
+ * launch with `posix_spawnp failed.` — including the shell, so nothing in the
+ * desktop app can start.
+ */
+function restoreNativeHelperPermissions(rootDir) {
+  const restored = [];
+  const walk = (dir) => {
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      const entryPath = path.join(dir, entry.name);
+      if (entry.isDirectory()) {
+        walk(entryPath);
+      } else if (entry.isFile() && entry.name === "spawn-helper") {
+        chmodSync(entryPath, 0o755);
+        restored.push(entryPath);
+      }
+    }
+  };
+  walk(rootDir);
+  return restored;
+}
+
+function assertPtyHelperExecutable(rootDir, targetTriple) {
+  if (targetTriple.includes("windows")) return;
+
+  const platform = targetTriple.includes("apple-darwin") ? "darwin" : "linux";
+  const arch = targetTriple.startsWith("aarch64") ? "arm64" : "x64";
+  const helper = path.join(
+    rootDir,
+    "node_modules/node-pty/prebuilds",
+    `${platform}-${arch}`,
+    "spawn-helper"
+  );
+
+  if (!existsSync(helper)) {
+    throw new Error(`[sidecar] node-pty spawn-helper missing for ${platform}-${arch}: ${helper}`);
+  }
+  if ((lstatSync(helper).mode & 0o111) === 0) {
+    throw new Error(`[sidecar] node-pty spawn-helper is not executable: ${helper}`);
+  }
+}
+
 if (!existsSync(workspaceFile)) {
   throw new Error("pnpm-workspace.yaml not found. Run this script from the repository.");
 }
@@ -179,6 +223,10 @@ try {
   rmForce(path.join(bundledServerDir, ".env.local"));
   rmForce(path.join(bundledServerDir, ".env.development"));
   rmForce(path.join(bundledServerDir, ".env.production"));
+
+  const restoredHelpers = restoreNativeHelperPermissions(bundledServerDir);
+  console.log(`[sidecar] Restored executable bit on ${restoredHelpers.length} native helper(s).`);
+  assertPtyHelperExecutable(bundledServerDir, targetTriple);
 
   console.log("[sidecar] Copying node runtime...");
   rmForce(sidecarNodeDir);
