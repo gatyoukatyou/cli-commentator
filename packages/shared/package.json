@@ -9,6 +9,10 @@
     "./urgent-speech": {
       "types": "./src/urgent-speech.d.ts",
       "default": "./src/urgent-speech.js"
+    },
+    "./failure-classification": {
+      "types": "./src/failure-classification.d.ts",
+      "default": "./src/failure-classification.js"
     }
   }
 }

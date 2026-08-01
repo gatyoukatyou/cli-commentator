@@ -1,3 +1,8 @@
+// Import through the subpath, not the package root: the bundled desktop
+// sidecar runs on plain Node, and the root entry is a `.ts` file that only
+// resolves for type-only imports. This mirrors how `speech-policy` imports
+// `urgent-speech`.
+import { classifyFailure, type FailureKind } from "@cli-commentator/shared/failure-classification";
 import type { Event, EventType } from "../types.js";
 import { describeBashMeaning, detailCommand, extractReadTarget, extractSearchTerm, extractWriteTarget } from "./bash-meaning.js";
 import { describeNarrationSubject } from "./narration-subject.js";
@@ -39,6 +44,17 @@ function onDetail(re: RegExp) {
 function fixed(text: string) {
   return () => text;
 }
+
+/** Display wording per failure kind; the classification itself is shared. */
+const FAILURE_EXPLANATIONS: Record<FailureKind, string> = {
+  "type-error": "TypeScript が『データや部品のつながりが合っていない』箇所を知らせています。",
+  "port-in-use":
+    "使おうとしたポートが既に別のプロセスに使われています。先に動いているものを止めるか、別のポートを使う場面です。",
+  permission: "権限が足りず操作が拒否されました。書き込み先や実行権限を確認する場面です。",
+  "module-not-found": "参照している部品が見つかりません。依存の導入漏れか、参照先の誤りが疑われます。",
+  "command-not-found": "必要なコマンドが見つかりません。導入漏れか、パスの設定を確認する場面です。",
+  "exit-code": "実行したコマンドが失敗して終了しました。原因は直前の出力に出ていることが多いです。",
+};
 
 const RULES: ReadonlyArray<ExplanationRule> = [
   // --- stdout: classify what the raw output actually is -------------------
@@ -287,41 +303,17 @@ const RULES: ReadonlyArray<ExplanationRule> = [
   },
 
   // --- failures: name the class of problem, then the next thing to check --
+  // Detection is shared with the spoken urgent line so the two cannot drift;
+  // only the wording differs, since display has room to explain and speech
+  // has to fit one interrupting breath.
   {
-    id: "error.typescript",
-    types: ["error"],
-    when: onDetail(/\bTS\d{4,5}\b/u),
-    line: fixed("TypeScript が『データや部品のつながりが合っていない』箇所を知らせています。"),
-  },
-  {
-    id: "error.command-not-found",
+    id: "error.classified",
     types: ["error", "stderr"],
-    when: onDetail(/command not found|: not found\b/iu),
-    line: fixed("必要なコマンドが見つかりません。導入漏れか、パスの設定を確認する場面です。"),
-  },
-  {
-    id: "error.module-not-found",
-    types: ["error", "stderr"],
-    when: onDetail(/Cannot find module|MODULE_NOT_FOUND|ERR_MODULE_NOT_FOUND/iu),
-    line: fixed("参照している部品が見つかりません。依存の導入漏れか、参照先の誤りが疑われます。"),
-  },
-  {
-    id: "error.port-in-use",
-    types: ["error", "stderr"],
-    when: onDetail(/EADDRINUSE|address already in use/iu),
-    line: fixed("使おうとしたポートが既に別のプロセスに使われています。先に動いているものを止めるか、別のポートを使う場面です。"),
-  },
-  {
-    id: "error.permission",
-    types: ["error", "stderr"],
-    when: onDetail(/EACCES|permission denied/iu),
-    line: fixed("権限が足りず操作が拒否されました。書き込み先や実行権限を確認する場面です。"),
-  },
-  {
-    id: "error.exit-code",
-    types: ["error", "stderr"],
-    when: onDetail(/ELIFECYCLE|exited with code|exit code|failed with exit code/iu),
-    line: fixed("実行したコマンドが失敗して終了しました。原因は直前の出力に出ていることが多いです。"),
+    when: ({ detail }) => classifyFailure(detail) !== null,
+    line: ({ detail }) => {
+      const kind = classifyFailure(detail);
+      return kind ? FAILURE_EXPLANATIONS[kind] : null;
+    },
   },
 
   // --- generic tool call: last resort before the type-level table ---------

@@ -1,4 +1,20 @@
+import { classifyFailure } from "./failure-classification.js";
+
 const APPROVAL_PROMPT_RE = /would you like to run the following command\?/iu;
+
+/**
+ * One short clause per failure kind. The urgent line interrupts whatever is
+ * being spoken, so it has to name the problem in a single breath; the detailed
+ * version belongs to the on-screen explanation.
+ */
+const FAILURE_SPEECH = {
+  "type-error": "型の不一致が出ています",
+  "port-in-use": "使用中のポートで起動できません",
+  permission: "権限が足りず実行できません",
+  "module-not-found": "参照先の部品が見つかりません",
+  "command-not-found": "コマンドが見つかりません",
+  "exit-code": "コマンドが失敗して終了しました",
+};
 const QUESTION_RE = /Question\s+(\d+)\/\d+\s+\((?:[1-9]\d*) unanswered\)/iu;
 const COMMAND_START_RE =
   /^(?:(?:sudo|command|env)\s+)?(?:[A-Za-z_][A-Za-z0-9_]*=\S+\s+)*(?:pnpm|npm|yarn|bun|npx|node|git|gh|cargo|docker|make|go|python\d*|deno|rm|mv|cp|mkdir|chmod|curl)\b/iu;
@@ -94,6 +110,11 @@ export function buildUrgentSpeechText(event) {
       ? `要対応です：質問${questionNumber}への回答を求めています。`
       : "要対応です：質問への回答を求めています。";
   }
+
+  // Every failure shares one ruleset summary ("エラーが出ている"), so fall back to
+  // the summary only when the log says nothing more specific.
+  const failure = classifyFailure(detail);
+  if (failure) return `要対応です：${FAILURE_SPEECH[failure]}。`;
 
   return `要対応です：${withoutTrailingSentencePunctuation(event.summary)}。`;
 }
