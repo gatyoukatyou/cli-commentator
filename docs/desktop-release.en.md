@@ -26,6 +26,32 @@ distribution procedure, signing/notarization flow, updater configuration, or
 operator-facing release steps. Existing `desktop_check` and
 `desktop_distribution_smoke` CI jobs remain the validation path for this change.
 
+## Sidecar native helper permissions
+
+The sidecar bundles node-pty, which opens a PTY on macOS and Linux by spawning
+its `spawn-helper` binary. `pnpm deploy --prod`, which stages the sidecar's
+production dependencies, writes that file **without the executable bit**, so
+`prepare-desktop-sidecar.mjs` restores it after bundling and asserts that the
+host platform's helper is executable.
+
+Do not proceed with a build when that assertion fails. Without the bit the app
+breaks in a way that is easy to misread: **the server reports `running` while
+every CLI launch fails**, including plain `bash`.
+
+```
+startup_failed  kind=ptyError; error=posix_spawnp failed.  cmd=bash
+```
+
+When you see `posix_spawnp failed.`, check this first:
+
+```bash
+ls -l apps/desktop/src-tauri/resources/server/node_modules/node-pty/prebuilds/*/spawn-helper
+```
+
+Re-run `pnpm prepare:desktop-sidecar` if the bit is missing. The repository's
+own `node_modules` is handled separately by the
+`scripts/fix-node-pty-permissions.mjs` postinstall hook.
+
 ## Release action maintenance
 
 `tauri-apps/tauri-action` is maintained as the tag-release workflow action. The
