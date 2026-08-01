@@ -25,6 +25,32 @@ Tauri runtime stack を 2.11 系へ更新しました。対象には `tauri`,
 手順、updater 設定、リリース運用手順は変更しません。検証は既存の
 `desktop_check` および `desktop_distribution_smoke` CI jobs を通じて行います。
 
+## サイドカーのネイティブヘルパー権限
+
+サイドカーは node-pty を同梱しており、macOS / Linux では PTY を開くために
+`spawn-helper` バイナリを spawn します。サイドカーの本番依存を作る
+`pnpm deploy --prod` はこのファイルを**実行ビットなし**で書き出すため、
+`prepare-desktop-sidecar.mjs` が同梱後に実行ビットを復元し、ホスト
+プラットフォーム向けのヘルパーが実行可能であることを検証します。
+
+この検証が失敗した場合、ビルドを進めてはいけません。実行ビットが落ちた
+状態のアプリは、**サーバーは `running` と報告するのに、あらゆるCLI起動が
+失敗する**という分かりにくい壊れ方をします（`bash` すら起動できません）。
+
+```
+startup_failed  kind=ptyError; error=posix_spawnp failed.  cmd=bash
+```
+
+`posix_spawnp failed.` を見たら、まず次を確認します。
+
+```bash
+ls -l apps/desktop/src-tauri/resources/server/node_modules/node-pty/prebuilds/*/spawn-helper
+```
+
+実行ビットが無ければ `pnpm prepare:desktop-sidecar` を再実行します。なお
+リポジトリの `node_modules` 側は postinstall の
+`scripts/fix-node-pty-permissions.mjs` が別途担当します。
+
 ## Release action maintenance
 
 `tauri-apps/tauri-action` は tag-release workflow action として保守します。
