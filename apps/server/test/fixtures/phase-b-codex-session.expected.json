@@ -62,7 +62,7 @@
         "priority": "progress"
       },
       "narration": "今の対象は「apps/server/src/commentary/orchestrator.ts」や。",
-      "explanation": "rule-based.ts | sed -n '1,120p' を読んで、現在の実装を確認しています。",
+      "explanation": "現状を把握して次の修正方針を決めています。",
       "glossaryNotes": [],
       "meta": {
         "narrationProvider": "rules",
@@ -142,7 +142,7 @@
         "priority": "progress"
       },
       "narration": "今の対象は「apps/server/src/extract.ts」や。",
-      "explanation": "event-priority.ts | sed -n '1,120p' を読んで、現在の実装を確認しています。",
+      "explanation": "現状を把握して次の修正方針を決めています。",
       "glossaryNotes": [],
       "meta": {
         "narrationProvider": "rules",
@@ -175,7 +175,7 @@
         "detail": "⏺ Bash(pnpm -C apps/server test)",
         "priority": "progress"
       },
-      "narration": "検証段階に入って、「apps/server」を扱ってるで。",
+      "narration": "自動テストを回してるで。",
       "explanation": "目的「Phase Bの実況品質について、反復・目的説明・状態変化・用…」に向けた検証段階です。",
       "glossaryNotes": [
         "補足: pnpm/npm/yarn は依存関係やスクリプト実行に使う"
@@ -188,7 +188,7 @@
       "speech": {
         "disposition": "speak",
         "reason": "phase_change",
-        "text": "検証段階に入って、「apps/server」を扱ってるで。"
+        "text": "自動テストを回してるで。"
       }
     }
   ],
@@ -301,11 +301,11 @@
       "eventType": "read",
       "withoutContext": {
         "narration": "ファイル読んで状況確認してるで。",
-        "explanation": "rule-based.ts | sed -n '1,120p' を読んで、現在の実装を確認しています。"
+        "explanation": "現状を把握して次の修正方針を決めています。"
       },
       "withContext": {
         "narration": "今の対象は「apps/server/src/commentary/orchestrator.ts」や。",
-        "explanation": "rule-based.ts | sed -n '1,120p' を読んで、現在の実装を確認しています。",
+        "explanation": "現状を把握して次の修正方針を決めています。",
         "speech": {
           "disposition": "speak",
           "reason": "new_target",
@@ -335,11 +335,11 @@
       "eventType": "read",
       "withoutContext": {
         "narration": "ファイル読んで状況確認してるで。",
-        "explanation": "event-priority.ts | sed -n '1,120p' を読んで、現在の実装を確認しています。"
+        "explanation": "現状を把握して次の修正方針を決めています。"
       },
       "withContext": {
         "narration": "今の対象は「apps/server/src/extract.ts」や。",
-        "explanation": "event-priority.ts | sed -n '1,120p' を読んで、現在の実装を確認しています。",
+        "explanation": "現状を把握して次の修正方針を決めています。",
         "speech": {
           "disposition": "speak",
           "reason": "new_target",
@@ -351,16 +351,16 @@
       "offsetMs": 13000,
       "eventType": "test",
       "withoutContext": {
-        "narration": "テスト/型チェック回して確認中や。",
+        "narration": "自動テストを回してるで。",
         "explanation": "変更の副作用がないか、自動テストで機械的に確認しています。"
       },
       "withContext": {
-        "narration": "検証段階に入って、「apps/server」を扱ってるで。",
+        "narration": "自動テストを回してるで。",
         "explanation": "目的「Phase Bの実況品質について、反復・目的説明・状態変化・用…」に向けた検証段階です。",
         "speech": {
           "disposition": "speak",
           "reason": "phase_change",
-          "text": "検証段階に入って、「apps/server」を扱ってるで。"
+          "text": "自動テストを回してるで。"
         }
       }
     }

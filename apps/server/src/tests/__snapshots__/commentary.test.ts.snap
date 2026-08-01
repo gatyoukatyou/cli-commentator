@@ -17,7 +17,7 @@ exports[`commentary quality fixtures > renders styles consistently 1`] = `
             "mode": "both",
             "narrationProvider": "rules",
           },
-          "narration": "原因になりそうな箇所を検索しています。",
+          "narration": "「TODO」を探しています。",
         },
         "style": "standard",
       },
@@ -32,7 +32,7 @@ exports[`commentary quality fixtures > renders styles consistently 1`] = `
             "mode": "both",
             "narrationProvider": "rules",
           },
-          "narration": "原因っぽいとこ探してるで。",
+          "narration": "「TODO」を探してるで。",
         },
         "style": "kansai",
       },
@@ -47,7 +47,7 @@ exports[`commentary quality fixtures > renders styles consistently 1`] = `
             "mode": "both",
             "narrationProvider": "rules",
           },
-          "narration": "原因になりそうな所を探してるのだ。",
+          "narration": "「TODO」を探してるのだ。",
         },
         "style": "zundamon",
       },
@@ -119,7 +119,7 @@ exports[`commentary quality fixtures > renders styles consistently 1`] = `
             "mode": "both",
             "narrationProvider": "rules",
           },
-          "narration": "GitHub上のIssue/PRを操作しています。",
+          "narration": "PRの自動チェックを確認しています。",
         },
         "style": "standard",
       },
@@ -134,7 +134,7 @@ exports[`commentary quality fixtures > renders styles consistently 1`] = `
             "mode": "both",
             "narrationProvider": "rules",
           },
-          "narration": "GitHubのIssue/PR触ってるで。",
+          "narration": "PRの自動チェックを確認してるで。",
         },
         "style": "kansai",
       },
@@ -149,7 +149,7 @@ exports[`commentary quality fixtures > renders styles consistently 1`] = `
             "mode": "both",
             "narrationProvider": "rules",
           },
-          "narration": "GitHubのIssue/PRを操作してるのだ。",
+          "narration": "PRの自動チェックを確認してるのだ。",
         },
         "style": "zundamon",
       },
@@ -266,7 +266,7 @@ exports[`commentary quality fixtures > renders styles consistently 1`] = `
             "mode": "both",
             "narrationProvider": "rules",
           },
-          "narration": "Gitで変更履歴を整理しています。",
+          "narration": "変更の一覧を確認しています。",
         },
         "style": "standard",
       },
@@ -281,7 +281,7 @@ exports[`commentary quality fixtures > renders styles consistently 1`] = `
             "mode": "both",
             "narrationProvider": "rules",
           },
-          "narration": "Gitで変更まとめてるで。",
+          "narration": "変更の一覧を確認してるで。",
         },
         "style": "kansai",
       },
@@ -296,7 +296,7 @@ exports[`commentary quality fixtures > renders styles consistently 1`] = `
             "mode": "both",
             "narrationProvider": "rules",
           },
-          "narration": "Gitで変更を整理してるのだ。",
+          "narration": "変更の一覧を確認してるのだ。",
         },
         "style": "zundamon",
       },
@@ -360,7 +360,7 @@ exports[`commentary quality fixtures > renders styles consistently 1`] = `
             "mode": "both",
             "narrationProvider": "rules",
           },
-          "narration": "ファイルを読んで状況を確認しています。",
+          "narration": "README.md を確認しています。",
         },
         "style": "standard",
       },
@@ -373,7 +373,7 @@ exports[`commentary quality fixtures > renders styles consistently 1`] = `
             "mode": "both",
             "narrationProvider": "rules",
           },
-          "narration": "ファイル読んで状況確認してるで。",
+          "narration": "README.md を見てるで。",
         },
         "style": "kansai",
       },
@@ -386,7 +386,7 @@ exports[`commentary quality fixtures > renders styles consistently 1`] = `
             "mode": "both",
             "narrationProvider": "rules",
           },
-          "narration": "ファイルを読んで状況確認してるのだ。",
+          "narration": "README.md を見てるのだ。",
         },
         "style": "zundamon",
       },
@@ -533,7 +533,7 @@ exports[`commentary quality fixtures > renders styles consistently 1`] = `
     "outputs": [
       {
         "commentary": {
-          "explanation": "エラー出力を確認して原因を絞っています。",
+          "explanation": "使おうとしたポートが既に別のプロセスに使われています。先に動いているものを止めるか、別のポートを使う場面です。",
           "glossaryNotes": [],
           "meta": {
             "explanationProvider": "rules",
@@ -546,7 +546,7 @@ exports[`commentary quality fixtures > renders styles consistently 1`] = `
       },
       {
         "commentary": {
-          "explanation": "エラー出力を確認して原因を絞っています。",
+          "explanation": "使おうとしたポートが既に別のプロセスに使われています。先に動いているものを止めるか、別のポートを使う場面です。",
           "glossaryNotes": [],
           "meta": {
             "explanationProvider": "rules",
@@ -559,7 +559,7 @@ exports[`commentary quality fixtures > renders styles consistently 1`] = `
       },
       {
         "commentary": {
-          "explanation": "エラー出力を確認して原因を絞っています。",
+          "explanation": "使おうとしたポートが既に別のプロセスに使われています。先に動いているものを止めるか、別のポートを使う場面です。",
           "glossaryNotes": [],
           "meta": {
             "explanationProvider": "rules",
@@ -587,7 +587,7 @@ exports[`commentary quality fixtures > renders styles consistently 1`] = `
             "mode": "both",
             "narrationProvider": "rules",
           },
-          "narration": "テスト/型チェックで壊れていないか確認しています。",
+          "narration": "自動テストを実行しています。",
         },
         "style": "standard",
       },
@@ -602,7 +602,7 @@ exports[`commentary quality fixtures > renders styles consistently 1`] = `
             "mode": "both",
             "narrationProvider": "rules",
           },
-          "narration": "テスト/型チェック回して確認中や。",
+          "narration": "自動テストを回してるで。",
         },
         "style": "kansai",
       },
@@ -617,7 +617,7 @@ exports[`commentary quality fixtures > renders styles consistently 1`] = `
             "mode": "both",
             "narrationProvider": "rules",
           },
-          "narration": "テスト/型チェックで確認してるのだ。",
+          "narration": "自動テストを実行してるのだ。",
         },
         "style": "zundamon",
       },
@@ -638,7 +638,7 @@ exports[`commentary quality fixtures > renders styles consistently 1`] = `
             "mode": "both",
             "narrationProvider": "rules",
           },
-          "narration": "テスト/型チェックで壊れていないか確認しています。",
+          "narration": "型チェックを実行しています。",
         },
         "style": "standard",
       },
@@ -653,7 +653,7 @@ exports[`commentary quality fixtures > renders styles consistently 1`] = `
             "mode": "both",
             "narrationProvider": "rules",
           },
-          "narration": "テスト/型チェック回して確認中や。",
+          "narration": "型チェックを回してるで。",
         },
         "style": "kansai",
       },
@@ -668,7 +668,7 @@ exports[`commentary quality fixtures > renders styles consistently 1`] = `
             "mode": "both",
             "narrationProvider": "rules",
           },
-          "narration": "テスト/型チェックで確認してるのだ。",
+          "narration": "型チェックを実行してるのだ。",
         },
         "style": "zundamon",
       },
@@ -680,7 +680,7 @@ exports[`commentary quality fixtures > renders styles consistently 1`] = `
     "outputs": [
       {
         "commentary": {
-          "explanation": "読みやすさと品質ルールを確認しています。",
+          "explanation": "書き方の統一と、よくある間違いを機械的に洗い出しています。動作そのものではなく品質の確認です。",
           "glossaryNotes": [
             "補足: pnpm/npm/yarn は依存関係やスクリプト実行に使う",
           ],
@@ -695,7 +695,7 @@ exports[`commentary quality fixtures > renders styles consistently 1`] = `
       },
       {
         "commentary": {
-          "explanation": "読みやすさと品質ルールを確認しています。",
+          "explanation": "書き方の統一と、よくある間違いを機械的に洗い出しています。動作そのものではなく品質の確認です。",
           "glossaryNotes": [
             "補足: pnpm/npm/yarn は依存関係やスクリプト実行に使う",
           ],
@@ -710,7 +710,7 @@ exports[`commentary quality fixtures > renders styles consistently 1`] = `
       },
       {
         "commentary": {
-          "explanation": "読みやすさと品質ルールを確認しています。",
+          "explanation": "書き方の統一と、よくある間違いを機械的に洗い出しています。動作そのものではなく品質の確認です。",
           "glossaryNotes": [
             "補足: pnpm/npm/yarn は依存関係やスクリプト実行に使う",
           ],
@@ -731,7 +731,7 @@ exports[`commentary quality fixtures > renders styles consistently 1`] = `
     "outputs": [
       {
         "commentary": {
-          "explanation": "実行・配布できる形にまとめています。",
+          "explanation": "配布や実行ができる形にまとめています。ここが通れば実際に動かせる状態になります。",
           "glossaryNotes": [
             "補足: pnpm/npm/yarn は依存関係やスクリプト実行に使う",
           ],
@@ -746,7 +746,7 @@ exports[`commentary quality fixtures > renders styles consistently 1`] = `
       },
       {
         "commentary": {
-          "explanation": "実行・配布できる形にまとめています。",
+          "explanation": "配布や実行ができる形にまとめています。ここが通れば実際に動かせる状態になります。",
           "glossaryNotes": [
             "補足: pnpm/npm/yarn は依存関係やスクリプト実行に使う",
           ],
@@ -761,7 +761,7 @@ exports[`commentary quality fixtures > renders styles consistently 1`] = `
       },
       {
         "commentary": {
-          "explanation": "実行・配布できる形にまとめています。",
+          "explanation": "配布や実行ができる形にまとめています。ここが通れば実際に動かせる状態になります。",
           "glossaryNotes": [
             "補足: pnpm/npm/yarn は依存関係やスクリプト実行に使う",
           ],
@@ -782,7 +782,7 @@ exports[`commentary quality fixtures > renders styles consistently 1`] = `
     "outputs": [
       {
         "commentary": {
-          "explanation": "動作確認のため実行環境を立ち上げています。",
+          "explanation": "動作確認用のサーバーを立ち上げています。実際の画面や応答を確かめる準備です。",
           "glossaryNotes": [
             "補足: pnpm/npm/yarn は依存関係やスクリプト実行に使う",
           ],
@@ -791,13 +791,13 @@ exports[`commentary quality fixtures > renders styles consistently 1`] = `
             "mode": "both",
             "narrationProvider": "rules",
           },
-          "narration": "開発サーバーを起動・確認しています。",
+          "narration": "サーバーを起動しています。",
         },
         "style": "standard",
       },
       {
         "commentary": {
-          "explanation": "動作確認のため実行環境を立ち上げています。",
+          "explanation": "動作確認用のサーバーを立ち上げています。実際の画面や応答を確かめる準備です。",
           "glossaryNotes": [
             "補足: pnpm/npm/yarn は依存関係やスクリプト実行に使う",
           ],
@@ -806,13 +806,13 @@ exports[`commentary quality fixtures > renders styles consistently 1`] = `
             "mode": "both",
             "narrationProvider": "rules",
           },
-          "narration": "開発サーバー立ち上げてるで。",
+          "narration": "サーバーを起動してるで。",
         },
         "style": "kansai",
       },
       {
         "commentary": {
-          "explanation": "動作確認のため実行環境を立ち上げています。",
+          "explanation": "動作確認用のサーバーを立ち上げています。実際の画面や応答を確かめる準備です。",
           "glossaryNotes": [
             "補足: pnpm/npm/yarn は依存関係やスクリプト実行に使う",
           ],
@@ -821,7 +821,7 @@ exports[`commentary quality fixtures > renders styles consistently 1`] = `
             "mode": "both",
             "narrationProvider": "rules",
           },
-          "narration": "開発サーバーを立ち上げてるのだ。",
+          "narration": "サーバーを起動してるのだ。",
         },
         "style": "zundamon",
       },
@@ -833,7 +833,7 @@ exports[`commentary quality fixtures > renders styles consistently 1`] = `
     "outputs": [
       {
         "commentary": {
-          "explanation": "必要なツールや依存を揃えています。",
+          "explanation": "新しい部品を追加して、使える機能を増やしています。",
           "glossaryNotes": [
             "補足: pnpm/npm/yarn は依存関係やスクリプト実行に使う",
           ],
@@ -842,13 +842,13 @@ exports[`commentary quality fixtures > renders styles consistently 1`] = `
             "mode": "both",
             "narrationProvider": "rules",
           },
-          "narration": "依存関係の追加やスクリプト実行をしています。",
+          "narration": "eslint-plugin-r… を追加しています。",
         },
         "style": "standard",
       },
       {
         "commentary": {
-          "explanation": "必要なツールや依存を揃えています。",
+          "explanation": "新しい部品を追加して、使える機能を増やしています。",
           "glossaryNotes": [
             "補足: pnpm/npm/yarn は依存関係やスクリプト実行に使う",
           ],
@@ -857,13 +857,13 @@ exports[`commentary quality fixtures > renders styles consistently 1`] = `
             "mode": "both",
             "narrationProvider": "rules",
           },
-          "narration": "依存関係やスクリプト処理してるで。",
+          "narration": "eslint-plugin-r… を追加してるで。",
         },
         "style": "kansai",
       },
       {
         "commentary": {
-          "explanation": "必要なツールや依存を揃えています。",
+          "explanation": "新しい部品を追加して、使える機能を増やしています。",
           "glossaryNotes": [
             "補足: pnpm/npm/yarn は依存関係やスクリプト実行に使う",
           ],
@@ -872,7 +872,7 @@ exports[`commentary quality fixtures > renders styles consistently 1`] = `
             "mode": "both",
             "narrationProvider": "rules",
           },
-          "narration": "依存関係やスクリプトを処理してるのだ。",
+          "narration": "eslint-plugin-r… を追加してるのだ。",
         },
         "style": "zundamon",
       },

@@ -132,8 +132,9 @@ describe("rule-based supervision layer", () => {
     });
     const snapshot = context.observeEvent(event);
     const contextual = await comment(event, "standard", {}, snapshot);
-    expect(contextual.narration).toContain("調査段階");
-    expect(contextual.narration).toContain("apps/server/src/index.ts");
+    // Narration names the file: the phase line spells out the full path, which
+    // overruns the progress speech budget and would be dropped before playback.
+    expect(contextual.narration).toContain("index.ts");
     expect(contextual.explanation).toContain("実況のセッション文脈を確認する");
     expect(contextual.explanation).not.toMatch(/成功|完了見込み/u);
   });

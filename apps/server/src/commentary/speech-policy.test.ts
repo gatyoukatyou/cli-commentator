@@ -200,6 +200,51 @@ describe("commentary speech policy", () => {
     expect(result.speech).toEqual({ disposition: "display_only", reason: "progress_interval" });
   });
 
+  // A file name is the whole point of a detail-aware narration. The raw-command
+  // guard used to match `tsx` inside `App.tsx` and replace the sentence with a
+  // generic fallback, silently undoing the improvement on the spoken path.
+  it("speaks a narration that names a file", () => {
+    const event: Event = { ts: 1, type: "read", summary: "読取", detail: "⏺ Read(apps/web/src/App.tsx)" };
+    const result = applySpeechContract({ narration: "App.tsx を確認しています。" }, event, observed(event));
+    expect(result.speech?.text).toBe("App.tsx を確認しています。");
+  });
+
+  it.each([
+    "git status を確認しています。",
+    "pnpm test を実行しています。",
+    "rg -n foo apps を実行しています。",
+  ])("still refuses raw command text: %s", (narration) => {
+    const event: Event = { ts: 1, type: "read", summary: "読取", detail: "⏺ Read(src/a.ts)" };
+    const result = applySpeechContract({ narration }, event, observed(event));
+    expect(result.speech?.text).not.toBe(narration);
+  });
+
+  // When the provider's sentence is rejected the fallback must still name the
+  // target, otherwise every rejected event collapses to the same generic line.
+  // A phase change outranks the subject, so settle the phase first.
+  describe("fallback after the phase has settled", () => {
+    function afterPhase(event: Event) {
+      let now = 0;
+      const context = createSessionContext({ now: () => now });
+      context.observeEvent({ ts: 1, type: "read", summary: "読取", detail: "⏺ Read(src/first.ts)" });
+      now = 10_000;
+      return context.observeEvent(event);
+    }
+
+    it("names the target", () => {
+      const event: Event = { ts: 2, type: "read", summary: "読取", detail: "⏺ Read(apps/web/src/App.tsx)" };
+      const result = applySpeechContract({ narration: "cat App.tsx" }, event, afterPhase(event));
+      expect(result.speech?.text).toBe("App.tsx を確認しています。");
+    });
+
+    it("keeps the generic sentence when the target is not a real file name", () => {
+      const detail = "⏺ Read(nl -ba src/a.ts | sed -n '1,10p')";
+      const event: Event = { ts: 2, type: "read", summary: "読取", detail };
+      const result = applySpeechContract({ narration: "cat something" }, event, afterPhase(event));
+      expect(result.speech?.text).toBe("対象ファイルを確認しています。");
+    });
+  });
+
   it("preserves legacy behavior when context is unavailable", () => {
     const payload = { narration: "従来の実況です。" };
     expect(applySpeechContract(payload, { ts: 1, type: "stdout", summary: "ログ" }))

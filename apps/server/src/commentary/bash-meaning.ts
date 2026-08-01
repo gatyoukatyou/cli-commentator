@@ -11,18 +11,31 @@ function basenameFromPath(value: string): string {
   return parts[parts.length - 1] || value;
 }
 
+/**
+ * `Read(...)` / `Update(...)` payloads are synthesized from tool-call lines, so
+ * the parentheses can hold a whole shell command rather than a path (for example
+ * `Read(nl -ba a.ts | sed -n '1,120p')`). Taking the basename of that yields a
+ * command fragment, which must never reach displayed or spoken commentary.
+ */
+const SAFE_FILE_NAME_RE = /^[\w@.+-]+$/u;
+
+function fileNameFrom(value: string): string | null {
+  const name = basenameFromPath(value.trim()).trim();
+  return SAFE_FILE_NAME_RE.test(name) ? name : null;
+}
+
 export function extractReadTarget(detail?: string): string | null {
   if (!detail) return null;
   const match = detail.match(/^[⏺•]\s*Read\((.+)\)$/);
   if (!match) return null;
-  return basenameFromPath(match[1].trim());
+  return fileNameFrom(match[1]);
 }
 
 export function extractWriteTarget(detail?: string): string | null {
   if (!detail) return null;
   const match = detail.match(/^[⏺•]\s*(?:Update|Write)\((.+)\)$/);
   if (!match) return null;
-  return basenameFromPath(match[1].trim());
+  return fileNameFrom(match[1]);
 }
 
 export function extractSearchTerm(detail?: string): string | null {

@@ -6,9 +6,10 @@ import { commentZundamon } from "../styles/zundamon.js";
 import { describeBashMeaning, detailCommand, say } from "./bash-meaning.js";
 import { beginnerOneLine } from "./beginner-lines.js";
 import { getGlossaryNotes } from "./glossary.js";
+import { describeNarrationSubject, type NarrationSubject } from "./narration-subject.js";
 import { SESSION_PHASE_LABELS, type SessionContextSnapshot } from "../session-context.js";
 
-const COMMENTERS: Record<Style, (ev: Event) => string> = {
+const COMMENTERS: Record<Style, (ev: Event, subject: NarrationSubject) => string> = {
   standard: commentStandard,
   kansai: commentKansai,
   zundamon: commentZundamon,
@@ -50,10 +51,6 @@ function detailSpotlight(ev: Event, style: Style): string {
   return "";
 }
 
-
-function stripMemoPrefix(text: string): string {
-  return text.replace(/^1行メモ:\s*/u, "").trim();
-}
 
 function inferCommentaryMode(payload: CommentaryPayload): CommentaryMode {
   if (payload.narration && payload.explanation) return "both";
@@ -145,17 +142,23 @@ export function commentByRules(
     });
   }
 
-  // Keep the beginner explanation useful as a supervision layer regardless of
-  // the selected entertainment/narration style.
-  const beginner = stripMemoPrefix(beginnerOneLine(ev, "standard"));
+  // The beginner explanation is the supervision layer, so it stays in plain
+  // Japanese regardless of the selected entertainment/narration style.
+  const beginner = beginnerOneLine(ev);
   const glossaryNotes = context ? [...context.glossaryNotes] : getGlossaryNotes(ev.detail, ev.type);
   const spotlight = detailSpotlight(ev, style);
 
-  const core = COMMENTERS[style](ev);
+  const subject = describeNarrationSubject(ev);
+  const core = COMMENTERS[style](ev, subject);
   const contextual = context ? contextNarration(context, style) : "";
+  // The context line spells out the full path, which overruns the progress
+  // speech budget and gets replaced by a generic fallback — losing the target
+  // entirely. A concrete subject names the same target in a sentence that fits,
+  // so it wins; the phase change is carried by the explanation instead.
+  const lead = subject.kind !== "none" ? core : contextual || core;
 
   return withCommentaryMode({
-    narration: [contextual || core, spotlight].filter(Boolean).join(" "),
+    narration: [lead, spotlight].filter(Boolean).join(" "),
     explanation: contextExplanation(beginner, context),
     glossaryNotes,
     meta: {
