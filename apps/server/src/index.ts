@@ -16,6 +16,7 @@ import type {
 } from "./types.js";
 import { redact } from "./redact.js";
 import { extractEvents } from "./extract.js";
+import { createEscapeCarry } from "./terminal-escapes.js";
 import { comment } from "./styles/index.js";
 import { getAutoDetectedSource, resetAutoDetection } from "./rulesets/index.js";
 import * as profileManager from "./profile/manager.js";
@@ -364,6 +365,8 @@ async function launchAdHocSession(input: LaunchSessionInput): Promise<void> {
   }
 }
 
+const carryEscape = createEscapeCarry();
+
 /**
  * Process incoming data from any input source (PTY or FileTail).
  * This is the common data processing pipeline.
@@ -381,7 +384,9 @@ function processInputData(data: string, writeToStdout: boolean = true): void {
     sourceState.mode === "auto"
       ? sourceState.detected ?? currentSourceMode
       : sourceState.mode;
-  const evs = extractEvents(clean, activeSource);
+  // Raw output goes to the terminal pane unchanged; only event extraction needs
+  // the chunk boundary repaired, so a split escape sequence is not read aloud.
+  const evs = extractEvents(carryEscape(clean), activeSource);
   const detected = getAutoDetectedSource();
   if (detected) broadcastSource(detected);
 

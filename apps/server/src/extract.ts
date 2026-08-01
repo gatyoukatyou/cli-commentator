@@ -1,8 +1,9 @@
 import type { Event } from "./types.js";
 import { rulesForLine } from "./rulesets/index.js";
-import { isCodexProgressNoise, isTerminalRenderingNoise } from "./progress-noise.js";
+import { isClaudeTuiNoise, isCodexProgressNoise, isTerminalRenderingNoise } from "./progress-noise.js";
 import { extractClaudeSupervisionEvents } from "./rulesets/claude-supervision.js";
 import { isFileListExecution, isSearchExecution } from "./command-analysis.js";
+import { ANSI_ESCAPE_RE } from "./terminal-escapes.js";
 
 // Legacy X10 mouse reports include three coordinate bytes after CSI M. Strip
 // them before the generic CSI matcher consumes only the introducer.
@@ -15,11 +16,6 @@ const LEGACY_MOUSE_REPORT_RE =
 const CHARSET_DESIGNATION_RE =
   // biome-ignore lint/suspicious/noControlCharactersInRegex: ANSI escapes are control characters by definition.
   /\u001B[()*+][0-2A-Z]/g;
-
-// Remove ANSI/VT control sequences so TUI apps like Claude Code still match rules.
-const ANSI_ESCAPE_RE =
-  // biome-ignore lint/suspicious/noControlCharactersInRegex: ANSI escapes are control characters by definition.
-  /\u001B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~]|\][^\u0007]*(?:\u0007|\u001B\\))/g;
 
 function normalizeLine(line: string): string {
   return line
@@ -398,6 +394,9 @@ function preprocessLine(rawLine: string, sourceEnv?: string): string | null {
     return null;
   }
   if (source === "codex" && isCodexProgressNoise(normalized)) {
+    return null;
+  }
+  if (source === "claude" && isClaudeTuiNoise(normalized)) {
     return null;
   }
 
