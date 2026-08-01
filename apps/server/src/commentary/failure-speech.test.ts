@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { classifyFailure } from "@cli-commentator/shared";
+import { classifyFailure } from "@cli-commentator/shared/failure-classification";
 import { buildUrgentSpeechText } from "@cli-commentator/shared/urgent-speech";
 import { beginnerOneLine } from "./beginner-lines.js";
 import type { Event } from "../types.js";
