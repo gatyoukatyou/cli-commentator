@@ -1,4 +1,8 @@
-import { classifyFailure, type FailureKind } from "@cli-commentator/shared";
+// Import through the subpath, not the package root: the bundled desktop
+// sidecar runs on plain Node, and the root entry is a `.ts` file that only
+// resolves for type-only imports. This mirrors how `speech-policy` imports
+// `urgent-speech`.
+import { classifyFailure, type FailureKind } from "@cli-commentator/shared/failure-classification";
 import type { Event, EventType } from "../types.js";
 import { describeBashMeaning, detailCommand, extractReadTarget, extractSearchTerm, extractWriteTarget } from "./bash-meaning.js";
 import { describeNarrationSubject } from "./narration-subject.js";
