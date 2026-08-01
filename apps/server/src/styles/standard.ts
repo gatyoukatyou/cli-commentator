@@ -1,6 +1,37 @@
 import type { Event } from "../types.js";
+import { NONE, type NarrationSubject } from "../commentary/narration-subject.js";
 
-export function commentStandard(ev: Event): string {
+/**
+ * Plain-Japanese sentence naming the subject. Shared with the speech contract,
+ * which is style-neutral, so the wording lives here rather than being duplicated.
+ */
+export function standardSubjectLine(subject: NarrationSubject): string | null {
+  switch (subject.kind) {
+    case "file":
+      return `${subject.name} を確認しています。`;
+    case "searchTerm":
+      return `「${subject.term}」を探しています。`;
+    case "fileList":
+      return "ファイル一覧を調べています。";
+    case "check":
+      return `${subject.label}を実行しています。`;
+    case "testResult":
+      if (subject.failed) return `テストが${subject.failed}件失敗しました。`;
+      if (subject.passed) return `テストが${subject.passed}件通りました。`;
+      return null;
+    default:
+      return null;
+  }
+}
+
+export function commentStandard(ev: Event, subject: NarrationSubject = NONE): string {
+  if (ev.type === "write" && subject.kind === "file") {
+    return `${subject.name} を書き換えています。`;
+  }
+
+  const specific = standardSubjectLine(subject);
+  if (specific) return specific;
+
   return ev.type === "read" ? "ファイルを読んで状況を確認しています。" :
     ev.type === "stdout" ? "" :
     ev.type === "write" ? "ファイルを書き換えて修正を反映しています。" :

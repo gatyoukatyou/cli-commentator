@@ -1,6 +1,33 @@
 import type { Event } from "../types.js";
+import { NONE, type NarrationSubject } from "../commentary/narration-subject.js";
 
-export function commentZundamon(ev: Event): string {
+function subjectLine(subject: NarrationSubject): string | null {
+  switch (subject.kind) {
+    case "file":
+      return `${subject.name} を見てるのだ。`;
+    case "searchTerm":
+      return `「${subject.term}」を探してるのだ。`;
+    case "fileList":
+      return "ファイル一覧を調べてるのだ。";
+    case "check":
+      return `${subject.label}を実行してるのだ。`;
+    case "testResult":
+      if (subject.failed) return `テストが${subject.failed}件失敗したのだ。`;
+      if (subject.passed) return `テストが${subject.passed}件通ったのだ。`;
+      return null;
+    default:
+      return null;
+  }
+}
+
+export function commentZundamon(ev: Event, subject: NarrationSubject = NONE): string {
+  if (ev.type === "write" && subject.kind === "file") {
+    return `${subject.name} を書き換えてるのだ。`;
+  }
+
+  const specific = subjectLine(subject);
+  if (specific) return specific;
+
   return ev.type === "read" ? "ファイルを読んで状況確認してるのだ。" :
     ev.type === "stdout" ? "" :
     ev.type === "write" ? "修正を反映して書き換えてるのだ。" :

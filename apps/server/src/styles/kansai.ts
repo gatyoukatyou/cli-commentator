@@ -1,6 +1,33 @@
 import type { Event } from "../types.js";
+import { NONE, type NarrationSubject } from "../commentary/narration-subject.js";
 
-export function commentKansai(ev: Event): string {
+function subjectLine(subject: NarrationSubject): string | null {
+  switch (subject.kind) {
+    case "file":
+      return `${subject.name} を見てるで。`;
+    case "searchTerm":
+      return `「${subject.term}」を探してるで。`;
+    case "fileList":
+      return "ファイル一覧を調べてるで。";
+    case "check":
+      return `${subject.label}を回してるで。`;
+    case "testResult":
+      if (subject.failed) return `テストが${subject.failed}件こけたで。`;
+      if (subject.passed) return `テストが${subject.passed}件通ったで。`;
+      return null;
+    default:
+      return null;
+  }
+}
+
+export function commentKansai(ev: Event, subject: NarrationSubject = NONE): string {
+  if (ev.type === "write" && subject.kind === "file") {
+    return `${subject.name} を書き換えてるで。`;
+  }
+
+  const specific = subjectLine(subject);
+  if (specific) return specific;
+
   return ev.type === "read" ? "ファイル読んで状況確認してるで。" :
     ev.type === "stdout" ? "" :
     ev.type === "write" ? "ファイル書き換えて修正反映してるで。" :

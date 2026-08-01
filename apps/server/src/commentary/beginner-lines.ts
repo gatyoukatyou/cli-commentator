@@ -47,7 +47,10 @@ function contextualBeginnerLine(ev: Event, style: Style): string | null {
   }
 
   if (detail && /^[⏺•]\s*Read\(/.test(detail)) {
-    const target = extractReadTarget(detail) ?? "対象ファイル";
+    const target = extractReadTarget(detail);
+    // Without a real file name the sentence reads as "対象ファイル を読んで…";
+    // the type-level line below says the same thing in natural Japanese.
+    if (!target) return null;
     const isDoc = /\.(md|txt|rst|adoc)$/i.test(target) || /readme|docs?/i.test(target);
     return say(style, {
       standard: `1行メモ: ${target} を読んで、${isDoc ? "手順や前提" : "現在の実装"}を確認しています。`,
@@ -57,7 +60,8 @@ function contextualBeginnerLine(ev: Event, style: Style): string | null {
   }
 
   if (detail && /^[⏺•]\s*(Update|Write)\(/.test(detail)) {
-    const target = extractWriteTarget(detail) ?? "対象ファイル";
+    const target = extractWriteTarget(detail);
+    if (!target) return null;
     return say(style, {
       standard: `1行メモ: ${target} を書き換えて、挙動を直接調整しています。`,
       kansai: `1行メモ: ${target} を書き換えて、挙動を直接調整してるで。`,

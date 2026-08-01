@@ -2,9 +2,13 @@ import { SESSION_PHASE_LABELS, type SessionContextSnapshot } from "../session-co
 import { buildUrgentSpeechText } from "@cli-commentator/shared/urgent-speech";
 import { getEventPriority } from "../event-priority.js";
 import type { CommentaryPayload, Event } from "../types.js";
+import { describeNarrationSubject, type NarrationSubject } from "./narration-subject.js";
+import { standardSubjectLine } from "../styles/standard.js";
 
+// The command-name alternation must not fire on a file extension or a path
+// segment: "App.tsx を確認しています。" is narration, not a raw `tsx` invocation.
 const RAW_COMMAND_RE =
-  /(?:^[⏺•]\s*|\b(?:Bash|Read|Grep|Glob|Update|Write)\(|\bapply_patch\b|\b(?:rg|grep|nl|sed|git|gh|pnpm|npm|yarn|cat|find|ls|cd|pwd|node|tsx|cargo|docker|curl)\b(?:\s+|$)|\|)/iu;
+  /(?:^[⏺•]\s*|\b(?:Bash|Read|Grep|Glob|Update|Write)\(|\bapply_patch\b|(?<![-./\w])(?:rg|grep|nl|sed|git|gh|pnpm|npm|yarn|cat|find|ls|cd|pwd|node|tsx|cargo|docker|curl)\b(?:\s+|$)|\|)/iu;
 const MAX_SPEECH_LENGTH = 100;
 const MAX_PROGRESS_SPEECH_LENGTH = 30;
 
@@ -17,7 +21,11 @@ function firstSentence(text: string): string {
   return compact.match(/^.+?[。！？!?](?:[」』”"])?/u)?.[0]?.trim() ?? compact;
 }
 
-function safeFallback(event: Event, context: SessionContextSnapshot): string {
+function safeFallback(
+  event: Event,
+  context: SessionContextSnapshot,
+  subject: NarrationSubject
+): string {
   if (context.humanRequired) return "HUMANの対応を待っています。";
   if (context.speech.reason === "failure") return "処理が正常に終了しませんでした。";
   if (event.type === "done") {
@@ -29,6 +37,10 @@ function safeFallback(event: Event, context: SessionContextSnapshot): string {
   if (context.phaseChanged && context.phase !== "unknown") {
     return `${SESSION_PHASE_LABELS[context.phase]}段階に移りました。`;
   }
+  // Falling back must not throw away an identified target; a named subject is
+  // what separates "対象ファイルを確認しています。" from "App.tsx を確認しています。".
+  const named = standardSubjectLine(subject);
+  if (named) return named;
   switch (event.type) {
     case "read":
       return "対象ファイルを確認しています。";
@@ -50,7 +62,8 @@ function safeFallback(event: Event, context: SessionContextSnapshot): string {
 
 function progressLengthFallback(
   event: Event,
-  context: SessionContextSnapshot
+  context: SessionContextSnapshot,
+  subject: NarrationSubject
 ): string {
   const target = context.target
     ?.replace(/\\/gu, "/")
@@ -72,7 +85,7 @@ function progressLengthFallback(
       return targetSentence;
     }
   }
-  return safeFallback(event, context);
+  return safeFallback(event, context, subject);
 }
 
 function speechSentence(
@@ -83,12 +96,13 @@ function speechSentence(
   if (getEventPriority(event) === "urgent") {
     return buildUrgentSpeechText(event);
   }
+  const subject = describeNarrationSubject(event);
   if (event.type === "done") {
-    return safeFallback(event, context);
+    return safeFallback(event, context, subject);
   }
   const candidate = firstSentence(payload.narration ?? payload.explanation ?? "");
   if (!candidate || candidate.length > MAX_SPEECH_LENGTH || hasRawCommandText(candidate)) {
-    return safeFallback(event, context);
+    return safeFallback(event, context, subject);
   }
   if (
     getEventPriority(event) === "progress" &&
@@ -98,7 +112,7 @@ function speechSentence(
     // Japanese grammar, or erase the selected character style. The prompt is
     // responsible for producing a complete short sentence; this is only the
     // safety valve for a provider that exceeds that contract.
-    return progressLengthFallback(event, context);
+    return progressLengthFallback(event, context, subject);
   }
   return candidate;
 }
