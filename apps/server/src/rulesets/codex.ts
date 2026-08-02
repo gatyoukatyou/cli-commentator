@@ -1,5 +1,6 @@
 import type { RuleSet } from "./types.js";
 import { isSearchExecution, isTestExecution } from "../command-analysis.js";
+import { isCodexTuiAssistantLine } from "../progress-noise.js";
 
 export const codexRuleset: RuleSet = {
   id: "codex",
@@ -12,6 +13,7 @@ export const codexRuleset: RuleSet = {
     { id: "codex.update", priority: 90, re: /^[⏺•]\s*Update\(/, type: "write", summary: "ファイルを更新している" },
     { id: "codex.write", priority: 80, re: /^[⏺•]\s*Write\(/, type: "write", summary: "ファイルを書き込んでいる" },
     { id: "codex.patch", priority: 75, re: /\bapply_patch\b|apply patch/i, type: "write", summary: "パッチを適用している" },
+    { id: "codex.tui.assistant", priority: 70, re: /^•\s+\S/u, match: isCodexTuiAssistantLine, type: "stdout", summary: "Codexが説明している" },
     // Codex CLI v0.145.0 redraws this as "Questions 1/1 answered" after submission,
     // but requiring a positive count also prevents completed counters from becoming urgent.
     { id: "codex.question", priority: 66, re: /^Question \d+\/\d+ \((?:[1-9]\d*) unanswered\)$/i, type: "stdout", summary: "質問への回答を待っている" },

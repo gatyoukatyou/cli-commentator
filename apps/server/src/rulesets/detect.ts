@@ -27,6 +27,7 @@ const CLAUDE_MEDIUM = [
 ];
 
 const CODEX_STRONG = [
+  /\bOpenAI\s+Codex\s*\(v\d+\.\d+\.\d+\)/i,
   /would you like to run the following command\?/i,
   /you approved .* to run/i,
   /^(apply_patch|apply patch|\*\*\* Begin Patch\b)/i,

@@ -139,11 +139,11 @@ export function describeNarrationSubject(ev: Event): NarrationSubject {
       return fileSubject(extractWriteTarget(detail));
     case "search": {
       const command = detailCommand(detail);
+      if (isFileListExecution(command)) return { kind: "fileList" };
       const term = extractSearchPattern(detail);
       if (term && SAFE_TERM_RE.test(term)) {
         return { kind: "searchTerm", term: clip(term, MAX_SEARCH_TERM_LENGTH) };
       }
-      if (isFileListExecution(command)) return { kind: "fileList" };
       return NONE;
     }
     case "test": {

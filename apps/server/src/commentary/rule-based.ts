@@ -128,6 +128,24 @@ function contextExplanation(
   return beginner || undefined;
 }
 
+function codexTuiNarration(ev: Event, style: Style): string {
+  if (ev.summary === "Codexが説明している") {
+    return say(style, {
+      standard: "Codexが作業内容を説明しています。",
+      kansai: "Codexが作業内容を説明してるで。",
+      zundamon: "Codexが作業内容を説明してるのだ。",
+    });
+  }
+  if (ev.summary === "Codexが回答した") {
+    return say(style, {
+      standard: "Codexが回答しました。",
+      kansai: "Codexが回答したで。",
+      zundamon: "Codexが回答したのだ。",
+    });
+  }
+  return "";
+}
+
 export function commentByRules(
   ev: Event,
   style: Style,
@@ -146,10 +164,11 @@ export function commentByRules(
   // Japanese regardless of the selected entertainment/narration style.
   const beginner = beginnerOneLine(ev);
   const glossaryNotes = context ? [...context.glossaryNotes] : getGlossaryNotes(ev.detail, ev.type);
-  const spotlight = detailSpotlight(ev, style);
+  const codexNarration = codexTuiNarration(ev, style);
+  const spotlight = codexNarration ? "" : detailSpotlight(ev, style);
 
   const subject = describeNarrationSubject(ev);
-  const core = COMMENTERS[style](ev, subject);
+  const core = codexNarration || COMMENTERS[style](ev, subject);
   const contextual = context ? contextNarration(context, style) : "";
   // The context line spells out the full path, which overruns the progress
   // speech budget and gets replaced by a generic fallback — losing the target
