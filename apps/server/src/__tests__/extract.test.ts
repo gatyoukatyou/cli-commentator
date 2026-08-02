@@ -2,7 +2,7 @@ import { describe, expect, it, vi, afterEach, beforeEach } from "vitest";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { extractEvents } from "../extract.js";
+import { extractEvents, resetExtractionState } from "../extract.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -23,6 +23,7 @@ describe("extractEvents fixtures", () => {
   beforeEach(() => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2025-01-01T00:00:00.000Z"));
+    resetExtractionState();
   });
 
   afterEach(() => {
@@ -96,6 +97,13 @@ describe("extractEvents fixtures", () => {
         summary: "Codexが説明している",
       },
     ]);
+  });
+
+  it("drops Codex account quota chrome and final-answer bullet fragments", () => {
+    expect(
+      extractEvents("• You have 1 usage limit reset available. Run /usage to use one.", "codex")
+    ).toEqual([]);
+    expect(extractEvents("• - docs/README.md", "codex")).toEqual([]);
   });
 
   it("redacts secrets from a Codex TUI command card", () => {

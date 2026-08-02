@@ -75,6 +75,8 @@ export function isCodexTuiAssistantLine(text: string): boolean {
   const message = match[1].trim();
   if (
     /^(?:Ran|Working|Booting MCP|Starting MCP|MCP servers?|Usage status)\b/iu.test(message) ||
+    /^You have \d+ usage limit resets? available\b/iu.test(message) ||
+    /^[-*]\s+/u.test(message) ||
     /esc to interrupt|Write tests for @filename/iu.test(message)
   ) {
     return false;
