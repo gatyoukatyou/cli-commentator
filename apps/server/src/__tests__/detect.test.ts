@@ -73,6 +73,13 @@ describe("ruleset auto detect", () => {
     expect(detectSourceFromText(fixture.raw)).toBe("claude");
   });
 
+  it("detects the sanitized real Codex TUI capture", async () => {
+    const filePath = path.join(fixturesDir, "codex-tui/real-session-0.146.0.json");
+    const fixture = JSON.parse(await fs.readFile(filePath, "utf8")) as { raw: string };
+
+    expect(detectSourceFromText(fixture.raw)).toBe("codex");
+  });
+
   it("detects Claude from its startup banner before the first tool result", () => {
     const detector = createAutoDetector();
 

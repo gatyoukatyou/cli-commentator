@@ -72,6 +72,43 @@ describe("extractEvents fixtures", () => {
     expect(events).toEqual([]);
   });
 
+  it("extracts a real Codex TUI command card", () => {
+    const events = extractEvents(
+      "• Ran find docs -maxdepth 1 -type f -print | sort\n└ docs/README.md",
+      "codex"
+    );
+
+    expect(events).toMatchObject([
+      {
+        type: "search",
+        summary: "ファイル一覧を検索している",
+        detail: "⏺ Glob(find docs -maxdepth 1 -type f -print)",
+      },
+    ]);
+  });
+
+  it("keeps a substantive Codex TUI assistant update", () => {
+    expect(
+      extractEvents("• リポジトリの安全確認を先に行い、指定されたコマンドを実行します。", "codex")
+    ).toMatchObject([
+      {
+        type: "stdout",
+        summary: "Codexが説明している",
+      },
+    ]);
+  });
+
+  it("redacts secrets from a Codex TUI command card", () => {
+    const events = extractEvents(
+      "• Ran curl --token secret-value https://example.invalid\n└ ok",
+      "codex"
+    );
+
+    expect(events).toHaveLength(1);
+    expect(events[0]?.detail).toContain("--token=[REDACTED]");
+    expect(events[0]?.detail).not.toContain("secret-value");
+  });
+
   it("uses the runtime source override for Codex noise suppression", () => {
     delete process.env.LOG_SOURCE;
     const events = extractEvents("10;?\n•2", "codex");

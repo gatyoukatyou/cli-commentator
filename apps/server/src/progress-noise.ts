@@ -67,3 +67,19 @@ export function isCodexProgressNoise(text: string): boolean {
     /^[.•·]\d+$/i.test(text)
   );
 }
+
+export function isCodexTuiAssistantLine(text: string): boolean {
+  const match = text.match(/^•\s+(.+)$/u);
+  if (!match) return false;
+
+  const message = match[1].trim();
+  if (
+    /^(?:Ran|Working|Booting MCP|Starting MCP|MCP servers?|Usage status)\b/iu.test(message) ||
+    /esc to interrupt|Write tests for @filename/iu.test(message)
+  ) {
+    return false;
+  }
+
+  const meaningful = message.match(/[\p{L}\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}]/gu) ?? [];
+  return meaningful.length >= 8;
+}

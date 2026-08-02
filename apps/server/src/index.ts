@@ -15,7 +15,7 @@ import type {
   WsOutgoing,
 } from "./types.js";
 import { redact } from "./redact.js";
-import { extractEvents } from "./extract.js";
+import { extractEvents, resetExtractionState } from "./extract.js";
 import { createEscapeCarry } from "./terminal-escapes.js";
 import { comment } from "./styles/index.js";
 import { getAutoDetectedSource, resetAutoDetection } from "./rulesets/index.js";
@@ -458,6 +458,7 @@ function setupPTY(
     acceptsHumanInput: /(?:^|[/\\])(?:codex|claude)(?:$|\s)/i.test(config.cmd),
   });
   commentaryGate.reset();
+  resetExtractionState();
   const term = ptyManager.spawn(config);
   silenceTimer.start();
   transitionServerState("setup_pty_success", "pty_running", {
@@ -901,6 +902,7 @@ function setupFileTail(filePath: string, options?: { fatal?: boolean; presetName
   console.log(`Starting file tail mode: ${filePath}`);
   sessionContext.reset({ presetName: options?.presetName });
   commentaryGate.reset();
+  resetExtractionState();
 
   // Reset auto-detection
   if (sourceState.mode === "auto") {

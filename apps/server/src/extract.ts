@@ -1,8 +1,8 @@
 import type { Event } from "./types.js";
 import { getAutoDetectedSource, rulesForLine } from "./rulesets/index.js";
-import { isClaudeTuiNoise, isCodexProgressNoise, isTerminalRenderingNoise } from "./progress-noise.js";
+import { isClaudeTuiNoise, isCodexProgressNoise, isCodexTuiAssistantLine, isTerminalRenderingNoise } from "./progress-noise.js";
 import { extractClaudeSupervisionEvents } from "./rulesets/claude-supervision.js";
-import { isFileListExecution, isSearchExecution } from "./command-analysis.js";
+import { extractFileListCommand, isFileListExecution, isSearchExecution } from "./command-analysis.js";
 import { ANSI_ESCAPE_RE } from "./terminal-escapes.js";
 
 // Legacy X10 mouse reports include three coordinate bytes after CSI M. Strip
@@ -303,34 +303,124 @@ function safeCommandPreview(cmd: string): string {
   const redacted = compact
     .replace(/\b([A-Za-z_][A-Za-z0-9_]*(?:TOKEN|SECRET|PASSWORD|API_KEY)[A-Za-z0-9_]*)=([^\s]+)/gi, "$1=[REDACTED]")
     .replace(/(--?(?:token|secret|password|api[-_]?key))(?:=|\s+)('[^']*'|\"[^\"]*\"|[^\s]+)/gi, "$1=[REDACTED]");
-  return redacted.length <= 240 ? redacted : `${redacted.slice(0, 237)}...`;
+  if (redacted.length <= 240) return redacted;
+  return `${redacted.slice(0, 237)}...`;
 }
 
 function classifyExecCommands(commands: string[]): string | null {
   if (commands.length === 0) return null;
-  const visible = commands.slice(0, 2).map(safeCommandPreview);
+  const visible = commands.slice(0, 2).map((command) => safeCommandPreview(command));
   const omitted = commands.length - visible.length;
   const combined = visible.join(" ; ") + (omitted > 0 ? ` ... (+${omitted} commands)` : "");
   return classifyExecCommand(combined);
 }
 
-function classifyExecCommand(cmd: string): string {
+function classifyExecCommand(cmd: string, displayCmd = cmd): string {
   const compact = cmd.trim();
   if (!compact) return "⏺ Bash(exec_command)";
+  const display = displayCmd.trim();
 
   if (isFileListExecution(compact)) {
-    return `⏺ Glob(${compact})`;
+    return `⏺ Glob(${display})`;
   }
 
   if (isSearchExecution(compact)) {
-    return `⏺ Grep(${compact})`;
+    return `⏺ Grep(${display})`;
   }
 
   if (/^\s*(cat|sed|head|tail|less|more|nl)\b/i.test(compact)) {
-    return `⏺ Read(${compact})`;
+    return `⏺ Read(${display})`;
   }
 
-  return `⏺ Bash(${compact})`;
+  return `⏺ Bash(${display})`;
+}
+
+const CODEX_TUI_BUFFER_LIMIT = 8_192;
+let codexTuiBuffer = "";
+let lastCodexTuiCommand = "";
+let lastCodexTuiAssistant = "";
+let lastCodexTuiAnswer = "";
+
+export function resetExtractionState(): void {
+  codexTuiBuffer = "";
+  lastCodexTuiCommand = "";
+  lastCodexTuiAssistant = "";
+  lastCodexTuiAnswer = "";
+}
+
+function normalizeTuiStream(chunk: string): string {
+  return chunk
+    .replace(LEGACY_MOUSE_REPORT_RE, "")
+    .replace(CHARSET_DESIGNATION_RE, "")
+    .replace(ANSI_ESCAPE_RE, "")
+    .replace(/\r/g, "")
+    .replace(/[\u0000-\u0009\u000b-\u001f\u007f]/g, "");
+}
+
+function eventForCanonicalLine(line: string, ts: number): Event | null {
+  const hit = rulesForLine(line, "codex")
+    .find((rule) => rule.match ? rule.match(line) : rule.re.test(line));
+  return hit ? { ts, type: hit.type, summary: hit.summary, detail: line } : null;
+}
+
+function extractCodexTuiEvents(chunk: string, ts: number): Event[] {
+  const separator = codexTuiBuffer ? "\n" : "";
+  codexTuiBuffer = `${codexTuiBuffer}${separator}${normalizeTuiStream(chunk)}`
+    .slice(-CODEX_TUI_BUFFER_LIMIT);
+
+  const events: Event[] = [];
+  const commandCard = /(?:^|\n)\s*•\s+Ran\s+([\s\S]*?)\n\s*└\s*/gu;
+  let consumedThrough = 0;
+
+  for (const match of codexTuiBuffer.matchAll(commandCard)) {
+    consumedThrough = (match.index ?? 0) + match[0].length;
+    const command = match[1]
+      .split("\n")
+      .map((line) => line.replace(/^\s*│\s?/u, "").trim())
+      .filter(Boolean)
+      .join(" ")
+      .replace(/\s+/gu, " ")
+      .trim();
+    if (!command || command === lastCodexTuiCommand) continue;
+
+    const displayCommand = extractFileListCommand(command) ?? command;
+    const canonical = classifyExecCommand(command, safeCommandPreview(displayCommand));
+    const event = eventForCanonicalLine(canonical, ts);
+    if (event) events.push(event);
+    lastCodexTuiCommand = command;
+  }
+
+  const responseBlock = /(?:^|\n)\s*─{40,}\s*\n([\s\S]*?)\n\s*─{40,}(?=\n|$)/gu;
+  for (const match of codexTuiBuffer.matchAll(responseBlock)) {
+    consumedThrough = Math.max(consumedThrough, (match.index ?? 0) + match[0].length);
+    if (/•\s+Ran\b/u.test(match[1])) continue;
+
+    const answer = match[1]
+      .split("\n")
+      .map((line) => line.trim().replace(/^•\s*/u, ""))
+      .map((line) => line.replace(/›Write tests for @filename.*$/iu, "").trim())
+      .filter((line) => line.length >= 8)
+      .filter((line) => !/^(?:[A-Za-z]:[\\/]|[/~])\S+$/u.test(line))
+      .filter((line) => !/gpt-[\w.-]+\s+(?:high|medium|low)\b/iu.test(line))
+      .join(" ")
+      .replace(/\s+/gu, " ")
+      .trim();
+    if (!answer || answer === lastCodexTuiAnswer) continue;
+
+    events.push({
+      ts,
+      type: "stdout",
+      summary: "Codexが回答した",
+      detail: answer,
+      priority: "notice",
+    });
+    lastCodexTuiAnswer = answer;
+  }
+
+  if (consumedThrough > 0) {
+    codexTuiBuffer = codexTuiBuffer.slice(consumedThrough);
+  }
+  return events;
 }
 
 function canonicalizeCodexToolCall(rawLine: string): string | null {
@@ -439,6 +529,12 @@ function preprocessLine(rawLine: string, sourceEnv?: string): string | null {
     return normalized;
   }
 
+  if (source === "codex" && isCodexTuiAssistantLine(normalized)) {
+    if (normalized === lastCodexTuiAssistant) return null;
+    lastCodexTuiAssistant = normalized;
+    return normalized;
+  }
+
   if (/^>\s/.test(normalized) || /\bapply_patch\b|ELIFECYCLE|exit code|error|failed|exception|TS\d{4,5}/i.test(normalized)) {
     return normalized;
   }
@@ -453,13 +549,24 @@ function preprocessLine(rawLine: string, sourceEnv?: string): string | null {
 export function extractEvents(chunk: string, sourceEnv: string | undefined = process.env.LOG_SOURCE): Event[] {
   const ts = Date.now();
 
+  const rawLines = chunk.split(/\r?\n/);
+  if ((sourceEnv ?? "auto").trim().toLowerCase() === "auto" && !getAutoDetectedSource()) {
+    for (const rawLine of rawLines) {
+      const sourceLine = normalizeLine(rawLine);
+      if (!sourceLine) continue;
+      rulesForLine(sourceLine, sourceEnv);
+      if (getAutoDetectedSource()) break;
+    }
+  }
+
   if (resolvedSourceId(sourceEnv) === "claude") {
     const supervisionEvents = extractClaudeSupervisionEvents(chunk, ts);
     if (supervisionEvents.length > 0) return supervisionEvents;
   }
 
-  const rawLines = chunk.split(/\r?\n/);
-  const events: Event[] = [];
+  const events: Event[] = resolvedSourceId(sourceEnv) === "codex"
+    ? extractCodexTuiEvents(chunk, ts)
+    : [];
   for (let index = 0; index < rawLines.length; index += 1) {
     const rawLine = rawLines[index];
     const sourceLine = normalizeLine(rawLine);

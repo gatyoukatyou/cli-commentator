@@ -162,12 +162,18 @@ export function isSearchExecution(command: string): boolean {
 }
 
 export function isFileListExecution(command: string): boolean {
-  return commandInvocations(unwrapCommandDetail(command)).some(({ segment, start, executable }) =>
-    executable === "find" ||
-    executable === "fd" ||
-    executable === "ls" ||
-    (executable === "rg" && segment.slice(start + 1).includes("--files"))
+  return extractFileListCommand(command) !== null;
+}
+
+export function extractFileListCommand(command: string): string | null {
+  const invocation = commandInvocations(unwrapCommandDetail(command)).find(
+    ({ segment, start, executable }) =>
+      executable === "find" ||
+      executable === "fd" ||
+      executable === "ls" ||
+      (executable === "rg" && segment.slice(start + 1).includes("--files"))
   );
+  return invocation?.segment.join(" ") ?? null;
 }
 
 const SEARCH_VALUE_OPTIONS = new Set([
