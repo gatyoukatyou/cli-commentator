@@ -2,6 +2,11 @@ import fs from "node:fs";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { extractEvents } from "../extract.js";
+import { createEscapeCarry } from "../terminal-escapes.js";
+import { commentByRules } from "../commentary/rule-based.js";
+import { applySpeechContract } from "../commentary/speech-policy.js";
+import { createSessionContext } from "../session-context.js";
+import { resetAutoDetection } from "../rulesets/index.js";
 
 const fixtureDir = path.resolve(process.cwd(), "test/fixtures/claude-tui");
 
@@ -22,6 +27,21 @@ function loadRenderingFixture(): {
     noiseChunks: string[];
     meaningfulChunks: string[];
   };
+}
+
+function loadRealSessionEvents(source: "claude" | "auto" = "claude") {
+  const fixture = JSON.parse(
+    fs.readFileSync(path.join(fixtureDir, "real-session-2.1.220.json"), "utf8")
+  ) as { raw: string };
+  const carry = createEscapeCarry();
+  const events = [];
+  if (source === "auto") resetAutoDetection();
+
+  for (let index = 0; index < fixture.raw.length; index += 512) {
+    events.push(...extractEvents(carry(fixture.raw.slice(index, index + 512)), source));
+  }
+
+  return events;
 }
 
 describe("Claude TUI supervision detection", () => {
@@ -75,19 +95,58 @@ describe("Claude TUI supervision detection", () => {
     }
   });
 
-  it("keeps meaningful Claude Code redraw content", () => {
+  it("keeps untrusted redraw content out of Claude commentary", () => {
     const { meaningfulChunks } = loadRenderingFixture();
 
     for (const chunk of meaningfulChunks) {
-      expect(extractEvents(chunk, "claude"), chunk).not.toEqual([]);
+      expect(extractEvents(chunk, "claude"), chunk).toEqual([]);
     }
   });
 
-  it("preserves a separator when normalizing tab-delimited output", () => {
-    expect(extractEvents("apps/server/src/extract.ts\t42", "claude")).toEqual([
-      expect.objectContaining({
-        detail: "apps/server/src/extract.ts 42",
-      }),
+  it("does not promote tab-delimited terminal output to commentary", () => {
+    expect(extractEvents("apps/server/src/extract.ts\t42", "claude")).toEqual([]);
+  });
+
+  it("keeps only trustworthy activity from the real Claude Code redraw", () => {
+    const events = loadRealSessionEvents();
+
+    expect(events.map(({ type, summary, detail }) => ({ type, summary, detail }))).toEqual([
+      {
+        type: "search",
+        summary: "ファイル一覧を検索している",
+        detail: "⎿  $ ls -1 /Users/demo/project/docs",
+      },
+      {
+        type: "stdout",
+        summary: "作業結果を要約している",
+        detail: "Listed 3 directories, ran 1 shell command",
+      },
+      {
+        type: "stdout",
+        summary: "作業結果を要約している",
+        detail: "Listed 3 directories, ran 1 shell command",
+      },
+      {
+        type: "stdout",
+        summary: "Claudeが説明している",
+        detail: "⏺docs/の中身は以下の通りです。",
+      },
     ]);
+  });
+
+  it("narrates the real ls command as a file-list search", () => {
+    const event = loadRealSessionEvents().find(({ type }) => type === "search");
+    expect(event).toBeDefined();
+
+    const context = createSessionContext();
+    const snapshot = context.observeEvent(event!);
+    const payload = commentByRules(event!, "standard", snapshot);
+    const spoken = applySpeechContract(payload, event!, snapshot).speech?.text;
+
+    expect(spoken).toBe("ファイル一覧を調べています。");
+  });
+
+  it("applies Claude filtering after auto detection", () => {
+    expect(loadRealSessionEvents("auto")).toEqual(loadRealSessionEvents("claude"));
   });
 });

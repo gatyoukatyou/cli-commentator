@@ -62,14 +62,7 @@ describe("extractEvents fixtures", () => {
       extractEvents(
         "const replacements: ReadonlyArray<readonly [RegExp, string]> = [];"
       )
-    ).toEqual([
-      {
-        ts: new Date("2025-01-01T00:00:00.000Z").getTime(),
-        type: "stdout",
-        summary: "ログ更新",
-        detail: "const replacements: ReadonlyArray<readonly [RegExp, string]> = [];",
-      },
-    ]);
+    ).toEqual([]);
   });
 
   it("drops Codex progress-noise lines from extraction", () => {

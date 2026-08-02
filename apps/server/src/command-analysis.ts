@@ -8,7 +8,8 @@ function commandName(value: string): string {
 
 export function unwrapCommandDetail(detail: string): string {
   const wrapped = detail.match(/^[⏺•]\s*(?:Bash|Grep|Glob)\((.*)\)$/s);
-  return (wrapped?.[1] ?? detail).trim().replace(/^>\s+/, "");
+  const claudeResult = detail.match(/^⎿\s*\$\s*(.+)$/s);
+  return (wrapped?.[1] ?? claudeResult?.[1] ?? detail).trim().replace(/^>\s+/, "");
 }
 
 export function tokenizeShellCommand(command: string): string[] | null {
@@ -162,7 +163,10 @@ export function isSearchExecution(command: string): boolean {
 
 export function isFileListExecution(command: string): boolean {
   return commandInvocations(unwrapCommandDetail(command)).some(({ segment, start, executable }) =>
-    executable === "find" || executable === "fd" || (executable === "rg" && segment.slice(start + 1).includes("--files"))
+    executable === "find" ||
+    executable === "fd" ||
+    executable === "ls" ||
+    (executable === "rg" && segment.slice(start + 1).includes("--files"))
   );
 }
 
