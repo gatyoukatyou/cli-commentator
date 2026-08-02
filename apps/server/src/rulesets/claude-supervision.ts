@@ -1,8 +1,5 @@
 import type { Event } from "../types.js";
-
-const ANSI_ESCAPE_RE =
-  // biome-ignore lint/suspicious/noControlCharactersInRegex: ANSI escapes are control characters by definition.
-  /\u001B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~]|\][^\u0007]*(?:\u0007|\u001B\\))/g;
+import { ANSI_ESCAPE_RE } from "../terminal-escapes.js";
 
 function normalizeTuiChunk(chunk: string): { readable: string; compact: string } {
   const readable = chunk
