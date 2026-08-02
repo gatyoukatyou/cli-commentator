@@ -486,7 +486,9 @@ export function extractEvents(chunk: string, sourceEnv: string | undefined = pro
         }
       }
       events.push({ ts, type: hit.type, summary: hit.summary, detail });
-    } else events.push({ ts, type: "stdout", summary: "ログ更新", detail: line });
+    } else if ((sourceEnv ?? "").trim().toLowerCase() !== "claude") {
+      events.push({ ts, type: "stdout", summary: "ログ更新", detail: line });
+    }
   }
   return events;
 }

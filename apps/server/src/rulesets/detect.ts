@@ -1,4 +1,5 @@
 import type { RuleSetId } from "./types.js";
+import { ANSI_ESCAPE_RE } from "../terminal-escapes.js";
 
 type Scores = { claude: number; codex: number };
 
@@ -14,9 +15,15 @@ const MEDIUM_SCORE = 2;
 const WEAK_SCORE = 1;
 
 const CLAUDE_STRONG = [
-  /^(⏺|•)\s*(Read|Bash|Glob|Grep|Update|Write|Edit)\(/
+  /^(⏺|•)\s*(Read|Bash|Glob|Grep|Update|Write|Edit)\(/,
+  /^⎿\s*\$\s*\S/u,
 ];
-const CLAUDE_MEDIUM = [/AskUserQuestion/i, /read[-\s]?only/i, /⎿/];
+const CLAUDE_MEDIUM = [
+  /AskUserQuestion/i,
+  /read[-\s]?only/i,
+  /^⏺\s*(?!Read\(|Glob\(|Grep\(|Update\(|Edit\(|Write\(|Bash\()[\p{L}\p{N}]/u,
+  /^Listed \d+ director(?:y|ies), ran \d+ shell commands?$/iu,
+];
 
 const CODEX_STRONG = [
   /would you like to run the following command\?/i,
@@ -50,6 +57,14 @@ function scoreLine(line: string): Scores {
   }
 
   return { claude, codex };
+}
+
+function normalizeSignalLine(line: string): string {
+  return line
+    .replace(ANSI_ESCAPE_RE, " ")
+    .replace(/[\u0000-\u001f\u007f]/gu, " ")
+    .replace(/\s+/gu, " ")
+    .trim();
 }
 
 function decide(scores: Scores, threshold: number): RuleSetId | null {
@@ -105,7 +120,7 @@ export function createAutoDetector(options: DetectorOptions = {}) {
 
 export function detectSourceFromText(text: string, options: DetectorOptions = {}): RuleSetId {
   const detector = createAutoDetector(options);
-  const lines = text.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+  const lines = text.split(/\r?\n/).map(normalizeSignalLine).filter(Boolean);
   for (const line of lines) {
     const decided = detector.update(line);
     if (decided) return decided;

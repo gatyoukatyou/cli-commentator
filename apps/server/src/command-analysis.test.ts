@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { extractSearchPattern, isSearchExecution, isTestExecution, tokenizeShellCommand } from "./command-analysis.js";
+import { extractSearchPattern, isFileListExecution, isSearchExecution, isTestExecution, tokenizeShellCommand } from "./command-analysis.js";
 import { getGlossaryNotes } from "./commentary/glossary.js";
 
 describe("shell command analysis", () => {
@@ -56,6 +56,16 @@ describe("shell command analysis", () => {
   it("distinguishes a search command from a test runner's grep option", () => {
     expect(isSearchExecution("rg -n TODO src")).toBe(true);
     expect(isSearchExecution("playwright test --grep smoke")).toBe(false);
+  });
+
+  it.each([
+    "ls -1 /Users/demo/project/docs",
+    "⎿  $ ls -la docs",
+    "find docs -type f",
+    "fd --type f . docs",
+    "rg --files docs",
+  ])("recognizes file-list commands: %s", (command) => {
+    expect(isFileListExecution(command)).toBe(true);
   });
 });
 

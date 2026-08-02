@@ -65,4 +65,11 @@ describe("ruleset auto detect", () => {
     expect(MAX_DETECT_LINES).toBe(50);
     expect(MIN_DELTA).toBe(4);
   });
+
+  it("detects the sanitized real Claude Code TUI capture", async () => {
+    const filePath = path.join(fixturesDir, "claude-tui/real-session-2.1.220.json");
+    const fixture = JSON.parse(await fs.readFile(filePath, "utf8")) as { raw: string };
+
+    expect(detectSourceFromText(fixture.raw)).toBe("claude");
+  });
 });
