@@ -17,6 +17,7 @@ const WEAK_SCORE = 1;
 const CLAUDE_STRONG = [
   /^(⏺|•)\s*(Read|Bash|Glob|Grep|Update|Write|Edit)\(/,
   /^⎿\s*\$\s*\S/u,
+  /\bClaude Code\s*v\d+\.\d+\.\d+\b/iu,
 ];
 const CLAUDE_MEDIUM = [
   /AskUserQuestion/i,

@@ -1,5 +1,5 @@
 import type { Event } from "./types.js";
-import { rulesForLine } from "./rulesets/index.js";
+import { getAutoDetectedSource, rulesForLine } from "./rulesets/index.js";
 import { isClaudeTuiNoise, isCodexProgressNoise, isTerminalRenderingNoise } from "./progress-noise.js";
 import { extractClaudeSupervisionEvents } from "./rulesets/claude-supervision.js";
 import { isFileListExecution, isSearchExecution } from "./command-analysis.js";
@@ -385,11 +385,16 @@ function hasOnlyEmptyFailureMarkers(line: string): boolean {
   );
 }
 
+function resolvedSourceId(sourceEnv?: string): string {
+  const configured = (sourceEnv ?? "").trim().toLowerCase();
+  return configured === "auto" ? getAutoDetectedSource() ?? "generic" : configured;
+}
+
 function preprocessLine(rawLine: string, sourceEnv?: string): string | null {
   const normalized = normalizeLine(rawLine);
   if (!normalized) return null;
 
-  const source = (sourceEnv ?? "").trim().toLowerCase();
+  const source = resolvedSourceId(sourceEnv);
   if (source !== "generic" && isTerminalRenderingNoise(normalized)) {
     return null;
   }
@@ -448,7 +453,7 @@ function preprocessLine(rawLine: string, sourceEnv?: string): string | null {
 export function extractEvents(chunk: string, sourceEnv: string | undefined = process.env.LOG_SOURCE): Event[] {
   const ts = Date.now();
 
-  if ((sourceEnv ?? "").trim().toLowerCase() === "claude") {
+  if (resolvedSourceId(sourceEnv) === "claude") {
     const supervisionEvents = extractClaudeSupervisionEvents(chunk, ts);
     if (supervisionEvents.length > 0) return supervisionEvents;
   }
@@ -486,7 +491,7 @@ export function extractEvents(chunk: string, sourceEnv: string | undefined = pro
         }
       }
       events.push({ ts, type: hit.type, summary: hit.summary, detail });
-    } else if ((sourceEnv ?? "").trim().toLowerCase() !== "claude") {
+    } else if (resolvedSourceId(sourceEnv) !== "claude") {
       events.push({ ts, type: "stdout", summary: "ログ更新", detail: line });
     }
   }

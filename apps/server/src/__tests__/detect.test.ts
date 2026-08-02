@@ -72,4 +72,10 @@ describe("ruleset auto detect", () => {
 
     expect(detectSourceFromText(fixture.raw)).toBe("claude");
   });
+
+  it("detects Claude from its startup banner before the first tool result", () => {
+    const detector = createAutoDetector();
+
+    expect(detector.update("▐▛███▜▌Claude Codev2.1.220")).toBe("claude");
+  });
 });

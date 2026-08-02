@@ -6,6 +6,7 @@ import { createEscapeCarry } from "../terminal-escapes.js";
 import { commentByRules } from "../commentary/rule-based.js";
 import { applySpeechContract } from "../commentary/speech-policy.js";
 import { createSessionContext } from "../session-context.js";
+import { resetAutoDetection } from "../rulesets/index.js";
 
 const fixtureDir = path.resolve(process.cwd(), "test/fixtures/claude-tui");
 
@@ -28,15 +29,16 @@ function loadRenderingFixture(): {
   };
 }
 
-function loadRealSessionEvents() {
+function loadRealSessionEvents(source: "claude" | "auto" = "claude") {
   const fixture = JSON.parse(
     fs.readFileSync(path.join(fixtureDir, "real-session-2.1.220.json"), "utf8")
   ) as { raw: string };
   const carry = createEscapeCarry();
   const events = [];
+  if (source === "auto") resetAutoDetection();
 
   for (let index = 0; index < fixture.raw.length; index += 512) {
-    events.push(...extractEvents(carry(fixture.raw.slice(index, index + 512)), "claude"));
+    events.push(...extractEvents(carry(fixture.raw.slice(index, index + 512)), source));
   }
 
   return events;
@@ -142,5 +144,9 @@ describe("Claude TUI supervision detection", () => {
     const spoken = applySpeechContract(payload, event!, snapshot).speech?.text;
 
     expect(spoken).toBe("ファイル一覧を調べています。");
+  });
+
+  it("applies Claude filtering after auto detection", () => {
+    expect(loadRealSessionEvents("auto")).toEqual(loadRealSessionEvents("claude"));
   });
 });
