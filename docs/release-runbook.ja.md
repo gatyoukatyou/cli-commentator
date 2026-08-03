@@ -179,7 +179,11 @@ Release candidate が updater artifacts を生成する場合は、以下を確�
 
 ## 2) 標準リリース手順（Happy Path）
 
-1. バージョンを更新（`apps/desktop/src-tauri/tauri.conf.json`）
+1. 次のデスクトップ版数を同じ `X.Y.Z` に更新し、一致を確認
+   - `apps/desktop/package.json`
+   - `apps/desktop/src-tauri/Cargo.toml`
+   - `apps/desktop/src-tauri/Cargo.lock` の `cli-commentator-desktop`
+   - `apps/desktop/src-tauri/tauri.conf.json`
 2. コミット・push
 3. タグ作成とpush
    - `git tag -a vX.Y.Z -m "vX.Y.Z"`
