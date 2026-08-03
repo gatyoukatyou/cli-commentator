@@ -184,7 +184,7 @@ Desktop updater の契約は意図的に狭く固定します。
 
 ## 6) 配布手順（最小）
 
-1. バージョン更新（`tauri.conf.json` + 必要ならリリースノート）
+1. `apps/desktop/package.json`、`Cargo.toml`、`Cargo.lock` の `cli-commentator-desktop`、`tauri.conf.json` を同じ版数へ更新（必要ならリリースノートも更新）
 2. `pnpm -C apps/web build`
 3. `pnpm -C apps/desktop tauri:build`
 4. タグ作成・push

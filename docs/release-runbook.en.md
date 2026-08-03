@@ -178,7 +178,11 @@ Current policy: update checks are manual from the Desktop Server panel. Do not t
 
 ## 2) Standard release flow (happy path)
 
-1. Bump version in `apps/desktop/src-tauri/tauri.conf.json`
+1. Bump these desktop versions to the same `X.Y.Z` and verify they match:
+   - `apps/desktop/package.json`
+   - `apps/desktop/src-tauri/Cargo.toml`
+   - `cli-commentator-desktop` in `apps/desktop/src-tauri/Cargo.lock`
+   - `apps/desktop/src-tauri/tauri.conf.json`
 2. Commit and push
 3. Create and push tag
    - `git tag -a vX.Y.Z -m "vX.Y.Z"`
