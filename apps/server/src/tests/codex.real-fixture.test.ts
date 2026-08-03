@@ -17,13 +17,30 @@ type CodexTuiFixture = {
   raw: string;
 };
 
+type CodexAppChunkFixture = {
+  cli: string;
+  version: string;
+  prompt: string;
+  captureSurface: string;
+  chunks: string[];
+};
+
 const fixturePath = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
   "../../test/fixtures/codex-tui/real-session-0.146.0.json"
 );
 
+const appChunkFixturePath = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  "../../test/fixtures/codex-tui/real-session-0.146.0-app-chunks.json"
+);
+
 function loadFixture(): CodexTuiFixture {
   return JSON.parse(fs.readFileSync(fixturePath, "utf8")) as CodexTuiFixture;
+}
+
+function loadAppChunkFixture(): CodexAppChunkFixture {
+  return JSON.parse(fs.readFileSync(appChunkFixturePath, "utf8")) as CodexAppChunkFixture;
 }
 
 function visibleText(raw: string): string {
@@ -47,6 +64,19 @@ function extractRealEvents(source: "codex" | "auto") {
       ...extractEvents(carry(fixture.raw.slice(offset, offset + 512)), source)
     );
   }
+
+  return {
+    detected: getAutoDetectedSource(),
+    events,
+  };
+}
+
+function extractAppChunkEvents(source: "codex" | "auto") {
+  const fixture = loadAppChunkFixture();
+  resetAutoDetection();
+  resetExtractionState();
+  const carry = createEscapeCarry();
+  const events = fixture.chunks.flatMap((chunk) => extractEvents(carry(chunk), source));
 
   return {
     detected: getAutoDetectedSource(),
@@ -130,5 +160,50 @@ describe("real Codex TUI fixture", () => {
       "ファイル一覧を調べています。",
       "Codexが回答しました。",
     ]);
+  });
+});
+
+describe("real Codex desktop-sidecar chunk fixture", () => {
+  it("preserves the real node-pty chunk boundaries without local identity or quota data", () => {
+    const fixture = loadAppChunkFixture();
+    const raw = fixture.chunks.join("");
+    const visible = visibleText(raw);
+
+    expect(fixture).toMatchObject({
+      cli: "codex",
+      version: "0.146.0",
+      captureSurface: "desktop-sidecar",
+    });
+    expect(fixture.chunks.length).toBeGreaterThan(700);
+    expect(visible).toContain("• Ran test -f pnpm-workspace.yaml");
+    expect(visible).toContain("docs/roadmap-issues.en.md");
+    expect(raw).not.toContain("/Users/home");
+    expect(raw).not.toContain("AION_Project");
+    expect(raw).not.toContain("gatyoukatyou");
+    expect(raw).not.toMatch(/usage limit resets? available/iu);
+  });
+
+  it("extracts the same meaningful events in explicit and auto modes", () => {
+    const explicit = extractAppChunkEvents("codex");
+    const automatic = extractAppChunkEvents("auto");
+    const select = ({ type, summary, detail, priority }: (typeof explicit.events)[number]) => ({
+      type,
+      summary,
+      detail,
+      priority,
+    });
+
+    expect(automatic.detected).toBe("codex");
+    expect(automatic.events.map(select)).toEqual(explicit.events.map(select));
+    expect(explicit.events.map(({ type, summary }) => ({ type, summary }))).toEqual([
+      { type: "stdout", summary: "Codexが説明している" },
+      { type: "search", summary: "該当箇所を検索している" },
+      { type: "stdout", summary: "コマンドを実行している" },
+      { type: "stdout", summary: "Codexが回答した" },
+    ]);
+    expect(explicit.events.at(-1)).toMatchObject({
+      priority: "notice",
+      detail: expect.stringContaining("docs/manual-test-checklist.en.md"),
+    });
   });
 });

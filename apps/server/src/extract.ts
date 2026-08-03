@@ -364,8 +364,10 @@ function eventForCanonicalLine(line: string, ts: number): Event | null {
 }
 
 function extractCodexTuiEvents(chunk: string, ts: number): Event[] {
-  const separator = codexTuiBuffer ? "\n" : "";
-  codexTuiBuffer = `${codexTuiBuffer}${separator}${normalizeTuiStream(chunk)}`
+  // PTY chunks can split a terminal line at any byte. Inserting a newline at
+  // every chunk boundary corrupts the reconstructed TUI and makes extraction
+  // depend on node-pty's timing.
+  codexTuiBuffer = `${codexTuiBuffer}${normalizeTuiStream(chunk)}`
     .slice(-CODEX_TUI_BUFFER_LIMIT);
 
   const events: Event[] = [];
@@ -390,15 +392,22 @@ function extractCodexTuiEvents(chunk: string, ts: number): Event[] {
     lastCodexTuiCommand = command;
   }
 
-  const responseBlock = /(?:^|\n)\s*─{40,}\s*\n([\s\S]*?)\n\s*─{40,}(?=\n|$)/gu;
+  // Codex draws final responses between full-width rules (120 columns in the
+  // captured TUI). Cursor-based spinner redraws can leave a few characters on
+  // the same logical line, so do not require the rule to be otherwise empty.
+  // The 80-column minimum keeps the shorter banner box borders out.
+  const responseBlock =
+    /(?:^|\n)[^\n]*─{80,}[^\n]*\n([\s\S]*?)\n[^\n]*─{80,}[^\n]*(?=\n|$)/gu;
   for (const match of codexTuiBuffer.matchAll(responseBlock)) {
     consumedThrough = Math.max(consumedThrough, (match.index ?? 0) + match[0].length);
     if (/•\s+Ran\b/u.test(match[1])) continue;
 
-    const answer = match[1]
+    const firstAnswerBullet = match[1].search(/(?:^|\n)\s*•\s+/u);
+    const answerBody = firstAnswerBullet >= 0 ? match[1].slice(firstAnswerBullet) : match[1];
+    const answer = answerBody
       .split("\n")
       .map((line) => line.trim().replace(/^•\s*/u, ""))
-      .map((line) => line.replace(/›Write tests for @filename.*$/iu, "").trim())
+      .map((line) => line.replace(/\s*›.*$/u, "").trim())
       .filter((line) => line.length >= 8)
       .filter((line) => !/^(?:[A-Za-z]:[\\/]|[/~])\S+$/u.test(line))
       .filter((line) => !/gpt-[\w.-]+\s+(?:high|medium|low)\b/iu.test(line))
