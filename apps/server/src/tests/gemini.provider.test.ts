@@ -51,6 +51,7 @@ describe("createGeminiAdapter", () => {
     });
 
     expect(result.text).toBe("Hello from Gemini!");
+    expect(result.model).toBe("gemini-3.5-flash");
     expect(result.usage).toEqual({
       inputTokens: 10,
       outputTokens: 5,

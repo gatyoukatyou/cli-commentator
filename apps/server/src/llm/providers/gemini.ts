@@ -22,6 +22,7 @@ interface GeminiRequest {
 }
 
 interface GeminiResponse {
+  modelVersion?: string;
   candidates?: Array<{
     content?: {
       parts?: Array<{ text?: string }>;
@@ -64,7 +65,8 @@ export function createGeminiAdapter(
         throw new CommentError("comment_aborted");
       }
 
-      const endpoint = `${API_BASE}/${model}:generateContent`;
+      const actualModel = req.model ?? model;
+      const endpoint = `${API_BASE}/${actualModel}:generateContent`;
 
       // Convert OpenAI-style messages to Gemini format
       const contents: GeminiContent[] = req.messages.map((m) => ({
@@ -77,7 +79,7 @@ export function createGeminiAdapter(
         generationConfig: {
           temperature: req.temperature ?? 0.7,
           maxOutputTokens: req.maxTokens ?? 256,
-          ...(supportsZeroThinkingBudget(model)
+          ...(supportsZeroThinkingBudget(actualModel)
             ? { thinkingConfig: { thinkingBudget: 0 } }
             : {}),
         },
@@ -135,6 +137,7 @@ export function createGeminiAdapter(
 
       return {
         text,
+        model: data.modelVersion ?? actualModel,
         usage: data.usageMetadata
           ? {
               inputTokens: data.usageMetadata.promptTokenCount,

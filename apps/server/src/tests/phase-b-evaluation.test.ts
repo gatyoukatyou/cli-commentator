@@ -156,7 +156,6 @@ describe("Phase B evaluation replay", () => {
     const fixture = await loadFixture();
     const result = await replayPhaseBFixture(fixture, {
       llmProvider: "mock",
-      llmModel: "mock",
     });
 
     expect(result.providerComparisons).toHaveLength(5);
@@ -173,6 +172,7 @@ describe("Phase B evaluation replay", () => {
       measurement: {
         result: "comment_ok",
         provider: "mock/mock",
+        model: "mock",
         inputTokens: 20,
         outputTokens: 40,
       },
@@ -182,6 +182,7 @@ describe("Phase B evaluation replay", () => {
       model: "mock",
       timeoutMs: 3000,
       attempted: 5,
+      skipped: 0,
       withinTimeoutSuccesses: 5,
       withinTimeoutSuccessRate: 1,
       results: {
@@ -192,6 +193,23 @@ describe("Phase B evaluation replay", () => {
       },
       inputTokens: 100,
       outputTokens: 200,
+    });
+  });
+
+  it("skips provider comparisons when an adapter cannot produce a measurement", async () => {
+    const fixture = await loadFixture();
+    const result = await replayPhaseBFixture(fixture, {
+      llmProvider: "openai",
+    });
+
+    expect(result.providerComparisons).toEqual([]);
+    expect(result.providerMetrics).toMatchObject({
+      provider: "openai",
+      model: "unknown",
+      attempted: 0,
+      skipped: 5,
+      withinTimeoutSuccesses: 0,
+      withinTimeoutSuccessRate: 0,
     });
   });
 

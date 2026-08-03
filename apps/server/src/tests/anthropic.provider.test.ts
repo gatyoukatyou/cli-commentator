@@ -106,6 +106,7 @@ describe("createAnthropicAdapter", () => {
     });
 
     expect(result.text).toBe("Hello world");
+    expect(result.model).toBe("claude-3-5-sonnet-20240620");
     expect(result.usage).toEqual({ inputTokens: 12, outputTokens: 4 });
   });
 

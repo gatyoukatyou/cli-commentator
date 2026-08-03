@@ -15,6 +15,7 @@ export type GenerateTextRequest = {
 
 export type GenerateTextResponse = {
   text: string;
+  model: string;
   usage?: { inputTokens?: number; outputTokens?: number };
   raw?: unknown;
 };
