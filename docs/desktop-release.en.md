@@ -185,7 +185,7 @@ After setting `plugins.updater`, start desktop managed mode and verify:
 
 ## 6) Minimal release flow
 
-1. Bump version (`tauri.conf.json` and release notes if needed)
+1. Bump `apps/desktop/package.json`, `Cargo.toml`, `cli-commentator-desktop` in `Cargo.lock`, and `tauri.conf.json` to the same version (and update release notes if needed)
 2. `pnpm -C apps/web build`
 3. `pnpm -C apps/desktop tauri:build`
 4. Create and push tag:
