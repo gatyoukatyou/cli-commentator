@@ -7,14 +7,17 @@ LLMプロバイダーを差し替え可能にするAdapter層。
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `LLM_PROVIDER` | disabled | 使用するプロバイダー (disabled/mock/openai/groq/local/anthropic/gemini) |
+| `LLM_PROVIDER` | disabled | 使用するプロバイダー (disabled/mock/openai/deepseek/groq/local/anthropic/gemini) |
 | `MOCK_LLM_MODE` | (empty) | `error` でmockがエラーを投げる（テスト用） |
+| `DEEPSEEK_API_KEY` | (required) | DeepSeek APIキー |
+| `DEEPSEEK_BASE_URL` | https://api.deepseek.com | DeepSeekのOpenAI互換API URL |
+| `DEEPSEEK_MODEL` | deepseek-v4-flash | DeepSeek実況モデル |
 | `GOOGLE_API_KEY` | (required) | Gemini APIキー（`x-goog-api-key` ヘッダーで送信） |
 | `GEMINI_MODEL` | gemini-3.5-flash | Geminiの使用モデル |
 
 ## 現状
 - factory と実況生成への統合は完了
-- disabled / mock / OpenAI / Groq / local / Anthropic / Gemini を実装済み
+- disabled / mock / OpenAI / DeepSeek / Groq / local / Anthropic / Gemini を実装済み
 - LLM呼び出しが失敗した場合は、文脈付きルールベース実況へフォールバック
 - Geminiの既定モデルは、短文実況のレイテンシと出力完結性を優先して
   `thinkingConfig.thinkingBudget=0` を送信する
@@ -31,7 +34,8 @@ apps/server/src/llm/
 └── providers/
     ├── mock.ts          # 決定論的mock（テスト用）
     ├── disabled.ts      # 未設定時の明示的エラー
-    ├── openai_compat.ts # OpenAI / Groq / local
+    ├── openai_compat.ts # OpenAI / DeepSeek / Groq / local
+    ├── deepseek.ts      # DeepSeek V4 Flash
     ├── anthropic.ts     # Anthropic
     └── gemini.ts        # Gemini
 ```
@@ -44,6 +48,7 @@ import { createLLMAdapter } from "./llm/index.js";
 const adapter = createLLMAdapter();
 // LLM_PROVIDER 未設定 → disabledAdapter (呼ぶとエラー)
 // LLM_PROVIDER=mock → mockAdapter (決定論的レスポンス)
+// LLM_PROVIDER=deepseek → createDeepSeekAdapter (DEEPSEEK_API_KEY が必要)
 // LLM_PROVIDER=gemini → createGeminiAdapter (GOOGLE_API_KEY が必要)
 
 const response = await adapter.generateText({

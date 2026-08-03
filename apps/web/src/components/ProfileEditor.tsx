@@ -45,6 +45,7 @@ const LLM_PROVIDERS: { value: ProviderName | ""; label: string }[] = [
   { value: "", label: "（既定の設定に従う）" },
   { value: "disabled", label: "ルール版のみ（LLMを使わない）" },
   { value: "openai", label: "OpenAI" },
+  { value: "deepseek", label: "DeepSeek V4 Flash" },
   { value: "anthropic", label: "Anthropic" },
   { value: "gemini", label: "Gemini" },
   { value: "groq", label: "Groq" },

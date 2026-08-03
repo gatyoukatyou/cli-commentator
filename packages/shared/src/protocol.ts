@@ -72,6 +72,7 @@ export type ProviderName =
   | "disabled"
   | "mock"
   | "openai"
+  | "deepseek"
   | "groq"
   | "local"
   | "anthropic"
