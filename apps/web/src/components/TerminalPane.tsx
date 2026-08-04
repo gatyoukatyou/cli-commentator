@@ -3,6 +3,7 @@ import "xterm/css/xterm.css";
 import { Terminal } from "xterm";
 import { FitAddon } from "xterm-addon-fit";
 import { createTerminalInputGate } from "../lib/terminal-input";
+import type { PtySize } from "../types";
 
 const TERMINAL_OUTPUT_MAX_CHARS = 24000;
 
@@ -23,6 +24,7 @@ export type TerminalPaneHandle = {
 type TerminalPaneProps = {
   className: string;
   onData: (data: string) => void;
+  onResize: (size: PtySize) => void;
   onPendingOutputFlushed: () => void;
   pendingOutput: string;
   theme: TerminalPaneTheme;
@@ -33,7 +35,7 @@ function trimTerminalOutput(value: string): string {
 }
 
 const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(function TerminalPane(
-  { className, onData, onPendingOutputFlushed, pendingOutput, theme },
+  { className, onData, onResize, onPendingOutputFlushed, pendingOutput, theme },
   ref
 ) {
   const hostRef = useRef<HTMLDivElement | null>(null);
@@ -78,6 +80,7 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(function 
 
     let disposed = false;
     let frameId: number | null = null;
+    let lastReportedSize = "";
 
     const fitAddon = new FitAddon();
     const terminal = new Terminal({
@@ -90,6 +93,13 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(function 
       theme,
     });
 
+    const reportSize = (cols: number, rows: number) => {
+      const sizeKey = `${cols}x${rows}`;
+      if (lastReportedSize === sizeKey) return;
+      lastReportedSize = sizeKey;
+      onResize({ cols, rows });
+    };
+
     const scheduleFit = () => {
       if (disposed) return;
       if (frameId !== null) {
@@ -100,6 +110,8 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(function 
         if (disposed) return;
         try {
           fitAddon.fit();
+          reportSize(terminal.cols, terminal.rows);
+          terminal.refresh(0, Math.max(0, terminal.rows - 1));
           terminal.focus();
         } catch (error) {
           if (import.meta.env.DEV) {
@@ -111,6 +123,9 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(function 
 
     terminal.loadAddon(fitAddon);
     terminal.open(host);
+    const resizeDisposable = terminal.onResize(({ cols, rows }) => {
+      reportSize(cols, rows);
+    });
     scheduleFit();
 
     terminal.onData((data) => {
@@ -155,6 +170,7 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(function 
         window.cancelAnimationFrame(frameId);
       }
       resizeObserver?.disconnect();
+      resizeDisposable.dispose();
       textarea?.removeEventListener("compositionstart", handleCompositionStart);
       textarea?.removeEventListener("compositionend", handleCompositionEnd);
       textarea?.removeEventListener("paste", handlePaste);
@@ -162,7 +178,7 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(function 
       terminalRef.current = null;
       fitAddonRef.current = null;
     };
-  }, [onData, theme]);
+  }, [onData, onResize, theme]);
 
   useEffect(() => {
     const terminal = terminalRef.current;

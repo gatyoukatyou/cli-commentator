@@ -17,6 +17,7 @@ import {
   type AttentionNotice,
 } from "./lib/event-notify";
 import type { CommentaryItem } from "./lib/log-filter";
+import { sendPtyResize } from "./lib/pty-resize";
 import {
   buildLaunchDraft,
   buildLaunchSessionInput,
@@ -33,6 +34,7 @@ import type {
   SourceState,
   Profile,
   ProfileSummary,
+  PtySize,
 } from "./types";
 
 const TauriStatusPanel = lazy(() => import("./components/TauriStatusPanel"));
@@ -80,6 +82,8 @@ export default function App() {
   });
   const pendingEditIdRef = useRef<string | null>(null);
   const terminalPaneRef = useRef<TerminalPaneHandle | null>(null);
+  const latestTerminalSizeRef = useRef<PtySize | null>(null);
+  const [ptyResizeSyncToken, setPtyResizeSyncToken] = useState(0);
 
   // Profile state
   const [profiles, setProfiles] = useState<ProfileSummary[]>([]);
@@ -215,6 +219,10 @@ export default function App() {
     setPendingTerminalOutput("");
   }, []);
 
+  const handlePtyRestart = useCallback(() => {
+    setPtyResizeSyncToken((value) => value + 1);
+  }, []);
+
   const handleCopySuggestion = async () => {
     const suggestion = normalizeSuggestion(ptyUnavailable?.suggestion);
     if (!suggestion) return;
@@ -251,8 +259,22 @@ export default function App() {
     stopAndClearSpeech,
     resetTTSLifecycleSession,
     onServerEvent: handleServerEvent,
+    onPtyRestart: handlePtyRestart,
     clearAttention,
   });
+
+  const handleTerminalResize = useCallback(
+    (size: PtySize) => {
+      latestTerminalSizeRef.current = size;
+      sendPtyResize(wsRef.current, size);
+    },
+    [wsRef]
+  );
+
+  useEffect(() => {
+    if (connectionStatus !== "connected") return;
+    sendPtyResize(wsRef.current, latestTerminalSizeRef.current);
+  }, [connectionStatus, ptyResizeSyncToken, wsRef]);
   const {
     handleSelectProfile,
     handleEditProfile,
@@ -370,6 +392,7 @@ export default function App() {
           currentSessionLabel={currentSessionLabel}
           pendingTerminalOutput={pendingTerminalOutput}
           onTerminalData={sendTerminalInput}
+          onTerminalResize={handleTerminalResize}
           onPendingOutputFlushed={handlePendingTerminalOutputFlushed}
           onClearTerminal={clearTerminal}
           profiles={profiles}

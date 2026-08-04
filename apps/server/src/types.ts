@@ -16,6 +16,7 @@ export type {
   ProfileLLMProviders,
   ProfileSummary,
   ProviderName,
+  PtySize,
   SourceMode,
   SourceState,
   Style,

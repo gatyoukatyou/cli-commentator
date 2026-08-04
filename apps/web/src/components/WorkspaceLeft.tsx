@@ -1,6 +1,6 @@
 import { Suspense, lazy, type Dispatch, type RefObject, type SetStateAction } from "react";
 import type { LaunchDraft, LaunchPresetId } from "../lib/session-launcher";
-import type { ProfileSummary, Style } from "../types";
+import type { ProfileSummary, PtySize, Style } from "../types";
 import { LauncherPanel } from "./LauncherPanel";
 import { ProfileSelector } from "./ProfileSelector";
 import type { TerminalPaneHandle, TerminalPaneTheme } from "./TerminalPane";
@@ -19,6 +19,7 @@ type WorkspaceLeftProps = {
   currentSessionLabel: string;
   pendingTerminalOutput: string;
   onTerminalData: (data: string) => void;
+  onTerminalResize: (size: PtySize) => void;
   onPendingOutputFlushed: () => void;
   onClearTerminal: () => void;
   profiles: ProfileSummary[];
@@ -41,6 +42,7 @@ export function WorkspaceLeft({
   currentSessionLabel,
   pendingTerminalOutput,
   onTerminalData,
+  onTerminalResize,
   onPendingOutputFlushed,
   onClearTerminal,
   profiles,
@@ -93,6 +95,7 @@ export function WorkspaceLeft({
             ref={terminalPaneRef}
             className="terminal-panel__screen terminal-panel__screen--xterm"
             onData={onTerminalData}
+            onResize={onTerminalResize}
             onPendingOutputFlushed={onPendingOutputFlushed}
             pendingOutput={pendingTerminalOutput}
             theme={terminalTheme}
