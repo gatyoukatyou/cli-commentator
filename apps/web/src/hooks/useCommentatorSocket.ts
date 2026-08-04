@@ -45,6 +45,7 @@ type UseCommentatorSocketOptions = {
   stopAndClearSpeech: () => void;
   resetTTSLifecycleSession: (trigger: string) => void;
   onServerEvent: (ev: Event) => void;
+  onPtyRestart: () => void;
   clearAttention: () => void;
 };
 
@@ -85,6 +86,7 @@ export function useCommentatorSocket({
   stopAndClearSpeech,
   resetTTSLifecycleSession,
   onServerEvent,
+  onPtyRestart,
   clearAttention,
 }: UseCommentatorSocketOptions) {
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>("connecting");
@@ -120,9 +122,6 @@ export function useCommentatorSocket({
       ws.onopen = () => {
         if (cancelled || wsRef.current !== ws) return;
         console.log("WebSocket connected");
-        setConnectionStatus("connected");
-        setProfileError(null); // Clear WS offline error on reconnect
-        reconnectAttemptRef.current = 0;
       };
 
       ws.onmessage = (e) => {
@@ -133,6 +132,9 @@ export function useCommentatorSocket({
 
           switch (message.kind) {
             case "hello":
+              setConnectionStatus("connected");
+              setProfileError(null);
+              reconnectAttemptRef.current = 0;
               setStyle(message.style);
               setSource(message.source);
               break;
@@ -217,6 +219,7 @@ export function useCommentatorSocket({
               setProfileError(null);
               setPtyError(null);
               setCurrentSessionLabel([message.cmd, ...message.args].filter(Boolean).join(" ") || "session");
+              onPtyRestart();
               break;
             case "ptyError":
               setPtyError(message.error);
@@ -285,6 +288,7 @@ export function useCommentatorSocket({
     clearPendingSpeech,
     clearTerminal,
     onServerEvent,
+    onPtyRestart,
     pendingEditIdRef,
     profilesRef,
     queueSpeech,

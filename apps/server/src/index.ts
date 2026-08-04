@@ -8,6 +8,7 @@ import type {
   Event,
   InputMode,
   LaunchSessionInput,
+  PtySize,
   SourceMode,
   SourceState,
   Style,
@@ -35,6 +36,7 @@ import {
   type PtyFailure,
   type FileFallbackResult,
 } from "./pty/index.js";
+import { parsePtySize } from "./pty/size.js";
 import { createFileTail, resolveFileFallback, type FileTail } from "./input/index.js";
 import {
   buildServerStateEvent,
@@ -69,6 +71,7 @@ const INPUT_MODE: InputMode = parseInputMode(INPUT_MODE_RAW);
 const INPUT_FILE = process.env.INPUT_FILE ?? "";
 const ptyCapture = createPtyCapture(process.env.PTY_CAPTURE_FILE);
 let runtimeInputMode: InputMode = INPUT_MODE;
+let latestPtySize: PtySize | null = null;
 
 // --- Mutable state ---
 let currentStyle: Style = "kansai";
@@ -459,7 +462,7 @@ function setupPTY(
   });
   commentaryGate.reset();
   resetExtractionState();
-  const term = ptyManager.spawn(config);
+  const term = ptyManager.spawn(latestPtySize ? { ...config, ...latestPtySize } : config);
   silenceTimer.start();
   transitionServerState("setup_pty_success", "pty_running", {
     inputMode: "pty",
@@ -790,6 +793,19 @@ wss.on("connection", async (ws) => {
             ptyManager.write(msg.data);
           }
           break;
+
+        case "resizePty": {
+          const size = parsePtySize(msg.cols, msg.rows);
+          if (!size) break;
+          latestPtySize = size;
+          if (runtimeInputMode !== "pty") break;
+          try {
+            ptyManager.resize(size.cols, size.rows);
+          } catch (err) {
+            console.warn("Failed to resize PTY:", err);
+          }
+          break;
+        }
 
         case "getProfiles": {
           const list = await profileManager.list();

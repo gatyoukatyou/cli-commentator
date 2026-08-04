@@ -42,4 +42,36 @@ describe.skipIf(!canRunPtyTests)("PTY smoke test", () => {
 
     expect(output).toContain("hello-pty-smoke");
   });
+
+  it.skipIf(process.platform === "win32")("updates the child terminal dimensions after resize", async () => {
+    const { createPTYManager } = await import("../pty/manager.js");
+    const manager = createPTYManager();
+    const ptyProcess = manager.spawn({
+      cmd: "bash",
+      args: ["--noprofile", "--norc"],
+      cwd: process.cwd(),
+    });
+
+    const output = await new Promise<string>((resolve, reject) => {
+      let data = "";
+      const timeout = setTimeout(() => {
+        manager.kill();
+        reject(new Error("PTY resize timeout after 5s"));
+      }, 5000);
+
+      ptyProcess.onData((chunk) => {
+        data += chunk;
+        if (/32\s+96/.test(data)) {
+          clearTimeout(timeout);
+          manager.kill();
+          resolve(data);
+        }
+      });
+
+      manager.resize(96, 32);
+      manager.write("stty size\r");
+    });
+
+    expect(output).toMatch(/32\s+96/);
+  });
 });

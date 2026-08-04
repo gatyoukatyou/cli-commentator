@@ -139,6 +139,7 @@ export type PTYManager = {
   readonly current: IPty | null;
   spawn: (config: PTYConfig) => IPty;
   kill: () => void;
+  resize: (cols: number, rows: number) => void;
   write: (data: string) => void;
 };
 
@@ -198,6 +199,12 @@ export function createPTYManager(): PTYManager {
           // Ignore errors when killing
         }
         currentPty = null;
+      }
+    },
+
+    resize(cols: number, rows: number) {
+      if (currentPty) {
+        currentPty.resize(cols, rows);
       }
     },
 
