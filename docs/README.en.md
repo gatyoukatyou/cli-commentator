@@ -17,6 +17,7 @@ Each document should start with mutual links so readers can switch languages eas
 ## Local Use and Development Startup
 
 - [Getting Started](getting-started.en.md)
+- [HUMAN User Testing Guide](human-user-test-guide.en.md)
 - [Manual Test Checklist (Internal Validation)](manual-test-checklist.en.md)
 
 ## Distribution and Release Operations

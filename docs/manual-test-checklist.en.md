@@ -5,6 +5,8 @@
 
 This checklist defines a reproducible human test flow while paid Apple certificate setup is deferred.
 
+For HUMAN evaluation of usability, rendering confidence, speech, and sustained real-world use, follow the [HUMAN User Testing Guide](human-user-test-guide.en.md). Its results are kept separate from publication decisions, and fixes and retests continue until the HUMAN is satisfied.
+
 Assumptions:
 - As of 2026-02-20, `APPLE_CERTIFICATE` is not configured, so public signed-release decision stays No-Go
 - This checklist targets internal validation with `v0.0.0-smoke.*`
@@ -95,4 +97,3 @@ Decision:
   - [ ] If sections 1-4 are all Pass, mark Conditional Go
 - Public signed distribution:
   - [ ] Keep No-Go until `APPLE_CERTIFICATE` is configured
-

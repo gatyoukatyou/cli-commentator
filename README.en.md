@@ -26,6 +26,7 @@ Set `TARGET_CMD` in `apps/server/.env`. Examples: `/bin/bash`, `/bin/zsh`, `powe
 Start here first. Local startup and day-to-day readiness checks do not require signing, notarization, or updater distribution steps.
 
 - Getting Started: `docs/getting-started.en.md`
+- HUMAN User Testing Guide: `docs/human-user-test-guide.en.md`
 
 ## Distribution and Release Operations
 

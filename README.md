@@ -10,6 +10,8 @@ English: This repository is an MVP for streaming CLI commentary in a separate wi
 ## Local Use / ローカル利用
 - JA docs: `./docs/getting-started.ja.md`
 - EN docs: `./docs/getting-started.en.md`
+- JA HUMAN user test: `./docs/human-user-test-guide.ja.md`
+- EN HUMAN user test: `./docs/human-user-test-guide.en.md`
 
 ## Desktop Distribution / Desktop配布
 - JA guide: `./docs/desktop-release.ja.md`
