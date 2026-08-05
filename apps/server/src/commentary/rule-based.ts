@@ -88,6 +88,13 @@ function contextNarration(context: SessionContextSnapshot, style: Style): string
         zundamon: `${phase}段階に入って、HUMANの入力待ちなのだ。`,
       });
     }
+    if (context.phase === "waiting") {
+      return say(style, {
+        standard: "処理は続いています。次の出力を待っています。",
+        kansai: "処理は続いてるで。次の出力を待ってるところや。",
+        zundamon: "処理は続いているのだ。次の出力を待っているのだ。",
+      });
+    }
     return say(style, {
       standard: `${phase}段階に入り、${target}を扱っています。`,
       kansai: `${phase}段階に入って、${target}を扱ってるで。`,
@@ -121,6 +128,11 @@ function contextExplanation(
 
   const phase = SESSION_PHASE_LABELS[context.phase];
   const objective = context.task.objective;
+  if (context.phase === "waiting" && context.phaseChanged) {
+    return context.humanRequired
+      ? "作業を進めるには、ターミナルでの入力が必要です。"
+      : "エラーではありません。処理を続けながら、次の出力を待っている状態です。";
+  }
   if (objective && context.phaseChanged) {
     const purpose = objective.length <= 32 ? objective : `${objective.slice(0, 31).trimEnd()}…`;
     return `目的「${purpose}」に向けた${phase}段階です。`;

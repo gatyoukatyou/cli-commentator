@@ -312,6 +312,33 @@
   align-items: center;
 }
 
+.terminal-panel__input-status {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  margin-top: 4px;
+  color: var(--color-fg-muted);
+  font-size: var(--text-xs);
+}
+
+.terminal-panel__input-dot {
+  width: 8px;
+  height: 8px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: var(--color-fg-muted);
+}
+
+.terminal-panel__input-status--active {
+  color: var(--color-success);
+  font-weight: var(--font-bold);
+}
+
+.terminal-panel__input-status--active .terminal-panel__input-dot {
+  background: var(--color-success);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-success) 18%, transparent);
+}
+
 /* Debug Panel */
 .debug-panel {
   position: fixed;
@@ -327,6 +354,44 @@
   width: min(360px, calc(100vw - 24px));
   text-align: left;
   box-shadow: var(--shadow-lg);
+}
+
+.debug-panel--collapsed {
+  width: auto;
+  max-width: calc(100vw - 24px);
+  padding: 0;
+}
+
+.debug-panel__summary-button {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  padding: 8px 10px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font-size: var(--text-sm);
+}
+
+.debug-panel__summary-action {
+  color: var(--color-fg-tertiary);
+  font-size: var(--text-xs);
+}
+
+.debug-panel__header {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.debug-panel__collapse-button {
+  padding: 2px 4px;
+  border: 0;
+  background: transparent;
+  color: var(--color-fg-secondary);
+  font-size: var(--text-xs);
+  text-decoration: underline;
 }
 
 .debug-panel__title {
@@ -561,6 +626,11 @@
     bottom: var(--space-2);
     left: var(--space-2);
     right: var(--space-2);
+    width: auto;
+  }
+
+  .debug-panel--collapsed {
+    left: auto;
     width: auto;
   }
 }
@@ -1118,4 +1188,14 @@
   background: var(--color-bg-tertiary);
   border-radius: var(--radius-sm);
   padding: 0 var(--space-1);
+}
+
+.notice__next-action {
+  margin-top: var(--space-2);
+  padding: var(--space-2);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--color-danger) 8%, transparent);
+  color: var(--color-fg-primary);
+  font-size: var(--text-sm);
+  font-weight: var(--font-bold);
 }

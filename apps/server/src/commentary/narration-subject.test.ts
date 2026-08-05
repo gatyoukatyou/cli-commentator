@@ -189,4 +189,24 @@ describe("narration with a subject", () => {
       "ファイルを読んで状況を確認しています。"
     );
   });
+
+  it("describes silent waiting without claiming an unknown target is being handled", () => {
+    const waitingEvent: Event = {
+      ts: 1,
+      type: "stdout",
+      summary: "長考・沈黙が続いている",
+      detail: "60000ms outputなし",
+    };
+    const context = createSessionContext();
+    context.setTaskContext({ objective: "動作を確認する", source: "fixture" });
+    context.observeEvent(event("search", "rg context src"));
+    const snapshot = context.observeEvent(waitingEvent);
+
+    const payload = commentByRules(waitingEvent, "kansai", snapshot);
+    expect(payload.narration).toContain("次の出力を待ってる");
+    expect(payload.narration).not.toContain("対象を扱ってる");
+    expect(payload.explanation).toBe(
+      "エラーではありません。処理を続けながら、次の出力を待っている状態です。"
+    );
+  });
 });

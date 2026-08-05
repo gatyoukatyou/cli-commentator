@@ -41,7 +41,8 @@ export function Notices({
               </div>
               <div className="notice__body">
                 <p>
-                  CLI が入力を待っている可能性があります。左のターミナルを確認してください。
+                  CLI が入力を待っている可能性があります。左のターミナルをクリックし、
+                  「入力受付中」を確認してから回答を入力し、Enter キーを押してください。
                   <span className="notice__time">
                     （{new Date(attention.ts).toLocaleTimeString()} 検出）
                   </span>
@@ -96,12 +97,18 @@ export function Notices({
         <div className="notice notice--error panel">
           <div className="notice__title">プロファイルエラー</div>
           <div className="notice__body">{profileError}</div>
+          <div className="notice__next-action">
+            次の操作：起動設定のコマンドと作業フォルダを見直し、「セッション起動」を再実行してください。
+          </div>
         </div>
       )}
       {ptyError && (
         <div className="notice notice--error panel">
           <div className="notice__title">PTYエラー</div>
           <div className="notice__body">{ptyError}</div>
+          <div className="notice__next-action">
+            次の操作：接続状態を確認し、左上の「セッション起動」を再実行してください。直らない場合は Desktop Server の詳細を開き、Retry Start を押してください。
+          </div>
         </div>
       )}
     </div>

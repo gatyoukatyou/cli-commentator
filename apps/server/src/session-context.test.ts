@@ -50,6 +50,29 @@ describe("SessionContext", () => {
     });
   });
 
+  it("does not turn terminal mouse reports into a task objective", () => {
+    const context = createSessionContext();
+    context.reset({ acceptsHumanInput: true });
+    context.observeInput("\u001b[<35;70;35M\u001b[<35;68;36M");
+    context.observeInput("実況の流れを確認してください\r");
+
+    expect(context.snapshot().task).toMatchObject({
+      objective: "実況の流れを確認してください",
+      userPrompt: "実況の流れを確認してください",
+      source: "human_input",
+    });
+  });
+
+  it("strips terminal escapes from explicitly supplied task context", () => {
+    const context = createSessionContext();
+    context.setTaskContext({
+      objective: "\u001b[<35;70;35M安全に確認する",
+      source: "human_log",
+    });
+
+    expect(context.snapshot().task.objective).toBe("安全に確認する");
+  });
+
   it("does not accept input when the session is not a trusted human-prompt CLI", () => {
     const context = createSessionContext();
     context.observeInput("もっともらしい目的\n");
