@@ -26,6 +26,7 @@ CLIの出力を別ウィンドウで実況するMVP。
 まずはこちらを読んでください。ローカル起動や日常利用の確認では、署名・Notarization・Updater配布の手順は不要です。
 
 - Getting Started: `docs/getting-started.ja.md`
+- HUMANユーザーテストガイド: `docs/human-user-test-guide.ja.md`
 
 ## 配布・リリースを運用する
 
