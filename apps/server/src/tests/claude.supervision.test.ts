@@ -73,6 +73,23 @@ describe("Claude TUI supervision detection", () => {
     ]);
   });
 
+  it("distinguishes historical failure prose from a current error", () => {
+    expect(extractEvents("The previous attempt failed, so I changed the approach.", "claude")).toEqual([]);
+    expect(extractEvents("Error: the current command failed.", "claude")).toEqual([
+      expect.objectContaining({ type: "error", summary: "エラーが出ている" }),
+    ]);
+  });
+
+  it("does not treat a HUMAN input prompt as an error", () => {
+    expect(extractEvents(loadChunks("question.json"), "claude")).toEqual([
+      expect.objectContaining({ type: "stdout", summary: "質問への回答を待っている" }),
+    ]);
+  });
+
+  it("does not treat a warning-only line as an error", () => {
+    expect(extractEvents("Warning: this option is deprecated.", "claude")).toEqual([]);
+  });
+
   it.each([
     "The documentation explains when approval is required.",
     "The task is complete only after a reviewer approves it.",
