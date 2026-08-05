@@ -3,6 +3,7 @@ import { tokenizeShellCommand, unwrapCommandDetail } from "./command-analysis.js
 import { redact } from "./redact.js";
 import { getEventPriority } from "./event-priority.js";
 import { getGlossaryNotes } from "./commentary/glossary.js";
+import { stripTerminalEscapes } from "./terminal-escapes.js";
 
 export type SessionPhase =
   | "unknown"
@@ -90,7 +91,12 @@ export const SESSION_PHASE_LABELS: Record<SessionPhase, string> = {
 };
 
 function limited(value: string | null | undefined, max: number): string | null {
-  const compact = redact(value ?? "").replace(/\s+/g, " ").trim();
+  const compact = redact(stripTerminalEscapes(value ?? ""))
+    // Terminal input can contain mouse reports and other control bytes. They
+    // are meaningful to the PTY, but must never become HUMAN-facing context.
+    .replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f-\u009f]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
   if (!compact) return null;
   return compact.length <= max ? compact : `${compact.slice(0, max - 1).trimEnd()}…`;
 }
@@ -342,7 +348,7 @@ function resumeFromHumanResponse(state: MutableState): void {
 
 function appendTerminalInput(buffer: string, data: string): string {
   let next = buffer;
-  const clean = data.replace(/\u001b\[[0-9;?]*[ -/]*[@-~]/g, "");
+  const clean = stripTerminalEscapes(data);
   for (const char of clean) {
     if (char === "\u0003" || char === "\u0015") {
       next = "";

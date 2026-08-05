@@ -1,4 +1,4 @@
-import { Suspense, lazy, type Dispatch, type RefObject, type SetStateAction } from "react";
+import { Suspense, lazy, useState, type Dispatch, type RefObject, type SetStateAction } from "react";
 import type { LaunchDraft, LaunchPresetId } from "../lib/session-launcher";
 import type { ProfileSummary, PtySize, Style } from "../types";
 import { LauncherPanel } from "./LauncherPanel";
@@ -52,6 +52,13 @@ export function WorkspaceLeft({
   onCreateProfile,
   onDeleteProfile,
 }: WorkspaceLeftProps) {
+  const [terminalFocused, setTerminalFocused] = useState(false);
+  const inputStatus = !connected
+    ? "サーバー未接続（入力できません）"
+    : terminalFocused
+      ? "入力受付中（キーボードで直接入力できます）"
+      : "ターミナル内をクリックして入力";
+
   return (
     <div className="workspace-column workspace-column--left">
       <LauncherPanel
@@ -68,7 +75,14 @@ export function WorkspaceLeft({
           <div>
             <div className="terminal-panel__title">Managed Terminal</div>
             <div className="terminal-panel__hint">
-              現在のセッション: {currentSessionLabel} {connected ? " / 直接入力できます" : ""}
+              現在のセッション: {currentSessionLabel}
+            </div>
+            <div
+              className={`terminal-panel__input-status ${connected && terminalFocused ? "terminal-panel__input-status--active" : ""}`}
+              role="status"
+            >
+              <span className="terminal-panel__input-dot" aria-hidden="true" />
+              {inputStatus}
             </div>
           </div>
           <div className="terminal-panel__actions">
@@ -95,6 +109,7 @@ export function WorkspaceLeft({
             ref={terminalPaneRef}
             className="terminal-panel__screen terminal-panel__screen--xterm"
             onData={onTerminalData}
+            onFocusChange={setTerminalFocused}
             onResize={onTerminalResize}
             onPendingOutputFlushed={onPendingOutputFlushed}
             pendingOutput={pendingTerminalOutput}

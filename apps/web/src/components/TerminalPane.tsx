@@ -24,6 +24,7 @@ export type TerminalPaneHandle = {
 type TerminalPaneProps = {
   className: string;
   onData: (data: string) => void;
+  onFocusChange: (focused: boolean) => void;
   onResize: (size: PtySize) => void;
   onPendingOutputFlushed: () => void;
   pendingOutput: string;
@@ -35,7 +36,7 @@ function trimTerminalOutput(value: string): string {
 }
 
 const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(function TerminalPane(
-  { className, onData, onResize, onPendingOutputFlushed, pendingOutput, theme },
+  { className, onData, onFocusChange, onResize, onPendingOutputFlushed, pendingOutput, theme },
   ref
 ) {
   const hostRef = useRef<HTMLDivElement | null>(null);
@@ -143,10 +144,14 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(function 
     const handlePaste = () => {
       terminalInputGateRef.current.notePaste();
     };
+    const handleFocus = () => onFocusChange(true);
+    const handleBlur = () => onFocusChange(false);
 
     textarea?.addEventListener("compositionstart", handleCompositionStart);
     textarea?.addEventListener("compositionend", handleCompositionEnd);
     textarea?.addEventListener("paste", handlePaste);
+    textarea?.addEventListener("focus", handleFocus);
+    textarea?.addEventListener("blur", handleBlur);
 
     if (backlogRef.current) {
       terminal.write(backlogRef.current);
@@ -174,11 +179,13 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(function 
       textarea?.removeEventListener("compositionstart", handleCompositionStart);
       textarea?.removeEventListener("compositionend", handleCompositionEnd);
       textarea?.removeEventListener("paste", handlePaste);
+      textarea?.removeEventListener("focus", handleFocus);
+      textarea?.removeEventListener("blur", handleBlur);
       terminal.dispose();
       terminalRef.current = null;
       fitAddonRef.current = null;
     };
-  }, [onData, onResize, theme]);
+  }, [onData, onFocusChange, onResize, theme]);
 
   useEffect(() => {
     const terminal = terminalRef.current;
@@ -197,8 +204,9 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(function 
     <div
       ref={hostRef}
       className={className}
-      onClick={() => terminalRef.current?.focus()}
-      role="presentation"
+      onMouseDown={() => terminalRef.current?.focus()}
+      aria-label="Managed Terminal の入力欄"
+      role="group"
     />
   );
 });
