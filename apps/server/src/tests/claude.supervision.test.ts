@@ -82,10 +82,23 @@ describe("Claude TUI supervision detection", () => {
     "TypeError: Cannot read properties of undefined",
     "ReferenceError: value is not defined",
     "SyntaxError: Unexpected token",
+    "Tests: 2 failed, 5 passed",
+    "Test Files  1 failed (1)",
+    "✖ 3 problems (3 errors, 0 warnings)",
+    "Process exited with code 1",
   ])("detects a structured current error: %s", (line) => {
     expect(extractEvents(line, "claude")).toEqual([
       expect.objectContaining({ type: "error", summary: "エラーが出ている" }),
     ]);
+  });
+
+  it.each([
+    "Tests: 0 failed, 7 passed",
+    "Test Files  0 failed (7)",
+    "✖ 3 problems (0 errors, 3 warnings)",
+    "Process exited with code 0",
+  ])("does not detect a zero-failure summary: %s", (line) => {
+    expect(extractEvents(line, "claude")).toEqual([]);
   });
 
   it("does not treat a HUMAN input prompt as an error", () => {
