@@ -75,7 +75,15 @@ describe("Claude TUI supervision detection", () => {
 
   it("distinguishes historical failure prose from a current error", () => {
     expect(extractEvents("The previous attempt failed, so I changed the approach.", "claude")).toEqual([]);
-    expect(extractEvents("Error: the current command failed.", "claude")).toEqual([
+  });
+
+  it.each([
+    "Error: the current command failed.",
+    "TypeError: Cannot read properties of undefined",
+    "ReferenceError: value is not defined",
+    "SyntaxError: Unexpected token",
+  ])("detects a structured current error: %s", (line) => {
+    expect(extractEvents(line, "claude")).toEqual([
       expect.objectContaining({ type: "error", summary: "エラーが出ている" }),
     ]);
   });

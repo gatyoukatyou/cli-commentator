@@ -5,7 +5,7 @@ const CLAUDE_COMMAND_RE = /^⎿\s*\$\s*\S/u;
 const CLAUDE_ASSISTANT_RE = /^⏺\s*(?!Read\(|Glob\(|Grep\(|Update\(|Edit\(|Write\(|Bash\()[\p{L}\p{N}]/u;
 const CLAUDE_SUMMARY_RE = /^Listed \d+ director(?:y|ies), ran \d+ shell commands?$/iu;
 const CLAUDE_CURRENT_ERROR_RE =
-  /\b(?:execution error|uncaught exception|failed with exit code|command not found)\b|^(?:command|process|build|test) failed\b|^(?:error|failed|exception):\s|\bTS\d{4,5}:/i;
+  /\b(?:execution error|uncaught exception|failed with exit code|command not found)\b|^(?:command|process|build|test) failed\b|^(?:error|failed|exception):\s|^\s*(?:[A-Za-z_$][\w$]*\.)*[A-Za-z_$][\w$]*(?:Error|Exception):\s|\bTS\d{4,5}:/i;
 
 export const claudeRuleset: RuleSet = {
   id: "claude",
