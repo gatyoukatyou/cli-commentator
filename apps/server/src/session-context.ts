@@ -3,7 +3,7 @@ import { tokenizeShellCommand, unwrapCommandDetail } from "./command-analysis.js
 import { redact } from "./redact.js";
 import { getEventPriority } from "./event-priority.js";
 import { getGlossaryNotes } from "./commentary/glossary.js";
-import { stripTerminalEscapes } from "./terminal-escapes.js";
+import { createEscapeCarry, stripTerminalEscapes } from "./terminal-escapes.js";
 
 export type SessionPhase =
   | "unknown"
@@ -371,6 +371,7 @@ export function createSessionContext(options?: {
   const progressSpeechIntervalMs =
     options?.progressSpeechIntervalMs ?? DEFAULT_PROGRESS_SPEECH_INTERVAL_MS;
   let state = initialState();
+  let carryInputEscape = createEscapeCarry();
 
   return {
     setTaskContext(input) {
@@ -387,7 +388,7 @@ export function createSessionContext(options?: {
     observeInput(data) {
       if (!state.acceptsHumanInput || state.task.source === "fixture") return { newTask: false };
       let newTask = false;
-      state.inputBuffer = appendTerminalInput(state.inputBuffer, data);
+      state.inputBuffer = appendTerminalInput(state.inputBuffer, carryInputEscape(data));
       if (state.inputBuffer.length > MAX_INPUT_BUFFER_LENGTH) {
         state.inputBuffer = state.inputBuffer.slice(-MAX_INPUT_BUFFER_LENGTH);
       }
@@ -477,6 +478,7 @@ export function createSessionContext(options?: {
 
     reset(resetOptions) {
       state = initialState();
+      carryInputEscape = createEscapeCarry();
       state.acceptsHumanInput = resetOptions?.acceptsHumanInput ?? false;
       const presetName = limited(resetOptions?.presetName, MAX_CONTEXT_LENGTH);
       if (presetName) {
