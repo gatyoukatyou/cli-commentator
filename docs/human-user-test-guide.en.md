@@ -469,8 +469,24 @@ Stop testing a build when there is corrupted rendering, risk of accidental appro
 Note: "No problem in this test scope" is not permission to publish.
 ```
 
-## 13. Separation from publication
+## 13. v0.2.2 on-device smoke Go/No-Go criteria
+
+`Go` in this section means that the v0.2.2 on-device smoke test passed. It is not permission to publish, distribute, or create a Release.
+
+Run one 30-minute normal work session in the desktop app launched from Finder. The result is `Go` only when every criterion below is satisfied.
+
+1. Zero rendering-corruption incidents
+2. Speech does not consist only of canned phrases three or more times in a row
+3. The input position and text being typed in Managed Terminal remain readable at all times
+4. Zero missed action-required alerts and no more than one false action-required alert
+5. No more than ten minutes from launching the app to starting commentary while following the guide
+
+If any criterion is not satisfied, the result is `No-Go`. **Create Issues only for the criteria that were not satisfied, and send all other findings to the v0.2.3 backlog.**
+
+## 14. Separation from publication
 
 The only completion states in this guide are `Continue testing`, `Waiting for fixes`, and `No problem in this test scope`. There is no `Publication Go` result.
+
+`Go` in the previous section means only that the v0.2.2 on-device smoke test passed; it does not mean Publication Go.
 
 Only after repeated realistic use and explicit HUMAN satisfaction may a separate publication-decision process begin. Until then, keep the build as a Draft Release or internal artifact.
