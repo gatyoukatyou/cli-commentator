@@ -63,6 +63,34 @@ describe("SessionContext", () => {
     });
   });
 
+  it("does not leak split terminal mouse reports into a task objective", () => {
+    const context = createSessionContext();
+    context.reset({ acceptsHumanInput: true });
+    context.observeInput("\u001b[<35;1");
+    context.observeInput("06;28M\u001b[<35;108;");
+    context.observeInput("28M実況の流れを確認してください\r");
+
+    expect(context.snapshot().task).toMatchObject({
+      objective: "実況の流れを確認してください",
+      userPrompt: "実況の流れを確認してください",
+      source: "human_input",
+    });
+  });
+
+  it("does not treat a split terminal mouse report followed by Enter as a new task", () => {
+    const context = createSessionContext();
+    context.reset({ acceptsHumanInput: true });
+    context.observeInput("\u001b[<35;106;");
+    const result = context.observeInput("28M\r");
+
+    expect(result).toEqual({ newTask: false });
+    expect(context.snapshot().task).toMatchObject({
+      objective: null,
+      userPrompt: null,
+      source: null,
+    });
+  });
+
   it("strips terminal escapes from explicitly supplied task context", () => {
     const context = createSessionContext();
     context.setTaskContext({
