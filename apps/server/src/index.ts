@@ -56,6 +56,7 @@ import {
   broadcastIfCurrentGeneration,
   createCommentaryGeneration,
 } from "./runtime/commentary-generation.js";
+import { createInitialStartDelivery } from "./runtime/initial-start-delivery.js";
 
 const PORT = Number(process.env.CLI_COMMENTATOR_PORT ?? process.env.PORT ?? 8787);
 const COMMENT_EXIT_TIMEOUT_MS = parseInt(process.env.COMMENT_EXIT_TIMEOUT_MS ?? "1500", 10);
@@ -110,6 +111,7 @@ const commentaryGate = createCommentaryGate({ intervalMs: 2000 });
 const repeatedErrorDetector = createRepeatedErrorDetector();
 const sessionContext = createSessionContext();
 const commentaryGeneration = createCommentaryGeneration();
+const initialStartDelivery = createInitialStartDelivery();
 
 // --- HTTP + WS ---
 const server = http.createServer((req, res) => {
@@ -302,6 +304,7 @@ function createAdHocPTYConfig(input: LaunchSessionInput): PTYConfig {
 }
 
 async function launchAdHocSession(input: LaunchSessionInput): Promise<void> {
+  initialStartDelivery.invalidate();
   commentaryGeneration.invalidate();
   const config = createAdHocPTYConfig(input);
   const nextStyle = isStyle(input.style) ? input.style : currentStyle;
@@ -452,8 +455,12 @@ function broadcast(msg: WsOutgoing) {
   }
 }
 
+function createCommentaryMessage(ts: number, ev: Event, payload: CommentaryPayload): Extract<WsOutgoing, { kind: "commentary" }> {
+  return { kind: "commentary", ts, ev, ...payload };
+}
+
 function broadcastCommentary(ts: number, ev: Event, payload: CommentaryPayload): void {
-  broadcast({ kind: "commentary", ts, ev, ...payload });
+  broadcast(createCommentaryMessage(ts, ev, payload));
 }
 
 function broadcastSource(nextDetected: SourceState["detected"]) {
@@ -575,7 +582,14 @@ function setupPTY(
     detail: `${config.cmd} ${config.args.join(" ")}`,
   });
   const context = sessionContext.observeEvent(startEvent);
-  broadcast({ kind: "event", ev: startEvent });
+  const initialStart = initialStartDelivery.begin(
+    generation,
+    { kind: "event", ev: startEvent },
+    wss.clients.size === 0,
+  );
+  if (initialStart !== "buffered") {
+    broadcast({ kind: "event", ev: startEvent });
+  }
 
   // Send commentary for start event
   broadcastIfCurrentGeneration(
@@ -583,15 +597,27 @@ function setupPTY(
     commentaryGeneration,
     generation,
     (payload) => {
-      broadcastCommentary(Date.now(), startEvent, payload);
+      const message = createCommentaryMessage(Date.now(), startEvent, payload);
+      if (initialStart === "buffered") {
+        initialStartDelivery.setCommentary(generation, message);
+        deliverPendingInitialStart();
+      } else {
+        broadcast(message);
+      }
     },
     (err) => {
       if (!commentaryGeneration.isCurrent(generation)) return;
       // Fallback: show basic start message if LLM fails
-      broadcastCommentary(Date.now(), startEvent, applySpeechContract({
+      const message = createCommentaryMessage(Date.now(), startEvent, applySpeechContract({
         narration: `開始: ${startEvent.detail}`,
         meta: { narrationProvider: "fallback", mode: "narration" },
       }, startEvent, context));
+      if (initialStart === "buffered") {
+        initialStartDelivery.setCommentary(generation, message);
+        deliverPendingInitialStart();
+      } else {
+        broadcast(message);
+      }
       console.error("start commentary failed:", err);
     },
   );
@@ -602,6 +628,7 @@ function setupPTY(
  * Serialized to prevent race conditions from rapid profile switches
  */
 async function restartPTY(profileId: string | null, force = false): Promise<void> {
+  initialStartDelivery.invalidate();
   commentaryGeneration.invalidate();
   // If a restart is already in progress, queue this request (only keep the latest)
   if (restartInFlight) {
@@ -792,6 +819,15 @@ function sendTo(client: typeof wss.clients extends Set<infer T> ? T : never, msg
   }
 }
 
+function deliverPendingInitialStart(): void {
+  initialStartDelivery.tryDeliver(
+    Array.from(wss.clients, (client) => ({
+      isOpen: () => client.readyState === 1,
+      send: (message: WsOutgoing) => sendTo(client, message),
+    })),
+  );
+}
+
 wss.on("connection", async (ws) => {
   // Send initial state including profiles
   const profiles = await profileManager.list();
@@ -803,6 +839,7 @@ wss.on("connection", async (ws) => {
   if (!ptyAvailable && ptyInitError) {
     sendTo(ws, createPtyUnavailableMessage(ptyInitError));
   }
+  deliverPendingInitialStart();
 
   ws.on("message", async (buf) => {
     try {
@@ -944,6 +981,7 @@ wss.on("connection", async (ws) => {
  * @see Issue #40
  */
 function setupFileTail(filePath: string, options?: { fatal?: boolean; presetName?: string }): void {
+  initialStartDelivery.invalidate();
   const generation = commentaryGeneration.invalidate();
   const fatal = options?.fatal ?? true;
   if (!filePath) {
