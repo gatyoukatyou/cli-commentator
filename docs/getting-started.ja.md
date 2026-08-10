@@ -68,6 +68,8 @@ Desktop Server パネルで server の状態を操作します（`Start` / `Stop
 
 補足: Desktop managed モードでは、既定ポート `8787` が使用中なら `8788` 以降へ自動退避し、UI の接続先も自動追従します。
 
+Managed Terminal の `実行を中断（Ctrl+C）` は、Managed Terminal 内で動作している前景 CLI だけを終了します。Desktop Server は `running` のまま維持され、同じ起動設定を選んで再開できます。standalone server の終了動作は変更されません。`CLI_COMMENTATOR_MANAGED_SERVER` は Tauri sidecar が内部設定する識別値であり、通常の利用者が手動設定するものではありません。
+
 ## Web モードで起動（server + web）
 
 ```bash

@@ -72,6 +72,8 @@ When startup fails, the Desktop Server panel shows a recovery card. It includes 
 
 Note: In desktop managed mode, if `8787` is occupied, desktop automatically falls back to `8788+` and the UI WebSocket target follows automatically.
 
+In Managed Terminal, `実行を中断（Ctrl+C）` ends only the foreground CLI running inside Managed Terminal. The Desktop Server stays `running`, and you can resume by selecting the same launch settings. standalone server shutdown behavior is unchanged. `CLI_COMMENTATOR_MANAGED_SERVER` is an identifier configured internally by the Tauri sidecar; normal users should not set it manually.
+
 ## Run in Web Mode (server + web)
 
 ```bash
