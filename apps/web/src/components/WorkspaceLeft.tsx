@@ -4,6 +4,10 @@ import type { ProfileSummary, PtySize, Style } from "../types";
 import { LauncherPanel } from "./LauncherPanel";
 import { ProfileSelector } from "./ProfileSelector";
 import type { TerminalPaneHandle, TerminalPaneTheme } from "./TerminalPane";
+import {
+  TERMINAL_INTERRUPT_LABEL,
+  sendTerminalInterrupt,
+} from "../lib/terminal-interrupt";
 
 const TerminalPane = lazy(() => import("./TerminalPane"));
 
@@ -96,9 +100,11 @@ export function WorkspaceLeft({
             <button
               type="button"
               className="debug-panel__btn debug-panel__btn--secondary"
-              onClick={() => onTerminalData("\u0003")}
+              onClick={() => sendTerminalInterrupt(onTerminalData)}
+              aria-label={TERMINAL_INTERRUPT_LABEL}
+              title={`${TERMINAL_INTERRUPT_LABEL}。文字のコピーは⌘C`}
             >
-              Ctrl+C
+              {TERMINAL_INTERRUPT_LABEL}
             </button>
           </div>
         </div>

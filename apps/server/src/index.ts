@@ -51,12 +51,18 @@ import { createCommentaryGate, withEventPriority } from "./event-priority.js";
 import { createRepeatedErrorDetector } from "./repeated-error-detector.js";
 import { createSessionContext } from "./session-context.js";
 import { applySpeechContract } from "./commentary/speech-policy.js";
+import { isManagedServer } from "./runtime/managed-server.js";
+import {
+  broadcastIfCurrentGeneration,
+  createCommentaryGeneration,
+} from "./runtime/commentary-generation.js";
 
 const PORT = Number(process.env.CLI_COMMENTATOR_PORT ?? process.env.PORT ?? 8787);
 const COMMENT_EXIT_TIMEOUT_MS = parseInt(process.env.COMMENT_EXIT_TIMEOUT_MS ?? "1500", 10);
 const SILENCE_TIMEOUT_MS = parseSilenceTimeoutMs(process.env.SILENCE_TIMEOUT_MS);
 
 const INPUT_MODE_RAW = process.env.INPUT_MODE; // For debugging
+const MANAGED_SERVER = isManagedServer();
 
 function parseInputMode(value?: string): InputMode {
   const normalized = (value ?? "").trim().toLowerCase();
@@ -103,6 +109,7 @@ function markPtyUnavailable(error: string): void {
 const commentaryGate = createCommentaryGate({ intervalMs: 2000 });
 const repeatedErrorDetector = createRepeatedErrorDetector();
 const sessionContext = createSessionContext();
+const commentaryGeneration = createCommentaryGeneration();
 
 // --- HTTP + WS ---
 const server = http.createServer((req, res) => {
@@ -295,6 +302,7 @@ function createAdHocPTYConfig(input: LaunchSessionInput): PTYConfig {
 }
 
 async function launchAdHocSession(input: LaunchSessionInput): Promise<void> {
+  commentaryGeneration.invalidate();
   const config = createAdHocPTYConfig(input);
   const nextStyle = isStyle(input.style) ? input.style : currentStyle;
   const nextSourceMode = normalizeSource(input.logSource);
@@ -374,7 +382,11 @@ const carryEscape = createEscapeCarry();
  * Process incoming data from any input source (PTY or FileTail).
  * This is the common data processing pipeline.
  */
-function processInputData(data: string, writeToStdout: boolean = true): void {
+function processInputData(
+  data: string,
+  writeToStdout: boolean = true,
+  generation = commentaryGeneration.current(),
+): void {
   silenceTimer.activity();
 
   // Write raw data to local terminal (only for PTY mode or when requested)
@@ -397,11 +409,11 @@ function processInputData(data: string, writeToStdout: boolean = true): void {
   broadcast({ kind: "raw", data: clean });
 
   for (const ev of evs) {
-    emitEvent(ev);
+    emitEvent(ev, generation);
   }
 }
 
-function emitEvent(ev: Event): void {
+function emitEvent(ev: Event, generation = commentaryGeneration.current()): void {
   const prioritizedEvent = withEventPriority(repeatedErrorDetector.observe(ev));
   const shouldEmitCommentary = commentaryGate.shouldEmit(prioritizedEvent.priority);
   const context = sessionContext.observeEvent(prioritizedEvent, {
@@ -410,11 +422,14 @@ function emitEvent(ev: Event): void {
   // The rule-based event reaches clients immediately; LLM commentary follows asynchronously.
   broadcast({ kind: "event", ev: prioritizedEvent });
   if (shouldEmitCommentary) {
-    void comment(prioritizedEvent, currentStyle, currentCommentaryProviders, context)
-      .then((payload) => {
+    broadcastIfCurrentGeneration(
+      comment(prioritizedEvent, currentStyle, currentCommentaryProviders, context),
+      commentaryGeneration,
+      generation,
+      (payload) => {
         broadcastCommentary(prioritizedEvent.ts, prioritizedEvent, payload);
-      })
-      .catch(() => {});
+      },
+    );
   }
 }
 
@@ -456,6 +471,7 @@ function setupPTY(
   profileId: string | null,
   sessionOptions?: { presetName?: string }
 ): void {
+  const generation = commentaryGeneration.invalidate();
   sessionContext.reset({
     presetName: sessionOptions?.presetName,
     acceptsHumanInput: /(?:^|[/\\])(?:codex|claude)(?:$|\s)/i.test(config.cmd),
@@ -485,11 +501,11 @@ function setupPTY(
   term.onData((data) => {
     if (ptyManager.current !== term) return;
     ptyCapture?.write(data);
-    processInputData(data, true);
+    processInputData(data, true, generation);
   });
 
   // Handle PTY exit - only trigger cleanup for final exit, not for profile switch
-  term.onExit(({ exitCode }) => {
+  term.onExit(({ exitCode, signal }) => {
     if (ptyManager.current !== term) {
       return;
     }
@@ -504,8 +520,32 @@ function setupPTY(
     const context = sessionContext.observeEvent(ev);
     broadcast({ kind: "event", ev });
 
-    // 安全タイマー付き二重化（comment()がsettleしなくてもcleanup確実実行）
     const exitWithCode = exitCode ?? 0;
+    if (MANAGED_SERVER) {
+      ptyManager.releaseIfCurrent(term);
+      currentlyRunningProfileId = null;
+      transitionServerState("pty_exit", "pty_idle", {
+        inputMode: "pty",
+        profileId: null,
+        detail: `exit_code=${exitWithCode}`,
+        context: {
+          exitCode: exitWithCode,
+          signal: signal ?? undefined,
+          managedServer: true,
+        },
+      });
+      broadcastIfCurrentGeneration(
+        comment(ev, currentStyle, currentCommentaryProviders, context),
+        commentaryGeneration,
+        generation,
+        (payload) => {
+          broadcastCommentary(ev.ts, ev, payload);
+        },
+      );
+      return;
+    }
+
+    // 安全タイマー付き二重化（comment()がsettleしなくてもcleanup確実実行）
     let exited = false;
     const safeCleanup = () => {
       if (exited) return;
@@ -538,18 +578,23 @@ function setupPTY(
   broadcast({ kind: "event", ev: startEvent });
 
   // Send commentary for start event
-  void comment(startEvent, currentStyle, currentCommentaryProviders, context)
-    .then((payload) => {
+  broadcastIfCurrentGeneration(
+    comment(startEvent, currentStyle, currentCommentaryProviders, context),
+    commentaryGeneration,
+    generation,
+    (payload) => {
       broadcastCommentary(Date.now(), startEvent, payload);
-    })
-    .catch((err) => {
+    },
+    (err) => {
+      if (!commentaryGeneration.isCurrent(generation)) return;
       // Fallback: show basic start message if LLM fails
       broadcastCommentary(Date.now(), startEvent, applySpeechContract({
         narration: `開始: ${startEvent.detail}`,
         meta: { narrationProvider: "fallback", mode: "narration" },
       }, startEvent, context));
       console.error("start commentary failed:", err);
-    });
+    },
+  );
 }
 
 /**
@@ -557,6 +602,7 @@ function setupPTY(
  * Serialized to prevent race conditions from rapid profile switches
  */
 async function restartPTY(profileId: string | null, force = false): Promise<void> {
+  commentaryGeneration.invalidate();
   // If a restart is already in progress, queue this request (only keep the latest)
   if (restartInFlight) {
     queuedProfileId = profileId;
@@ -898,6 +944,7 @@ wss.on("connection", async (ws) => {
  * @see Issue #40
  */
 function setupFileTail(filePath: string, options?: { fatal?: boolean; presetName?: string }): void {
+  const generation = commentaryGeneration.invalidate();
   const fatal = options?.fatal ?? true;
   if (!filePath) {
     transitionServerState("file_tail_setup_failed", "failed", {
@@ -934,7 +981,7 @@ function setupFileTail(filePath: string, options?: { fatal?: boolean; presetName
   fileTail = tail;
 
   // Process data through common pipeline (no stdout echo for file mode)
-  tail.on("data", (data) => processInputData(data, false));
+  tail.on("data", (data) => processInputData(data, false, generation));
 
   // Handle errors
   tail.on("error", (err) => {
@@ -963,14 +1010,21 @@ function setupFileTail(filePath: string, options?: { fatal?: boolean; presetName
     const context = sessionContext.observeEvent(ev);
     broadcast({ kind: "event", ev });
 
-    void comment(ev, currentStyle, currentCommentaryProviders, context)
-      .then((payload) => {
-        broadcastCommentary(ev.ts, ev, payload);
-      })
-      .catch(() => {})
-      .finally(() => {
+    const finishFileTail = () => {
+      if (commentaryGeneration.isCurrent(generation)) {
         cleanup(code ?? 0);
-      });
+      }
+    };
+    broadcastIfCurrentGeneration(
+      comment(ev, currentStyle, currentCommentaryProviders, context),
+      commentaryGeneration,
+      generation,
+      (payload) => {
+        broadcastCommentary(ev.ts, ev, payload);
+        finishFileTail();
+      },
+      finishFileTail,
+    );
   });
 
   // Start tailing
@@ -995,17 +1049,22 @@ function setupFileTail(filePath: string, options?: { fatal?: boolean; presetName
     const context = sessionContext.observeEvent(startEvent);
     broadcast({ kind: "event", ev: startEvent });
 
-    void comment(startEvent, currentStyle, currentCommentaryProviders, context)
-      .then((payload) => {
+    broadcastIfCurrentGeneration(
+      comment(startEvent, currentStyle, currentCommentaryProviders, context),
+      commentaryGeneration,
+      generation,
+      (payload) => {
         broadcastCommentary(Date.now(), startEvent, payload);
-      })
-      .catch((err) => {
+      },
+      (err) => {
+        if (!commentaryGeneration.isCurrent(generation)) return;
         broadcastCommentary(Date.now(), startEvent, applySpeechContract({
           narration: `ファイル監視開始: ${filePath}`,
           meta: { narrationProvider: "fallback", mode: "narration" },
         }, startEvent, context));
         console.error("start commentary failed:", err);
-      });
+      },
+    );
   } catch (err) {
     transitionServerState("file_tail_setup_failed", "failed", {
       level: "error",

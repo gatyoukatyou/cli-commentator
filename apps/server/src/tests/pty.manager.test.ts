@@ -207,15 +207,26 @@ describe("pty/manager", () => {
     it("resizes the active PTY and ignores resize requests after it is killed", async () => {
       vi.resetModules();
       const originalForceNoPty = process.env.CLI_COMMENTATOR_FORCE_NO_PTY;
-      const resize = vi.fn();
-      const term = {
+      const firstResize = vi.fn();
+      const firstTerm = {
         onData: vi.fn(),
         onExit: vi.fn(),
         write: vi.fn(),
         kill: vi.fn(),
-        resize,
+        resize: firstResize,
       };
-      const spawn = vi.fn(() => term);
+      const secondResize = vi.fn();
+      const secondTerm = {
+        onData: vi.fn(),
+        onExit: vi.fn(),
+        write: vi.fn(),
+        kill: vi.fn(),
+        resize: secondResize,
+      };
+      const spawn = vi
+        .fn()
+        .mockReturnValueOnce(firstTerm)
+        .mockReturnValueOnce(secondTerm);
 
       delete process.env.CLI_COMMENTATOR_FORCE_NO_PTY;
 
@@ -234,11 +245,21 @@ describe("pty/manager", () => {
         manager.spawn({ cmd: "bash", args: [], cwd: process.cwd() });
 
         manager.resize(96, 32);
-        expect(resize).toHaveBeenCalledWith(96, 32);
+        expect(firstResize).toHaveBeenCalledWith(96, 32);
 
-        manager.kill();
+        expect(manager.releaseIfCurrent(firstTerm)).toBe(true);
+        expect(manager.current).toBeNull();
+
+        manager.spawn({ cmd: "bash", args: [], cwd: process.cwd() });
+        expect(manager.current).toBe(secondTerm);
+        expect(manager.releaseIfCurrent(firstTerm)).toBe(false);
+        expect(manager.current).toBe(secondTerm);
+
         manager.resize(120, 40);
-        expect(resize).toHaveBeenCalledTimes(1);
+        expect(secondResize).toHaveBeenCalledWith(120, 40);
+        manager.kill();
+        manager.resize(144, 48);
+        expect(secondResize).toHaveBeenCalledTimes(1);
       } finally {
         if (originalForceNoPty === undefined) {
           delete process.env.CLI_COMMENTATOR_FORCE_NO_PTY;

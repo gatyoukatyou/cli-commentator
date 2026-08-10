@@ -18,6 +18,7 @@ use process_wrap::std::ProcessGroup;
 use process_wrap::std::JobObject;
 
 const DEFAULT_PORT: u16 = 8787;
+const MANAGED_SERVER_ENV: &str = "CLI_COMMENTATOR_MANAGED_SERVER";
 const HEALTH_CHECK_TIMEOUT_MS: u64 = 500;
 const PORT_SCAN_ATTEMPTS: u16 = 64;
 
@@ -458,6 +459,7 @@ fn spawn_server_process(
         cmd.arg(&server_entry)
             .current_dir(&server_working_dir)
             .env("CLI_COMMENTATOR_PORT", port.to_string())
+            .env(MANAGED_SERVER_ENV, "1")
             .stdout(Stdio::inherit())
             .stderr(Stdio::inherit());
     });
