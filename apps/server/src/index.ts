@@ -51,12 +51,14 @@ import { createCommentaryGate, withEventPriority } from "./event-priority.js";
 import { createRepeatedErrorDetector } from "./repeated-error-detector.js";
 import { createSessionContext } from "./session-context.js";
 import { applySpeechContract } from "./commentary/speech-policy.js";
+import { isManagedServer } from "./runtime/managed-server.js";
 
 const PORT = Number(process.env.CLI_COMMENTATOR_PORT ?? process.env.PORT ?? 8787);
 const COMMENT_EXIT_TIMEOUT_MS = parseInt(process.env.COMMENT_EXIT_TIMEOUT_MS ?? "1500", 10);
 const SILENCE_TIMEOUT_MS = parseSilenceTimeoutMs(process.env.SILENCE_TIMEOUT_MS);
 
 const INPUT_MODE_RAW = process.env.INPUT_MODE; // For debugging
+const MANAGED_SERVER = isManagedServer();
 
 function parseInputMode(value?: string): InputMode {
   const normalized = (value ?? "").trim().toLowerCase();
@@ -489,7 +491,7 @@ function setupPTY(
   });
 
   // Handle PTY exit - only trigger cleanup for final exit, not for profile switch
-  term.onExit(({ exitCode }) => {
+  term.onExit(({ exitCode, signal }) => {
     if (ptyManager.current !== term) {
       return;
     }
@@ -504,8 +506,29 @@ function setupPTY(
     const context = sessionContext.observeEvent(ev);
     broadcast({ kind: "event", ev });
 
-    // 安全タイマー付き二重化（comment()がsettleしなくてもcleanup確実実行）
     const exitWithCode = exitCode ?? 0;
+    if (MANAGED_SERVER) {
+      ptyManager.releaseIfCurrent(term);
+      currentlyRunningProfileId = null;
+      transitionServerState("pty_exit", "pty_idle", {
+        inputMode: "pty",
+        profileId: null,
+        detail: `exit_code=${exitWithCode}`,
+        context: {
+          exitCode: exitWithCode,
+          signal: signal ?? undefined,
+          managedServer: true,
+        },
+      });
+      void comment(ev, currentStyle, currentCommentaryProviders, context)
+        .then((payload) => {
+          broadcastCommentary(ev.ts, ev, payload);
+        })
+        .catch(() => {});
+      return;
+    }
+
+    // 安全タイマー付き二重化（comment()がsettleしなくてもcleanup確実実行）
     let exited = false;
     const safeCleanup = () => {
       if (exited) return;
