@@ -3,7 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { beforeEach, describe, expect, it } from "vitest";
 import { extractEvents, resetExtractionState } from "../extract.js";
-import type { EventType, Source } from "../types.js";
+import type { DetectedSource, EventType } from "../types.js";
 
 type ExpectedEvent = {
   type: EventType;
@@ -13,7 +13,7 @@ type ExpectedEvent = {
 type RegressionCase = {
   id: string;
   category: string;
-  source: Exclude<Source, "auto">;
+  source: DetectedSource;
   provenance: string;
   input: string;
   expected: ExpectedEvent[];
