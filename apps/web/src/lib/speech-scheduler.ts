@@ -8,8 +8,8 @@ import {
  * 優先度つき読み上げスケジューラ
  * - urgent: 進行中・待機中の発話をすべてキャンセルして即時読み上げ（割り込み）
  * - notice: 進行中の発話を止めず、キュー末尾に追加
- * - progress: 従来のcancel方式（最新のみ）。ただしurgent/noticeの発話が
- *   残っている間は間引き（読み上げない）
+ * - progress: 再生中の発話は止めず、再生待ちのprogressだけを最新へ置換する。
+ *   ただしurgent/noticeの発話が残っている間は間引き（読み上げない）
  *
  * Web Speech API へは直接依存せず、SpeechSink 経由で発話する（テスト容易性のため）。
  */
@@ -22,7 +22,7 @@ export type SpeechSink<Opts> = {
 };
 
 export type SpeechCancellationReason = "urgent_interrupt" | "progress_replace" | "manual_stop";
-export type SpeechDropReason = "high_priority_pending" | "repeated_progress";
+export type SpeechDropReason = "high_priority_pending" | "repeated_progress" | "progress_replace";
 export type SpeechQueueReason = "urgent_interrupt" | "notice_append" | "progress_latest";
 
 export type ScheduledSpeech<Opts> = {
@@ -55,29 +55,56 @@ export function createSpeechScheduler<Opts>(
 ): SpeechScheduler<Opts> {
   // cancel()後に届く古いonSettledを無視するための世代番号
   let generation = 0;
+  type QueueEntry = {
+    request: Omit<ScheduledSpeech<Opts>, "queueDepth" | "queueReason">;
+    isHighPriority: boolean;
+    queueReason: SpeechQueueReason;
+  };
+  let active: QueueEntry | null = null;
+  const queued: QueueEntry[] = [];
   let pendingHighCount = 0;
   let pendingTotalCount = 0;
   let fallbackId = 0;
   let lastProgressAtByKey = new Map<string, number>();
   const now = options.now ?? Date.now;
 
-  const submit = (
+  const toScheduledSpeech = (entry: QueueEntry): ScheduledSpeech<Opts> => ({
+    ...entry.request,
+    queueDepth: pendingTotalCount,
+    queueReason: entry.queueReason,
+  });
+
+  const pump = (): void => {
+    if (active || queued.length === 0) return;
+
+    const next = queued.shift();
+    if (!next) return;
+    active = next;
+    const submittedGeneration = generation;
+    sink.speak(toScheduledSpeech(next), () => {
+      if (submittedGeneration !== generation || active?.request.id !== next.request.id) return;
+      active = null;
+      if (next.isHighPriority) pendingHighCount = Math.max(0, pendingHighCount - 1);
+      pendingTotalCount = Math.max(0, pendingTotalCount - 1);
+      pump();
+    });
+  };
+
+  const enqueue = (
     request: Omit<ScheduledSpeech<Opts>, "queueDepth" | "queueReason">,
     isHighPriority: boolean,
     queueReason: SpeechQueueReason
   ): void => {
-    const submittedGeneration = generation;
+    queued.push({ request, isHighPriority, queueReason });
     if (isHighPriority) pendingHighCount += 1;
     pendingTotalCount += 1;
-    sink.speak({ ...request, queueDepth: pendingTotalCount, queueReason }, () => {
-      if (submittedGeneration !== generation) return;
-      if (isHighPriority) pendingHighCount = Math.max(0, pendingHighCount - 1);
-      pendingTotalCount = Math.max(0, pendingTotalCount - 1);
-    });
+    pump();
   };
 
   const reset = (): void => {
     generation += 1;
+    active = null;
+    queued.length = 0;
     pendingHighCount = 0;
     pendingTotalCount = 0;
   };
@@ -94,6 +121,22 @@ export function createSpeechScheduler<Opts>(
     return false;
   };
 
+  const replaceQueuedProgress = (
+    request: Omit<ScheduledSpeech<Opts>, "queueDepth" | "queueReason">
+  ): boolean => {
+    const index = queued.findIndex(({ request: queuedRequest }) => queuedRequest.priority === "progress");
+    if (index < 0) return false;
+
+    const previous = queued[index];
+    options.onDropped?.(toScheduledSpeech(previous), "progress_replace");
+    queued[index] = {
+      request,
+      isHighPriority: false,
+      queueReason: "progress_latest",
+    };
+    return true;
+  };
+
   return {
     speak(priority, text, opts) {
       const request = {
@@ -105,12 +148,12 @@ export function createSpeechScheduler<Opts>(
       if (priority === "urgent") {
         sink.cancel("urgent_interrupt", request.id);
         reset();
-        submit(request, true, "urgent_interrupt");
+        enqueue(request, true, "urgent_interrupt");
         return true;
       }
 
       if (priority === "notice") {
-        submit(request, true, "notice_append");
+        enqueue(request, true, "notice_append");
         return true;
       }
 
@@ -130,9 +173,9 @@ export function createSpeechScheduler<Opts>(
         return drop(request, "repeated_progress");
       }
       lastProgressAtByKey.set(repetitionKey, current);
-      sink.cancel("progress_replace", request.id);
-      reset();
-      submit(request, false, "progress_latest");
+      if (!replaceQueuedProgress(request)) {
+        enqueue(request, false, "progress_latest");
+      }
       return true;
     },
     cancel() {

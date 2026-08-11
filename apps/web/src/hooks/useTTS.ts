@@ -110,7 +110,7 @@ export function useTTS({ commentaryDisplayMode }: UseTTSOptions) {
       pending.latest.speech
     );
     if (!speechText) return;
-    // notice（完了/沈黙）は進行中の発話を止めずキュー末尾、progressは従来のcancel方式
+    // notice（完了/沈黙）は進行中の発話を止めずキュー末尾、progressは再生待ちだけを最新へ置換
     speakWithPriority(speechText, pending.latest.priority ?? "progress", ttsSettingsRef.current);
   }, [commentaryDisplayMode]);
 

@@ -1,9 +1,9 @@
 /**
  * TTS (Text-to-Speech) utilities using Web Speech API
- * Sprint 24: cancel方式（最新のみ読み上げ）
+ * Sprint 24: cancel方式（当時の最新のみ読み上げ）
  * Sprint 25: TTS設定（voice/rate/pitch/volume）
  * Sprint 26: 読み上げプリセット
- * #309: 優先度つき読み上げ（urgent割り込み / noticeキュー / progress従来）
+ * #309: 優先度つき読み上げ（urgent割り込み / noticeキュー / progress待機置換）
  */
 
 import {
@@ -177,9 +177,10 @@ export function waitForVoices(timeoutMs = 3000): Promise<SpeechSynthesisVoice[]>
 }
 
 /**
- * テキスト正規化（ログ記号除去、長さ制限）
+ * テキスト正規化（ログ記号除去）。
+ * 長さで切り捨てず、必要な場合の分割は splitForSpeech で行う。
  */
-export function normalizeForSpeech(text: string, maxLength = 500): string {
+export function normalizeForSpeech(text: string): string {
   const cleaned = TTS_PRONUNCIATION_REPLACEMENTS.reduce(
     (value, [pattern, replacement]) => value.replace(pattern, replacement),
     stripControlChars(text)
@@ -190,7 +191,44 @@ export function normalizeForSpeech(text: string, maxLength = 500): string {
       .trim()
   );
 
-  return cleaned.length > maxLength ? cleaned.slice(0, maxLength) + "..." : cleaned;
+  return cleaned;
+}
+
+/**
+ * Web Speech APIへ渡す安全な長さの発話単位へ分割する。
+ * 分割位置は句読点・空白を優先するが、チャンク連結で正規化後の全文を
+ * 完全に復元できるよう、文字を黙って削除しない。
+ */
+export function splitForSpeech(text: string, maxLength = 500): string[] {
+  const normalized = normalizeForSpeech(text);
+  if (!normalized) return [];
+
+  const limit = Number.isFinite(maxLength) ? Math.max(1, Math.floor(maxLength)) : 500;
+  const characters = Array.from(normalized);
+  const chunks: string[] = [];
+  let offset = 0;
+
+  while (offset < characters.length) {
+    const remaining = characters.length - offset;
+    if (remaining <= limit) {
+      chunks.push(characters.slice(offset).join(""));
+      break;
+    }
+
+    let chunkLength = limit;
+    const preferredMinimum = Math.max(1, Math.floor(limit * 0.6));
+    for (let index = limit; index >= preferredMinimum; index -= 1) {
+      if (/[\s。！？!?、,，；;：:]/u.test(characters[offset + index - 1] ?? "")) {
+        chunkLength = index;
+        break;
+      }
+    }
+
+    chunks.push(characters.slice(offset, offset + chunkLength).join(""));
+    offset += chunkLength;
+  }
+
+  return chunks;
 }
 
 type SpeakOptions = {
@@ -199,7 +237,14 @@ type SpeakOptions = {
 };
 
 const lifecycleRecorder = createSpeechLifecycleRecorder();
-const activeSpeech = new Map<string, ScheduledSpeech<SpeakOptions>>();
+type ActiveSpeech = {
+  request: ScheduledSpeech<SpeakOptions>;
+  chunks: string[];
+  chunkIndex: number;
+  spokenOffset: number;
+  started: boolean;
+};
+const activeSpeech = new Map<string, ActiveSpeech>();
 let speechId = 0;
 
 const scheduler = createSpeechScheduler<SpeakOptions>({
@@ -207,9 +252,9 @@ const scheduler = createSpeechScheduler<SpeakOptions>({
     for (const request of activeSpeech.values()) {
       lifecycleRecorder.record({
         kind: "cancelled",
-        speechId: request.id,
-        priority: request.priority,
-        text: request.text,
+        speechId: request.request.id,
+        priority: request.request.priority,
+        text: request.request.text,
         reason,
         causeSpeechId,
       });
@@ -220,23 +265,20 @@ const scheduler = createSpeechScheduler<SpeakOptions>({
   speak(request, onSettled) {
     const { settings: options, lang } = request.opts;
     const settings = { ...DEFAULT_TTS_SETTINGS, ...options };
-
-    const utterance = new SpeechSynthesisUtterance(request.text);
-    utterance.lang = lang;
-    utterance.rate = settings.rate;
-    utterance.pitch = settings.pitch;
-    utterance.volume = settings.volume;
-
-    // 指定された音声を設定
-    if (settings.voiceURI) {
-      const voices = speechSynthesis.getVoices();
-      const voice = voices.find((v) => v.voiceURI === settings.voiceURI);
-      if (voice) {
-        utterance.voice = voice;
-      }
+    const chunks = splitForSpeech(request.text);
+    if (chunks.length === 0) {
+      onSettled();
+      return;
     }
 
-    activeSpeech.set(request.id, request);
+    const active: ActiveSpeech = {
+      request,
+      chunks,
+      chunkIndex: 0,
+      spokenOffset: 0,
+      started: false,
+    };
+    activeSpeech.set(request.id, active);
     lifecycleRecorder.record({
       kind: "queued",
       speechId: request.id,
@@ -245,41 +287,78 @@ const scheduler = createSpeechScheduler<SpeakOptions>({
       reason: request.queueReason,
       queueDepth: request.queueDepth,
     });
-    utterance.onstart = () => {
-      if (!activeSpeech.has(request.id)) return;
-      lifecycleRecorder.record({
-        kind: "started",
-        speechId: request.id,
-        priority: request.priority,
-        text: request.text,
-      });
+
+    const speakChunk = (): void => {
+      const current = activeSpeech.get(request.id);
+      if (!current) return;
+
+      const chunk = current.chunks[current.chunkIndex];
+      if (!chunk) return;
+      const utterance = new SpeechSynthesisUtterance(chunk);
+      utterance.lang = lang;
+      utterance.rate = settings.rate;
+      utterance.pitch = settings.pitch;
+      utterance.volume = settings.volume;
+
+      // 指定された音声を設定
+      if (settings.voiceURI) {
+        const voices = speechSynthesis.getVoices();
+        const voice = voices.find((v) => v.voiceURI === settings.voiceURI);
+        if (voice) {
+          utterance.voice = voice;
+        }
+      }
+
+      utterance.onstart = () => {
+        const startedSpeech = activeSpeech.get(request.id);
+        if (!startedSpeech || startedSpeech.started) return;
+        startedSpeech.started = true;
+        lifecycleRecorder.record({
+          kind: "started",
+          speechId: request.id,
+          priority: request.priority,
+          text: request.text,
+        });
+      };
+      utterance.onboundary = (event) => {
+        const speaking = activeSpeech.get(request.id);
+        if (!speaking) return;
+        lifecycleRecorder.updateProgress(request.id, speaking.spokenOffset + event.charIndex);
+      };
+      utterance.onend = () => {
+        const finished = activeSpeech.get(request.id);
+        if (!finished) return;
+        finished.spokenOffset += chunk.length;
+        if (finished.chunkIndex + 1 < finished.chunks.length) {
+          finished.chunkIndex += 1;
+          speakChunk();
+          return;
+        }
+
+        activeSpeech.delete(request.id);
+        lifecycleRecorder.record({
+          kind: "ended",
+          speechId: request.id,
+          priority: request.priority,
+          text: request.text,
+        });
+        onSettled();
+      };
+      utterance.onerror = (event) => {
+        if (!activeSpeech.delete(request.id)) return;
+        lifecycleRecorder.record({
+          kind: "cancelled",
+          speechId: request.id,
+          priority: request.priority,
+          text: request.text,
+          reason: `speech_error:${event.error}`,
+        });
+        onSettled();
+      };
+      speechSynthesis.speak(utterance);
     };
-    utterance.onboundary = (event) => {
-      if (!activeSpeech.has(request.id)) return;
-      lifecycleRecorder.updateProgress(request.id, event.charIndex);
-    };
-    utterance.onend = () => {
-      if (!activeSpeech.delete(request.id)) return;
-      lifecycleRecorder.record({
-        kind: "ended",
-        speechId: request.id,
-        priority: request.priority,
-        text: request.text,
-      });
-      onSettled();
-    };
-    utterance.onerror = (event) => {
-      if (!activeSpeech.delete(request.id)) return;
-      lifecycleRecorder.record({
-        kind: "cancelled",
-        speechId: request.id,
-        priority: request.priority,
-        text: request.text,
-        reason: `speech_error:${event.error}`,
-      });
-      onSettled();
-    };
-    speechSynthesis.speak(utterance);
+
+    speakChunk();
   },
 }, {
   nextId: () => `speech-${Date.now()}-${++speechId}`,
@@ -338,7 +417,7 @@ export function stopSpeech(): void {
  * 優先度つき読み上げ
  * - urgent: 進行中の発話に割り込む（従来のcancel方式と同じ即時性）
  * - notice: 進行中の発話を止めずキュー末尾に追加
- * - progress: 従来のcancel方式。ただしurgent/notice消化中は間引く
+ * - progress: 再生中は止めず、再生待ちだけ最新へ置換する。urgent/notice消化中は間引く
  * @returns 読み上げをキューに積んだら true、間引いた場合は false
  */
 export function speakWithPriority(
@@ -356,7 +435,7 @@ export function speakWithPriority(
 }
 
 /**
- * 読み上げ実行（cancel方式：前の発話をキャンセルして最新のみ）
+ * 読み上げ実行（urgent扱い：前の発話へ割り込む）
  * ユーザー操作起点（開始アナウンス・テスト読み上げ）用。urgent扱いで割り込む。
  * @param text 読み上げるテキスト
  * @param options TTS設定（省略時はデフォルト）

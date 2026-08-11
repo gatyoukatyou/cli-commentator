@@ -45,7 +45,6 @@ describe("createSpeechScheduler", () => {
     expect(scheduler.speak("urgent", "許可待ち", undefined)).toBe(true);
 
     expect(fake.calls).toEqual([
-      { kind: "cancel" },
       { kind: "speak", text: "実況中" },
       { kind: "cancel" },
       { kind: "speak", text: "許可待ち" },
@@ -59,25 +58,52 @@ describe("createSpeechScheduler", () => {
     scheduler.speak("progress", "実況中", undefined);
     expect(scheduler.speak("notice", "完了しました", undefined)).toBe(true);
 
+    expect(fake.calls).toEqual([{ kind: "speak", text: "実況中" }]);
+    fake.settle(0);
+
     expect(fake.calls).toEqual([
-      { kind: "cancel" },
       { kind: "speak", text: "実況中" },
       { kind: "speak", text: "完了しました" },
     ]);
   });
 
-  it("progress は従来どおり前の発話をキャンセルして最新のみ読み上げる", () => {
+  it("progress は再生中の発話をキャンセルせず、終了後に次の発話を読む", () => {
     const fake = createFakeSink();
     const scheduler = createSpeechScheduler(fake.sink);
 
-    scheduler.speak("progress", "1件目", undefined);
-    scheduler.speak("progress", "2件目", undefined);
+    expect(scheduler.speak("progress", "1件目", undefined)).toBe(true);
+    expect(scheduler.speak("progress", "2件目", undefined)).toBe(true);
+
+    expect(fake.calls).toEqual([{ kind: "speak", text: "1件目" }]);
+    expect(fake.cancelReasons).not.toContain("progress_replace");
+
+    fake.settle(0);
 
     expect(fake.calls).toEqual([
-      { kind: "cancel" },
       { kind: "speak", text: "1件目" },
-      { kind: "cancel" },
       { kind: "speak", text: "2件目" },
+    ]);
+  });
+
+  it("再生待ちの古いprogressだけを最新のprogressへ置き換える", () => {
+    const fake = createFakeSink();
+    const dropped: Array<{ text: string; reason: string }> = [];
+    const scheduler = createSpeechScheduler(fake.sink, {
+      onDropped: (request, reason) => dropped.push({ text: request.text, reason }),
+    });
+
+    scheduler.speak("progress", "再生中", undefined);
+    scheduler.speak("progress", "待機中の古い実況", undefined);
+    scheduler.speak("progress", "最新の実況", undefined);
+
+    expect(fake.calls).toEqual([{ kind: "speak", text: "再生中" }]);
+    expect(fake.cancelReasons).not.toContain("progress_replace");
+    expect(dropped).toEqual([{ text: "待機中の古い実況", reason: "progress_replace" }]);
+
+    fake.settle(0);
+    expect(fake.calls).toEqual([
+      { kind: "speak", text: "再生中" },
+      { kind: "speak", text: "最新の実況" },
     ]);
   });
 
@@ -160,7 +186,7 @@ describe("createSpeechScheduler", () => {
     scheduler.speak("urgent", "エラー発生", undefined);
 
     // urgent 1件のみが残っている状態
-    fake.settle(2);
+    fake.settle(1);
     expect(scheduler.hasPendingHighPriority()).toBe(false);
     expect(scheduler.speak("progress", "実況", undefined)).toBe(true);
   });
