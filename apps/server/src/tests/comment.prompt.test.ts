@@ -192,10 +192,10 @@ describe("session context prompts", () => {
 });
 
 describe("normalizeGeneratedCommentaryText", () => {
-  it("keeps narration to the first sentence and strips labels", () => {
+  it("keeps complete narration and strips labels", () => {
     expect(
       normalizeGeneratedCommentaryText("実況: テストを走らせています。次の行も説明します。", "narration")
-    ).toBe("テストを走らせています。");
+    ).toBe("テストを走らせています。次の行も説明します。");
   });
 
   it("strips memo-like explanation prefixes", () => {
