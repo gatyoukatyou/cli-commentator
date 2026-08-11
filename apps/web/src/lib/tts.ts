@@ -10,6 +10,7 @@ import {
   createSpeechScheduler,
   type ScheduledSpeech,
   type SpeechCancellationReason,
+  type SpeechQueueClass,
 } from "./speech-scheduler";
 import { createSpeechLifecycleRecorder, type SpeechLifecycleExport } from "./speech-lifecycle";
 import type { EventPriority } from "../types";
@@ -364,7 +365,7 @@ const scheduler = createSpeechScheduler<SpeakOptions>({
   nextId: () => `speech-${Date.now()}-${++speechId}`,
   onDropped(request, reason) {
     lifecycleRecorder.record({
-      kind: "dropped",
+      kind: reason === "progress_replace" ? "replaced" : "suppressed",
       speechId: request.id,
       priority: request.priority,
       text: request.text,
@@ -417,21 +418,22 @@ export function stopSpeech(): void {
  * 優先度つき読み上げ
  * - urgent: 進行中の発話に割り込む（従来のcancel方式と同じ即時性）
  * - notice: 進行中の発話を止めずキュー末尾に追加
- * - progress: 再生中は止めず、再生待ちだけ最新へ置換する。urgent/notice消化中は間引く
+ * - progress: 再生中は止めず、通常実況をFIFOで保持する。heartbeatは通常実況の後ろへ送る
  * @returns 読み上げをキューに積んだら true、間引いた場合は false
  */
 export function speakWithPriority(
   text: string,
   priority: EventPriority,
   options: Partial<TTSSettings> = {},
-  lang = "ja-JP"
+  lang = "ja-JP",
+  queueClass: SpeechQueueClass = "normal"
 ): boolean {
   if (!isTTSSupported()) return false;
 
   const normalized = normalizeForSpeech(text);
   if (!normalized) return false;
 
-  return scheduler.speak(priority, normalized, { settings: options, lang });
+  return scheduler.speak(priority, normalized, { settings: options, lang }, queueClass);
 }
 
 /**

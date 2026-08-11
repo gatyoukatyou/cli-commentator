@@ -208,6 +208,23 @@ describe("commentary speech policy", () => {
     expect(result.speech).toEqual({ disposition: "display_only", reason: "progress_interval" });
   });
 
+  it("keeps a distinct visible progress narration speakable inside the interval", () => {
+    let now = 0;
+    const context = createSessionContext({ now: () => now });
+    context.observeEvent({ ts: 1, type: "stdout", summary: "最初の進捗", detail: "最初の内容" });
+
+    now = 2_000;
+    const event: Event = { ts: 2, type: "stdout", summary: "Codexが説明している", detail: "次の内容" };
+    const narration = "Codexが作業内容を説明してるで。";
+    const result = applySpeechContract({ narration }, event, context.observeEvent(event));
+
+    expect(result.speech).toEqual({
+      disposition: "speak",
+      reason: "progress_refresh",
+      text: narration,
+    });
+  });
+
   // A file name is the whole point of a detail-aware narration. The raw-command
   // guard used to match `tsx` inside `App.tsx` and replace the sentence with a
   // generic fallback, silently undoing the improvement on the spoken path.

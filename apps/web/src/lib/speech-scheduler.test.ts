@@ -85,7 +85,7 @@ describe("createSpeechScheduler", () => {
     ]);
   });
 
-  it("再生待ちの古いprogressだけを最新のprogressへ置き換える", () => {
+  it("再生待ちの通常progressを置き換えず、画面に出た順で保持する", () => {
     const fake = createFakeSink();
     const dropped: Array<{ text: string; reason: string }> = [];
     const scheduler = createSpeechScheduler(fake.sink, {
@@ -98,13 +98,51 @@ describe("createSpeechScheduler", () => {
 
     expect(fake.calls).toEqual([{ kind: "speak", text: "再生中" }]);
     expect(fake.cancelReasons).not.toContain("progress_replace");
-    expect(dropped).toEqual([{ text: "待機中の古い実況", reason: "progress_replace" }]);
+    expect(dropped).toEqual([]);
 
     fake.settle(0);
     expect(fake.calls).toEqual([
       { kind: "speak", text: "再生中" },
+      { kind: "speak", text: "待機中の古い実況" },
+    ]);
+    fake.settle(1);
+    expect(fake.calls).toEqual([
+      { kind: "speak", text: "再生中" },
+      { kind: "speak", text: "待機中の古い実況" },
       { kind: "speak", text: "最新の実況" },
     ]);
+  });
+
+  it("heartbeatは通常progressの後ろへ送り、後から来た通常progressを先に読む", () => {
+    const fake = createFakeSink();
+    const scheduler = createSpeechScheduler(fake.sink);
+
+    scheduler.speak("progress", "再生中の通常実況", undefined);
+    scheduler.speak("progress", "待機中のheartbeat", undefined, "heartbeat");
+    scheduler.speak("progress", "後続の通常実況", undefined);
+
+    fake.settle(0);
+    fake.settle(1);
+    fake.settle(2);
+
+    expect(fake.calls.map((call) => call.kind === "speak" ? call.text : "cancel")).toEqual([
+      "再生中の通常実況",
+      "後続の通常実況",
+      "待機中のheartbeat",
+    ]);
+  });
+
+  it("通常progressが待機中ならheartbeatを抑止する", () => {
+    const fake = createFakeSink();
+    const dropped: Array<{ text: string; reason: string }> = [];
+    const scheduler = createSpeechScheduler(fake.sink, {
+      onDropped: (request, reason) => dropped.push({ text: request.text, reason }),
+    });
+
+    scheduler.speak("progress", "再生中", undefined);
+    scheduler.speak("progress", "未再生の通常実況", undefined);
+    expect(scheduler.speak("progress", "定型heartbeat", undefined, "heartbeat")).toBe(false);
+    expect(dropped).toEqual([{ text: "定型heartbeat", reason: "heartbeat_suppressed" }]);
   });
 
   it("120秒以内の同じprogressはスタイル違いでも間引く", () => {
@@ -136,31 +174,39 @@ describe("createSpeechScheduler", () => {
     expect(scheduler.speak("progress", "状況を確認しています。", undefined)).toBe(true);
   });
 
-  it("urgent/notice が未消化の間、progress は間引かれる", () => {
+  it("urgent/notice が未消化でも通常progressを捨てず、後ろで待機させる", () => {
     const fake = createFakeSink();
     const scheduler = createSpeechScheduler(fake.sink);
 
     scheduler.speak("urgent", "許可待ち", undefined);
     expect(scheduler.hasPendingHighPriority()).toBe(true);
-    expect(scheduler.speak("progress", "実況", undefined)).toBe(false);
+    expect(scheduler.speak("progress", "実況", undefined)).toBe(true);
     expect(fake.calls.filter((call) => call.kind === "speak")).toHaveLength(1);
 
-    // urgent の発話が終了したら progress を再開できる
+    // urgent の発話が終了したら待機中のprogressを再開できる
     fake.settle(0);
     expect(scheduler.hasPendingHighPriority()).toBe(false);
-    expect(scheduler.speak("progress", "実況", undefined)).toBe(true);
+    expect(fake.calls).toEqual([
+      { kind: "cancel" },
+      { kind: "speak", text: "許可待ち" },
+      { kind: "speak", text: "実況" },
+    ]);
   });
 
-  it("notice が複数積まれた場合は全件消化まで progress を間引く", () => {
+  it("notice が複数積まれても通常progressを後続に保持する", () => {
     const fake = createFakeSink();
     const scheduler = createSpeechScheduler(fake.sink);
 
     scheduler.speak("notice", "完了1", undefined);
     scheduler.speak("notice", "完了2", undefined);
     fake.settle(0);
-    expect(scheduler.speak("progress", "実況", undefined)).toBe(false);
-    fake.settle(1);
     expect(scheduler.speak("progress", "実況", undefined)).toBe(true);
+    fake.settle(1);
+    expect(fake.calls).toEqual([
+      { kind: "speak", text: "完了1" },
+      { kind: "speak", text: "完了2" },
+      { kind: "speak", text: "実況" },
+    ]);
   });
 
   it("cancel() は内部状態をリセットし、古い発話の終了通知を無視する", () => {
@@ -191,7 +237,7 @@ describe("createSpeechScheduler", () => {
     expect(scheduler.speak("progress", "実況", undefined)).toBe(true);
   });
 
-  it("assigns stable IDs and records urgent interruption, notice append, and progress thinning", () => {
+  it("assigns stable IDs and records urgent interruption without dropping normal progress", () => {
     const fake = createFakeSink();
     const dropped: Array<{ id: string; reason: string }> = [];
     let id = 0;
@@ -201,14 +247,14 @@ describe("createSpeechScheduler", () => {
     });
 
     expect(scheduler.speak("notice", "完了を追記", undefined)).toBe(true);
-    expect(scheduler.speak("progress", "間引かれる進捗", undefined)).toBe(false);
+    expect(scheduler.speak("progress", "待機する進捗", undefined)).toBe(true);
     expect(scheduler.speak("urgent", "割り込み", undefined)).toBe(true);
 
     expect(fake.requests.map(({ id, priority, queueDepth, queueReason }) => ({ id, priority, queueDepth, queueReason }))).toEqual([
       { id: "speech-1", priority: "notice", queueDepth: 1, queueReason: "notice_append" },
       { id: "speech-3", priority: "urgent", queueDepth: 1, queueReason: "urgent_interrupt" },
     ]);
-    expect(dropped).toEqual([{ id: "speech-2", reason: "high_priority_pending" }]);
+    expect(dropped).toEqual([]);
     expect(fake.cancelReasons).toContain("urgent_interrupt");
   });
 });

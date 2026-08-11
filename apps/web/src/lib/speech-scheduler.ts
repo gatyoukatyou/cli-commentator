@@ -8,8 +8,8 @@ import {
  * 優先度つき読み上げスケジューラ
  * - urgent: 進行中・待機中の発話をすべてキャンセルして即時読み上げ（割り込み）
  * - notice: 進行中の発話を止めず、キュー末尾に追加
- * - progress: 再生中の発話は止めず、再生待ちのprogressだけを最新へ置換する。
- *   ただしurgent/noticeの発話が残っている間は間引き（読み上げない）
+ * - progress: 再生中の発話は止めず、通常実況をFIFOで保持する。
+ * - heartbeat: 待機・沈黙の定型実況。通常実況の後ろへ送り、通常実況が待機中なら間引く。
  *
  * Web Speech API へは直接依存せず、SpeechSink 経由で発話する（テスト容易性のため）。
  */
@@ -22,8 +22,13 @@ export type SpeechSink<Opts> = {
 };
 
 export type SpeechCancellationReason = "urgent_interrupt" | "progress_replace" | "manual_stop";
-export type SpeechDropReason = "high_priority_pending" | "repeated_progress" | "progress_replace";
-export type SpeechQueueReason = "urgent_interrupt" | "notice_append" | "progress_latest";
+export type SpeechQueueClass = "normal" | "heartbeat";
+export type SpeechDropReason =
+  | "high_priority_pending"
+  | "repeated_progress"
+  | "heartbeat_suppressed"
+  | "progress_replace";
+export type SpeechQueueReason = "urgent_interrupt" | "notice_append" | "progress_fifo" | "heartbeat_low_priority";
 
 export type ScheduledSpeech<Opts> = {
   id: string;
@@ -32,6 +37,7 @@ export type ScheduledSpeech<Opts> = {
   opts: Opts;
   queueDepth: number;
   queueReason: SpeechQueueReason;
+  queueClass: SpeechQueueClass;
 };
 
 type SpeechSchedulerOptions<Opts> = {
@@ -42,7 +48,7 @@ type SpeechSchedulerOptions<Opts> = {
 
 export type SpeechScheduler<Opts> = {
   /** @returns 発話をキューに積んだら true、間引いた場合は false */
-  speak(priority: EventPriority, text: string, opts: Opts): boolean;
+  speak(priority: EventPriority, text: string, opts: Opts, queueClass?: SpeechQueueClass): boolean;
   /** すべての発話を破棄し、内部状態をリセットする */
   cancel(): void;
   /** urgent/notice の発話が未消化で残っているか */
@@ -95,7 +101,14 @@ export function createSpeechScheduler<Opts>(
     isHighPriority: boolean,
     queueReason: SpeechQueueReason
   ): void => {
-    queued.push({ request, isHighPriority, queueReason });
+    const entry = { request, isHighPriority, queueReason };
+    // heartbeat is always the lowest queued priority. New normal progress and
+    // notices go in front of any heartbeat that has not started yet.
+    const insertAt = request.queueClass === "heartbeat"
+      ? queued.length
+      : queued.findIndex(({ request: queuedRequest }) => queuedRequest.queueClass === "heartbeat");
+    if (insertAt < 0) queued.push(entry);
+    else queued.splice(insertAt, 0, entry);
     if (isHighPriority) pendingHighCount += 1;
     pendingTotalCount += 1;
     pump();
@@ -116,34 +129,19 @@ export function createSpeechScheduler<Opts>(
     options.onDropped?.({
       ...request,
       queueDepth: pendingTotalCount,
-      queueReason: "progress_latest",
+      queueReason: request.queueClass === "heartbeat" ? "heartbeat_low_priority" : "progress_fifo",
     }, reason);
     return false;
   };
 
-  const replaceQueuedProgress = (
-    request: Omit<ScheduledSpeech<Opts>, "queueDepth" | "queueReason">
-  ): boolean => {
-    const index = queued.findIndex(({ request: queuedRequest }) => queuedRequest.priority === "progress");
-    if (index < 0) return false;
-
-    const previous = queued[index];
-    options.onDropped?.(toScheduledSpeech(previous), "progress_replace");
-    queued[index] = {
-      request,
-      isHighPriority: false,
-      queueReason: "progress_latest",
-    };
-    return true;
-  };
-
   return {
-    speak(priority, text, opts) {
+    speak(priority, text, opts, queueClass = "normal") {
       const request = {
         id: options.nextId?.() ?? `speech-${Date.now()}-${++fallbackId}`,
         priority,
         text,
         opts,
+        queueClass,
       };
       if (priority === "urgent") {
         sink.cancel("urgent_interrupt", request.id);
@@ -157,11 +155,6 @@ export function createSpeechScheduler<Opts>(
         return true;
       }
 
-      // progress: 高優先の発話が残っている間は間引く
-      if (pendingHighCount > 0) {
-        return drop(request, "high_priority_pending");
-      }
-
       const repetitionKey = normalizeSpeechRepetitionKey(text);
       const current = now();
       const lastProgressAt = lastProgressAtByKey.get(repetitionKey);
@@ -173,9 +166,17 @@ export function createSpeechScheduler<Opts>(
         return drop(request, "repeated_progress");
       }
       lastProgressAtByKey.set(repetitionKey, current);
-      if (!replaceQueuedProgress(request)) {
-        enqueue(request, false, "progress_latest");
+      if (
+        queueClass === "heartbeat" &&
+        queued.some(({ request: queuedRequest }) => queuedRequest.priority === "progress" && queuedRequest.queueClass === "normal")
+      ) {
+        return drop(request, "heartbeat_suppressed");
       }
+      enqueue(
+        request,
+        false,
+        queueClass === "heartbeat" ? "heartbeat_low_priority" : "progress_fifo"
+      );
       return true;
     },
     cancel() {
