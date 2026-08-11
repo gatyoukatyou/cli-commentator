@@ -1,6 +1,7 @@
 #root {
   max-width: none;
   width: 100%;
+  min-height: 100%;
   margin: 0 auto;
   padding: 0;
   text-align: center;
@@ -89,15 +90,23 @@
 
 .app-shell {
   max-width: 1760px;
+  height: 100vh;
+  min-height: 0;
   margin: 0 auto;
   padding: var(--space-4);
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 .workspace-layout {
   display: grid;
   grid-template-columns: minmax(720px, 1.2fr) minmax(560px, 1fr);
   gap: var(--space-4);
-  align-items: start;
+  align-items: stretch;
+  flex: 1 1 auto;
+  min-height: 0;
   margin-top: var(--space-3);
 }
 
@@ -105,6 +114,7 @@
   display: grid;
   gap: var(--space-3);
   min-width: 0;
+  min-height: 0;
 }
 
 .workspace-column--left {
@@ -120,9 +130,22 @@
 }
 
 .commentary-panel {
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: var(--space-2);
   height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.commentary-panel > .log-toolbar {
+  flex: 0 0 auto;
+}
+
+.commentary-panel > .log-container {
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: none;
 }
 
 .commentary-panel__header {
@@ -278,12 +301,13 @@
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
   min-height: 0;
+  overflow: hidden;
 }
 
 .terminal-panel__screen {
-  min-height: 82vh;
-  height: 82vh;
-  max-height: 82vh;
+  min-height: 0;
+  height: auto;
+  max-height: none;
   overflow: hidden;
   margin: 0;
   padding: 0;
@@ -352,6 +376,9 @@
   font-size: var(--text-sm);
   z-index: var(--z-debug);
   width: min(360px, calc(100vw - 24px));
+  max-height: calc(100vh - 24px);
+  overflow-y: auto;
+  box-sizing: border-box;
   text-align: left;
   box-shadow: var(--shadow-lg);
 }
@@ -458,6 +485,16 @@
   gap: var(--space-1);
   align-items: center;
   flex-wrap: wrap;
+}
+
+.debug-panel__actions--server-control {
+  position: sticky;
+  bottom: 0;
+  z-index: 1;
+  margin-top: var(--space-2);
+  padding: var(--space-2) 0 var(--space-1);
+  border-top: var(--panel-border);
+  background: var(--color-bg-secondary);
 }
 
 .debug-panel__actions--wrap {
@@ -608,7 +645,13 @@
   }
 
   .workspace-layout {
-    grid-template-columns: 1fr;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+  }
+
+  .workspace-column--left {
+    flex: 0 0 auto;
   }
 
   .commentary-panel__header {
@@ -616,9 +659,9 @@
   }
 
   .terminal-panel__screen {
-    min-height: 340px;
-    max-height: 50vh;
-    height: 50vh;
+    min-height: 180px;
+    max-height: none;
+    height: clamp(180px, 36vh, 320px);
   }
 
   .debug-panel {
@@ -636,6 +679,10 @@
 }
 
 @media (max-width: 1280px) {
+  .workspace-layout {
+    grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+  }
+
   .launcher-panel__toolbar {
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   }
@@ -688,6 +735,17 @@
   flex: 0 0 180px;
 }
 
+.log-toolbar__latest {
+  flex: 0 0 auto;
+  padding: var(--space-1) var(--space-2);
+  border: var(--btn-border-hover);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-tertiary);
+  color: var(--color-fg-primary);
+  font-size: var(--text-sm);
+  white-space: nowrap;
+}
+
 .log-toolbar__meta {
   margin-top: 6px;
   font-size: var(--text-xs);
@@ -698,10 +756,55 @@
   border: var(--panel-border);
   border-radius: var(--radius-md);
   padding: var(--space-3);
-  min-height: 82vh;
-  max-height: 82vh;
+  min-height: 0;
+  max-height: none;
   overflow: auto;
   text-align: left;
+}
+
+@media (max-width: 768px) and (max-height: 480px) {
+  .terminal-panel__screen {
+    min-height: 120px;
+    height: 120px;
+  }
+
+  .launcher-panel,
+  .workspace-subpanel {
+    padding-top: var(--space-2);
+    padding-bottom: var(--space-2);
+  }
+}
+
+@media (max-height: 480px) {
+  .workspace-layout {
+    align-items: start;
+    overflow-y: auto;
+  }
+
+  .workspace-column--left {
+    display: flex;
+    flex: 0 0 auto;
+    flex-direction: column;
+    align-self: start;
+  }
+
+  .workspace-column--left .terminal-panel {
+    order: -1;
+    flex: 0 0 auto;
+  }
+
+  .workspace-column--left .launcher-panel {
+    order: 1;
+  }
+
+  .workspace-column--left .workspace-subpanel {
+    order: 2;
+  }
+
+  .terminal-panel__screen {
+    min-height: 120px;
+    height: 120px;
+  }
 }
 
 .log-empty {
