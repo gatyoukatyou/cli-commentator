@@ -8,6 +8,7 @@ import {
   type CommentaryItem,
   type LogEventTypeFilter,
 } from "../lib/log-filter";
+import { getLatestLogScrollTop, isAtLogLatest } from "../lib/log-scroll";
 import type { CommentaryDisplayMode, EventPriority } from "../types";
 import { normalizeSuggestion } from "../lib/text";
 
@@ -16,7 +17,6 @@ const PRIORITY_BADGES: Partial<Record<EventPriority, { label: string; className:
   notice: { label: "通知", className: "log-item__priority-badge--notice" },
 };
 
-const LOG_AUTO_SCROLL_THRESHOLD_PX = 64;
 const GENERIC_LOG_SUMMARIES = new Set(["ログ更新"]);
 const GROUP_DETAIL_PREVIEW_COUNT = 3;
 
@@ -47,6 +47,7 @@ type CommentaryLogProps = {
 export function CommentaryLog({ items, displayMode }: CommentaryLogProps) {
   const [query, setQuery] = useState("");
   const [eventType, setEventType] = useState<LogEventTypeFilter>("all");
+  const [isAtLatest, setIsAtLatest] = useState(true);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const shouldStickRef = useRef(true);
   const filteredItems = useMemo(
@@ -58,8 +59,17 @@ export function CommentaryLog({ items, displayMode }: CommentaryLogProps) {
   const handleScroll = useCallback(() => {
     const container = containerRef.current;
     if (!container) return;
-    const distanceToBottom = container.scrollHeight - container.scrollTop - container.clientHeight;
-    shouldStickRef.current = distanceToBottom <= LOG_AUTO_SCROLL_THRESHOLD_PX;
+    const atLatest = isAtLogLatest(container);
+    shouldStickRef.current = atLatest;
+    setIsAtLatest(atLatest);
+  }, []);
+
+  const handleJumpToLatest = useCallback(() => {
+    const container = containerRef.current;
+    if (!container) return;
+    container.scrollTop = getLatestLogScrollTop(container);
+    shouldStickRef.current = true;
+    setIsAtLatest(true);
   }, []);
 
   useEffect(() => {
@@ -95,6 +105,16 @@ export function CommentaryLog({ items, displayMode }: CommentaryLogProps) {
               </option>
             ))}
           </select>
+          {!isAtLatest && (
+            <button
+              type="button"
+              className="log-toolbar__latest"
+              onClick={handleJumpToLatest}
+              aria-label="最新の実況ログへ戻る"
+            >
+              最新へ戻る
+            </button>
+          )}
         </div>
         <div className="log-toolbar__meta">
           {filteredItems.length} / {items.length} 件

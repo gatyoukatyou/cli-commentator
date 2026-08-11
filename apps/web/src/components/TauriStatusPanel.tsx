@@ -553,7 +553,7 @@ export default function TauriStatusPanel({ onStatusChange }: TauriStatusPanelPro
         </section>
       )}
 
-      <div className="debug-panel__actions">
+      <div className="debug-panel__actions debug-panel__actions--server-control">
         <button className="debug-panel__btn debug-panel__btn--primary" onClick={handleStart} disabled={startDisabled}>
           {startLabel}
         </button>

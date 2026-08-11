@@ -281,10 +281,15 @@ a:hover {
 
 body {
   margin: 0;
-  display: flex;
-  place-items: center;
+  display: block;
   min-width: 320px;
   min-height: 100vh;
+}
+
+html,
+body {
+  width: 100%;
+  min-height: 100%;
 }
 
 h1 {
