@@ -142,6 +142,14 @@ export default function App() {
     setAttention(null);
   }, []);
 
+  const focusTerminal = useCallback(() => {
+    document.querySelector<HTMLElement>(".terminal-panel")?.scrollIntoView({
+      behavior: "smooth",
+      block: "center",
+    });
+    terminalPaneRef.current?.focus();
+  }, []);
+
   // 即時イベントで読み上げ済みのcommentaryはTTSしない（表示はする）
   const queueSpeechDeduped = useCallback(
     (item: CommentaryItem) => {
@@ -366,6 +374,7 @@ export default function App() {
       <Notices
         attention={attention}
         onDismissAttention={clearAttention}
+        onFocusTerminal={focusTerminal}
         ptyUnavailable={ptyUnavailable}
         profileError={profileError}
         ptyError={ptyError}

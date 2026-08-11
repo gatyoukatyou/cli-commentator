@@ -6,13 +6,82 @@ import { buildUrgentSpeechText } from "@cli-commentator/shared/urgent-speech";
  * 後続commentaryとの二重通知防止のためのヘルパー。
  */
 
+export type AttentionKind = "input" | "error" | "confirmation";
+
 /** Web UIの要対応バナーに表示する内容 */
 export type AttentionNotice = {
   ts: number;
   eventType: EventType;
   summary: string;
   detail?: string;
+  kind: AttentionKind;
 };
+
+const INPUT_WAIT_SUMMARY_RE = /(?:質問への回答を待っている|入力待ち)/u;
+const CONFIRMATION_SUMMARY_RE = /(?:許可を待っている|確認待ち|承認待ち)/u;
+
+/**
+ * 既存のイベント種別・summaryだけで、HUMANに必要な操作の違いを決める。
+ * 未知のurgentイベントは、入力を誤って促さないよう確認要求として扱う。
+ */
+export function getAttentionKind(event: Pick<Event, "type" | "summary">): AttentionKind {
+  if (event.type === "error") return "error";
+  if (INPUT_WAIT_SUMMARY_RE.test(event.summary)) return "input";
+  if (CONFIRMATION_SUMMARY_RE.test(event.summary)) return "confirmation";
+  return "confirmation";
+}
+
+export type AttentionGuidance = {
+  label: string;
+  message: string;
+  focusTerminal: boolean;
+  focusLabel: string;
+  dismissLabel: string;
+};
+
+export function getAttentionGuidance(kind: AttentionKind): AttentionGuidance {
+  switch (kind) {
+    case "input":
+      return {
+        label: "入力待ち",
+        message:
+          "HUMANの回答が必要です。左のManaged Terminalを開いて入力し、Enterキーを押してください。",
+        focusTerminal: true,
+        focusLabel: "ターミナルへ移動",
+        dismissLabel: "確認した",
+      };
+    case "error":
+      return {
+        label: "実行エラー",
+        message:
+          "入力待ちではありません。ターミナルに入力するだけでは解決しないため、エラー内容を確認して失敗した処理や設定を見直してください。",
+        focusTerminal: false,
+        focusLabel: "",
+        dismissLabel: "エラーを確認した",
+      };
+    case "confirmation":
+      return {
+        label: "確認要求",
+        message:
+          "HUMANの確認・承認が必要です。左のManaged Terminalで内容を確認し、必要な許可・承認操作を行ってください。",
+        focusTerminal: true,
+        focusLabel: "ターミナルへ移動",
+        dismissLabel: "確認した",
+      };
+  }
+}
+
+export const MAX_ATTENTION_DETAIL_LENGTH = 1200;
+
+export function limitAttentionDetail(
+  value: string | undefined,
+  maxLength = MAX_ATTENTION_DETAIL_LENGTH
+): string | undefined {
+  const normalized = value?.trim();
+  if (!normalized) return undefined;
+  if (normalized.length <= maxLength) return normalized;
+  return `${normalized.slice(0, maxLength).trimEnd()}…（長文のため省略）`;
+}
 
 export function toAttentionNotice(ev: Event): AttentionNotice {
   return {
@@ -20,6 +89,7 @@ export function toAttentionNotice(ev: Event): AttentionNotice {
     eventType: ev.type,
     summary: ev.summary,
     detail: ev.detail,
+    kind: getAttentionKind(ev),
   };
 }
 
