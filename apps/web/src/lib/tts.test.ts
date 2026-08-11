@@ -1,10 +1,14 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   DEFAULT_TTS_SETTINGS,
   TTS_PRESETS,
   applyTTSPreset,
   detectTTSPreset,
+  getTTSLifecycleLog,
   normalizeForSpeech,
+  resetTTSLifecycleLog,
+  speakWithPriority,
+  splitForSpeech,
   type TTSSettings,
 } from "./tts";
 
@@ -65,5 +69,90 @@ describe("normalizeForSpeech", () => {
       "ようかくにんです。ようたいおうです：設定を見直します。"
     );
     expect(displayText).toBe("要確認です。要対応です：設定を見直します。");
+  });
+
+  it("長文を切り捨てず、安全なチャンクへ分割して全文を復元できる", () => {
+    const input = Array.from({ length: 18 }, (_, index) =>
+      `実況${index}: 次の出力を確認しながら処理を続けています。`
+    ).join("");
+    const normalized = normalizeForSpeech(input);
+    const chunks = splitForSpeech(input, 48);
+
+    expect(chunks.length).toBeGreaterThan(1);
+    expect(chunks.every((chunk) => Array.from(chunk).length <= 48)).toBe(true);
+    expect(chunks.join("")).toBe(normalized);
+  });
+
+  it("長文の各チャンクを順番にTTSへ渡し、最後のendedまで全文を保持する", () => {
+    type FakeUtterance = {
+      text: string;
+      onstart: (() => void) | null;
+      onboundary: ((event: { charIndex: number }) => void) | null;
+      onend: (() => void) | null;
+      onerror: ((event: { error: string }) => void) | null;
+    };
+    class FakeSpeechSynthesisUtterance implements FakeUtterance {
+      text: string;
+      onstart: (() => void) | null = null;
+      onboundary: ((event: { charIndex: number }) => void) | null = null;
+      onend: (() => void) | null = null;
+      onerror: ((event: { error: string }) => void) | null = null;
+      lang = "";
+      rate = 1;
+      pitch = 1;
+      volume = 1;
+
+      constructor(text: string) {
+        this.text = text;
+      }
+    }
+
+    const utterances: FakeUtterance[] = [];
+    const fakeSpeechSynthesis = {
+      getVoices: () => [],
+      speak: (utterance: FakeUtterance) => utterances.push(utterance),
+      cancel: vi.fn(),
+    };
+    vi.stubGlobal("window", { speechSynthesis: fakeSpeechSynthesis });
+    vi.stubGlobal("speechSynthesis", fakeSpeechSynthesis);
+    vi.stubGlobal("SpeechSynthesisUtterance", FakeSpeechSynthesisUtterance);
+    resetTTSLifecycleLog("long_text_test");
+    fakeSpeechSynthesis.cancel.mockClear();
+
+    const input = Array.from({ length: 24 }, (_, index) =>
+      `長文実況${index}: 画面に表示した内容を最後まで順番に読み上げます。`
+    ).join("");
+    const normalized = normalizeForSpeech(input);
+    const firstChunkCount = splitForSpeech(input).length;
+    expect(speakWithPriority(input, "progress")).toBe(true);
+    expect(speakWithPriority("次の通常実況も待機させます。", "progress")).toBe(true);
+    expect(utterances).toHaveLength(1);
+
+    for (let index = 0; index < firstChunkCount; index += 1) {
+      const utterance = utterances[index];
+      utterance.onstart?.();
+      utterance.onboundary?.({ charIndex: utterance.text.length });
+      utterance.onend?.();
+    }
+
+    expect(utterances.length).toBe(firstChunkCount + 1);
+    expect(utterances.slice(0, firstChunkCount).map(({ text }) => text).join("")).toBe(normalized);
+    expect(utterances[firstChunkCount]?.text).toBe("次の通常実況も待機させます。");
+    expect(fakeSpeechSynthesis.cancel).not.toHaveBeenCalled();
+
+    utterances[firstChunkCount]?.onstart?.();
+    utterances[firstChunkCount]?.onend?.();
+
+    expect(getTTSLifecycleLog().events.map(({ kind }) => kind)).toEqual([
+      "queued",
+      "started",
+      "ended",
+      "queued",
+      "started",
+      "ended",
+    ]);
+
+    resetTTSLifecycleLog("long_text_test_cleanup");
+    vi.unstubAllGlobals();
   });
 });

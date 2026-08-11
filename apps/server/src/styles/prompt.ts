@@ -223,5 +223,8 @@ export function normalizeGeneratedCommentaryText(
     return firstSentence.replace(/^1行メモ:\s*/u, "").trim();
   }
 
-  return firstSentence.trim();
+  // Keep the complete visible narration. The speech contract uses this same
+  // value for normal commentary, so dropping the second sentence here would
+  // make the screen and audio disagree before they reach the client.
+  return stripped;
 }

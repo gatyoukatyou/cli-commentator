@@ -308,6 +308,19 @@ describe("SessionContext", () => {
     });
   });
 
+  it("does not suppress different normal commentary within the progress interval", () => {
+    let now = 0;
+    const context = createSessionContext({ now: () => now });
+    context.setTaskContext({ objective: "実況を続ける", source: "fixture" });
+
+    expect(context.observeEvent(event("stdout", "最初の内容", "作業内容を説明しています。")).speech)
+      .toMatchObject({ disposition: "speak" });
+
+    now = 2_000;
+    expect(context.observeEvent(event("stdout", "次の内容", "別の作業内容を説明しています。")).speech)
+      .toEqual({ disposition: "speak", reason: "progress_refresh" });
+  });
+
   it("speaks phase changes and new targets even within the progress interval", () => {
     let now = 0;
     const context = createSessionContext({ now: () => now });

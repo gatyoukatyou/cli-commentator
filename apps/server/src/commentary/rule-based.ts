@@ -182,10 +182,8 @@ export function commentByRules(
   const subject = describeNarrationSubject(ev);
   const core = codexNarration || COMMENTERS[style](ev, subject);
   const contextual = context ? contextNarration(context, style) : "";
-  // The context line spells out the full path, which overruns the progress
-  // speech budget and gets replaced by a generic fallback — losing the target
-  // entirely. A concrete subject names the same target in a sentence that fits,
-  // so it wins; the phase change is carried by the explanation instead.
+  // A concrete subject names the same target in visible narration and speech;
+  // the phase change is carried by the explanation instead.
   const lead = subject.kind !== "none" ? core : contextual || core;
 
   return withCommentaryMode({

@@ -70,6 +70,7 @@ type MutableState = {
   acceptsHumanInput: boolean;
   lastProgressSpeechAt: number;
   lastProgressKey: string | null;
+  lastProgressEventKey: string | null;
   lastSpokenTarget: string | null;
   seenGlossaryNotes: Set<string>;
 };
@@ -239,6 +240,7 @@ function initialState(): MutableState {
     acceptsHumanInput: false,
     lastProgressSpeechAt: Number.NEGATIVE_INFINITY,
     lastProgressKey: null,
+    lastProgressEventKey: null,
     lastSpokenTarget: null,
     seenGlossaryNotes: new Set(),
   };
@@ -290,6 +292,12 @@ function progressKey(state: MutableState): string {
   return `${taskKey}\u0000${state.phase}`;
 }
 
+function progressEventKey(event: Event): string {
+  const summary = limited(event.summary, MAX_SUMMARY_LENGTH) ?? event.type;
+  const detail = limited(event.detail, MAX_CONTEXT_LENGTH) ?? "";
+  return `${event.type}\u0000${summary}\u0000${detail}`;
+}
+
 function decideSpeech(
   state: MutableState,
   event: Event,
@@ -312,8 +320,11 @@ function decideSpeech(
 
   if (!reason && priority === "progress") {
     const key = progressKey(state);
+    const eventKey = progressEventKey(event);
     const withinInterval =
-      state.lastProgressKey === key && now - state.lastProgressSpeechAt < intervalMs;
+      state.lastProgressKey === key &&
+      state.lastProgressEventKey === eventKey &&
+      now - state.lastProgressSpeechAt < intervalMs;
     if (withinInterval) {
       return { disposition: "display_only", reason: "progress_interval" };
     }
@@ -324,6 +335,7 @@ function decideSpeech(
 
   if (commentaryEligible && priority === "progress") {
     state.lastProgressKey = progressKey(state);
+    state.lastProgressEventKey = progressEventKey(event);
     state.lastProgressSpeechAt = now;
   }
   if (commentaryEligible && (reason === "new_task" || reason === "new_target")) {
