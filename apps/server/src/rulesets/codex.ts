@@ -2,6 +2,24 @@ import type { RuleSet } from "./types.js";
 import { isSearchExecution, isTestExecution } from "../command-analysis.js";
 import { isCodexTuiAssistantLine } from "../progress-noise.js";
 
+const CODEX_NONZERO_EXIT_RE = /^(?:(?:command|process|build|test)\s+)?(?:failed with exit code|exited with (?:code|status)|exit code)\s+(?!0+\b)\d+\b/i;
+
+export const CODEX_CURRENT_ERROR_RE =
+  /\b(?:execution error|uncaught exception|command not found)\b|^(?:command|process|build|test) failed\b|^(?:error|failed|exception):\s|^\s*(?:[A-Za-z_$][\w$]*\.)*[A-Za-z_$][\w$]*(?:Error|Exception):\s|^(?:tests?|test files?|suites?|specs?)\b[^\n]*?\b(?!0+\b)\d+\s+failed\b|\bproblems?\s*\(\s*(?!0+\b)\d+\s+errors?\b|(?:^|-\s*)error\s+TS\d{4,5}\b|\bTS\d{4,5}:\s|\bELIFECYCLE\b|(?:^|\s)ERROR\s+codex_core(?:_[A-Za-z0-9_]+)?::|\bfailed_[A-Za-z0-9_]*=\[(?!\s*\])[^\]]+\]/i;
+
+export function isCurrentCodexErrorLine(line: string): boolean {
+  if (/^>\s/.test(line)) return false;
+  return CODEX_NONZERO_EXIT_RE.test(line) || CODEX_CURRENT_ERROR_RE.test(line);
+}
+
+function isCurrentCodexLifecycleErrorLine(line: string): boolean {
+  return /\bELIFECYCLE\b/i.test(line) && isCurrentCodexErrorLine(line);
+}
+
+function isCurrentCodexExitCodeErrorLine(line: string): boolean {
+  return CODEX_NONZERO_EXIT_RE.test(line) && isCurrentCodexErrorLine(line);
+}
+
 export const codexRuleset: RuleSet = {
   id: "codex",
   label: "Codex",
@@ -30,8 +48,8 @@ export const codexRuleset: RuleSet = {
     { id: "codex.bash", priority: 18, re: /^[⏺•]\s*Bash\(/, type: "stdout", summary: "コマンドを実行している" },
     { id: "codex.toolcall", priority: 17, re: /^ToolCall:\s*[A-Za-z0-9_.:]+/i, type: "stdout", summary: "ツールを呼び出している" },
 
-    { id: "codex.lifecycle", priority: 15, re: /\bELIFECYCLE\b/i, type: "error", summary: "スクリプトが異常終了している" },
-    { id: "codex.exitcode", priority: 12, re: /exited with code|exit code/i, type: "error", summary: "終了コードで失敗している" },
-    { id: "codex.error", priority: 10, re: /execution error|error|failed|exception|TS\d{5}/i, type: "error", summary: "エラーが出ている" }
+    { id: "codex.lifecycle", priority: 15, re: /\bELIFECYCLE\b/i, match: isCurrentCodexLifecycleErrorLine, type: "error", summary: "スクリプトが異常終了している" },
+    { id: "codex.exitcode", priority: 12, re: CODEX_NONZERO_EXIT_RE, match: isCurrentCodexExitCodeErrorLine, type: "error", summary: "終了コードで失敗している" },
+    { id: "codex.error", priority: 10, re: CODEX_CURRENT_ERROR_RE, match: isCurrentCodexErrorLine, type: "error", summary: "エラーが出ている" }
   ]
 };
