@@ -277,4 +277,40 @@ describe("extractEvents fixtures", () => {
   it("does not treat an empty failed-id field as an error", () => {
     expect(extractEvents("failed_remote_plugin_ids=[]", "codex")).toEqual([]);
   });
+
+  it.each([
+    "The explanation mentions Error: only as an example.",
+    "The previous command failed, so I changed the approach.",
+    "The previous command failed with exit code 1, so I changed the approach.",
+    "UI status: Error: is displayed in the action-required banner.",
+    "> Error: quoted from an earlier command",
+    "> Command failed with exit code 1",
+    "Tests: 0 failed, 7 passed",
+    "Test Files  0 failed (7)",
+    "✖ 3 problems (0 errors, 3 warnings)",
+    "Process exited with code 0",
+    "Please confirm which approach to take before I continue.",
+  ])("does not classify Codex prose or completed status as an error: %s", (line) => {
+    expect(extractEvents(line, "codex")).not.toEqual(
+      expect.arrayContaining([expect.objectContaining({ type: "error" })])
+    );
+  });
+
+  it.each([
+    "Error: Cannot find module 'zod'",
+    "TypeError: Cannot read properties of undefined",
+    "Command failed with exit code 1",
+    "Tests: 2 failed, 5 passed",
+    "Test Files  1 failed (1)",
+    "✖ 3 problems (3 errors, 0 warnings)",
+    "Process exited with code 1",
+    "TS2322: Type 'string' is not assignable to type 'number'.",
+    "error TS2322 in src/index.ts during tsc -p tsconfig.json",
+    "ELIFECYCLE Command failed",
+    "2026-07-19T01:00:09.000000Z ERROR codex_core_plugins::remote::remote_installed_plugin_sync: plugin sync failed failed_remote_plugin_ids=[\"plugin-demo\"]",
+  ])("keeps structured current Codex failures as errors: %s", (line) => {
+    expect(extractEvents(line, "codex")).toEqual(
+      expect.arrayContaining([expect.objectContaining({ type: "error" })])
+    );
+  });
 });
