@@ -3,6 +3,7 @@ import "xterm/css/xterm.css";
 import { Terminal } from "xterm";
 import { FitAddon } from "xterm-addon-fit";
 import { createTerminalInputGate } from "../lib/terminal-input";
+import { handleTerminalLatestKey, jumpTerminalToLatest } from "../lib/terminal-keyboard";
 import { isAtTerminalLatest } from "../lib/terminal-scroll";
 import type { PtySize } from "../types";
 
@@ -46,6 +47,8 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(function 
   const backlogRef = useRef("");
   const terminalInputGateRef = useRef(createTerminalInputGate());
   const shouldAutoFollowRef = useRef(true);
+  const isAtLatestRef = useRef(true);
+  const latestButtonRef = useRef<HTMLButtonElement | null>(null);
   const [isAtLatest, setIsAtLatest] = useState(true);
 
   const updateScrollState = useCallback((viewportY: number) => {
@@ -57,6 +60,7 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(function 
       baseY: terminal.buffer.active.baseY,
     });
     shouldAutoFollowRef.current = atLatest;
+    isAtLatestRef.current = atLatest;
     setIsAtLatest(atLatest);
   }, []);
 
@@ -80,10 +84,11 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(function 
     const terminal = terminalRef.current;
     if (!terminal) return;
 
-    shouldAutoFollowRef.current = true;
-    terminal.scrollToBottom();
-    setIsAtLatest(true);
-    terminal.focus();
+    jumpTerminalToLatest(terminal, () => {
+      shouldAutoFollowRef.current = true;
+      isAtLatestRef.current = true;
+      setIsAtLatest(true);
+    });
   }, []);
 
   useImperativeHandle(
@@ -93,6 +98,7 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(function 
         backlogRef.current = "";
         terminalRef.current?.clear();
         shouldAutoFollowRef.current = true;
+        isAtLatestRef.current = true;
         setIsAtLatest(true);
       },
       focus() {
@@ -159,6 +165,12 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(function 
     terminal.open(host);
     terminalRef.current = terminal;
     fitAddonRef.current = fitAddon;
+    terminal.attachCustomKeyEventHandler((event) =>
+      handleTerminalLatestKey(event, {
+        getLatestButton: () => latestButtonRef.current,
+        isAtLatest: () => isAtLatestRef.current,
+      })
+    );
 
     const viewport = host.querySelector<HTMLElement>(".xterm-viewport");
     const handleViewportScroll = () => {
@@ -254,6 +266,7 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(function 
       />
       {!isAtLatest && (
         <button
+          ref={latestButtonRef}
           type="button"
           className="terminal-pane__latest"
           onClick={handleJumpToLatest}
