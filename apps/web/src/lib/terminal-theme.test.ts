@@ -9,8 +9,8 @@ describe("Managed Terminal skin themes", () => {
   it("keeps Standard readable and aligned with the Managed Terminal surface", () => {
     expect(getTerminalTheme("standard")).toEqual(STANDARD_TERMINAL_THEME);
     expect(STANDARD_TERMINAL_THEME).toEqual({
-      background: "#0f1720",
-      foreground: "#f8fafc",
+      background: "#0b111a",
+      foreground: "#d8dee9",
       cursor: "#38bdf8",
       selectionBackground: "rgba(56, 189, 248, 0.24)",
     });

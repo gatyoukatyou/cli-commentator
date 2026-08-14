@@ -7,8 +7,8 @@ export type TerminalTheme = {
 
 export const STANDARD_TERMINAL_THEME: TerminalTheme = {
   // Keep the xterm surface aligned with the existing Managed Terminal panel.
-  background: "#0f1720",
-  foreground: "#f8fafc",
+  background: "#0b111a",
+  foreground: "#d8dee9",
   cursor: "#38bdf8",
   selectionBackground: "rgba(56, 189, 248, 0.24)",
 };
