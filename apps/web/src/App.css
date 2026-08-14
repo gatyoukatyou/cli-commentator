@@ -345,7 +345,7 @@
   padding: 0;
   border: var(--panel-border);
   border-radius: var(--radius-sm);
-  background: #0f1720;
+  background: var(--terminal-background, #0b111a);
   text-align: left;
 }
 
@@ -356,10 +356,12 @@
 .terminal-panel__screen .xterm {
   height: 100%;
   padding: 10px 12px;
+  background: var(--terminal-background, #0b111a);
 }
 
 .terminal-panel__screen .xterm-viewport {
   overflow-y: auto !important;
+  background: var(--terminal-background, #0b111a);
 }
 
 .terminal-panel__actions {
