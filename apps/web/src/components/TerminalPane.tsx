@@ -1,20 +1,17 @@
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
+import type { CSSProperties } from "react";
 import "xterm/css/xterm.css";
 import { Terminal } from "xterm";
 import { FitAddon } from "xterm-addon-fit";
 import { createTerminalInputGate } from "../lib/terminal-input";
 import { handleTerminalLatestKey, jumpTerminalToLatest } from "../lib/terminal-keyboard";
 import { isAtTerminalLatest } from "../lib/terminal-scroll";
+import type { TerminalTheme } from "../lib/terminal-theme";
 import type { PtySize } from "../types";
 
 const TERMINAL_OUTPUT_MAX_CHARS = 24000;
 
-export type TerminalPaneTheme = {
-  background: string;
-  foreground: string;
-  cursor: string;
-  selectionBackground: string;
-};
+export type TerminalPaneTheme = TerminalTheme;
 
 export type TerminalPaneHandle = {
   clear: () => void;
@@ -260,6 +257,7 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(function 
       <div
         ref={hostRef}
         className={className}
+        style={{ "--terminal-background": theme.background } as CSSProperties}
         onMouseDown={() => terminalRef.current?.focus()}
         aria-label="Managed Terminal の入力欄"
         role="group"

@@ -1,6 +1,6 @@
 import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import "./App.css";
-import type { TerminalPaneHandle, TerminalPaneTheme } from "./components/TerminalPane";
+import type { TerminalPaneHandle } from "./components/TerminalPane";
 import { AppHeader, type Skin } from "./components/AppHeader";
 import { CommentaryPanel } from "./components/CommentaryPanel";
 import { Notices } from "./components/Notices";
@@ -18,6 +18,7 @@ import {
 } from "./lib/event-notify";
 import type { CommentaryItem } from "./lib/log-filter";
 import { sendPtyResize } from "./lib/pty-resize";
+import { getTerminalTheme } from "./lib/terminal-theme";
 import {
   buildLaunchDraft,
   buildLaunchSessionInput,
@@ -43,24 +44,6 @@ const TERMINAL_OUTPUT_MAX_CHARS = 24000;
 
 function isSkin(value: string | null): value is Skin {
   return value === "standard" || value === "cli";
-}
-
-function getTerminalTheme(skin: Skin): TerminalPaneTheme {
-  if (skin === "cli") {
-    return {
-      background: "#081019",
-      foreground: "#d8f3dc",
-      cursor: "#38bdf8",
-      selectionBackground: "rgba(56, 189, 248, 0.24)",
-    };
-  }
-
-  return {
-    background: "#f8fafc",
-    foreground: "#213547",
-    cursor: "#2563eb",
-    selectionBackground: "rgba(37, 99, 235, 0.18)",
-  };
 }
 
 export default function App() {
