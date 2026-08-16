@@ -57,7 +57,7 @@ import {
   createCommentaryGeneration,
 } from "./runtime/commentary-generation.js";
 import { createInitialStartDelivery } from "./runtime/initial-start-delivery.js";
-import { createPtyOwnerRegistry } from "./runtime/pty-owner.js";
+import { createPtyOwnerRegistry, type PtyOwnerClientKind } from "./runtime/pty-owner.js";
 
 const PORT = Number(process.env.CLI_COMMENTATOR_PORT ?? process.env.PORT ?? 8787);
 const COMMENT_EXIT_TIMEOUT_MS = parseInt(process.env.COMMENT_EXIT_TIMEOUT_MS ?? "1500", 10);
@@ -138,6 +138,13 @@ function resolveClientId(request: { url?: string }): string {
 
   anonymousClientSequence += 1;
   return `anonymous-${anonymousClientSequence}`;
+}
+
+function resolveClientKind(request: { url?: string }): PtyOwnerClientKind {
+  const requestUrl = new URL(request.url ?? "/", "ws://localhost");
+  const requestedKind = requestUrl.searchParams.get("clientKind");
+  if (requestedKind === "desktop" || requestedKind === "web") return requestedKind;
+  return "unknown";
 }
 
 // --- PTY Manager ---
@@ -841,7 +848,7 @@ function deliverPendingInitialStart(): void {
 }
 
 wss.on("connection", async (ws, request) => {
-  ptyOwnerRegistry.register(ws, resolveClientId(request));
+  ptyOwnerRegistry.register(ws, resolveClientId(request), resolveClientKind(request));
   ws.on("close", () => {
     ptyOwnerRegistry.unregister(ws);
   });

@@ -159,7 +159,8 @@ export default function App() {
 
   const wsUrl = useMemo(() => {
     const port = isTauriRuntime ? tauriServerPort ?? defaultWsPort : defaultWsPort;
-    return `ws://localhost:${port}`;
+    const clientKind = isTauriRuntime ? "desktop" : "web";
+    return `ws://localhost:${port}?clientKind=${clientKind}`;
   }, [defaultWsPort, isTauriRuntime, tauriServerPort]);
 
   const terminalTheme = useMemo(() => getTerminalTheme(skin), [skin]);

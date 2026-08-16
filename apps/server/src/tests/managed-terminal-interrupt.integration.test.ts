@@ -124,7 +124,7 @@ async function startServer(managed: boolean): Promise<{
 }
 
 async function connect(port: number): Promise<{ ws: WebSocket; messages: ServerMessage[] }> {
-  const ws = new WebSocket(`ws://127.0.0.1:${port}`);
+  const ws = new WebSocket(`ws://127.0.0.1:${port}?clientId=test-client&clientKind=web`);
   const messages: ServerMessage[] = [];
   ws.on("message", (data) => {
     messages.push(JSON.parse(data.toString()) as ServerMessage);

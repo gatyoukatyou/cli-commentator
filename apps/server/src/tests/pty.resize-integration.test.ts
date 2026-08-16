@@ -61,12 +61,14 @@ async function waitForOutput(getOutput: () => string, pattern: RegExp): Promise<
   throw new Error(`PTY output did not match ${pattern}: ${JSON.stringify(getOutput())}`);
 }
 
-async function connect(port: number, clientId: string): Promise<{
+async function connect(port: number, clientId: string, clientKind: "desktop" | "web"): Promise<{
   ws: WebSocket;
   receivedKinds: string[];
   rawOutput: () => string;
 }> {
-  const ws = new WebSocket(`ws://127.0.0.1:${port}?clientId=${encodeURIComponent(clientId)}`);
+  const ws = new WebSocket(
+    `ws://127.0.0.1:${port}?clientId=${encodeURIComponent(clientId)}&clientKind=${clientKind}`
+  );
   const receivedKinds: string[] = [];
   let rawOutput = "";
   ws.on("message", (data) => {
@@ -115,7 +117,7 @@ describe.skipIf(!canRun)("PTY resize WebSocket integration", () => {
 
     try {
       await waitForHealth(port, child);
-      ws = new WebSocket(`ws://127.0.0.1:${port}?clientId=desktop-tab`);
+      ws = new WebSocket(`ws://127.0.0.1:${port}?clientId=desktop-tab&clientKind=desktop`);
       let rawOutput = "";
       ws.on("message", (data) => {
         const message = JSON.parse(data.toString()) as { kind?: string; data?: unknown };
@@ -176,9 +178,9 @@ describe.skipIf(!canRun)("PTY resize WebSocket integration", () => {
 
     try {
       await waitForHealth(port, child);
-      const controller = await connect(port, "desktop-tab");
+      const controller = await connect(port, "desktop-tab", "desktop");
       desktop = controller.ws;
-      const browser = await connect(port, "browser-tab");
+      const browser = await connect(port, "browser-tab", "web");
       observer = browser.ws;
 
       desktop.send(JSON.stringify({ kind: "resizePty", cols: 96, rows: 32 }));
@@ -198,7 +200,7 @@ describe.skipIf(!canRun)("PTY resize WebSocket integration", () => {
         desktop?.once("close", () => resolve());
         desktop?.close();
       });
-      const reconnected = await connect(port, "desktop-tab");
+      const reconnected = await connect(port, "desktop-tab", "desktop");
       reconnectedDesktop = reconnected.ws;
       reconnectedDesktop.send(JSON.stringify({ kind: "resizePty", cols: 110, rows: 34 }));
       reconnectedDesktop.send(JSON.stringify({ kind: "writeInput", data: "stty size\r" }));

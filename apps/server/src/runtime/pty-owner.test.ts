@@ -7,8 +7,8 @@ describe("PTY owner registry", () => {
     const desktop = {};
     const browser = {};
 
-    expect(registry.register(desktop, "desktop-tab")).toBe("controller");
-    expect(registry.register(browser, "browser-tab")).toBe("observer");
+    expect(registry.register(desktop, "desktop-tab", "desktop")).toBe("controller");
+    expect(registry.register(browser, "browser-tab", "web")).toBe("observer");
     expect(registry.isController(desktop)).toBe(true);
     expect(registry.isController(browser)).toBe(false);
     expect(registry.controllerId()).toBe("desktop-tab");
@@ -20,11 +20,11 @@ describe("PTY owner registry", () => {
     const browser = {};
     const reconnectedDesktop = {};
 
-    registry.register(desktop, "desktop-tab");
-    registry.register(browser, "browser-tab");
+    registry.register(desktop, "desktop-tab", "desktop");
+    registry.register(browser, "browser-tab", "web");
     registry.unregister(desktop);
 
-    expect(registry.register(reconnectedDesktop, "desktop-tab")).toBe("controller");
+    expect(registry.register(reconnectedDesktop, "desktop-tab", "desktop")).toBe("controller");
     expect(registry.isController(browser)).toBe(false);
     expect(registry.isController(reconnectedDesktop)).toBe(true);
   });
@@ -35,11 +35,22 @@ describe("PTY owner registry", () => {
     const browser = {};
     const replacement = {};
 
-    registry.register(desktop, "desktop-tab");
+    registry.register(desktop, "desktop-tab", "desktop");
     registry.unregister(desktop);
 
-    expect(registry.register(browser, "browser-tab")).toBe("observer");
-    expect(registry.register(replacement, "replacement-tab")).toBe("observer");
+    expect(registry.register(browser, "browser-tab", "web")).toBe("observer");
+    expect(registry.register(replacement, "replacement-tab", "web")).toBe("observer");
     expect(registry.controllerId()).toBe("desktop-tab");
+  });
+
+  it("promotes a Desktop client when a Web client connected first", () => {
+    const registry = createPtyOwnerRegistry();
+    const browser = {};
+    const desktop = {};
+
+    expect(registry.register(browser, "browser-tab", "web")).toBe("controller");
+    expect(registry.register(desktop, "desktop-tab", "desktop")).toBe("controller");
+    expect(registry.isController(browser)).toBe(false);
+    expect(registry.isController(desktop)).toBe(true);
   });
 });
