@@ -57,6 +57,7 @@ import {
   createCommentaryGeneration,
 } from "./runtime/commentary-generation.js";
 import { createInitialStartDelivery } from "./runtime/initial-start-delivery.js";
+import { createPtyOwnerRegistry } from "./runtime/pty-owner.js";
 
 const PORT = Number(process.env.CLI_COMMENTATOR_PORT ?? process.env.PORT ?? 8787);
 const COMMENT_EXIT_TIMEOUT_MS = parseInt(process.env.COMMENT_EXIT_TIMEOUT_MS ?? "1500", 10);
@@ -127,6 +128,17 @@ const server = http.createServer((req, res) => {
 });
 
 const wss = new WebSocketServer({ server });
+const ptyOwnerRegistry = createPtyOwnerRegistry();
+let anonymousClientSequence = 0;
+
+function resolveClientId(request: { url?: string }): string {
+  const requestUrl = new URL(request.url ?? "/", "ws://localhost");
+  const requestedId = requestUrl.searchParams.get("clientId")?.trim();
+  if (requestedId && /^[A-Za-z0-9._:-]{1,128}$/.test(requestedId)) return requestedId;
+
+  anonymousClientSequence += 1;
+  return `anonymous-${anonymousClientSequence}`;
+}
 
 // --- PTY Manager ---
 const ptyManager = createPTYManager();
@@ -828,7 +840,12 @@ function deliverPendingInitialStart(): void {
   );
 }
 
-wss.on("connection", async (ws) => {
+wss.on("connection", async (ws, request) => {
+  ptyOwnerRegistry.register(ws, resolveClientId(request));
+  ws.on("close", () => {
+    ptyOwnerRegistry.unregister(ws);
+  });
+
   // Send initial state including profiles
   const profiles = await profileManager.list();
   const activeId = await profileManager.getActiveId();
@@ -847,6 +864,7 @@ wss.on("connection", async (ws) => {
 
       switch (msg?.kind) {
         case "setStyle":
+          if (!ptyOwnerRegistry.isController(ws)) break;
           if (isStyle(msg.style)) {
             currentStyle = msg.style;
             broadcast({ kind: "style", style: currentStyle });
@@ -854,6 +872,7 @@ wss.on("connection", async (ws) => {
           break;
 
         case "launchSession": {
+          if (!ptyOwnerRegistry.isController(ws)) break;
           try {
             const input = msg.session;
             if (!input || typeof input.cmd !== "string") {
@@ -867,6 +886,7 @@ wss.on("connection", async (ws) => {
         }
 
         case "writeInput":
+          if (!ptyOwnerRegistry.isController(ws)) break;
           if (typeof msg.data === "string") {
             const inputResult = sessionContext.observeInput(msg.data);
             if (inputResult.newTask) {
@@ -878,6 +898,7 @@ wss.on("connection", async (ws) => {
           break;
 
         case "resizePty": {
+          if (!ptyOwnerRegistry.isController(ws)) break;
           const size = parsePtySize(msg.cols, msg.rows);
           if (!size) break;
           latestPtySize = size;
@@ -914,6 +935,7 @@ wss.on("connection", async (ws) => {
         }
 
         case "saveProfile": {
+          if (!ptyOwnerRegistry.isController(ws)) break;
           try {
             const input = msg.profile;
             if (!input) throw new Error("Missing profile data");
@@ -945,6 +967,7 @@ wss.on("connection", async (ws) => {
         }
 
         case "deleteProfile": {
+          if (!ptyOwnerRegistry.isController(ws)) break;
           try {
             const id = msg.id;
             if (!id) throw new Error("Missing profile id");
@@ -958,6 +981,7 @@ wss.on("connection", async (ws) => {
         }
 
         case "setActiveProfile": {
+          if (!ptyOwnerRegistry.isController(ws)) break;
           try {
             const id = msg.id ?? null;
             await profileManager.setActive(id);

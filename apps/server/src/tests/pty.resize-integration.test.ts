@@ -61,6 +61,31 @@ async function waitForOutput(getOutput: () => string, pattern: RegExp): Promise<
   throw new Error(`PTY output did not match ${pattern}: ${JSON.stringify(getOutput())}`);
 }
 
+async function connect(port: number, clientId: string): Promise<{
+  ws: WebSocket;
+  receivedKinds: string[];
+  rawOutput: () => string;
+}> {
+  const ws = new WebSocket(`ws://127.0.0.1:${port}?clientId=${encodeURIComponent(clientId)}`);
+  const receivedKinds: string[] = [];
+  let rawOutput = "";
+  ws.on("message", (data) => {
+    const message = JSON.parse(data.toString()) as { kind?: string; data?: unknown };
+    if (message.kind) receivedKinds.push(message.kind);
+    if (message.kind === "raw" && typeof message.data === "string") {
+      rawOutput += message.data;
+    }
+  });
+
+  await new Promise<void>((resolve, reject) => {
+    ws.once("open", resolve);
+    ws.once("error", reject);
+  });
+  await waitForOutput(() => receivedKinds.join(","), /(?:^|,)hello(?:,|$)/);
+
+  return { ws, receivedKinds, rawOutput: () => rawOutput };
+}
+
 describe.skipIf(!canRun)("PTY resize WebSocket integration", () => {
   it("applies browser dimensions to the managed PTY", async () => {
     const port = await getFreePort();
@@ -90,7 +115,7 @@ describe.skipIf(!canRun)("PTY resize WebSocket integration", () => {
 
     try {
       await waitForHealth(port, child);
-      ws = new WebSocket(`ws://127.0.0.1:${port}`);
+      ws = new WebSocket(`ws://127.0.0.1:${port}?clientId=desktop-tab`);
       let rawOutput = "";
       ws.on("message", (data) => {
         const message = JSON.parse(data.toString()) as { kind?: string; data?: unknown };
@@ -121,4 +146,72 @@ describe.skipIf(!canRun)("PTY resize WebSocket integration", () => {
       child.kill("SIGTERM");
     }
   }, 15_000);
+
+  it("keeps PTY control with the first client while observers receive output", async () => {
+    const port = await getFreePort();
+    const child = spawn(process.execPath, ["--import", "tsx", "src/index.ts"], {
+      cwd: process.cwd(),
+      env: {
+        ...process.env,
+        CLI_COMMENTATOR_PORT: String(port),
+        INPUT_MODE: "pty",
+        TARGET_CMD: "bash",
+        TARGET_ARGS_JSON: JSON.stringify(["--noprofile", "--norc"]),
+        TARGET_CWD: process.cwd(),
+        LLM_PROVIDER: "disabled",
+      },
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+    let stdout = "";
+    child.stdout?.on("data", (chunk) => {
+      stdout += chunk.toString();
+    });
+    let stderr = "";
+    child.stderr?.on("data", (chunk) => {
+      stderr += chunk.toString();
+    });
+    let desktop: WebSocket | null = null;
+    let observer: WebSocket | null = null;
+    let reconnectedDesktop: WebSocket | null = null;
+
+    try {
+      await waitForHealth(port, child);
+      const controller = await connect(port, "desktop-tab");
+      desktop = controller.ws;
+      const browser = await connect(port, "browser-tab");
+      observer = browser.ws;
+
+      desktop.send(JSON.stringify({ kind: "resizePty", cols: 96, rows: 32 }));
+      observer.send(JSON.stringify({ kind: "resizePty", cols: 140, rows: 40 }));
+      observer.send(JSON.stringify({ kind: "writeInput", data: "printf 'observer-marker\\n'\r" }));
+      desktop.send(JSON.stringify({ kind: "writeInput", data: "printf 'controller-marker\\n'\r" }));
+
+      await waitForOutput(controller.rawOutput, /controller-marker/);
+      await waitForOutput(browser.rawOutput, /controller-marker/);
+      expect(controller.rawOutput()).not.toContain("observer-marker");
+      expect(browser.rawOutput()).not.toContain("observer-marker");
+
+      desktop.send(JSON.stringify({ kind: "writeInput", data: "stty size\r" }));
+      await waitForOutput(controller.rawOutput, /32\s+96/);
+
+      await new Promise<void>((resolve) => {
+        desktop?.once("close", () => resolve());
+        desktop?.close();
+      });
+      const reconnected = await connect(port, "desktop-tab");
+      reconnectedDesktop = reconnected.ws;
+      reconnectedDesktop.send(JSON.stringify({ kind: "resizePty", cols: 110, rows: 34 }));
+      reconnectedDesktop.send(JSON.stringify({ kind: "writeInput", data: "stty size\r" }));
+      await waitForOutput(reconnected.rawOutput, /34\s+110/);
+    } catch (error) {
+      throw new Error(
+        `${error instanceof Error ? error.message : String(error)}\nstdout=${stdout}\nstderr=${stderr}`
+      );
+    } finally {
+      reconnectedDesktop?.close();
+      desktop?.close();
+      observer?.close();
+      child.kill("SIGTERM");
+    }
+  }, 20_000);
 });

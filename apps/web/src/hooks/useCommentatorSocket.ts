@@ -3,6 +3,7 @@ import type { TerminalPaneHandle } from "../components/TerminalPane";
 import { getCommentaryTextParts } from "../lib/glossary-note";
 import type { CommentaryItem } from "../lib/log-filter";
 import { normalizeSuggestion } from "../lib/text";
+import { getSessionClientId } from "../lib/client-id";
 import { parseServerMessage } from "@cli-commentator/shared";
 import type {
   Event,
@@ -91,6 +92,7 @@ export function useCommentatorSocket({
 }: UseCommentatorSocketOptions) {
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>("connecting");
   const wsRef = useRef<WebSocket | null>(null);
+  const clientIdRef = useRef<string | null>(null);
   const reconnectAttemptRef = useRef(0);
   const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -116,7 +118,10 @@ export function useCommentatorSocket({
 
       setConnectionStatus(reconnectAttemptRef.current > 0 ? "reconnecting" : "connecting");
 
-      const ws = new WebSocket(wsUrl);
+      clientIdRef.current ??= getSessionClientId();
+      const socketUrl = new URL(wsUrl);
+      socketUrl.searchParams.set("clientId", clientIdRef.current);
+      const ws = new WebSocket(socketUrl.toString());
       wsRef.current = ws;
 
       ws.onopen = () => {
