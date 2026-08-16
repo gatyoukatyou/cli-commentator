@@ -112,8 +112,10 @@ async function stopServer(child: ChildProcess): Promise<void> {
   if (child.exitCode === null && child.signalCode === null) child.kill("SIGKILL");
 }
 
-async function connect(port: number): Promise<{ ws: WebSocket; messages: ServerMessage[] }> {
-  const ws = new WebSocket(`ws://127.0.0.1:${port}`);
+async function connect(port: number, clientId = "test-client"): Promise<{ ws: WebSocket; messages: ServerMessage[] }> {
+  const ws = new WebSocket(
+    `ws://127.0.0.1:${port}?clientId=${encodeURIComponent(clientId)}&clientKind=web`
+  );
   const messages: ServerMessage[] = [];
   ws.on("message", (data) => {
     messages.push(JSON.parse(data.toString()) as ServerMessage);
