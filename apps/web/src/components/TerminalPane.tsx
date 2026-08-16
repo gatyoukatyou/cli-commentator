@@ -41,6 +41,7 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(function 
   const hostRef = useRef<HTMLDivElement | null>(null);
   const terminalRef = useRef<Terminal | null>(null);
   const fitAddonRef = useRef<FitAddon | null>(null);
+  const initialThemeRef = useRef(theme);
   const backlogRef = useRef("");
   const terminalInputGateRef = useRef(createTerminalInputGate());
   const shouldAutoFollowRef = useRef(true);
@@ -127,7 +128,7 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(function 
       fontSize: 13,
       lineHeight: 1.35,
       scrollback: 5000,
-      theme,
+      theme: initialThemeRef.current,
     });
 
     const reportSize = (cols: number, rows: number) => {
@@ -237,7 +238,7 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(function 
       terminalRef.current = null;
       fitAddonRef.current = null;
     };
-  }, [appendOutput, onData, onFocusChange, onResize, theme, updateScrollState]);
+  }, [appendOutput, onData, onFocusChange, onResize, updateScrollState]);
 
   useEffect(() => {
     const terminal = terminalRef.current;
