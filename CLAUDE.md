@@ -357,3 +357,16 @@ pnpm dev:desktop:managed
 - ユーザーが「終了」「おしまい」「ありがとう」等でセッション終了の意図を示した場合、まず `/wrapup` を実行してからセッションを終了する
 - `/wrapup` を実行せずにセッションを終了してはならない
 - SessionEnd hook が `/wrapup` 未実行を検出した場合、警告が表示される
+
+このリポジトリの共通指示は `AGENTS.md` に集約されています。編集は `AGENTS.md` に対して行ってください。
+
+@AGENTS.md
+
+---
+
+## Claude Code 固有の指示
+
+以下は Claude Code のみが読む部分です。Codex には適用されません。
+
+- 上記 `AGENTS.md` の Review guidelines は、`/code-review` および `@claude` 経由のレビューにも適用します。
+- レビュー時は指摘の重複を避けてください。同一の原因から生じる複数の症状は1件としてまとめます。
