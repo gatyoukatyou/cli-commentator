@@ -19,7 +19,7 @@ Public documentation is maintained in both Japanese and English.
 
 ## Target CLI Examples
 
-Set `TARGET_CMD` in `apps/server/.env`. Examples: `/bin/bash`, `/bin/zsh`, `powershell`, `claude`, `codex`
+Set `TARGET_CMD` in `~/.config/cli-commentator/env`. Use `apps/server/.env.example` as the template and do not create a real `.env` in the worktree. Examples: `/bin/bash`, `/bin/zsh`, `powershell`, `claude`, `codex`
 
 ## Local Use and Development
 

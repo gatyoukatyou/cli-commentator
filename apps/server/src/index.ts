@@ -1,4 +1,5 @@
-import "dotenv/config";
+import "./load-env.js";
+
 import fs from "node:fs";
 import http from "node:http";
 import { WebSocketServer } from "ws";

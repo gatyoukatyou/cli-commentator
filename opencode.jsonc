@@ -1,0 +1,16 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "permission": {
+    "read": {
+      "*": "allow",
+      "*.env": "deny",
+      "*.env.*": "deny",
+      "*.env.example": "allow",
+      "*.key": "deny",
+      "*.pem": "deny",
+      "*credentials*": "deny",
+      "*secret*": "deny",
+      "~/.config/cli-commentator/env": "deny"
+    }
+  }
+}

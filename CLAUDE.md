@@ -95,7 +95,7 @@ cli-commentator/
 
 ## Environment Variables
 
-`apps/server/.env` で設定:
+`~/.config/cli-commentator/env` で設定（テンプレート: `apps/server/.env.example`）。作業ツリー内に実体の `.env` を作らない:
 
 | Variable | Default | Description |
 |----------|---------|-------------|
