@@ -15,7 +15,7 @@ describe("getEnvFilePath", () => {
 
   it("uses XDG_CONFIG_HOME when available", () => {
     expect(getEnvFilePath({ XDG_CONFIG_HOME: "/tmp/config" })).toBe(
-      "/tmp/config/cli-commentator/env",
+      path.join("/tmp/config", "cli-commentator", "env"),
     );
   });
 
