@@ -49,11 +49,17 @@ const adapter = createLLMAdapter();
 const response = await adapter.generateText({
   messages: [{ role: "user", content: "Hello" }],
 });
+
+// response.model には、API応答またはリクエストで実際に使われたモデル名が入る
 ```
 
 ## 統合ポイント
 `apps/server/src/commentary/orchestrator.ts` がLLM実況を呼び出し、失敗時は
 ルールベース実況へフォールバックする。
+
+Phase B評価では、この応答の `model` を `CommentMeasurement` 経由で集計する。
+モデル名を評価スクリプト側で重複管理せず、計測が作られなかった実況は異常終了ではなく
+`providerMetrics.skipped` として数える。`LLM_PROVIDER` は既知のプロバイダー名だけを受け付ける。
 
 ## テスト
 

@@ -23,6 +23,7 @@ describe("createOpenAICompatAdapter", () => {
     const mockResponse = {
       id: "chatcmpl-123",
       object: "chat.completion",
+      model: "gpt-4-actual",
       choices: [
         {
           index: 0,
@@ -48,6 +49,7 @@ describe("createOpenAICompatAdapter", () => {
     });
 
     expect(result.text).toBe("Hello, world!");
+    expect(result.model).toBe("gpt-4-actual");
     expect(result.usage).toEqual({
       inputTokens: 10,
       outputTokens: 5,

@@ -21,6 +21,7 @@ export const mockAdapter: LLMAdapter = {
     const id = hashMessages(req.messages);
     return {
       text: `[mock-${id}] This is a mock response.`,
+      model: req.model ?? "mock",
       usage: { inputTokens: 10, outputTokens: 20 },
     };
   },
