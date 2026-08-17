@@ -24,6 +24,18 @@ Development flow (`pnpm dev*` / `tauri:build`) still requires local Node/pnpm.
 pnpm install
 ```
 
+## Credentials and environment variables
+
+The server loads its user configuration from outside the worktree at startup. Do not place real API keys or personal settings in a repository `.env` file.
+
+```bash
+mkdir -p ~/.config/cli-commentator
+cp apps/server/.env.example ~/.config/cli-commentator/env
+chmod 600 ~/.config/cli-commentator/env
+```
+
+Set the required values in `~/.config/cli-commentator/env`. To use another external file, set `CLI_COMMENTATOR_ENV_FILE=/path/to/env` before startup.
+
 ## Local Readiness Check (verify the checkout works)
 
 Run this first after a fresh clone, or when returning to the repository after a break.
@@ -193,7 +205,7 @@ When `INPUT_MODE=pty` and PTY startup fails:
 
 ## Environment Variables (server)
 
-See `apps/server/.env.example`.
+Use `apps/server/.env.example` as the template and store the values in `~/.config/cli-commentator/env`. Do not create a real `.env` in the worktree.
 
 Main keys:
 

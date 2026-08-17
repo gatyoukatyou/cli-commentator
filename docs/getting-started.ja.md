@@ -24,6 +24,18 @@ CLI Commentator は CLI 出力（PTY またはログファイル tail）を取�
 pnpm install
 ```
 
+## 資格情報と環境変数の配置
+
+サーバーは作業ツリー外のユーザー設定ファイルを起動時に読み込みます。実際のAPIキーや個人設定をリポジトリ内の `.env` に置かないでください。
+
+```bash
+mkdir -p ~/.config/cli-commentator
+cp apps/server/.env.example ~/.config/cli-commentator/env
+chmod 600 ~/.config/cli-commentator/env
+```
+
+必要な値を `~/.config/cli-commentator/env` に設定します。別の外部ファイルを使う場合は、起動前に `CLI_COMMENTATOR_ENV_FILE=/path/to/env` を指定できます。
+
 ## ローカル検証（動く状態かをまとめて確認する）
 
 clone 直後や、しばらくぶりに触るときは、まずこれを実行します。
@@ -189,7 +201,7 @@ codex --no-alt-screen -C /Users/home/AION_Project/repos/n8n-workflows -c log_dir
 
 ## 環境変数（server）
 
-`apps/server/.env.example` を参照してください。
+`apps/server/.env.example` をテンプレートとして、`~/.config/cli-commentator/env` に設定してください。作業ツリー内の `.env` は作成しないでください。
 
 主要キー:
 

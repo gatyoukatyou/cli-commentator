@@ -19,9 +19,9 @@ English: This repository is an MVP for streaming CLI commentary in a separate wi
 - Latest release: <https://github.com/gatyoukatyou/cli-commentator/releases/latest>
 
 ## Target CLI Examples
-日本語: `apps/server/.env` の `TARGET_CMD` に指定します。例: `/bin/bash`, `/bin/zsh`, `powershell`, `claude`, `codex`
+日本語: `~/.config/cli-commentator/env` の `TARGET_CMD` に指定します。テンプレートは `apps/server/.env.example` です。作業ツリー内に実体の `.env` を作らないでください。例: `/bin/bash`, `/bin/zsh`, `powershell`, `claude`, `codex`
 
-English: Set `TARGET_CMD` in `apps/server/.env`. Examples: `/bin/bash`, `/bin/zsh`, `powershell`, `claude`, `codex`
+English: Set `TARGET_CMD` in `~/.config/cli-commentator/env`. Use `apps/server/.env.example` as the template and do not create a real `.env` in the worktree. Examples: `/bin/bash`, `/bin/zsh`, `powershell`, `claude`, `codex`
 
 ## Troubleshooting
 - JA: docs/getting-started.ja.md#troubleshooting

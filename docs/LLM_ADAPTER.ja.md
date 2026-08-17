@@ -12,6 +12,8 @@ LLMプロバイダーを差し替え可能にするAdapter層。
 | `GOOGLE_API_KEY` | (required) | Gemini APIキー（`x-goog-api-key` ヘッダーで送信） |
 | `GEMINI_MODEL` | gemini-3.5-flash | Geminiの使用モデル |
 
+APIキーなどの資格情報は作業ツリー内に置かず、`apps/server/.env.example` をテンプレートにしてユーザー設定領域のenvファイルへ設定する。起動時にサーバーが外部ファイルを読み込むため、実体の `.env` をリポジトリ内へ作成しない。
+
 ## 現状
 - factory と実況生成への統合は完了
 - disabled / mock / OpenAI / Groq / local / Anthropic / Gemini を実装済み
