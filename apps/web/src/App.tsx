@@ -17,7 +17,7 @@ import {
   type AttentionNotice,
 } from "./lib/event-notify";
 import type { CommentaryItem } from "./lib/log-filter";
-import { sendPtyResize } from "./lib/pty-resize";
+import { createPtyResizeCoalescer, type PtyResizeCoalescer } from "./lib/pty-resize";
 import { getTerminalTheme } from "./lib/terminal-theme";
 import {
   buildLaunchDraft,
@@ -65,7 +65,6 @@ export default function App() {
   });
   const pendingEditIdRef = useRef<string | null>(null);
   const terminalPaneRef = useRef<TerminalPaneHandle | null>(null);
-  const latestTerminalSizeRef = useRef<PtySize | null>(null);
   const [ptyResizeSyncToken, setPtyResizeSyncToken] = useState(0);
 
   // Profile state
@@ -255,17 +254,28 @@ export default function App() {
     clearAttention,
   });
 
+  const ptyResizeCoalescerRef = useRef<PtyResizeCoalescer | null>(null);
+  useEffect(() => {
+    const coalescer = createPtyResizeCoalescer({
+      getSocket: () => wsRef.current,
+    });
+    ptyResizeCoalescerRef.current = coalescer;
+    return () => {
+      coalescer.dispose();
+      ptyResizeCoalescerRef.current = null;
+    };
+  }, [wsRef]);
+
   const handleTerminalResize = useCallback(
     (size: PtySize) => {
-      latestTerminalSizeRef.current = size;
-      sendPtyResize(wsRef.current, size);
+      ptyResizeCoalescerRef.current?.schedule(size);
     },
-    [wsRef]
+    []
   );
 
   useEffect(() => {
     if (connectionStatus !== "connected") return;
-    sendPtyResize(wsRef.current, latestTerminalSizeRef.current);
+    ptyResizeCoalescerRef.current?.resendLatest();
   }, [connectionStatus, ptyResizeSyncToken, wsRef]);
   const {
     handleSelectProfile,
