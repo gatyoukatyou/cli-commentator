@@ -1,7 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   comparePhaseBEventTypes,
   hasRawCommandSpeech,
@@ -197,20 +197,26 @@ describe("Phase B evaluation replay", () => {
   });
 
   it("skips provider comparisons when an adapter cannot produce a measurement", async () => {
-    const fixture = await loadFixture();
-    const result = await replayPhaseBFixture(fixture, {
-      llmProvider: "openai",
-    });
+    vi.stubEnv("OPENAI_API_KEY", undefined);
 
-    expect(result.providerComparisons).toEqual([]);
-    expect(result.providerMetrics).toMatchObject({
-      provider: "openai",
-      model: "unknown",
-      attempted: 0,
-      skipped: 5,
-      withinTimeoutSuccesses: 0,
-      withinTimeoutSuccessRate: 0,
-    });
+    try {
+      const fixture = await loadFixture();
+      const result = await replayPhaseBFixture(fixture, {
+        llmProvider: "openai",
+      });
+
+      expect(result.providerComparisons).toEqual([]);
+      expect(result.providerMetrics).toMatchObject({
+        provider: "openai",
+        model: "unknown",
+        attempted: 0,
+        skipped: 5,
+        withinTimeoutSuccesses: 0,
+        withinTimeoutSuccessRate: 0,
+      });
+    } finally {
+      vi.unstubAllEnvs();
+    }
   });
 
   it("builds an error fixture with verification checkpoints", async () => {
