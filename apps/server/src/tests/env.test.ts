@@ -20,7 +20,7 @@ describe("getEnvFilePath", () => {
   });
 
   it("uses the user config directory by default", () => {
-    expect(getEnvFilePath()).toBe(path.join(os.homedir(), ".config", "cli-commentator", "env"));
+    expect(getEnvFilePath({})).toBe(path.join(os.homedir(), ".config", "cli-commentator", "env"));
   });
 
   it("loads values into the supplied environment object", () => {
