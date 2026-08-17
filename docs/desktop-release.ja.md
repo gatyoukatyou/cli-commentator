@@ -53,10 +53,25 @@ ls -l apps/desktop/src-tauri/resources/server/node_modules/node-pty/prebuilds/*/
 
 ## Release action maintenance
 
-`tauri-apps/tauri-action` は tag-release workflow action として保守します。
-v0.6.2 更新では Tauri project の workspace root 検出が改善されますが、
-signed/unsigned release branches、署名・notarization 入力、updater 設定、
-operator-facing なリリース手順は変更しません。
+`tauri-apps/tauri-action@v1.0.0` を tag-release workflow action として保守します。
+signed/unsigned release branches、署名・notarization 入力、updater 設定は
+変わりませんが、リリース成果物とworkflow更新をマージする前の確認事項が
+変わります。
+
+- `.app.tar.gz` と対応する `.app.tar.gz.sig` のファイル名にアプリ版数が
+  含まれます。以前の版数なしbasenameを前提にしないでください。
+- 現在のworkflowは `tagName` を渡すため、`latest.json` の各platform URLは
+  タグ付きrelease内の版数入りasset（`releases/download/<tag>/<asset>`）を
+  指します。`latest.json` 自体を取得するupdater endpointは
+  `releases/latest/download/latest.json` のままです。ファイル内のURLを実際の
+  assetと照合してください。
+- `tagName` が既存releaseを指す場合、`releaseDraft` はそのreleaseの状態と
+  一致している必要があります。既存の非Draft releaseに
+  `releaseDraft: true` を指定すると失敗するため、そのtagをDraft更新に
+  再利用しないでください。
+
+今回のworkflow変更はactionの版数更新だけです。マージ前には、下記の
+Unsigned Smoke gateを実施する必要があります。
 
 ## Updater plugin maintenance
 
@@ -148,8 +163,10 @@ Desktop updater の契約は意図的に狭く固定します。
 - endpoint: `https://github.com/gatyoukatyou/cli-commentator/releases/latest/download/latest.json`。
 - 配布元: 最新の published GitHub Release assets。
 - 対象 platform key: `darwin-aarch64`, `darwin-aarch64-app`, `darwin-x86_64`, `darwin-x86_64-app`。
-- asset 解決: `latest.json` の各 platform entry は、該当アーキテクチャの `.app.tar.gz` asset を指す。
-- 署名: 各 platform entry は空でない updater signature を持ち、対応する `.app.tar.gz.sig` asset も release に存在する。
+- asset 解決: `latest.json` の各 platform entry は、タグ付きrelease内の
+  該当アーキテクチャの版数入り `.app.tar.gz` asset を指す。
+- 署名: 各 platform entry は空でない updater signature を持ち、対応する
+  版数入り `.app.tar.gz.sig` asset もreleaseに存在する。
 - インストーラ: `.dmg` は人間が初回導入に使う配布物、`.app.tar.gz` と `.sig` は updater 用配布物。
 - 失敗時のUX: updater 失敗は Desktop Server パネルに表示する。調査時は `Copy Debug bundle` で version / platform / server state / updater result / paths / timestamp をまとめて取得する。
 
@@ -169,6 +186,22 @@ Desktop updater の契約は意図的に狭く固定します。
 1. lint/build/test を実行
 2. macOS 2アーキテクチャ向け Tauri bundle を作成
 3. Updaterアーティファクト付き Draft Release を作成
+
+## 4.5) release workflow変更のマージ前Unsigned Smoke gate
+
+`tauri-apps/tauri-action` またはこのrelease workflowを変更した場合は、
+マージ前に実際の `v0.0.0-smoke.*` Unsigned Smokeを実行します。実行が
+完了するまでは、以下は確認済みの結果ではなく、マージ前の確認事項です。
+
+- [ ] arm64/x64それぞれで、アプリ版数を含む `.app.tar.gz` と対応する
+      `.app.tar.gz.sig` のファイル名を確認する。
+- [ ] `latest.json` を確認し、両architectureのentryが対応する版数入り
+      assetを指し、signatureが空でないことを確認する。
+- [ ] 生成されたreleaseがDraftかつprereleaseであり、Smoke証跡を確認する
+      まで公開されていないことを確認する。
+
+実行URLと正確なassetファイル名をrelease evidenceに記録してください。
+Unsigned Smokeを実際に実行していない項目を「確認済み」とは記載しないでください。
 
 ## 5) DesktopパネルでUpdater動作確認
 
@@ -190,7 +223,7 @@ Desktop updater の契約は意図的に狭く固定します。
 4. タグ作成・push
    - `git tag -a vX.Y.Z -m "vX.Y.Z"`
    - `git push origin vX.Y.Z`
-5. `latest.json`, `.app.tar.gz`, `.app.tar.gz.sig`, `.dmg` を含む Draft Release の成果物を確認
+5. `latest.json`, 版数入り `.app.tar.gz`、対応する版数入り `.app.tar.gz.sig`、`.dmg` を含む Draft Release の成果物を確認
 6. updater 配布契約を満たしていることを確認してから Draft を Publish
 7. リリース後、既存アプリで更新チェックを確認
 
