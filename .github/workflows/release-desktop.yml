@@ -188,7 +188,7 @@ jobs:
 
       - name: Build and draft release (signed + notarized)
         if: ${{ steps.apple_signing.outputs.enabled == 'true' && steps.release_token.outputs.write_capable == 'true' }}
-        uses: tauri-apps/tauri-action@v0.6.2
+        uses: tauri-apps/tauri-action@v1.0.0
         env:
           GITHUB_TOKEN: ${{ secrets.GH_RELEASE_TOKEN || secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
@@ -208,7 +208,7 @@ jobs:
 
       - name: Build and draft release (unsigned internal)
         if: ${{ steps.apple_signing.outputs.enabled != 'true' && startsWith(github.ref_name, 'v0.0.0-smoke.') && steps.release_token.outputs.write_capable == 'true' }}
-        uses: tauri-apps/tauri-action@v0.6.2
+        uses: tauri-apps/tauri-action@v1.0.0
         env:
           GITHUB_TOKEN: ${{ secrets.GH_RELEASE_TOKEN || secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
