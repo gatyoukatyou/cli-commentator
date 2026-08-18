@@ -22,8 +22,8 @@ const PROVIDERS = [
     env: { LLM_PROVIDER: "openai", OPENAI_API_KEY: "test-key" },
   },
   {
-    name: "deepseek",
-    env: { LLM_PROVIDER: "deepseek", DEEPSEEK_API_KEY: "test-key" },
+    name: "opencode-go",
+    env: { LLM_PROVIDER: "opencode-go", OPENCODE_GO_API_KEY: "test-key" },
   },
   {
     name: "groq",
@@ -47,7 +47,7 @@ const PROVIDERS = [
 function getMockSuccessResponse(providerName: string): unknown {
   switch (providerName) {
     case "openai":
-    case "deepseek":
+    case "opencode-go":
     case "groq":
     case "local":
       return {
@@ -72,7 +72,7 @@ function getMockSuccessResponse(providerName: string): unknown {
 function getMockEmptyResponse(providerName: string): unknown {
   switch (providerName) {
     case "openai":
-    case "deepseek":
+    case "opencode-go":
     case "groq":
     case "local":
       return { choices: [] };
@@ -88,7 +88,7 @@ function getMockEmptyResponse(providerName: string): unknown {
 function getMockHttpErrorResponse(providerName: string): unknown {
   switch (providerName) {
     case "openai":
-    case "deepseek":
+    case "opencode-go":
     case "groq":
     case "local":
       return { error: { message: "Unauthorized" } };

@@ -72,7 +72,7 @@ export function normalizeProviderName(value?: string): ProviderName | undefined 
     normalized === "disabled" ||
     normalized === "mock" ||
     normalized === "openai" ||
-    normalized === "deepseek" ||
+    normalized === "opencode-go" ||
     normalized === "groq" ||
     normalized === "local" ||
     normalized === "anthropic" ||

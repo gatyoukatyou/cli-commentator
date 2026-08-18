@@ -1,11 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
-  createDeepSeekAdapter,
-  DEFAULT_DEEPSEEK_BASE_URL,
-  DEFAULT_DEEPSEEK_MODEL,
-} from "../llm/providers/deepseek.js";
+  createOpenCodeGoAdapter,
+  DEFAULT_OPENCODE_GO_BASE_URL,
+  DEFAULT_OPENCODE_GO_MODEL,
+} from "../llm/providers/opencode-go.js";
 
-describe("createDeepSeekAdapter", () => {
+describe("createOpenCodeGoAdapter", () => {
   const originalFetch = globalThis.fetch;
 
   beforeEach(() => {
@@ -16,60 +16,59 @@ describe("createDeepSeekAdapter", () => {
     globalThis.fetch = originalFetch;
   });
 
-  it("requires DEEPSEEK_API_KEY", () => {
-    expect(() => createDeepSeekAdapter({})).toThrow(
-      "DEEPSEEK_API_KEY is required for DeepSeek provider"
+  it("requires OPENCODE_GO_API_KEY", () => {
+    expect(() => createOpenCodeGoAdapter({})).toThrow(
+      "OPENCODE_GO_API_KEY is required for OpenCode Go provider"
     );
   });
 
-  it("uses the official V4 Flash defaults", async () => {
+  it("uses the OpenCode Go chat/completions defaults", async () => {
     globalThis.fetch = vi.fn().mockResolvedValue({
       ok: true,
       json: async () => ({ choices: [{ message: { content: "OK" } }] }),
     });
 
-    const adapter = createDeepSeekAdapter({ DEEPSEEK_API_KEY: "test-key" });
+    const adapter = createOpenCodeGoAdapter({ OPENCODE_GO_API_KEY: "test-key" });
     await adapter.generateText({ messages: [{ role: "user", content: "Hi" }] });
 
-    expect(adapter.name).toBe("deepseek");
+    expect(adapter.name).toBe("opencode-go");
     expect(fetch).toHaveBeenCalledWith(
-      `${DEFAULT_DEEPSEEK_BASE_URL}/chat/completions`,
+      `${DEFAULT_OPENCODE_GO_BASE_URL}/chat/completions`,
       expect.anything()
     );
     const body = JSON.parse(vi.mocked(fetch).mock.calls[0][1]?.body as string);
-    expect(body.model).toBe(DEFAULT_DEEPSEEK_MODEL);
+    expect(body.model).toBe(DEFAULT_OPENCODE_GO_MODEL);
   });
 
-  it("accepts custom endpoint and model settings", async () => {
+  it("accepts a custom model", async () => {
     globalThis.fetch = vi.fn().mockResolvedValue({
       ok: true,
       json: async () => ({ choices: [{ message: { content: "OK" } }] }),
     });
 
-    const adapter = createDeepSeekAdapter({
-      DEEPSEEK_API_KEY: "test-key",
-      DEEPSEEK_BASE_URL: "https://example.test/v1",
-      DEEPSEEK_MODEL: "deepseek-custom",
+    const adapter = createOpenCodeGoAdapter({
+      OPENCODE_GO_API_KEY: "test-key",
+      OPENCODE_GO_MODEL: "kimi-k3",
     });
     await adapter.generateText({ messages: [{ role: "user", content: "Hi" }] });
 
     expect(fetch).toHaveBeenCalledWith(
-      "https://example.test/v1/chat/completions",
+      `${DEFAULT_OPENCODE_GO_BASE_URL}/chat/completions`,
       expect.anything()
     );
     const body = JSON.parse(vi.mocked(fetch).mock.calls[0][1]?.body as string);
-    expect(body.model).toBe("deepseek-custom");
+    expect(body.model).toBe("kimi-k3");
   });
 });
 
-describe("DeepSeek factory integration", () => {
-  it("creates the DeepSeek adapter", async () => {
+describe("OpenCode Go factory integration", () => {
+  it("creates the OpenCode Go adapter", async () => {
     const { createLLMAdapter } = await import("../llm/factory.js");
     const adapter = createLLMAdapter({
-      LLM_PROVIDER: "deepseek",
-      DEEPSEEK_API_KEY: "test-key",
+      LLM_PROVIDER: "opencode-go",
+      OPENCODE_GO_API_KEY: "test-key",
     });
 
-    expect(adapter.name).toBe("deepseek");
+    expect(adapter.name).toBe("opencode-go");
   });
 });

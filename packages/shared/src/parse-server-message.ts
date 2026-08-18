@@ -36,7 +36,7 @@ const PROVIDERS = new Set<ProviderName>([
   "disabled",
   "mock",
   "openai",
-  "deepseek",
+  "opencode-go",
   "groq",
   "local",
   "anthropic",

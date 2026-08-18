@@ -20,7 +20,7 @@ set -eo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
-VALID_PROVIDERS="openai deepseek groq gemini anthropic local mock"
+VALID_PROVIDERS="openai opencode-go groq gemini anthropic local mock"
 
 # --- Helper functions ---
 log() {
@@ -75,7 +75,7 @@ get_required_env() {
   local provider=$1
   case "$provider" in
     openai) echo "OPENAI_API_KEY" ;;
-    deepseek) echo "DEEPSEEK_API_KEY" ;;
+    opencode-go) echo "OPENCODE_GO_API_KEY" ;;
     groq) echo "GROQ_API_KEY" ;;
     gemini) echo "GOOGLE_API_KEY" ;;
     anthropic) echo "ANTHROPIC_API_KEY" ;;
@@ -192,7 +192,7 @@ run_smoke() {
 }
 
 run_all() {
-  local providers="openai deepseek groq gemini anthropic local mock"
+  local providers="openai opencode-go groq gemini anthropic local mock"
   local results=""
   local any_failure=0
 
