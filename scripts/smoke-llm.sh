@@ -22,6 +22,24 @@ PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 VALID_PROVIDERS="openai opencode-go groq gemini anthropic local mock"
 
+get_external_env_file() {
+  if [[ -n "${CLI_COMMENTATOR_ENV_FILE:-}" ]]; then
+    printf '%s\n' "$CLI_COMMENTATOR_ENV_FILE"
+  elif [[ -n "${XDG_CONFIG_HOME:-}" ]]; then
+    printf '%s/cli-commentator/env\n' "$XDG_CONFIG_HOME"
+  else
+    printf '%s/.config/cli-commentator/env\n' "${HOME:-}"
+  fi
+}
+
+external_env_has_value() {
+  local key=$1
+  local env_file
+  env_file=$(get_external_env_file)
+  [[ -f "$env_file" ]] || return 1
+  awk -F= -v key="$key" '$1 == key && length($0) > length(key) + 1 { found = 1 } END { exit !found }' "$env_file"
+}
+
 # --- Helper functions ---
 log() {
   echo "[smoke-llm] $*"
@@ -108,7 +126,7 @@ check_env() {
 
   if [[ -n "$required" ]]; then
     local val="${!required:-}"
-    if [[ -z "$val" ]]; then
+    if [[ -z "$val" ]] && ! external_env_has_value "$required"; then
       log_err "$required is required for $provider provider"
       exit 1
     fi

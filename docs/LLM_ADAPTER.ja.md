@@ -14,6 +14,8 @@ LLMプロバイダーを差し替え可能にするAdapter層。
 | `GOOGLE_API_KEY` | (required) | Gemini APIキー（`x-goog-api-key` ヘッダーで送信） |
 | `GEMINI_MODEL` | gemini-3.5-flash | Geminiの使用モデル |
 
+APIキーなどの資格情報は作業ツリー内に置かず、`apps/server/.env.example` をテンプレートにしてユーザー設定領域のenvファイルへ設定する。起動時にサーバーが外部ファイルを読み込むため、実体の `.env` をリポジトリ内へ作成しない。
+
 ## 現状
 - factory と実況生成への統合は完了
 - disabled / mock / OpenAI / OpenCode Go / Groq / local / Anthropic / Gemini を実装済み
@@ -53,11 +55,17 @@ const adapter = createLLMAdapter();
 const response = await adapter.generateText({
   messages: [{ role: "user", content: "Hello" }],
 });
+
+// response.model には、API応答またはリクエストで実際に使われたモデル名が入る
 ```
 
 ## 統合ポイント
 `apps/server/src/commentary/orchestrator.ts` がLLM実況を呼び出し、失敗時は
 ルールベース実況へフォールバックする。
+
+Phase B評価では、この応答の `model` を `CommentMeasurement` 経由で集計する。
+モデル名を評価スクリプト側で重複管理せず、計測が作られなかった実況は異常終了ではなく
+`providerMetrics.skipped` として数える。`LLM_PROVIDER` は既知のプロバイダー名だけを受け付ける。
 
 ## テスト
 

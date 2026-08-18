@@ -3,6 +3,7 @@ import { tokenizeShellCommand, unwrapCommandDetail } from "./command-analysis.js
 import { redact } from "./redact.js";
 import { getEventPriority } from "./event-priority.js";
 import { getGlossaryNotes } from "./commentary/glossary.js";
+import { createEscapeCarry, stripTerminalEscapes } from "./terminal-escapes.js";
 
 export type SessionPhase =
   | "unknown"
@@ -69,6 +70,7 @@ type MutableState = {
   acceptsHumanInput: boolean;
   lastProgressSpeechAt: number;
   lastProgressKey: string | null;
+  lastProgressEventKey: string | null;
   lastSpokenTarget: string | null;
   seenGlossaryNotes: Set<string>;
 };
@@ -90,7 +92,12 @@ export const SESSION_PHASE_LABELS: Record<SessionPhase, string> = {
 };
 
 function limited(value: string | null | undefined, max: number): string | null {
-  const compact = redact(value ?? "").replace(/\s+/g, " ").trim();
+  const compact = redact(stripTerminalEscapes(value ?? ""))
+    // Terminal input can contain mouse reports and other control bytes. They
+    // are meaningful to the PTY, but must never become HUMAN-facing context.
+    .replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f-\u009f]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
   if (!compact) return null;
   return compact.length <= max ? compact : `${compact.slice(0, max - 1).trimEnd()}…`;
 }
@@ -233,6 +240,7 @@ function initialState(): MutableState {
     acceptsHumanInput: false,
     lastProgressSpeechAt: Number.NEGATIVE_INFINITY,
     lastProgressKey: null,
+    lastProgressEventKey: null,
     lastSpokenTarget: null,
     seenGlossaryNotes: new Set(),
   };
@@ -284,6 +292,12 @@ function progressKey(state: MutableState): string {
   return `${taskKey}\u0000${state.phase}`;
 }
 
+function progressEventKey(event: Event): string {
+  const summary = limited(event.summary, MAX_SUMMARY_LENGTH) ?? event.type;
+  const detail = limited(event.detail, MAX_CONTEXT_LENGTH) ?? "";
+  return `${event.type}\u0000${summary}\u0000${detail}`;
+}
+
 function decideSpeech(
   state: MutableState,
   event: Event,
@@ -306,8 +320,11 @@ function decideSpeech(
 
   if (!reason && priority === "progress") {
     const key = progressKey(state);
+    const eventKey = progressEventKey(event);
     const withinInterval =
-      state.lastProgressKey === key && now - state.lastProgressSpeechAt < intervalMs;
+      state.lastProgressKey === key &&
+      state.lastProgressEventKey === eventKey &&
+      now - state.lastProgressSpeechAt < intervalMs;
     if (withinInterval) {
       return { disposition: "display_only", reason: "progress_interval" };
     }
@@ -318,6 +335,7 @@ function decideSpeech(
 
   if (commentaryEligible && priority === "progress") {
     state.lastProgressKey = progressKey(state);
+    state.lastProgressEventKey = progressEventKey(event);
     state.lastProgressSpeechAt = now;
   }
   if (commentaryEligible && (reason === "new_task" || reason === "new_target")) {
@@ -342,7 +360,7 @@ function resumeFromHumanResponse(state: MutableState): void {
 
 function appendTerminalInput(buffer: string, data: string): string {
   let next = buffer;
-  const clean = data.replace(/\u001b\[[0-9;?]*[ -/]*[@-~]/g, "");
+  const clean = stripTerminalEscapes(data);
   for (const char of clean) {
     if (char === "\u0003" || char === "\u0015") {
       next = "";
@@ -365,6 +383,7 @@ export function createSessionContext(options?: {
   const progressSpeechIntervalMs =
     options?.progressSpeechIntervalMs ?? DEFAULT_PROGRESS_SPEECH_INTERVAL_MS;
   let state = initialState();
+  let carryInputEscape = createEscapeCarry();
 
   return {
     setTaskContext(input) {
@@ -381,7 +400,7 @@ export function createSessionContext(options?: {
     observeInput(data) {
       if (!state.acceptsHumanInput || state.task.source === "fixture") return { newTask: false };
       let newTask = false;
-      state.inputBuffer = appendTerminalInput(state.inputBuffer, data);
+      state.inputBuffer = appendTerminalInput(state.inputBuffer, carryInputEscape(data));
       if (state.inputBuffer.length > MAX_INPUT_BUFFER_LENGTH) {
         state.inputBuffer = state.inputBuffer.slice(-MAX_INPUT_BUFFER_LENGTH);
       }
@@ -471,6 +490,7 @@ export function createSessionContext(options?: {
 
     reset(resetOptions) {
       state = initialState();
+      carryInputEscape = createEscapeCarry();
       state.acceptsHumanInput = resetOptions?.acceptsHumanInput ?? false;
       const presetName = limited(resetOptions?.presetName, MAX_CONTEXT_LENGTH);
       if (presetName) {

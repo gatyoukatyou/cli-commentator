@@ -24,6 +24,18 @@ CLI Commentator は CLI 出力（PTY またはログファイル tail）を取�
 pnpm install
 ```
 
+## 資格情報と環境変数の配置
+
+サーバーは作業ツリー外のユーザー設定ファイルを起動時に読み込みます。実際のAPIキーや個人設定をリポジトリ内の `.env` に置かないでください。
+
+```bash
+mkdir -p ~/.config/cli-commentator
+cp apps/server/.env.example ~/.config/cli-commentator/env
+chmod 600 ~/.config/cli-commentator/env
+```
+
+必要な値を `~/.config/cli-commentator/env` に設定します。別の外部ファイルを使う場合は、起動前に `CLI_COMMENTATOR_ENV_FILE=/path/to/env` を指定できます。
+
 ## ローカル検証（動く状態かをまとめて確認する）
 
 clone 直後や、しばらくぶりに触るときは、まずこれを実行します。
@@ -67,6 +79,8 @@ Desktop Server パネルで server の状態を操作します（`Start` / `Stop
 その場でコピーできる `試すコマンド` が出るので、まずは表示されたコマンドを順に確認してください。
 
 補足: Desktop managed モードでは、既定ポート `8787` が使用中なら `8788` 以降へ自動退避し、UI の接続先も自動追従します。
+
+Managed Terminal の `実行を中断（Ctrl+C）` は、Managed Terminal 内で動作している前景 CLI だけを終了します。Desktop Server は `running` のまま維持され、同じ起動設定を選んで再開できます。standalone server の終了動作は変更されません。`CLI_COMMENTATOR_MANAGED_SERVER` は Tauri sidecar が内部設定する識別値であり、通常の利用者が手動設定するものではありません。
 
 ## Web モードで起動（server + web）
 
@@ -187,7 +201,7 @@ codex --no-alt-screen -C /Users/home/AION_Project/repos/n8n-workflows -c log_dir
 
 ## 環境変数（server）
 
-`apps/server/.env.example` を参照してください。
+`apps/server/.env.example` をテンプレートとして、`~/.config/cli-commentator/env` に設定してください。作業ツリー内の `.env` は作成しないでください。
 
 主要キー:
 

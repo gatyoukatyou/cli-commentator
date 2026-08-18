@@ -24,6 +24,18 @@ Development flow (`pnpm dev*` / `tauri:build`) still requires local Node/pnpm.
 pnpm install
 ```
 
+## Credentials and environment variables
+
+The server loads its user configuration from outside the worktree at startup. Do not place real API keys or personal settings in a repository `.env` file.
+
+```bash
+mkdir -p ~/.config/cli-commentator
+cp apps/server/.env.example ~/.config/cli-commentator/env
+chmod 600 ~/.config/cli-commentator/env
+```
+
+Set the required values in `~/.config/cli-commentator/env`. To use another external file, set `CLI_COMMENTATOR_ENV_FILE=/path/to/env` before startup.
+
 ## Local Readiness Check (verify the checkout works)
 
 Run this first after a fresh clone, or when returning to the repository after a break.
@@ -71,6 +83,8 @@ If status becomes `failed`, use the guidance shown in the panel and check logs f
 When startup fails, the Desktop Server panel shows a recovery card. It includes likely causes, checkpoints, diagnostic details, and copyable `commands to try`, so start with the commands shown there.
 
 Note: In desktop managed mode, if `8787` is occupied, desktop automatically falls back to `8788+` and the UI WebSocket target follows automatically.
+
+In Managed Terminal, `実行を中断（Ctrl+C）` ends only the foreground CLI running inside Managed Terminal. The Desktop Server stays `running`, and you can resume by selecting the same launch settings. standalone server shutdown behavior is unchanged. `CLI_COMMENTATOR_MANAGED_SERVER` is an identifier configured internally by the Tauri sidecar; normal users should not set it manually.
 
 ## Run in Web Mode (server + web)
 
@@ -191,7 +205,7 @@ When `INPUT_MODE=pty` and PTY startup fails:
 
 ## Environment Variables (server)
 
-See `apps/server/.env.example`.
+Use `apps/server/.env.example` as the template and store the values in `~/.config/cli-commentator/env`. Do not create a real `.env` in the worktree.
 
 Main keys:
 

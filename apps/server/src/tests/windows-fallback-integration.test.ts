@@ -297,7 +297,7 @@ describe("windows fallback integration", () => {
 
     try {
       await waitForHealth(port, child, () => spawnError);
-      ws = new WebSocket(`ws://127.0.0.1:${port}`);
+      ws = new WebSocket(`ws://127.0.0.1:${port}?clientId=test-client&clientKind=web`);
       ws.on("message", (raw) => {
         try {
           const message = JSON.parse(raw.toString()) as WsMessage;
@@ -511,7 +511,7 @@ describe("windows fallback integration", () => {
 
     try {
       await waitForHealth(port, child, () => spawnError);
-      ws = new WebSocket(`ws://127.0.0.1:${port}`);
+      ws = new WebSocket(`ws://127.0.0.1:${port}?clientId=test-client&clientKind=web`);
       ws.on("message", (raw) => {
         try {
           messages.push(JSON.parse(raw.toString()) as WsMessage);
@@ -774,7 +774,7 @@ describe("windows fallback integration", () => {
 
     try {
       await waitForHealth(port, child, () => spawnError);
-      ws = new WebSocket(`ws://127.0.0.1:${port}`);
+      ws = new WebSocket(`ws://127.0.0.1:${port}?clientId=test-client&clientKind=web`);
       ws.on("message", (raw) => {
         try {
           messages.push(JSON.parse(raw.toString()) as WsMessage);
@@ -938,7 +938,7 @@ describe("windows fallback integration", () => {
 
     try {
       await waitForHealth(port, child, () => spawnError);
-      ws = new WebSocket(`ws://127.0.0.1:${port}`);
+      ws = new WebSocket(`ws://127.0.0.1:${port}?clientId=test-client&clientKind=web`);
       ws.on("message", (raw) => {
         try {
           messages.push(JSON.parse(raw.toString()) as WsMessage);

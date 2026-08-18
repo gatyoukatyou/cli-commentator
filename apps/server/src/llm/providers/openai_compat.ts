@@ -14,6 +14,7 @@ export interface OpenAICompatConfig {
 interface OpenAIChatCompletionResponse {
   id: string;
   object: string;
+  model?: string;
   choices: Array<{
     index: number;
     message: {
@@ -61,8 +62,9 @@ export function createOpenAICompatAdapter(config: OpenAICompatConfig): LLMAdapte
 
       const endpoint = `${baseURL.replace(/\/$/, "")}/chat/completions`;
 
+      const actualModel = req.model ?? model;
       const body = {
-        model,
+        model: actualModel,
         messages: req.messages.map((m) => ({
           role: m.role,
           content: m.content,
@@ -123,6 +125,7 @@ export function createOpenAICompatAdapter(config: OpenAICompatConfig): LLMAdapte
 
       return {
         text,
+        model: data.model ?? actualModel,
         usage: data.usage
           ? {
               inputTokens: data.usage.prompt_tokens,

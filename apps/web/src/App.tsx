@@ -1,6 +1,6 @@
 import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import "./App.css";
-import type { TerminalPaneHandle, TerminalPaneTheme } from "./components/TerminalPane";
+import type { TerminalPaneHandle } from "./components/TerminalPane";
 import { AppHeader, type Skin } from "./components/AppHeader";
 import { CommentaryPanel } from "./components/CommentaryPanel";
 import { Notices } from "./components/Notices";
@@ -17,6 +17,8 @@ import {
   type AttentionNotice,
 } from "./lib/event-notify";
 import type { CommentaryItem } from "./lib/log-filter";
+import { createPtyResizeCoalescer, type PtyResizeCoalescer } from "./lib/pty-resize";
+import { getTerminalTheme } from "./lib/terminal-theme";
 import {
   buildLaunchDraft,
   buildLaunchSessionInput,
@@ -33,6 +35,7 @@ import type {
   SourceState,
   Profile,
   ProfileSummary,
+  PtySize,
 } from "./types";
 
 const TauriStatusPanel = lazy(() => import("./components/TauriStatusPanel"));
@@ -41,24 +44,6 @@ const TERMINAL_OUTPUT_MAX_CHARS = 24000;
 
 function isSkin(value: string | null): value is Skin {
   return value === "standard" || value === "cli";
-}
-
-function getTerminalTheme(skin: Skin): TerminalPaneTheme {
-  if (skin === "cli") {
-    return {
-      background: "#081019",
-      foreground: "#d8f3dc",
-      cursor: "#38bdf8",
-      selectionBackground: "rgba(56, 189, 248, 0.24)",
-    };
-  }
-
-  return {
-    background: "#f8fafc",
-    foreground: "#213547",
-    cursor: "#2563eb",
-    selectionBackground: "rgba(37, 99, 235, 0.18)",
-  };
 }
 
 export default function App() {
@@ -80,6 +65,7 @@ export default function App() {
   });
   const pendingEditIdRef = useRef<string | null>(null);
   const terminalPaneRef = useRef<TerminalPaneHandle | null>(null);
+  const [ptyResizeSyncToken, setPtyResizeSyncToken] = useState(0);
 
   // Profile state
   const [profiles, setProfiles] = useState<ProfileSummary[]>([]);
@@ -138,6 +124,14 @@ export default function App() {
     setAttention(null);
   }, []);
 
+  const focusTerminal = useCallback(() => {
+    document.querySelector<HTMLElement>(".terminal-panel")?.scrollIntoView({
+      behavior: "smooth",
+      block: "center",
+    });
+    terminalPaneRef.current?.focus();
+  }, []);
+
   // 即時イベントで読み上げ済みのcommentaryはTTSしない（表示はする）
   const queueSpeechDeduped = useCallback(
     (item: CommentaryItem) => {
@@ -164,7 +158,8 @@ export default function App() {
 
   const wsUrl = useMemo(() => {
     const port = isTauriRuntime ? tauriServerPort ?? defaultWsPort : defaultWsPort;
-    return `ws://localhost:${port}`;
+    const clientKind = isTauriRuntime ? "desktop" : "web";
+    return `ws://localhost:${port}?clientKind=${clientKind}`;
   }, [defaultWsPort, isTauriRuntime, tauriServerPort]);
 
   const terminalTheme = useMemo(() => getTerminalTheme(skin), [skin]);
@@ -215,6 +210,10 @@ export default function App() {
     setPendingTerminalOutput("");
   }, []);
 
+  const handlePtyRestart = useCallback(() => {
+    setPtyResizeSyncToken((value) => value + 1);
+  }, []);
+
   const handleCopySuggestion = async () => {
     const suggestion = normalizeSuggestion(ptyUnavailable?.suggestion);
     if (!suggestion) return;
@@ -251,8 +250,33 @@ export default function App() {
     stopAndClearSpeech,
     resetTTSLifecycleSession,
     onServerEvent: handleServerEvent,
+    onPtyRestart: handlePtyRestart,
     clearAttention,
   });
+
+  const ptyResizeCoalescerRef = useRef<PtyResizeCoalescer | null>(null);
+  useEffect(() => {
+    const coalescer = createPtyResizeCoalescer({
+      getSocket: () => wsRef.current,
+    });
+    ptyResizeCoalescerRef.current = coalescer;
+    return () => {
+      coalescer.dispose();
+      ptyResizeCoalescerRef.current = null;
+    };
+  }, [wsRef]);
+
+  const handleTerminalResize = useCallback(
+    (size: PtySize) => {
+      ptyResizeCoalescerRef.current?.schedule(size);
+    },
+    []
+  );
+
+  useEffect(() => {
+    if (connectionStatus !== "connected") return;
+    ptyResizeCoalescerRef.current?.resendLatest();
+  }, [connectionStatus, ptyResizeSyncToken, wsRef]);
   const {
     handleSelectProfile,
     handleEditProfile,
@@ -344,6 +368,7 @@ export default function App() {
       <Notices
         attention={attention}
         onDismissAttention={clearAttention}
+        onFocusTerminal={focusTerminal}
         ptyUnavailable={ptyUnavailable}
         profileError={profileError}
         ptyError={ptyError}
@@ -370,6 +395,7 @@ export default function App() {
           currentSessionLabel={currentSessionLabel}
           pendingTerminalOutput={pendingTerminalOutput}
           onTerminalData={sendTerminalInput}
+          onTerminalResize={handleTerminalResize}
           onPendingOutputFlushed={handlePendingTerminalOutputFlushed}
           onClearTerminal={clearTerminal}
           profiles={profiles}

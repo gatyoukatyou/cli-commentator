@@ -5,6 +5,8 @@
 
 このチェックシートは、証明書未導入期間の人間テストを再現可能に実施するための最小手順です。
 
+実際の使いやすさ、表示の安心感、読み上げ、長時間利用をHUMANが評価する場合は、[HUMANユーザーテストガイド](human-user-test-guide.ja.md)を使ってください。そちらの結果は公開判断と分離され、HUMANが納得するまで修正と再テストを続けます。
+
 前提:
 - 2026-02-20 時点では `APPLE_CERTIFICATE` 未登録のため、公開向け signed 配布判定は No-Go
 - 本チェックは `v0.0.0-smoke.*` を使う internal 検証向け
@@ -95,4 +97,3 @@ open "apps/desktop/src-tauri/target/release/bundle/macos/CLI Commentator.app"
   - [ ] 上記 1-4 がすべて Pass なら Conditional Go
 - 公開向け signed 配布:
   - [ ] `APPLE_CERTIFICATE` 未登録の間は No-Go を維持
-

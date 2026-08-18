@@ -3,6 +3,9 @@ import {
   buildUrgentEventSpeechText,
   createSpokenEventRegistry,
   eventSpeechKey,
+  getAttentionGuidance,
+  getAttentionKind,
+  limitAttentionDetail,
   toAttentionNotice,
 } from "./event-notify";
 import type { Event } from "../types";
@@ -21,7 +24,46 @@ describe("event-notify", () => {
       eventType: "stdout",
       summary: "許可を待っている",
       detail: "Do you want to proceed?",
+      kind: "confirmation",
     });
+  });
+
+  it.each([
+    [
+      { type: "stdout", summary: "質問への回答を待っている" },
+      "input",
+    ],
+    [{ type: "error", summary: "エラーが出ている" }, "error"],
+    [{ type: "stdout", summary: "コマンド実行の確認待ち" }, "confirmation"],
+  ] as const)("既存イベントから要対応状態を分類する: %s", (event, expected) => {
+    expect(getAttentionKind(event)).toBe(expected);
+  });
+
+  it("状態ごとに入力先と次の操作を案内する", () => {
+    expect(getAttentionGuidance("input")).toMatchObject({
+      label: "入力待ち",
+      focusTerminal: true,
+      focusLabel: "ターミナルへ移動",
+    });
+    expect(getAttentionGuidance("error")).toMatchObject({
+      label: "実行エラー",
+      focusTerminal: false,
+      dismissLabel: "エラーを確認した",
+    });
+    expect(getAttentionGuidance("error").message).toContain("入力待ちではありません");
+    expect(getAttentionGuidance("confirmation")).toMatchObject({
+      label: "確認要求",
+      focusTerminal: true,
+      dismissLabel: "確認した",
+    });
+  });
+
+  it("長い原文を操作領域を失わない長さに制限する", () => {
+    const detail = "x".repeat(1300);
+    const limited = limitAttentionDetail(detail);
+
+    expect(limited).toContain("長文のため省略");
+    expect(limited?.length).toBeLessThan(detail.length);
   });
 
   it("同一イベントを ts と type で相関づけるキーを作る", () => {

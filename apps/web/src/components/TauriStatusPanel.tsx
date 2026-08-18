@@ -51,6 +51,7 @@ export default function TauriStatusPanel({ onStatusChange }: TauriStatusPanelPro
   const [diagnostics, setDiagnostics] = useState<DesktopDiagnostics | null>(null);
   const [copiedDiagnosticAction, setCopiedDiagnosticAction] = useState<string | null>(null);
   const [copiedRecoveryCommand, setCopiedRecoveryCommand] = useState<string | null>(null);
+  const [isCollapsed, setIsCollapsed] = useState(true);
 
   useEffect(() => {
     if (!isTauri) {
@@ -325,9 +326,38 @@ export default function TauriStatusPanel({ onStatusChange }: TauriStatusPanelPro
       .join("\n");
   };
 
+  if (isCollapsed && state !== "failed" && !invokeError) {
+    return (
+      <div className="debug-panel debug-panel--collapsed">
+        <button
+          type="button"
+          className="debug-panel__summary-button"
+          onClick={() => setIsCollapsed(false)}
+          aria-expanded="false"
+        >
+          <span>Desktop Server</span>
+          <span className="debug-panel__badge" style={{ color: getStateColor(state) }}>
+            {DESKTOP_STATE_LABEL[state]}
+          </span>
+          <span className="debug-panel__summary-action">詳細</span>
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div className="debug-panel">
-      <div className="debug-panel__title">Desktop Server</div>
+      <div className="debug-panel__header">
+        <div className="debug-panel__title">Desktop Server</div>
+        <button
+          type="button"
+          className="debug-panel__collapse-button"
+          onClick={() => setIsCollapsed(true)}
+          aria-expanded="true"
+        >
+          折りたたむ
+        </button>
+      </div>
       <p className="debug-panel__hint">{stateMessage}</p>
 
       {status && (
@@ -523,7 +553,7 @@ export default function TauriStatusPanel({ onStatusChange }: TauriStatusPanelPro
         </section>
       )}
 
-      <div className="debug-panel__actions">
+      <div className="debug-panel__actions debug-panel__actions--server-control">
         <button className="debug-panel__btn debug-panel__btn--primary" onClick={handleStart} disabled={startDisabled}>
           {startLabel}
         </button>

@@ -98,6 +98,7 @@ export type PhaseBProviderMetrics = {
   model: string;
   timeoutMs: number;
   attempted: number;
+  skipped: number;
   withinTimeoutSuccesses: number;
   withinTimeoutSuccessRate: number;
   results: Record<CommentMeasurement["result"], number>;
@@ -107,7 +108,6 @@ export type PhaseBProviderMetrics = {
 
 export type PhaseBReplayOptions = {
   llmProvider?: ProviderName;
-  llmModel?: string;
 };
 
 export type PhaseBEventTypeComparison = {
@@ -227,8 +227,8 @@ function buildMetrics(
 
 function buildProviderMetrics(
   provider: ProviderName,
-  model: string,
-  measurements: CommentMeasurement[]
+  measurements: CommentMeasurement[],
+  skipped: number
 ): PhaseBProviderMetrics {
   const results: PhaseBProviderMetrics["results"] = {
     comment_ok: 0,
@@ -242,11 +242,17 @@ function buildProviderMetrics(
   const withinTimeoutSuccesses = measurements.filter(
     ({ result, durationMs }) => result === "comment_ok" && durationMs <= COMMENT_TIMEOUT_MS
   ).length;
+  const measuredModels = Array.from(new Set(
+    measurements
+      .map(({ model }) => model)
+      .filter((model) => model !== "unknown" && model !== "rules")
+  ));
   return {
     provider,
-    model,
+    model: measuredModels.join(", ") || "unknown",
     timeoutMs: COMMENT_TIMEOUT_MS,
     attempted: measurements.length,
+    skipped,
     withinTimeoutSuccesses,
     withinTimeoutSuccessRate:
       measurements.length === 0 ? 0 : withinTimeoutSuccesses / measurements.length,
@@ -271,6 +277,7 @@ export async function replayPhaseBFixture(
   const commentaryComparisons: PhaseBReplayResult["commentaryComparisons"] = [];
   const providerComparisons: NonNullable<PhaseBReplayResult["providerComparisons"]> = [];
   const providerMeasurements: CommentMeasurement[] = [];
+  let skippedProviderMeasurements = 0;
   const suppressions: PhaseBSuppression[] = [];
   const sessionContext = createSessionContext({ now: () => currentOffsetMs });
   sessionContext.setTaskContext({ ...fixture.taskContext, source: "fixture" });
@@ -347,24 +354,25 @@ export async function replayPhaseBFixture(
             providerMeasurements.push(item);
           }
         );
-        if (!measurement) {
-          throw new Error("LLM commentary completed without a measurement");
+        if (measurement) {
+          providerComparisons.push({
+            offsetMs: currentOffsetMs,
+            eventType: event.type,
+            rules: {
+              narration: rules.narration,
+              explanation: rules.explanation,
+              speech: rules.speech,
+            },
+            llm: {
+              narration: llm.narration,
+              explanation: llm.explanation,
+              speech: llm.speech,
+            },
+            measurement,
+          });
+        } else {
+          skippedProviderMeasurements += 1;
         }
-        providerComparisons.push({
-          offsetMs: currentOffsetMs,
-          eventType: event.type,
-          rules: {
-            narration: rules.narration,
-            explanation: rules.explanation,
-            speech: rules.speech,
-          },
-          llm: {
-            narration: llm.narration,
-            explanation: llm.explanation,
-            speech: llm.speech,
-          },
-          measurement,
-        });
       }
       messages.push({ kind: "commentary", ts: currentOffsetMs, ev: event, ...payload });
     }
@@ -385,8 +393,8 @@ export async function replayPhaseBFixture(
     result.providerComparisons = providerComparisons;
     result.providerMetrics = buildProviderMetrics(
       options.llmProvider,
-      options.llmModel ?? "unknown",
-      providerMeasurements
+      providerMeasurements,
+      skippedProviderMeasurements
     );
   }
   return result;

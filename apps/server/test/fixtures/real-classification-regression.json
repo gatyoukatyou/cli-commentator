@@ -1,0 +1,72 @@
+{
+  "notice": [
+    "Cases are minimal excerpts from HUMAN-observed Managed Terminal output or existing sanitized real TUI captures.",
+    "Local paths, timestamps, identifiers, and user-authored details were removed or replaced before committing."
+  ],
+  "observedPrefixes": {
+    "humanManagedTerminal20260809": ["•", "└"],
+    "existingSanitizedRealCaptures": ["⏺", "⎿"]
+  },
+  "cases": [
+    {
+      "id": "normal-explanation",
+      "category": "normal explanation",
+      "source": "codex",
+      "provenance": "HUMAN Managed Terminal capture 2026-08-09 (sanitized excerpt)",
+      "input": "• リポジトリのルートへ移動し、指定のマーカーとGitリモートで cli-commentator だと確認します。",
+      "expected": [
+        { "type": "stdout", "summary": "Codexが説明している" }
+      ]
+    },
+    {
+      "id": "real-error",
+      "category": "real error",
+      "source": "codex",
+      "provenance": "Existing sanitized Codex lifecycle-error capture",
+      "input": "Command failed with exit code 1",
+      "expected": [
+        { "type": "error", "summary": "終了コードで失敗している" }
+      ]
+    },
+    {
+      "id": "human-input-wait",
+      "category": "HUMAN input wait",
+      "source": "codex",
+      "provenance": "Existing sanitized Codex approval capture",
+      "input": "Would you like to run the following command?\npnpm test -- --runInBand",
+      "expected": [
+        { "type": "stdout", "summary": "コマンド実行の確認待ち" }
+      ]
+    },
+    {
+      "id": "git-operation",
+      "category": "Git operation",
+      "source": "codex",
+      "provenance": "Existing sanitized real Codex tool-call capture",
+      "input": "ToolCall: exec_command {\"cmd\":\"git status -sb\",\"workdir\":\"/Users/USER/PROJECT\"}",
+      "expected": [
+        { "type": "git", "summary": "Git操作をしている" }
+      ]
+    },
+    {
+      "id": "command-execution",
+      "category": "command execution",
+      "source": "codex",
+      "provenance": "HUMAN-observed commentary detail from Managed Terminal output 2026-08-09 (sanitized excerpt)",
+      "input": "⏺ Bash(pwd)",
+      "expected": [
+        { "type": "stdout", "summary": "コマンドを実行している" }
+      ]
+    },
+    {
+      "id": "long-explanation",
+      "category": "long explanation",
+      "source": "codex",
+      "provenance": "HUMAN Managed Terminal capture 2026-08-09 (sanitized excerpt)",
+      "input": "• 結論からいうと、cli-commentator は動くMVPが完成済みで、現在は日常的に安心して使えるデスクトップアプリへ仕上げている段階です。一般公開できる完成版には、まだ実機検証・使いやすさ改善・署名付き配布などが残っています。主要機能は揃っていますが、安心して一般公開するための品質確認と磨き込みを続けています。",
+      "expected": [
+        { "type": "stdout", "summary": "Codexが説明している" }
+      ]
+    }
+  ]
+}

@@ -1,4 +1,5 @@
-import "dotenv/config";
+import "./load-env.js";
+
 import fs from "node:fs";
 import http from "node:http";
 import { WebSocketServer } from "ws";
@@ -8,6 +9,7 @@ import type {
   Event,
   InputMode,
   LaunchSessionInput,
+  PtySize,
   SourceMode,
   SourceState,
   Style,
@@ -35,6 +37,7 @@ import {
   type PtyFailure,
   type FileFallbackResult,
 } from "./pty/index.js";
+import { parsePtySize } from "./pty/size.js";
 import { createFileTail, resolveFileFallback, type FileTail } from "./input/index.js";
 import {
   buildServerStateEvent,
@@ -49,12 +52,20 @@ import { createCommentaryGate, withEventPriority } from "./event-priority.js";
 import { createRepeatedErrorDetector } from "./repeated-error-detector.js";
 import { createSessionContext } from "./session-context.js";
 import { applySpeechContract } from "./commentary/speech-policy.js";
+import { isManagedServer } from "./runtime/managed-server.js";
+import {
+  broadcastIfCurrentGeneration,
+  createCommentaryGeneration,
+} from "./runtime/commentary-generation.js";
+import { createInitialStartDelivery } from "./runtime/initial-start-delivery.js";
+import { createPtyOwnerRegistry, type PtyOwnerClientKind } from "./runtime/pty-owner.js";
 
 const PORT = Number(process.env.CLI_COMMENTATOR_PORT ?? process.env.PORT ?? 8787);
 const COMMENT_EXIT_TIMEOUT_MS = parseInt(process.env.COMMENT_EXIT_TIMEOUT_MS ?? "1500", 10);
 const SILENCE_TIMEOUT_MS = parseSilenceTimeoutMs(process.env.SILENCE_TIMEOUT_MS);
 
 const INPUT_MODE_RAW = process.env.INPUT_MODE; // For debugging
+const MANAGED_SERVER = isManagedServer();
 
 function parseInputMode(value?: string): InputMode {
   const normalized = (value ?? "").trim().toLowerCase();
@@ -69,6 +80,7 @@ const INPUT_MODE: InputMode = parseInputMode(INPUT_MODE_RAW);
 const INPUT_FILE = process.env.INPUT_FILE ?? "";
 const ptyCapture = createPtyCapture(process.env.PTY_CAPTURE_FILE);
 let runtimeInputMode: InputMode = INPUT_MODE;
+let latestPtySize: PtySize | null = null;
 
 // --- Mutable state ---
 let currentStyle: Style = "kansai";
@@ -100,6 +112,8 @@ function markPtyUnavailable(error: string): void {
 const commentaryGate = createCommentaryGate({ intervalMs: 2000 });
 const repeatedErrorDetector = createRepeatedErrorDetector();
 const sessionContext = createSessionContext();
+const commentaryGeneration = createCommentaryGeneration();
+const initialStartDelivery = createInitialStartDelivery();
 
 // --- HTTP + WS ---
 const server = http.createServer((req, res) => {
@@ -115,6 +129,24 @@ const server = http.createServer((req, res) => {
 });
 
 const wss = new WebSocketServer({ server });
+const ptyOwnerRegistry = createPtyOwnerRegistry();
+let anonymousClientSequence = 0;
+
+function resolveClientId(request: { url?: string }): string {
+  const requestUrl = new URL(request.url ?? "/", "ws://localhost");
+  const requestedId = requestUrl.searchParams.get("clientId")?.trim();
+  if (requestedId && /^[A-Za-z0-9._:-]{1,128}$/.test(requestedId)) return requestedId;
+
+  anonymousClientSequence += 1;
+  return `anonymous-${anonymousClientSequence}`;
+}
+
+function resolveClientKind(request: { url?: string }): PtyOwnerClientKind {
+  const requestUrl = new URL(request.url ?? "/", "ws://localhost");
+  const requestedKind = requestUrl.searchParams.get("clientKind");
+  if (requestedKind === "desktop" || requestedKind === "web") return requestedKind;
+  return "unknown";
+}
 
 // --- PTY Manager ---
 const ptyManager = createPTYManager();
@@ -292,6 +324,8 @@ function createAdHocPTYConfig(input: LaunchSessionInput): PTYConfig {
 }
 
 async function launchAdHocSession(input: LaunchSessionInput): Promise<void> {
+  initialStartDelivery.invalidate();
+  commentaryGeneration.invalidate();
   const config = createAdHocPTYConfig(input);
   const nextStyle = isStyle(input.style) ? input.style : currentStyle;
   const nextSourceMode = normalizeSource(input.logSource);
@@ -371,7 +405,11 @@ const carryEscape = createEscapeCarry();
  * Process incoming data from any input source (PTY or FileTail).
  * This is the common data processing pipeline.
  */
-function processInputData(data: string, writeToStdout: boolean = true): void {
+function processInputData(
+  data: string,
+  writeToStdout: boolean = true,
+  generation = commentaryGeneration.current(),
+): void {
   silenceTimer.activity();
 
   // Write raw data to local terminal (only for PTY mode or when requested)
@@ -394,11 +432,11 @@ function processInputData(data: string, writeToStdout: boolean = true): void {
   broadcast({ kind: "raw", data: clean });
 
   for (const ev of evs) {
-    emitEvent(ev);
+    emitEvent(ev, generation);
   }
 }
 
-function emitEvent(ev: Event): void {
+function emitEvent(ev: Event, generation = commentaryGeneration.current()): void {
   const prioritizedEvent = withEventPriority(repeatedErrorDetector.observe(ev));
   const shouldEmitCommentary = commentaryGate.shouldEmit(prioritizedEvent.priority);
   const context = sessionContext.observeEvent(prioritizedEvent, {
@@ -407,11 +445,14 @@ function emitEvent(ev: Event): void {
   // The rule-based event reaches clients immediately; LLM commentary follows asynchronously.
   broadcast({ kind: "event", ev: prioritizedEvent });
   if (shouldEmitCommentary) {
-    void comment(prioritizedEvent, currentStyle, currentCommentaryProviders, context)
-      .then((payload) => {
+    broadcastIfCurrentGeneration(
+      comment(prioritizedEvent, currentStyle, currentCommentaryProviders, context),
+      commentaryGeneration,
+      generation,
+      (payload) => {
         broadcastCommentary(prioritizedEvent.ts, prioritizedEvent, payload);
-      })
-      .catch(() => {});
+      },
+    );
   }
 }
 
@@ -434,8 +475,12 @@ function broadcast(msg: WsOutgoing) {
   }
 }
 
+function createCommentaryMessage(ts: number, ev: Event, payload: CommentaryPayload): Extract<WsOutgoing, { kind: "commentary" }> {
+  return { kind: "commentary", ts, ev, ...payload };
+}
+
 function broadcastCommentary(ts: number, ev: Event, payload: CommentaryPayload): void {
-  broadcast({ kind: "commentary", ts, ev, ...payload });
+  broadcast(createCommentaryMessage(ts, ev, payload));
 }
 
 function broadcastSource(nextDetected: SourceState["detected"]) {
@@ -453,13 +498,14 @@ function setupPTY(
   profileId: string | null,
   sessionOptions?: { presetName?: string }
 ): void {
+  const generation = commentaryGeneration.invalidate();
   sessionContext.reset({
     presetName: sessionOptions?.presetName,
     acceptsHumanInput: /(?:^|[/\\])(?:codex|claude)(?:$|\s)/i.test(config.cmd),
   });
   commentaryGate.reset();
   resetExtractionState();
-  const term = ptyManager.spawn(config);
+  const term = ptyManager.spawn(latestPtySize ? { ...config, ...latestPtySize } : config);
   silenceTimer.start();
   transitionServerState("setup_pty_success", "pty_running", {
     inputMode: "pty",
@@ -482,11 +528,11 @@ function setupPTY(
   term.onData((data) => {
     if (ptyManager.current !== term) return;
     ptyCapture?.write(data);
-    processInputData(data, true);
+    processInputData(data, true, generation);
   });
 
   // Handle PTY exit - only trigger cleanup for final exit, not for profile switch
-  term.onExit(({ exitCode }) => {
+  term.onExit(({ exitCode, signal }) => {
     if (ptyManager.current !== term) {
       return;
     }
@@ -501,8 +547,32 @@ function setupPTY(
     const context = sessionContext.observeEvent(ev);
     broadcast({ kind: "event", ev });
 
-    // 安全タイマー付き二重化（comment()がsettleしなくてもcleanup確実実行）
     const exitWithCode = exitCode ?? 0;
+    if (MANAGED_SERVER) {
+      ptyManager.releaseIfCurrent(term);
+      currentlyRunningProfileId = null;
+      transitionServerState("pty_exit", "pty_idle", {
+        inputMode: "pty",
+        profileId: null,
+        detail: `exit_code=${exitWithCode}`,
+        context: {
+          exitCode: exitWithCode,
+          signal: signal ?? undefined,
+          managedServer: true,
+        },
+      });
+      broadcastIfCurrentGeneration(
+        comment(ev, currentStyle, currentCommentaryProviders, context),
+        commentaryGeneration,
+        generation,
+        (payload) => {
+          broadcastCommentary(ev.ts, ev, payload);
+        },
+      );
+      return;
+    }
+
+    // 安全タイマー付き二重化（comment()がsettleしなくてもcleanup確実実行）
     let exited = false;
     const safeCleanup = () => {
       if (exited) return;
@@ -532,21 +602,45 @@ function setupPTY(
     detail: `${config.cmd} ${config.args.join(" ")}`,
   });
   const context = sessionContext.observeEvent(startEvent);
-  broadcast({ kind: "event", ev: startEvent });
+  const initialStart = initialStartDelivery.begin(
+    generation,
+    { kind: "event", ev: startEvent },
+    wss.clients.size === 0,
+  );
+  if (initialStart !== "buffered") {
+    broadcast({ kind: "event", ev: startEvent });
+  }
 
   // Send commentary for start event
-  void comment(startEvent, currentStyle, currentCommentaryProviders, context)
-    .then((payload) => {
-      broadcastCommentary(Date.now(), startEvent, payload);
-    })
-    .catch((err) => {
+  broadcastIfCurrentGeneration(
+    comment(startEvent, currentStyle, currentCommentaryProviders, context),
+    commentaryGeneration,
+    generation,
+    (payload) => {
+      const message = createCommentaryMessage(Date.now(), startEvent, payload);
+      if (initialStart === "buffered") {
+        initialStartDelivery.setCommentary(generation, message);
+        deliverPendingInitialStart();
+      } else {
+        broadcast(message);
+      }
+    },
+    (err) => {
+      if (!commentaryGeneration.isCurrent(generation)) return;
       // Fallback: show basic start message if LLM fails
-      broadcastCommentary(Date.now(), startEvent, applySpeechContract({
+      const message = createCommentaryMessage(Date.now(), startEvent, applySpeechContract({
         narration: `開始: ${startEvent.detail}`,
         meta: { narrationProvider: "fallback", mode: "narration" },
       }, startEvent, context));
+      if (initialStart === "buffered") {
+        initialStartDelivery.setCommentary(generation, message);
+        deliverPendingInitialStart();
+      } else {
+        broadcast(message);
+      }
       console.error("start commentary failed:", err);
-    });
+    },
+  );
 }
 
 /**
@@ -554,6 +648,8 @@ function setupPTY(
  * Serialized to prevent race conditions from rapid profile switches
  */
 async function restartPTY(profileId: string | null, force = false): Promise<void> {
+  initialStartDelivery.invalidate();
+  commentaryGeneration.invalidate();
   // If a restart is already in progress, queue this request (only keep the latest)
   if (restartInFlight) {
     queuedProfileId = profileId;
@@ -743,7 +839,21 @@ function sendTo(client: typeof wss.clients extends Set<infer T> ? T : never, msg
   }
 }
 
-wss.on("connection", async (ws) => {
+function deliverPendingInitialStart(): void {
+  initialStartDelivery.tryDeliver(
+    Array.from(wss.clients, (client) => ({
+      isOpen: () => client.readyState === 1,
+      send: (message: WsOutgoing) => sendTo(client, message),
+    })),
+  );
+}
+
+wss.on("connection", async (ws, request) => {
+  ptyOwnerRegistry.register(ws, resolveClientId(request), resolveClientKind(request));
+  ws.on("close", () => {
+    ptyOwnerRegistry.unregister(ws);
+  });
+
   // Send initial state including profiles
   const profiles = await profileManager.list();
   const activeId = await profileManager.getActiveId();
@@ -754,6 +864,7 @@ wss.on("connection", async (ws) => {
   if (!ptyAvailable && ptyInitError) {
     sendTo(ws, createPtyUnavailableMessage(ptyInitError));
   }
+  deliverPendingInitialStart();
 
   ws.on("message", async (buf) => {
     try {
@@ -761,6 +872,7 @@ wss.on("connection", async (ws) => {
 
       switch (msg?.kind) {
         case "setStyle":
+          if (!ptyOwnerRegistry.isController(ws)) break;
           if (isStyle(msg.style)) {
             currentStyle = msg.style;
             broadcast({ kind: "style", style: currentStyle });
@@ -768,6 +880,7 @@ wss.on("connection", async (ws) => {
           break;
 
         case "launchSession": {
+          if (!ptyOwnerRegistry.isController(ws)) break;
           try {
             const input = msg.session;
             if (!input || typeof input.cmd !== "string") {
@@ -781,6 +894,7 @@ wss.on("connection", async (ws) => {
         }
 
         case "writeInput":
+          if (!ptyOwnerRegistry.isController(ws)) break;
           if (typeof msg.data === "string") {
             const inputResult = sessionContext.observeInput(msg.data);
             if (inputResult.newTask) {
@@ -790,6 +904,20 @@ wss.on("connection", async (ws) => {
             ptyManager.write(msg.data);
           }
           break;
+
+        case "resizePty": {
+          if (!ptyOwnerRegistry.isController(ws)) break;
+          const size = parsePtySize(msg.cols, msg.rows);
+          if (!size) break;
+          latestPtySize = size;
+          if (runtimeInputMode !== "pty") break;
+          try {
+            ptyManager.resize(size.cols, size.rows);
+          } catch (err) {
+            console.warn("Failed to resize PTY:", err);
+          }
+          break;
+        }
 
         case "getProfiles": {
           const list = await profileManager.list();
@@ -815,6 +943,7 @@ wss.on("connection", async (ws) => {
         }
 
         case "saveProfile": {
+          if (!ptyOwnerRegistry.isController(ws)) break;
           try {
             const input = msg.profile;
             if (!input) throw new Error("Missing profile data");
@@ -846,6 +975,7 @@ wss.on("connection", async (ws) => {
         }
 
         case "deleteProfile": {
+          if (!ptyOwnerRegistry.isController(ws)) break;
           try {
             const id = msg.id;
             if (!id) throw new Error("Missing profile id");
@@ -859,6 +989,7 @@ wss.on("connection", async (ws) => {
         }
 
         case "setActiveProfile": {
+          if (!ptyOwnerRegistry.isController(ws)) break;
           try {
             const id = msg.id ?? null;
             await profileManager.setActive(id);
@@ -882,6 +1013,8 @@ wss.on("connection", async (ws) => {
  * @see Issue #40
  */
 function setupFileTail(filePath: string, options?: { fatal?: boolean; presetName?: string }): void {
+  initialStartDelivery.invalidate();
+  const generation = commentaryGeneration.invalidate();
   const fatal = options?.fatal ?? true;
   if (!filePath) {
     transitionServerState("file_tail_setup_failed", "failed", {
@@ -918,7 +1051,7 @@ function setupFileTail(filePath: string, options?: { fatal?: boolean; presetName
   fileTail = tail;
 
   // Process data through common pipeline (no stdout echo for file mode)
-  tail.on("data", (data) => processInputData(data, false));
+  tail.on("data", (data) => processInputData(data, false, generation));
 
   // Handle errors
   tail.on("error", (err) => {
@@ -947,14 +1080,21 @@ function setupFileTail(filePath: string, options?: { fatal?: boolean; presetName
     const context = sessionContext.observeEvent(ev);
     broadcast({ kind: "event", ev });
 
-    void comment(ev, currentStyle, currentCommentaryProviders, context)
-      .then((payload) => {
-        broadcastCommentary(ev.ts, ev, payload);
-      })
-      .catch(() => {})
-      .finally(() => {
+    const finishFileTail = () => {
+      if (commentaryGeneration.isCurrent(generation)) {
         cleanup(code ?? 0);
-      });
+      }
+    };
+    broadcastIfCurrentGeneration(
+      comment(ev, currentStyle, currentCommentaryProviders, context),
+      commentaryGeneration,
+      generation,
+      (payload) => {
+        broadcastCommentary(ev.ts, ev, payload);
+        finishFileTail();
+      },
+      finishFileTail,
+    );
   });
 
   // Start tailing
@@ -979,17 +1119,22 @@ function setupFileTail(filePath: string, options?: { fatal?: boolean; presetName
     const context = sessionContext.observeEvent(startEvent);
     broadcast({ kind: "event", ev: startEvent });
 
-    void comment(startEvent, currentStyle, currentCommentaryProviders, context)
-      .then((payload) => {
+    broadcastIfCurrentGeneration(
+      comment(startEvent, currentStyle, currentCommentaryProviders, context),
+      commentaryGeneration,
+      generation,
+      (payload) => {
         broadcastCommentary(Date.now(), startEvent, payload);
-      })
-      .catch((err) => {
+      },
+      (err) => {
+        if (!commentaryGeneration.isCurrent(generation)) return;
         broadcastCommentary(Date.now(), startEvent, applySpeechContract({
           narration: `ファイル監視開始: ${filePath}`,
           meta: { narrationProvider: "fallback", mode: "narration" },
         }, startEvent, context));
         console.error("start commentary failed:", err);
-      });
+      },
+    );
   } catch (err) {
     transitionServerState("file_tail_setup_failed", "failed", {
       level: "error",

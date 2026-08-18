@@ -138,7 +138,9 @@ export function resolveUseConpty(options?: {
 export type PTYManager = {
   readonly current: IPty | null;
   spawn: (config: PTYConfig) => IPty;
+  releaseIfCurrent: (pty: IPty) => boolean;
   kill: () => void;
+  resize: (cols: number, rows: number) => void;
   write: (data: string) => void;
 };
 
@@ -190,6 +192,12 @@ export function createPTYManager(): PTYManager {
       return currentPty;
     },
 
+    releaseIfCurrent(pty: IPty) {
+      if (currentPty !== pty) return false;
+      currentPty = null;
+      return true;
+    },
+
     kill() {
       if (currentPty) {
         try {
@@ -198,6 +206,12 @@ export function createPTYManager(): PTYManager {
           // Ignore errors when killing
         }
         currentPty = null;
+      }
+    },
+
+    resize(cols: number, rows: number) {
+      if (currentPty) {
+        currentPty.resize(cols, rows);
       }
     },
 

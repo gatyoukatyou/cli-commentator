@@ -2,6 +2,7 @@ import type { Event } from "./types.js";
 import { getAutoDetectedSource, rulesForLine } from "./rulesets/index.js";
 import { isClaudeTuiNoise, isCodexProgressNoise, isCodexTuiAssistantLine, isTerminalRenderingNoise } from "./progress-noise.js";
 import { extractClaudeSupervisionEvents } from "./rulesets/claude-supervision.js";
+import { isCurrentCodexErrorLine } from "./rulesets/codex.js";
 import { extractFileListCommand, isFileListExecution, isSearchExecution } from "./command-analysis.js";
 import { ANSI_ESCAPE_RE } from "./terminal-escapes.js";
 
@@ -544,7 +545,12 @@ function preprocessLine(rawLine: string, sourceEnv?: string): string | null {
     return normalized;
   }
 
-  if (/^>\s/.test(normalized) || /\bapply_patch\b|ELIFECYCLE|exit code|error|failed|exception|TS\d{4,5}/i.test(normalized)) {
+  if (/^>\s/.test(normalized)) return normalized;
+  if (/\bapply_patch\b/i.test(normalized)) return normalized;
+  if (source === "codex") {
+    return isCurrentCodexErrorLine(normalized) ? normalized : null;
+  }
+  if (/\bapply_patch\b|ELIFECYCLE|exit code|error|failed|exception|TS\d{4,5}/i.test(normalized)) {
     return normalized;
   }
 

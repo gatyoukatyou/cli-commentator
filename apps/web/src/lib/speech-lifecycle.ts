@@ -4,7 +4,14 @@ import {
   REPEATED_PROGRESS_SPEECH_WINDOW_MS,
 } from "@cli-commentator/shared";
 
-export type SpeechLifecycleKind = "queued" | "started" | "ended" | "cancelled" | "dropped";
+export type SpeechLifecycleKind =
+  | "queued"
+  | "started"
+  | "ended"
+  | "cancelled"
+  | "replaced"
+  | "suppressed"
+  | "dropped";
 
 export type SpeechLifecycleEventInput = {
   kind: SpeechLifecycleKind;
@@ -27,6 +34,8 @@ export type SpeechLifecycleMetrics = {
   started: number;
   ended: number;
   cancelled: number;
+  replaced: number;
+  suppressed: number;
   dropped: number;
   urgentInterruptions: number;
   noticeQueued: number;
@@ -107,6 +116,8 @@ export function createSpeechLifecycleRecorder(options: RecorderOptions = {}) {
     started: 0,
     ended: 0,
     cancelled: 0,
+    replaced: 0,
+    suppressed: 0,
     dropped: 0,
     urgentInterruptions: 0,
     noticeQueued: 0,
@@ -143,6 +154,8 @@ export function createSpeechLifecycleRecorder(options: RecorderOptions = {}) {
       started: 0,
       ended: 0,
       cancelled: 0,
+      replaced: 0,
+      suppressed: 0,
       dropped: 0,
       urgentInterruptions: 0,
       noticeQueued: 0,
@@ -182,6 +195,13 @@ export function createSpeechLifecycleRecorder(options: RecorderOptions = {}) {
         startedAt: null,
         spokenCharacters: 0,
       });
+      return;
+    }
+
+    if (input.kind === "replaced" || input.kind === "suppressed") {
+      if (input.kind === "replaced") metrics.replaced += 1;
+      else metrics.suppressed += 1;
+      if (input.priority === "progress") metrics.progressDropped += 1;
       return;
     }
 

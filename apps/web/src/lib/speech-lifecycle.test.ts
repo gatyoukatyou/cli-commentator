@@ -148,6 +148,37 @@ describe("speech lifecycle recorder", () => {
     expect(recorder.export().metrics.speechCompletionRate).toBe(0.7);
   });
 
+  it("records suppressed and replaced outcomes separately from completed speech", () => {
+    const recorder = createSpeechLifecycleRecorder({
+      now: () => 0,
+      wallNow: () => 0,
+      sessionId: () => "s",
+    });
+
+    recorder.record({
+      kind: "suppressed",
+      speechId: "heartbeat-1",
+      priority: "progress",
+      text: "定型の待機実況",
+      reason: "heartbeat_suppressed",
+    });
+    recorder.record({
+      kind: "replaced",
+      speechId: "legacy-progress-1",
+      priority: "progress",
+      text: "置き換え対象",
+      reason: "progress_replace",
+    });
+
+    expect(recorder.export()).toMatchObject({
+      metrics: { suppressed: 1, replaced: 1, dropped: 0, progressDropped: 2 },
+      events: [
+        { kind: "suppressed", reason: "heartbeat_suppressed" },
+        { kind: "replaced", reason: "progress_replace" },
+      ],
+    });
+  });
+
   it("detects style-varied repeated progress within 120 seconds and urgent misses", () => {
     let now = 0;
     const recorder = createSpeechLifecycleRecorder({ now: () => now, wallNow: () => now, sessionId: () => "s" });

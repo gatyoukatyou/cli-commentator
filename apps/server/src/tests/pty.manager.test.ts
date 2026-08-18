@@ -204,6 +204,71 @@ describe("pty/manager", () => {
   });
 
   describe("createPTYManager", () => {
+    it("resizes the active PTY and ignores resize requests after it is killed", async () => {
+      vi.resetModules();
+      const originalForceNoPty = process.env.CLI_COMMENTATOR_FORCE_NO_PTY;
+      const firstResize = vi.fn();
+      const firstTerm = {
+        onData: vi.fn(),
+        onExit: vi.fn(),
+        write: vi.fn(),
+        kill: vi.fn(),
+        resize: firstResize,
+      };
+      const secondResize = vi.fn();
+      const secondTerm = {
+        onData: vi.fn(),
+        onExit: vi.fn(),
+        write: vi.fn(),
+        kill: vi.fn(),
+        resize: secondResize,
+      };
+      const spawn = vi
+        .fn()
+        .mockReturnValueOnce(firstTerm)
+        .mockReturnValueOnce(secondTerm);
+
+      delete process.env.CLI_COMMENTATOR_FORCE_NO_PTY;
+
+      try {
+        vi.doMock("node:module", () => ({
+          createRequire: () => {
+            return (specifier: string) => {
+              if (specifier === "node-pty") return { spawn };
+              throw new Error(`unexpected require: ${specifier}`);
+            };
+          },
+        }));
+
+        const { createPTYManager } = await import("../pty/manager.js");
+        const manager = createPTYManager();
+        manager.spawn({ cmd: "bash", args: [], cwd: process.cwd() });
+
+        manager.resize(96, 32);
+        expect(firstResize).toHaveBeenCalledWith(96, 32);
+
+        expect(manager.releaseIfCurrent(firstTerm)).toBe(true);
+        expect(manager.current).toBeNull();
+
+        manager.spawn({ cmd: "bash", args: [], cwd: process.cwd() });
+        expect(manager.current).toBe(secondTerm);
+        expect(manager.releaseIfCurrent(firstTerm)).toBe(false);
+        expect(manager.current).toBe(secondTerm);
+
+        manager.resize(120, 40);
+        expect(secondResize).toHaveBeenCalledWith(120, 40);
+        manager.kill();
+        manager.resize(144, 48);
+        expect(secondResize).toHaveBeenCalledTimes(1);
+      } finally {
+        if (originalForceNoPty === undefined) {
+          delete process.env.CLI_COMMENTATOR_FORCE_NO_PTY;
+        } else {
+          process.env.CLI_COMMENTATOR_FORCE_NO_PTY = originalForceNoPty;
+        }
+      }
+    });
+
     it("surfaces node-pty spawn failures unchanged", async () => {
       vi.resetModules();
       const originalForceNoPty = process.env.CLI_COMMENTATOR_FORCE_NO_PTY;

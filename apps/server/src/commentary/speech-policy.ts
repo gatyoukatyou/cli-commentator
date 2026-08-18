@@ -9,16 +9,8 @@ import { standardSubjectLine } from "../styles/standard.js";
 // segment: "App.tsx を確認しています。" is narration, not a raw `tsx` invocation.
 const RAW_COMMAND_RE =
   /(?:^[⏺•]\s*|\b(?:Bash|Read|Grep|Glob|Update|Write)\(|\bapply_patch\b|(?<![-./\w])(?:rg|grep|nl|sed|git|gh|pnpm|npm|yarn|cat|find|ls|cd|pwd|node|tsx|cargo|docker|curl)\b(?:\s+|$)|\|)/iu;
-const MAX_SPEECH_LENGTH = 100;
-const MAX_PROGRESS_SPEECH_LENGTH = 30;
-
 export function hasRawCommandText(text?: string): boolean {
   return Boolean(text && RAW_COMMAND_RE.test(text));
-}
-
-function firstSentence(text: string): string {
-  const compact = text.replace(/\s+/g, " ").trim();
-  return compact.match(/^.+?[。！？!?](?:[」』”"])?/u)?.[0]?.trim() ?? compact;
 }
 
 function safeFallback(
@@ -60,34 +52,6 @@ function safeFallback(
   }
 }
 
-function progressLengthFallback(
-  event: Event,
-  context: SessionContextSnapshot,
-  subject: NarrationSubject
-): string {
-  const target = context.target
-    ?.replace(/\\/gu, "/")
-    .split("/")
-    .at(-1)
-    ?.trim();
-  const action = event.type === "read"
-    ? "確認"
-    : event.type === "search"
-      ? "調査"
-      : event.type === "write"
-        ? "更新"
-        : event.type === "test" || event.type === "lint" || event.type === "build"
-          ? "検証"
-          : null;
-  if (target && action && !hasRawCommandText(target)) {
-    const targetSentence = `「${target}」を${action}中です。`;
-    if (targetSentence.length <= MAX_PROGRESS_SPEECH_LENGTH) {
-      return targetSentence;
-    }
-  }
-  return safeFallback(event, context, subject);
-}
-
 function speechSentence(
   payload: CommentaryPayload,
   event: Event,
@@ -100,19 +64,14 @@ function speechSentence(
   if (event.type === "done") {
     return safeFallback(event, context, subject);
   }
-  const candidate = firstSentence(payload.narration ?? payload.explanation ?? "");
-  if (!candidate || candidate.length > MAX_SPEECH_LENGTH || hasRawCommandText(candidate)) {
+  // Normal narration is already the text shown in the commentary card. Keep
+  // that same text for speech so a long or multi-sentence line is not silently
+  // replaced by a different fallback.
+  const candidate = payload.narration?.trim() || payload.explanation?.trim() || "";
+  // Raw command text remains an intentional safety exception: it may stay on
+  // screen for diagnosis, but is replaced in speech to avoid reading commands.
+  if (!candidate || hasRawCommandText(candidate)) {
     return safeFallback(event, context, subject);
-  }
-  if (
-    getEventPriority(event) === "progress" &&
-    candidate.length > MAX_PROGRESS_SPEECH_LENGTH
-  ) {
-    // A mechanical substring is liable to drop the observed result, break
-    // Japanese grammar, or erase the selected character style. The prompt is
-    // responsible for producing a complete short sentence; this is only the
-    // safety valve for a provider that exceeds that contract.
-    return progressLengthFallback(event, context, subject);
   }
   return candidate;
 }

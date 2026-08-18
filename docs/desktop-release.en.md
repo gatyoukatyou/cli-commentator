@@ -54,10 +54,28 @@ own `node_modules` is handled separately by the
 
 ## Release action maintenance
 
-`tauri-apps/tauri-action` is maintained as the tag-release workflow action. The
-v0.6.2 update improves workspace-root detection for Tauri projects; it does not
-change the signed/unsigned release branches, signing or notarization inputs,
-updater configuration, or operator-facing release steps.
+`tauri-apps/tauri-action@v1.0.0` is maintained as the tag-release workflow
+action. The update does not change the signed/unsigned release branches,
+signing or notarization inputs, or updater configuration, but it changes the
+release artifacts and the checks required before merging a workflow update:
+
+- `.app.tar.gz` and matching `.app.tar.gz.sig` assets include the app version in
+  their filenames. Do not assume the previous unversioned basename.
+- In the 2026-08-17 Unsigned Smoke for this PR, each `latest.json` platform URL
+  used the GitHub release-asset API form
+  (`https://api.github.com/repos/gatyoukatyou/cli-commentator/releases/assets/<asset-id>`),
+  not the browser download form (`releases/download/<tag>/<asset>`). Treat the
+  URLs in `latest.json` as the source of truth when validating the assets.
+- The existing updater endpoint that downloads `latest.json` is unchanged in
+  `apps/desktop/src-tauri/tauri.conf.json`:
+  `https://github.com/gatyoukatyou/cli-commentator/releases/latest/download/latest.json`.
+  This endpoint is separate from the platform URLs inside `latest.json`.
+- This Smoke created a new Draft and prerelease. Do not generalize Draft
+  Release behavior from this run; inspect the release state and `latest.json`
+  when validating a run.
+
+The current workflow change is limited to the action version. The Unsigned
+Smoke gate below is still required before merging it.
 
 ## Updater plugin maintenance
 
@@ -149,8 +167,12 @@ The desktop updater contract is intentionally narrow:
 - Endpoint: `https://github.com/gatyoukatyou/cli-commentator/releases/latest/download/latest.json`.
 - Release source: GitHub Release assets from the latest published release.
 - Supported updater platforms: `darwin-aarch64`, `darwin-aarch64-app`, `darwin-x86_64`, and `darwin-x86_64-app`.
-- Asset resolution: each `latest.json` platform entry must point to the matching `.app.tar.gz` asset for that architecture.
-- Signature: each platform entry must include a non-empty updater signature, and the matching `.app.tar.gz.sig` asset must be present in the release.
+- Asset resolution: each `latest.json` platform entry must point to the
+  matching versioned `.app.tar.gz` asset for that architecture in the tagged
+  release.
+- Signature: each platform entry must include a non-empty updater signature,
+  and the matching versioned `.app.tar.gz.sig` asset must be present in the
+  release.
 - Installers: `.dmg` assets are the human install path; `.app.tar.gz` and `.sig` assets are the updater path.
 - Failure UX: updater failures are surfaced in the Desktop Server panel. Use `Copy Debug bundle` to capture version, platform, server state, updater result, paths, and timestamp for triage.
 
@@ -171,6 +193,23 @@ The workflow:
 2. Builds Tauri bundles for both macOS architectures
 3. Creates a draft GitHub Release with updater artifacts
 
+## 4.5) Pre-merge Unsigned Smoke gate for release workflow changes
+
+Run an actual `v0.0.0-smoke.*` Unsigned Smoke before merging a change to
+`tauri-apps/tauri-action` or this release workflow. Until that run is
+complete, the items below are pre-merge checks, not confirmed results:
+
+- [ ] Confirm arm64 and x64 each produce `.app.tar.gz` and matching
+      `.app.tar.gz.sig` filenames that include the app version.
+- [ ] Inspect `latest.json` and confirm both architecture entries point to the
+      matching versioned assets and contain non-empty signatures.
+- [ ] Confirm the resulting release is Draft and prerelease, and keep it
+      unpublished while the smoke evidence is reviewed.
+
+Record the run URL and the exact asset filenames in the release evidence. Do
+not describe any item as confirmed when the Unsigned Smoke has not actually
+run.
+
 ## 5) Verify updater wiring from Desktop panel
 
 After setting `plugins.updater`, start desktop managed mode and verify:
@@ -185,13 +224,13 @@ After setting `plugins.updater`, start desktop managed mode and verify:
 
 ## 6) Minimal release flow
 
-1. Bump version (`tauri.conf.json` and release notes if needed)
+1. Bump `apps/desktop/package.json`, `Cargo.toml`, `cli-commentator-desktop` in `Cargo.lock`, and `tauri.conf.json` to the same version (and update release notes if needed)
 2. `pnpm -C apps/web build`
 3. `pnpm -C apps/desktop tauri:build`
 4. Create and push tag:
    - `git tag -a vX.Y.Z -m "vX.Y.Z"`
    - `git push origin vX.Y.Z`
-5. Validate draft release assets, including `latest.json`, `.app.tar.gz`, `.app.tar.gz.sig`, and `.dmg`
+5. Validate draft release assets, including `latest.json`, versioned `.app.tar.gz`, matching versioned `.app.tar.gz.sig`, and `.dmg`
 6. Publish the draft only after the updater contract is satisfied
 7. Verify update checks from an installed app
 

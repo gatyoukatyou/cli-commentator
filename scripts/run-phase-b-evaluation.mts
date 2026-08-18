@@ -9,8 +9,7 @@ import {
   type PhaseBReplayResult,
 } from "../apps/server/src/evaluation/phase-b-replay.js";
 import { buildPhaseBEvaluationArtifacts } from "../apps/server/src/evaluation/phase-b-artifacts.js";
-import { DEFAULT_GEMINI_MODEL } from "../apps/server/src/llm/providers/gemini.js";
-import { DEFAULT_OPENCODE_GO_MODEL } from "../apps/server/src/llm/providers/opencode-go.js";
+import { normalizeProviderName } from "../apps/server/src/shared/validation.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const repoRoot = path.resolve(path.dirname(__filename), "..");
@@ -37,16 +36,6 @@ function inferredBaselinePath(fixturePath: string): string {
   return fixturePath.endsWith(".json")
     ? fixturePath.replace(/\.json$/u, ".expected.json")
     : `${fixturePath}.expected.json`;
-}
-
-function configuredModel(provider: string): string {
-  if (provider === "gemini") return process.env.GEMINI_MODEL || DEFAULT_GEMINI_MODEL;
-  if (provider === "anthropic") return process.env.ANTHROPIC_MODEL || "claude-3-5-sonnet-20240620";
-  if (provider === "openai") return process.env.OPENAI_MODEL || "gpt-4o-mini";
-  if (provider === "groq") return process.env.GROQ_MODEL || "llama-3.3-70b-versatile";
-  if (provider === "opencode-go") return process.env.OPENCODE_GO_MODEL || DEFAULT_OPENCODE_GO_MODEL;
-  if (provider === "local") return process.env.LOCAL_MODEL || "llama3.2";
-  return provider === "mock" ? "mock" : "unknown";
 }
 
 function missingProviderCredential(provider: string): string | undefined {
@@ -156,6 +145,7 @@ function markdownReport(
           "## Context-aware rules / LLM provider comparison",
           "",
           `- successes within timeout: ${providerMetrics.withinTimeoutSuccesses}/${providerMetrics.attempted} (${(providerMetrics.withinTimeoutSuccessRate * 100).toFixed(1)}%)`,
+          `- skipped measurements: ${providerMetrics.skipped}`,
           `- results: \`${JSON.stringify(providerMetrics.results)}\``,
           `- tokens: input=${providerMetrics.inputTokens}, output=${providerMetrics.outputTokens}`,
           "",
@@ -174,10 +164,15 @@ const baselinePath = resolveRepoPath(
 );
 const fixture = JSON.parse(await fs.readFile(fixturePath, "utf8")) as PhaseBReplayFixture;
 const withLlm = process.argv.includes("--with-llm");
-const llmProvider = process.env.LLM_PROVIDER ?? "disabled";
-const missingCredential = withLlm ? missingProviderCredential(llmProvider) : undefined;
+const configuredProvider = process.env.LLM_PROVIDER ?? "disabled";
+const llmProvider = normalizeProviderName(configuredProvider);
+if (withLlm && !llmProvider) {
+  throw new Error(`Unknown LLM_PROVIDER: ${configuredProvider}`);
+}
+const missingCredential = withLlm && llmProvider
+  ? missingProviderCredential(llmProvider)
+  : undefined;
 const llmEnabled = withLlm && llmProvider !== "disabled" && !missingCredential;
-const llmModel = configuredModel(llmProvider);
 if (withLlm && missingCredential) {
   console.warn(`Skipping LLM measurement: ${missingCredential} is not set`);
 }
@@ -188,8 +183,7 @@ const candidate = await replayPhaseBFixture(
   fixture,
   llmEnabled
     ? {
-        llmProvider: llmProvider as NonNullable<Parameters<typeof replayPhaseBFixture>[1]>["llmProvider"],
-        llmModel,
+        llmProvider,
       }
     : {}
 );

@@ -1,5 +1,9 @@
 import type { PtyUnavailableNotice } from "../hooks/useCommentatorSocket";
-import type { AttentionNotice } from "../lib/event-notify";
+import {
+  getAttentionGuidance,
+  limitAttentionDetail,
+  type AttentionNotice,
+} from "../lib/event-notify";
 import { normalizeSuggestion } from "../lib/text";
 
 type CopyState = "idle" | "copied" | "failed";
@@ -7,6 +11,7 @@ type CopyState = "idle" | "copied" | "failed";
 type NoticesProps = {
   attention: AttentionNotice | null;
   onDismissAttention: () => void;
+  onFocusTerminal: () => void;
   ptyUnavailable: PtyUnavailableNotice | null;
   profileError: string | null;
   ptyError: string | null;
@@ -17,6 +22,7 @@ type NoticesProps = {
 export function Notices({
   attention,
   onDismissAttention,
+  onFocusTerminal,
   ptyUnavailable,
   profileError,
   ptyError,
@@ -27,21 +33,26 @@ export function Notices({
 
   const suggestionText = normalizeSuggestion(ptyUnavailable?.suggestion);
   const ptyUnavailableError = normalizeSuggestion(ptyUnavailable?.error);
-  const attentionDetail = normalizeSuggestion(attention?.detail);
+  const attentionDetail = limitAttentionDetail(attention?.detail);
+  const attentionGuidance = attention ? getAttentionGuidance(attention.kind) : null;
   const copyLabel = copyState === "copied" ? "Copied" : "Copy";
 
   return (
-    <div className="notices">
-      {attention && (
-        <div className="notice notice--urgent panel" role="alert">
+    <div className={`notices${attention ? " notices--has-attention" : ""}`}>
+      {attention && attentionGuidance && (
+        <div
+          className="notice notice--urgent panel"
+          role="alert"
+          aria-label={`要対応：${attentionGuidance.label}`}
+        >
           <div className="notice__urgent-row">
-            <div>
+            <div className="notice__urgent-content">
               <div className="notice__title">
-                要対応：{attention.summary}
+                要対応：<span className="notice__status">{attentionGuidance.label}</span>
+                <span className="notice__summary">（{attention.summary}）</span>
               </div>
               <div className="notice__body">
-                <p>
-                  CLI が入力を待っている可能性があります。左のターミナルを確認してください。
+                <p>{attentionGuidance.message}
                   <span className="notice__time">
                     （{new Date(attention.ts).toLocaleTimeString()} 検出）
                   </span>
@@ -53,14 +64,25 @@ export function Notices({
                 )}
               </div>
             </div>
-            <button
-              type="button"
-              className="btn-secondary notice__dismiss"
-              onClick={onDismissAttention}
-              aria-label="要対応の通知を閉じる"
-            >
-              確認した
-            </button>
+            <div className="notice__urgent-actions">
+              {attentionGuidance.focusTerminal && (
+                <button
+                  type="button"
+                  className="btn-secondary notice__focus-terminal"
+                  onClick={onFocusTerminal}
+                >
+                  {attentionGuidance.focusLabel}
+                </button>
+              )}
+              <button
+                type="button"
+                className="btn-secondary notice__dismiss"
+                onClick={onDismissAttention}
+                aria-label="要対応の通知を確認済みにする"
+              >
+                {attentionGuidance.dismissLabel}
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -96,12 +118,18 @@ export function Notices({
         <div className="notice notice--error panel">
           <div className="notice__title">プロファイルエラー</div>
           <div className="notice__body">{profileError}</div>
+          <div className="notice__next-action">
+            次の操作：起動設定のコマンドと作業フォルダを見直し、「セッション起動」を再実行してください。
+          </div>
         </div>
       )}
       {ptyError && (
         <div className="notice notice--error panel">
           <div className="notice__title">PTYエラー</div>
           <div className="notice__body">{ptyError}</div>
+          <div className="notice__next-action">
+            次の操作：接続状態を確認し、左上の「セッション起動」を再実行してください。直らない場合は Desktop Server の詳細を開き、Retry Start を押してください。
+          </div>
         </div>
       )}
     </div>

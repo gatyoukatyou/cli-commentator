@@ -20,6 +20,7 @@ interface AnthropicRequest {
 }
 
 interface AnthropicResponse {
+  model?: string;
   content?: Array<{ type?: string; text?: string }>;
   usage?: {
     input_tokens?: number;
@@ -138,6 +139,7 @@ export function createAnthropicAdapter(
 
       return {
         text,
+        model: data.model ?? body.model,
         usage: data.usage
           ? {
               inputTokens: data.usage.input_tokens,

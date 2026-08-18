@@ -2,6 +2,7 @@ export type ServerRuntimeState =
   | "booting"
   | "starting"
   | "pty_running"
+  | "pty_idle"
   | "file_running"
   | "restarting"
   | "failed"

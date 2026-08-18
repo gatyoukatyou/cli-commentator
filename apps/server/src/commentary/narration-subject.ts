@@ -31,9 +31,8 @@ export type NarrationSubject =
 export const NONE: NarrationSubject = { kind: "none" };
 
 /**
- * Speech for `progress` events is capped at 30 characters by the speech
- * contract, and anything longer is replaced by a generic fallback. Subjects are
- * clipped here so a long path never costs the sentence its subject entirely.
+ * Subjects are clipped here so a long path remains readable in the shared
+ * narration used by both the commentary card and normal speech.
  */
 const MAX_FILE_NAME_LENGTH = 18;
 const MAX_SEARCH_TERM_LENGTH = 20;

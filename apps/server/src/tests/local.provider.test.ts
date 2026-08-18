@@ -186,6 +186,7 @@ describe("createLocalAdapter", () => {
     });
 
     expect(result.text).toBe("vLLM response");
+    expect(result.model).toBe("Qwen/Qwen2.5-7B-Instruct");
     expect(fetch).toHaveBeenCalledWith(
       "http://localhost:8000/v1/chat/completions",
       expect.anything()

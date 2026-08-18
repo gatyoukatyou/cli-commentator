@@ -110,8 +110,18 @@ export function useTTS({ commentaryDisplayMode }: UseTTSOptions) {
       pending.latest.speech
     );
     if (!speechText) return;
-    // notice（完了/沈黙）は進行中の発話を止めずキュー末尾、progressは従来のcancel方式
-    speakWithPriority(speechText, pending.latest.priority ?? "progress", ttsSettingsRef.current);
+    const queueClass =
+      pending.latest.eventType === "stdout" && pending.latest.summary === "長考・沈黙が続いている"
+        ? "heartbeat"
+        : "normal";
+    // notice（完了）は進行中の発話を止めずキューへ追加し、heartbeatは通常実況の後ろへ送る。
+    speakWithPriority(
+      speechText,
+      pending.latest.priority ?? "progress",
+      ttsSettingsRef.current,
+      "ja-JP",
+      queueClass
+    );
   }, [commentaryDisplayMode]);
 
   const schedulePendingSpeech = useCallback(() => {

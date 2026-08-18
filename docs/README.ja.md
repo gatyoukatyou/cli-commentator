@@ -17,6 +17,7 @@
 ## ローカル利用・開発起動
 
 - [Getting Started](getting-started.ja.md)
+- [HUMANユーザーテストガイド](human-user-test-guide.ja.md)
 - [手動テストチェックシート（内部検証）](manual-test-checklist.ja.md)
 
 ## 配布・リリース運用

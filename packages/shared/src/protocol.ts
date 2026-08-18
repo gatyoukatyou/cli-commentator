@@ -122,6 +122,11 @@ export type LaunchSessionInput = {
   logSource?: SourceMode;
 };
 
+export type PtySize = {
+  cols: number;
+  rows: number;
+};
+
 export type WsOutgoing =
   | { kind: "hello"; style: Style; source: SourceState }
   | { kind: "style"; style: Style }
@@ -142,6 +147,7 @@ export type WsIncoming =
   | { kind: "setStyle"; style: Style }
   | { kind: "launchSession"; session: LaunchSessionInput }
   | { kind: "writeInput"; data: string }
+  | ({ kind: "resizePty" } & PtySize)
   | { kind: "getProfiles" }
   | { kind: "getProfile"; id: string }
   | { kind: "saveProfile"; profile: CreateProfileInput & { id?: string } }

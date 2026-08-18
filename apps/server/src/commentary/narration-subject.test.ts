@@ -12,9 +12,6 @@ function event(type: EventType, detail?: string): Event {
   return { ts: 0, type, summary: "テスト用", detail };
 }
 
-/** Mirrors MAX_PROGRESS_SPEECH_LENGTH in speech-policy.ts. */
-const MAX_PROGRESS_SPEECH_LENGTH = 30;
-
 describe("describeNarrationSubject", () => {
   it("names the file a read touches", () => {
     const subject = describeNarrationSubject(event("read", "⏺ Read(apps/web/src/App.tsx)"));
@@ -145,27 +142,29 @@ describe("narration with a subject", () => {
     }
   });
 
-  // Speech for progress events is replaced by a generic fallback above this
-  // length, which would undo the point of naming the subject.
-  it.each(cases)("stays within the progress speech budget (%s)", (type, detail) => {
+  it.each(cases)("uses the visible subject narration for speech (%s)", (type, detail) => {
     const ev = event(type, detail);
-    const subject = describeNarrationSubject(ev);
-    for (const comment of [commentStandard, commentKansai, commentZundamon]) {
-      expect(comment(ev, subject).length).toBeLessThanOrEqual(MAX_PROGRESS_SPEECH_LENGTH);
+    const context = createSessionContext();
+    const snapshot = context.observeEvent(ev);
+    for (const style of ["standard", "kansai", "zundamon"] as const) {
+      const payload = commentByRules(ev, style, snapshot);
+      expect(payload.narration).toBeTruthy();
+      expect(applySpeechContract(payload, ev, snapshot).speech?.text).toBe(payload.narration);
     }
   });
 
-  it("keeps a long file name inside the budget by clipping it", () => {
+  it("keeps a clipped long file target identical on screen and in speech", () => {
     const ev = event("write", "⏺ Update(apps/server/src/commentary/an-extremely-long-module-name.ts)");
-    const subject = describeNarrationSubject(ev);
-    expect(subject).toMatchObject({ kind: "file" });
-    expect(commentStandard(ev, subject).length).toBeLessThanOrEqual(MAX_PROGRESS_SPEECH_LENGTH);
+    const context = createSessionContext();
+    const snapshot = context.observeEvent(ev);
+    const payload = commentByRules(ev, "standard", snapshot);
+    expect(payload.narration).toContain("an-extremely-long");
+    expect(applySpeechContract(payload, ev, snapshot).speech?.text).toBe(payload.narration);
   });
 
-  // Regression: the phase-change line carries the full path, overruns the
-  // progress speech budget, and is then replaced by a generic fallback — so the
-  // event that introduces a target used to be the one that failed to name it.
-  it("keeps the subject on a phase change and stays speakable", () => {
+  // Regression: the phase-change line carries the full path. It must remain
+  // the same on screen and in normal speech instead of taking a fallback path.
+  it("keeps the subject on a phase change in both channels", () => {
     const event: Event = {
       ts: 1,
       type: "write",
@@ -180,13 +179,33 @@ describe("narration with a subject", () => {
     expect(payload.narration).toContain("speech-policy.ts");
 
     const spoken = applySpeechContract(payload, event, snapshot).speech?.text;
-    expect(spoken).toContain("speech-policy.ts");
+    expect(spoken).toBe(payload.narration);
   });
 
   it("falls back to the type-level sentence when nothing is identified", () => {
     const ev = event("read");
     expect(commentStandard(ev, describeNarrationSubject(ev))).toBe(
       "ファイルを読んで状況を確認しています。"
+    );
+  });
+
+  it("describes silent waiting without claiming an unknown target is being handled", () => {
+    const waitingEvent: Event = {
+      ts: 1,
+      type: "stdout",
+      summary: "長考・沈黙が続いている",
+      detail: "60000ms outputなし",
+    };
+    const context = createSessionContext();
+    context.setTaskContext({ objective: "動作を確認する", source: "fixture" });
+    context.observeEvent(event("search", "rg context src"));
+    const snapshot = context.observeEvent(waitingEvent);
+
+    const payload = commentByRules(waitingEvent, "kansai", snapshot);
+    expect(payload.narration).toContain("次の出力を待ってる");
+    expect(payload.narration).not.toContain("対象を扱ってる");
+    expect(payload.explanation).toBe(
+      "エラーではありません。処理を続けながら、次の出力を待っている状態です。"
     );
   });
 });

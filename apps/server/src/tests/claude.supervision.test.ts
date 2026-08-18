@@ -73,6 +73,44 @@ describe("Claude TUI supervision detection", () => {
     ]);
   });
 
+  it("distinguishes historical failure prose from a current error", () => {
+    expect(extractEvents("The previous attempt failed, so I changed the approach.", "claude")).toEqual([]);
+  });
+
+  it.each([
+    "Error: the current command failed.",
+    "TypeError: Cannot read properties of undefined",
+    "ReferenceError: value is not defined",
+    "SyntaxError: Unexpected token",
+    "Tests: 2 failed, 5 passed",
+    "Test Files  1 failed (1)",
+    "✖ 3 problems (3 errors, 0 warnings)",
+    "Process exited with code 1",
+  ])("detects a structured current error: %s", (line) => {
+    expect(extractEvents(line, "claude")).toEqual([
+      expect.objectContaining({ type: "error", summary: "エラーが出ている" }),
+    ]);
+  });
+
+  it.each([
+    "Tests: 0 failed, 7 passed",
+    "Test Files  0 failed (7)",
+    "✖ 3 problems (0 errors, 3 warnings)",
+    "Process exited with code 0",
+  ])("does not detect a zero-failure summary: %s", (line) => {
+    expect(extractEvents(line, "claude")).toEqual([]);
+  });
+
+  it("does not treat a HUMAN input prompt as an error", () => {
+    expect(extractEvents(loadChunks("question.json"), "claude")).toEqual([
+      expect.objectContaining({ type: "stdout", summary: "質問への回答を待っている" }),
+    ]);
+  });
+
+  it("does not treat a warning-only line as an error", () => {
+    expect(extractEvents("Warning: this option is deprecated.", "claude")).toEqual([]);
+  });
+
   it.each([
     "The documentation explains when approval is required.",
     "The task is complete only after a reviewer approves it.",
