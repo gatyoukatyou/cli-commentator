@@ -61,14 +61,18 @@ release artifacts and the checks required before merging a workflow update:
 
 - `.app.tar.gz` and matching `.app.tar.gz.sig` assets include the app version in
   their filenames. Do not assume the previous unversioned basename.
-- With the current `tagName` input, each `latest.json` platform URL points to
-  the versioned asset in the tagged release (`releases/download/<tag>/<asset>`).
-  The updater endpoint that downloads `latest.json` remains
-  `releases/latest/download/latest.json`; validate the URLs inside the file
-  against the actual assets.
-- When `tagName` refers to an existing release, `releaseDraft` must match that
-  release's state. Using `releaseDraft: true` against an existing non-Draft
-  release fails; do not reuse such a tag for a Draft update.
+- In the 2026-08-17 Unsigned Smoke for this PR, each `latest.json` platform URL
+  used the GitHub release-asset API form
+  (`https://api.github.com/repos/gatyoukatyou/cli-commentator/releases/assets/<asset-id>`),
+  not the browser download form (`releases/download/<tag>/<asset>`). Treat the
+  URLs in `latest.json` as the source of truth when validating the assets.
+- The existing updater endpoint that downloads `latest.json` is unchanged in
+  `apps/desktop/src-tauri/tauri.conf.json`:
+  `https://github.com/gatyoukatyou/cli-commentator/releases/latest/download/latest.json`.
+  This endpoint is separate from the platform URLs inside `latest.json`.
+- This Smoke created a new Draft and prerelease. Do not generalize Draft
+  Release behavior from this run; inspect the release state and `latest.json`
+  when validating a run.
 
 The current workflow change is limited to the action version. The Unsigned
 Smoke gate below is still required before merging it.

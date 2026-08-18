@@ -60,15 +60,19 @@ signed/unsigned release branches、署名・notarization 入力、updater 設定
 
 - `.app.tar.gz` と対応する `.app.tar.gz.sig` のファイル名にアプリ版数が
   含まれます。以前の版数なしbasenameを前提にしないでください。
-- 現在のworkflowは `tagName` を渡すため、`latest.json` の各platform URLは
-  タグ付きrelease内の版数入りasset（`releases/download/<tag>/<asset>`）を
-  指します。`latest.json` 自体を取得するupdater endpointは
-  `releases/latest/download/latest.json` のままです。ファイル内のURLを実際の
-  assetと照合してください。
-- `tagName` が既存releaseを指す場合、`releaseDraft` はそのreleaseの状態と
-  一致している必要があります。既存の非Draft releaseに
-  `releaseDraft: true` を指定すると失敗するため、そのtagをDraft更新に
-  再利用しないでください。
+- このPRの2026-08-17 Unsigned Smokeでは、`latest.json` の各platform URLは
+  GitHubのrelease asset API形式
+  （`https://api.github.com/repos/gatyoukatyou/cli-commentator/releases/assets/<asset-id>`）
+  でした。ブラウザのダウンロード形式（`releases/download/<tag>/<asset>`）では
+  ありません。assetを確認するときは、`latest.json` に記録されたURLを実測値
+  として扱ってください。
+- `latest.json` 自体を取得する既存のUpdater endpointは、
+  `apps/desktop/src-tauri/tauri.conf.json` と同じく
+  `https://github.com/gatyoukatyou/cli-commentator/releases/latest/download/latest.json`
+  です。このendpointは、`latest.json` 内のplatform URLとは別です。
+- 今回のSmokeでは新しいDraftかつprereleaseが生成されました。Draft Release固有の
+  挙動をこの1回の結果から一般化せず、実行ごとにreleaseの状態と`latest.json`を
+  確認してください。
 
 今回のworkflow変更はactionの版数更新だけです。マージ前には、下記の
 Unsigned Smoke gateを実施する必要があります。
