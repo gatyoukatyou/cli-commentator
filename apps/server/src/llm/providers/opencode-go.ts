@@ -27,5 +27,6 @@ export function createOpenCodeGoAdapter(
     model: env.OPENCODE_GO_MODEL || DEFAULT_OPENCODE_GO_MODEL,
     defaultMaxTokens: 256,
     defaultTemperature: 0.7,
+    thinking: { type: "disabled" },
   });
 }

@@ -38,6 +38,7 @@ describe("createOpenCodeGoAdapter", () => {
     );
     const body = JSON.parse(vi.mocked(fetch).mock.calls[0][1]?.body as string);
     expect(body.model).toBe(DEFAULT_OPENCODE_GO_MODEL);
+    expect(body.thinking).toEqual({ type: "disabled" });
   });
 
   it("accepts a custom model", async () => {
@@ -58,6 +59,7 @@ describe("createOpenCodeGoAdapter", () => {
     );
     const body = JSON.parse(vi.mocked(fetch).mock.calls[0][1]?.body as string);
     expect(body.model).toBe("kimi-k3");
+    expect(body.thinking).toEqual({ type: "disabled" });
   });
 });
 

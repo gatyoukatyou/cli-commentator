@@ -71,6 +71,7 @@ Options:
 
 Environment Variables:
   COMMENT_TIMEOUT_MS    LLM call timeout (default: 3000)
+  COMMENT_EXIT_TIMEOUT_MS  Exit cleanup wait (default: 10000)
 
 Exit Codes:
   0   LLM responded successfully
@@ -150,6 +151,7 @@ get_timeout_cmd() {
 run_smoke() {
   local provider=$1
   local timeout_ms=${COMMENT_TIMEOUT_MS:-3000}
+  local exit_timeout_ms=${COMMENT_EXIT_TIMEOUT_MS:-10000}
   local tmplog
   tmplog=$(mktemp)
 
@@ -160,7 +162,7 @@ run_smoke() {
   log "Checking environment..."
   check_env "$provider"
 
-  log "Starting server (COMMENT_TIMEOUT_MS=${timeout_ms})..."
+  log "Starting server (COMMENT_TIMEOUT_MS=${timeout_ms}, COMMENT_EXIT_TIMEOUT_MS=${exit_timeout_ms})..."
 
   # Export configuration
   export DEBUG=1
@@ -168,7 +170,7 @@ run_smoke() {
   export TARGET_CMD="echo"
   export TARGET_ARGS="hello-smoke-test"
   export COMMENT_TIMEOUT_MS="$timeout_ms"
-  export COMMENT_EXIT_TIMEOUT_MS="2000"
+  export COMMENT_EXIT_TIMEOUT_MS="$exit_timeout_ms"
 
   local timeout_cmd
   timeout_cmd=$(get_timeout_cmd)

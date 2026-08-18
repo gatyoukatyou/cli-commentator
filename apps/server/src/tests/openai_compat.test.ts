@@ -67,6 +67,14 @@ describe("createOpenAICompatAdapter", () => {
         },
       })
     );
+
+    const body = JSON.parse(vi.mocked(fetch).mock.calls[0][1]?.body as string);
+    expect(body).toEqual({
+      model: "gpt-4",
+      messages: [{ role: "user", content: "Hi" }],
+      max_tokens: 256,
+      temperature: 0.7,
+    });
   });
 
   it("throws comment_llm_error on API error response", async () => {
