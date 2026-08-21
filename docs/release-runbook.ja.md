@@ -115,6 +115,12 @@
   - `.p12` を base64 化して `APPLE_CERTIFICATE` に登録
   - `.p12` export password を変える場合は `APPLE_CERTIFICATE_PASSWORD` も同時更新
 
+## 0.9) v0.2.2 内部Smoke準備（2026-08-22）
+
+- デスクトップ版数4か所を `0.2.2` に統一してから、内部Smoke用のDraft PRで検証する。
+- 内部Smokeでは `v0.0.0-smoke.YYYYMMDD-HHMMSS` 形式のタグを使う。版数準備PRではタグを作成しない。
+- v0.2.2実機smokeの合格は公開許可ではない。signed/notarized配布は引き続きIssue `#138` の解消を待つ。
+
 ## 1) リリース前チェック（必須）
 
 ### 1-1. ローカル検証
