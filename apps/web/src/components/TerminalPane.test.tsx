@@ -11,7 +11,7 @@ type FakeTerminalInstance = {
   cols: number;
   rows: number;
   disposed: boolean;
-  options: { theme: TerminalPaneTheme };
+  options: { minimumContrastRatio: number; theme: TerminalPaneTheme };
   textarea: HTMLTextAreaElement;
   written: string;
 };
@@ -26,12 +26,15 @@ vi.mock("xterm", () => {
     rows = 30;
     buffer = { active: { baseY: 0, viewportY: 0 } };
     disposed = false;
-    options: { theme: TerminalPaneTheme };
+    options: { minimumContrastRatio: number; theme: TerminalPaneTheme };
     textarea = document.createElement("textarea");
     written = "";
 
-    constructor(options: { theme: TerminalPaneTheme }) {
-      this.options = { theme: options.theme };
+    constructor(options: { minimumContrastRatio: number; theme: TerminalPaneTheme }) {
+      this.options = {
+        minimumContrastRatio: options.minimumContrastRatio,
+        theme: options.theme,
+      };
       xtermState.instances.push(this);
     }
 
@@ -143,6 +146,7 @@ describe("TerminalPane", () => {
     expect(terminal.disposed).toBe(false);
     expect(terminal.written).toContain("history-before-skin-change");
     expect(terminal.options.theme).toEqual(STANDARD_TERMINAL_THEME);
+    expect(terminal.options.minimumContrastRatio).toBe(4.5);
     expect(terminal.cols).toBe(100);
     expect(terminal.rows).toBe(30);
 

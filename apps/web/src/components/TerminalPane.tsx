@@ -127,6 +127,8 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(function 
       fontFamily: "var(--font-mono)",
       fontSize: 13,
       lineHeight: 1.35,
+      // Keep dark ANSI foregrounds emitted by nested TUIs readable on our dark surface.
+      minimumContrastRatio: 4.5,
       scrollback: 5000,
       theme: initialThemeRef.current,
     });
