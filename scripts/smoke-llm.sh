@@ -20,7 +20,7 @@ set -eo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
-VALID_PROVIDERS="openai groq gemini anthropic local mock"
+VALID_PROVIDERS="openai opencode-go groq gemini anthropic local mock"
 
 get_external_env_file() {
   if [[ -n "${CLI_COMMENTATOR_ENV_FILE:-}" ]]; then
@@ -71,6 +71,7 @@ Options:
 
 Environment Variables:
   COMMENT_TIMEOUT_MS    LLM call timeout (default: 3000)
+  COMMENT_EXIT_TIMEOUT_MS  Exit cleanup wait (default: 10000)
 
 Exit Codes:
   0   LLM responded successfully
@@ -93,6 +94,7 @@ get_required_env() {
   local provider=$1
   case "$provider" in
     openai) echo "OPENAI_API_KEY" ;;
+    opencode-go) echo "OPENCODE_GO_API_KEY" ;;
     groq) echo "GROQ_API_KEY" ;;
     gemini) echo "GOOGLE_API_KEY" ;;
     anthropic) echo "ANTHROPIC_API_KEY" ;;
@@ -149,6 +151,7 @@ get_timeout_cmd() {
 run_smoke() {
   local provider=$1
   local timeout_ms=${COMMENT_TIMEOUT_MS:-3000}
+  local exit_timeout_ms=${COMMENT_EXIT_TIMEOUT_MS:-10000}
   local tmplog
   tmplog=$(mktemp)
 
@@ -159,7 +162,7 @@ run_smoke() {
   log "Checking environment..."
   check_env "$provider"
 
-  log "Starting server (COMMENT_TIMEOUT_MS=${timeout_ms})..."
+  log "Starting server (COMMENT_TIMEOUT_MS=${timeout_ms}, COMMENT_EXIT_TIMEOUT_MS=${exit_timeout_ms})..."
 
   # Export configuration
   export DEBUG=1
@@ -167,7 +170,7 @@ run_smoke() {
   export TARGET_CMD="echo"
   export TARGET_ARGS="hello-smoke-test"
   export COMMENT_TIMEOUT_MS="$timeout_ms"
-  export COMMENT_EXIT_TIMEOUT_MS="2000"
+  export COMMENT_EXIT_TIMEOUT_MS="$exit_timeout_ms"
 
   local timeout_cmd
   timeout_cmd=$(get_timeout_cmd)
@@ -209,7 +212,7 @@ run_smoke() {
 }
 
 run_all() {
-  local providers="openai groq gemini anthropic local mock"
+  local providers="openai opencode-go groq gemini anthropic local mock"
   local results=""
   local any_failure=0
 

@@ -9,6 +9,9 @@ export interface OpenAICompatConfig {
   model: string;
   defaultMaxTokens?: number;
   defaultTemperature?: number;
+  thinking?: {
+    type: "disabled";
+  };
 }
 
 interface OpenAIChatCompletionResponse {
@@ -50,6 +53,7 @@ export function createOpenAICompatAdapter(config: OpenAICompatConfig): LLMAdapte
     model,
     defaultMaxTokens = 256,
     defaultTemperature = 0.7,
+    thinking,
   } = config;
 
   return {
@@ -71,6 +75,7 @@ export function createOpenAICompatAdapter(config: OpenAICompatConfig): LLMAdapte
         })),
         max_tokens: req.maxTokens ?? defaultMaxTokens,
         temperature: req.temperature ?? defaultTemperature,
+        ...(thinking ? { thinking } : {}),
       };
 
       let response: Response;

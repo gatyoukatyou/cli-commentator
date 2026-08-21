@@ -6,8 +6,9 @@ import { createGroqAdapter } from "./providers/groq.js";
 import { createLocalAdapter } from "./providers/local.js";
 import { createGeminiAdapter } from "./providers/gemini.js";
 import { createAnthropicAdapter } from "./providers/anthropic.js";
+import { createOpenCodeGoAdapter } from "./providers/opencode-go.js";
 
-const VALID_PROVIDERS = ["disabled", "mock", "openai", "groq", "local", "anthropic", "gemini"] as const;
+const VALID_PROVIDERS = ["disabled", "mock", "openai", "opencode-go", "groq", "local", "anthropic", "gemini"] as const;
 
 export function createLLMAdapter(env: Record<string, string | undefined> = process.env): LLMAdapter {
   const provider = env.LLM_PROVIDER?.toLowerCase() ?? "";
@@ -22,6 +23,10 @@ export function createLLMAdapter(env: Record<string, string | undefined> = proce
 
   if (provider === "openai") {
     return createOpenAIAdapter(env);
+  }
+
+  if (provider === "opencode-go") {
+    return createOpenCodeGoAdapter(env);
   }
 
   if (provider === "groq") {

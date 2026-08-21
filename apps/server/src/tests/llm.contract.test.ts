@@ -22,6 +22,10 @@ const PROVIDERS = [
     env: { LLM_PROVIDER: "openai", OPENAI_API_KEY: "test-key" },
   },
   {
+    name: "opencode-go",
+    env: { LLM_PROVIDER: "opencode-go", OPENCODE_GO_API_KEY: "test-key" },
+  },
+  {
     name: "groq",
     env: { LLM_PROVIDER: "groq", GROQ_API_KEY: "test-key" },
   },
@@ -43,6 +47,7 @@ const PROVIDERS = [
 function getMockSuccessResponse(providerName: string): unknown {
   switch (providerName) {
     case "openai":
+    case "opencode-go":
     case "groq":
     case "local":
       return {
@@ -67,6 +72,7 @@ function getMockSuccessResponse(providerName: string): unknown {
 function getMockEmptyResponse(providerName: string): unknown {
   switch (providerName) {
     case "openai":
+    case "opencode-go":
     case "groq":
     case "local":
       return { choices: [] };
@@ -82,6 +88,7 @@ function getMockEmptyResponse(providerName: string): unknown {
 function getMockHttpErrorResponse(providerName: string): unknown {
   switch (providerName) {
     case "openai":
+    case "opencode-go":
     case "groq":
     case "local":
       return { error: { message: "Unauthorized" } };

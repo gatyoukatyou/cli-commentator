@@ -44,6 +44,7 @@ function missingProviderCredential(provider: string): string | undefined {
     anthropic: "ANTHROPIC_API_KEY",
     openai: "OPENAI_API_KEY",
     groq: "GROQ_API_KEY",
+    "opencode-go": "OPENCODE_GO_API_KEY",
   };
   const name = required[provider];
   return name && !process.env[name] ? name : undefined;
