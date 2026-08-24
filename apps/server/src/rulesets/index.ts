@@ -1,10 +1,11 @@
 import type { Rule, RuleSet, RuleSetId } from "./types.js";
 import { claudeRuleset } from "./claude.js";
 import { codexRuleset } from "./codex.js";
+import { hermesRuleset } from "./hermes.js";
 import { genericRuleset } from "./generic.js";
 import { createAutoDetector } from "./detect.js";
 
-const RULESETS: RuleSet[] = [codexRuleset, claudeRuleset, genericRuleset];
+const RULESETS: RuleSet[] = [codexRuleset, claudeRuleset, hermesRuleset, genericRuleset];
 const RULESET_MAP = new Map<string, RuleSet>(RULESETS.map((ruleset) => [ruleset.id, ruleset]));
 const SORTED_RULES = new Map<string, Rule[]>();
 

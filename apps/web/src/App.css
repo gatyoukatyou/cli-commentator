@@ -187,6 +187,10 @@
   margin-bottom: var(--space-1);
 }
 
+.launcher-panel__header {
+  align-items: center;
+}
+
 .launcher-panel__title,
 .terminal-panel__title {
   font-weight: var(--font-bold);
@@ -213,6 +217,32 @@
 .launcher-panel__hint,
 .launcher-panel__meta {
   font-size: var(--text-xs);
+}
+
+.launcher-panel__collapsed-status {
+  margin-top: 2px;
+  color: var(--color-fg-secondary);
+  font-size: var(--text-xs);
+}
+
+.launcher-panel__toggle {
+  flex: 0 0 auto;
+  padding: 3px 8px;
+  border: var(--btn-border);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-fg-secondary);
+  font-size: var(--text-xs);
+}
+
+.launcher-panel__toggle:hover {
+  border-color: var(--color-border-strong);
+  color: var(--color-fg-primary);
+}
+
+.launcher-panel--collapsed {
+  align-content: center;
+  min-height: 0;
 }
 
 .launcher-panel__toolbar {
@@ -368,6 +398,7 @@
   display: flex;
   gap: var(--space-2);
   align-items: center;
+  flex-wrap: wrap;
 }
 
 .terminal-panel__input-status {

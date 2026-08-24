@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { Profile, Style, SourceMode, InputMode, ProviderName } from "../types";
+import { SOURCE_LABELS } from "../lib/source-label";
 
 type ProfileInput = {
   id?: string;
@@ -31,9 +32,10 @@ const STYLES: { value: Style; label: string }[] = [
 
 const LOG_SOURCES: { value: SourceMode; label: string }[] = [
   { value: "auto", label: "自動検出" },
-  { value: "claude", label: "Claude Code" },
-  { value: "codex", label: "Codex" },
-  { value: "generic", label: "汎用" },
+  { value: "claude", label: SOURCE_LABELS.claude },
+  { value: "codex", label: SOURCE_LABELS.codex },
+  { value: "hermes", label: SOURCE_LABELS.hermes },
+  { value: "generic", label: SOURCE_LABELS.generic },
 ];
 
 const INPUT_MODES: { value: InputMode; label: string }[] = [

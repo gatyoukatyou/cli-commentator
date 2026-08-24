@@ -46,6 +46,7 @@ import {
   type ServerStateEventContextInput,
 } from "./runtime/state-event.js";
 import { isStyle, normalizeSource } from "./shared/validation.js";
+import { detectSourceFromCommand } from "./rulesets/detect.js";
 import { createPtyCapture } from "./pty/capture.js";
 import { createSilenceTimer, parseSilenceTimeoutMs } from "./silence-timer.js";
 import { createCommentaryGate, withEventPriority } from "./event-priority.js";
@@ -323,6 +324,17 @@ function createAdHocPTYConfig(input: LaunchSessionInput): PTYConfig {
   return { cmd, args, cwd };
 }
 
+function isHermesCommand(cmd: string): boolean {
+  return detectSourceFromCommand(cmd) === "hermes";
+}
+
+function formatStartEventDetail(config: PTYConfig): string {
+  // Hermes chat arguments may contain the user's full prompt. Keep that out of
+  // the event/commentary stream while retaining the useful launcher identity.
+  if (isHermesCommand(config.cmd)) return "Hermes Agent";
+  return `${config.cmd} ${config.args.join(" ")}`.trim();
+}
+
 async function launchAdHocSession(input: LaunchSessionInput): Promise<void> {
   initialStartDelivery.invalidate();
   commentaryGeneration.invalidate();
@@ -501,7 +513,7 @@ function setupPTY(
   const generation = commentaryGeneration.invalidate();
   sessionContext.reset({
     presetName: sessionOptions?.presetName,
-    acceptsHumanInput: /(?:^|[/\\])(?:codex|claude)(?:$|\s)/i.test(config.cmd),
+    acceptsHumanInput: /(?:^|[/\\])(?:codex|claude|hermes)(?:$|\s)/i.test(config.cmd),
   });
   commentaryGate.reset();
   resetExtractionState();
@@ -522,6 +534,8 @@ function setupPTY(
   if (sourceState.mode === "auto") {
     resetAutoDetection();
     sourceState.detected = null;
+    const commandSource = detectSourceFromCommand(config.cmd);
+    if (commandSource) broadcastSource(commandSource);
   }
 
   // Process and broadcast data using common pipeline
@@ -599,7 +613,7 @@ function setupPTY(
     ts: Date.now(),
     type: "start",
     summary: "開始",
-    detail: `${config.cmd} ${config.args.join(" ")}`,
+    detail: formatStartEventDetail(config),
   });
   const context = sessionContext.observeEvent(startEvent);
   const initialStart = initialStartDelivery.begin(

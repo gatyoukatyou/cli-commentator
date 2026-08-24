@@ -191,6 +191,25 @@ codex --no-alt-screen -C /Users/home/AION_Project/repos/n8n-workflows -c log_dir
 - `pnpm dev:codex:file` はこのログを空にしてから `INPUT_MODE=file` / `LOG_SOURCE=codex` で起動します。
 - UI の保存済みプロファイルでも `入力モード=file` と `ログファイル=<上記ログファイル>` を直接保存できます。
 
+### 2-d) Hermes Agent をターミナルで実況
+
+Hermes Agent はTUI（ターミナル画面）として動作し、ANSIカラー、ボックス描画、ストリーミングのツール表示を使います。cli-commentator はこれらを整理して、入力待ち、モデル応答、terminal / web / skillsツール、承認待ち、スラッシュコマンド、完了、中断、エラーを短いイベントとして実況します。
+
+起動プリセットまたは次の環境変数で、Hermesを明示指定できます。
+
+```bash
+LOG_SOURCE=hermes TARGET_CMD=hermes pnpm dev:server
+```
+
+次のコマンドも同じHermes rulesetで扱えます。
+
+```bash
+LOG_SOURCE=hermes TARGET_CMD=hermes TARGET_ARGS="--tui" pnpm dev:server
+LOG_SOURCE=hermes TARGET_CMD=hermes TARGET_ARGS_JSON='["chat","-q","Hello"]' pnpm dev:server
+```
+
+`LOG_SOURCE=auto` では、`Hermes Agent` / `hermes-agent`、HermesのCLI案内、TUIのツールフィードやスラッシュコマンドの組み合わせを確認してから自動判定します。一般文中の `hermes`、ボックス描画だけ、単独のスラッシュコマンドだけではHermesと判定しません。
+
 ### 3) 自動フォールバック（`pty` -> `file`）
 
 `INPUT_MODE=pty` で PTY 初期化に失敗した場合:
@@ -210,7 +229,7 @@ codex --no-alt-screen -C /Users/home/AION_Project/repos/n8n-workflows -c log_dir
 - `INPUT_MODE`（`pty` or `file`）
 - `INPUT_FILE`（`INPUT_MODE=file` で必須）
 - `TARGET_CMD`, `TARGET_ARGS`, `TARGET_ARGS_JSON`, `TARGET_CWD`
-- `LOG_SOURCE`（`auto|claude|codex|generic`）
+- `LOG_SOURCE`（`auto|claude|codex|hermes|generic`。HermesのTUIはANSI除去後に自動検出または明示指定できます）
 - `SILENCE_TIMEOUT_MS`（無出力を長考・沈黙として通知するまでの時間。ミリ秒、既定: `60000`）
 
 Web 側（server port と合わせる、主にWebモードで利用）:

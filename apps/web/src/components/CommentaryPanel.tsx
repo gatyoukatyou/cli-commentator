@@ -2,6 +2,7 @@ import type { Dispatch, SetStateAction } from "react";
 import type { CommentaryItem } from "../lib/log-filter";
 import type { TTSPresetId, TTSSettings } from "../lib/tts";
 import type { CommentaryDisplayMode, SourceState, Style } from "../types";
+import { sourceLabel as getSourceLabel } from "../lib/source-label";
 import { CommentaryLog } from "./CommentaryLog";
 import { TTSSettingsPanel } from "./TTSSettingsPanel";
 
@@ -54,12 +55,12 @@ export function CommentaryPanel({
   onExportTTSLog,
   onResetTTSLog,
 }: CommentaryPanelProps) {
-  const sourceLabel =
+  const sourceDisplay =
     source.mode === "auto"
       ? source.detected
-        ? `auto → ${source.detected}`
+        ? `auto → ${getSourceLabel(source.detected)}`
         : "auto (detecting)"
-      : source.mode;
+      : getSourceLabel(source.mode);
 
   return (
     <div className="workspace-column workspace-column--right">
@@ -69,7 +70,7 @@ export function CommentaryPanel({
             <div className="commentary-panel__title">実況と解説</div>
             <div className="commentary-panel__hint">現在の CLI 出力を整理して右側に表示します。</div>
           </div>
-          <div className="commentary-panel__status">Ruleset: {sourceLabel}</div>
+          <div className="commentary-panel__status">Ruleset: {sourceDisplay}</div>
         </div>
 
         <div className="control-row">

@@ -6,6 +6,7 @@ import { FitAddon } from "xterm-addon-fit";
 import { createTerminalInputGate } from "../lib/terminal-input";
 import { handleTerminalLatestKey, jumpTerminalToLatest } from "../lib/terminal-keyboard";
 import { isAtTerminalLatest } from "../lib/terminal-scroll";
+import { terminalBufferToText } from "../lib/terminal-text";
 import type { TerminalTheme } from "../lib/terminal-theme";
 import type { PtySize } from "../types";
 
@@ -16,6 +17,7 @@ export type TerminalPaneTheme = TerminalTheme;
 export type TerminalPaneHandle = {
   clear: () => void;
   focus: () => void;
+  getText: () => string;
   resetInputGate: () => void;
   write: (data: string) => void;
 };
@@ -101,6 +103,19 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(function 
       },
       focus() {
         terminalRef.current?.focus();
+      },
+      getText() {
+        const terminal = terminalRef.current;
+        if (!terminal) return backlogRef.current;
+
+        const selectedText = terminal.getSelection();
+        if (selectedText) return selectedText;
+
+        const activeText = terminalBufferToText(terminal.buffer.active);
+        if (terminal.buffer.active.type !== "alternate") return activeText;
+
+        const normalText = terminalBufferToText(terminal.buffer.normal);
+        return [normalText, activeText].filter(Boolean).join("\n\n");
       },
       resetInputGate() {
         terminalInputGateRef.current.reset();

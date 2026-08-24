@@ -1,6 +1,6 @@
 import type { EventType } from "../types.js";
 
-export type RuleSetId = "claude" | "codex" | "generic";
+export type RuleSetId = "claude" | "codex" | "hermes" | "generic";
 
 export type Rule = {
   id: string;

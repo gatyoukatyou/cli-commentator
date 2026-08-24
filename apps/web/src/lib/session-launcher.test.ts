@@ -3,7 +3,7 @@ import { LAUNCH_PRESETS, buildLaunchDraft, buildLaunchSessionInput, getLaunchBut
 
 describe("session-launcher", () => {
   it("exposes expected built-in presets", () => {
-    expect(LAUNCH_PRESETS.map((preset) => preset.id)).toEqual(["claude", "codex", "bash", "custom"]);
+    expect(LAUNCH_PRESETS.map((preset) => preset.id)).toEqual(["claude", "codex", "hermes", "bash", "custom"]);
     expect(LAUNCH_PRESETS.find((preset) => preset.recommended)?.id).toBe("claude");
   });
 
@@ -12,6 +12,13 @@ describe("session-launcher", () => {
     expect(draft.cmd).toBe("codex");
     expect(draft.args).toBe("--no-alt-screen");
     expect(draft.logSource).toBe("codex");
+    expect(draft.cwd).toBe("/repo");
+  });
+
+  it("builds Hermes Agent preset with fixed source mode", () => {
+    const draft = buildLaunchDraft("hermes", "standard", "/repo");
+    expect(draft.cmd).toBe("hermes");
+    expect(draft.logSource).toBe("hermes");
     expect(draft.cwd).toBe("/repo");
   });
 

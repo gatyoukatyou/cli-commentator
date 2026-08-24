@@ -107,7 +107,7 @@ cli-commentator/
 | `TARGET_ARGS` | (empty) | CLIへの引数（空白区切り） |
 | `TARGET_ARGS_JSON` | (empty) | CLIへの引数（JSON配列、TARGET_ARGSより優先） |
 | `TARGET_CWD` | (cwd) | 作業ディレクトリ |
-| `LOG_SOURCE` | auto | ルールセット選択 (auto/claude/codex/generic) |
+| `LOG_SOURCE` | auto | ルールセット選択 (auto/claude/codex/hermes/generic) |
 | `LLM_PROVIDER` | disabled | LLMプロバイダー (disabled/mock/openai/groq/local/gemini/anthropic) |
 | `MOCK_LLM_MODE` | (empty) | `error` でmockがエラーを投げる（テスト用） |
 | `COMMENT_TIMEOUT_MS` | 3000 | comment()のLLM呼び出しタイムアウト（ms） |
@@ -242,7 +242,7 @@ pnpm smoke:llm --all
 ## Development Notes
 
 - 実況スタイルはWeb UIから切り替え可能
-- LOG_SOURCE=auto の場合、出力内容から自動でルールセット判定
+- LOG_SOURCE=auto の場合、出力内容から自動でルールセット判定（Hermes Agent のTUIも対象）
 - ローカル端末には生データ、Web UIにはマスク後データを送信
 - macOS には `timeout` コマンドがない。代替方法:
   - `gtimeout`（`brew install coreutils`）

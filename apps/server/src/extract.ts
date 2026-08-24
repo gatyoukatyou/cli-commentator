@@ -3,6 +3,7 @@ import { getAutoDetectedSource, rulesForLine } from "./rulesets/index.js";
 import { isClaudeTuiNoise, isCodexProgressNoise, isCodexTuiAssistantLine, isTerminalRenderingNoise } from "./progress-noise.js";
 import { extractClaudeSupervisionEvents } from "./rulesets/claude-supervision.js";
 import { isCurrentCodexErrorLine } from "./rulesets/codex.js";
+import { extractHermesEvents, resetHermesExtractionState } from "./rulesets/hermes.js";
 import { extractFileListCommand, isFileListExecution, isSearchExecution } from "./command-analysis.js";
 import { ANSI_ESCAPE_RE } from "./terminal-escapes.js";
 
@@ -347,6 +348,7 @@ export function resetExtractionState(): void {
   lastCodexTuiCommand = "";
   lastCodexTuiAssistant = "";
   lastCodexTuiAnswer = "";
+  resetHermesExtractionState();
 }
 
 function normalizeTuiStream(chunk: string): string {
@@ -577,6 +579,10 @@ export function extractEvents(chunk: string, sourceEnv: string | undefined = pro
   if (resolvedSourceId(sourceEnv) === "claude") {
     const supervisionEvents = extractClaudeSupervisionEvents(chunk, ts);
     if (supervisionEvents.length > 0) return supervisionEvents;
+  }
+
+  if (resolvedSourceId(sourceEnv) === "hermes") {
+    return extractHermesEvents(chunk, ts);
   }
 
   const events: Event[] = resolvedSourceId(sourceEnv) === "codex"

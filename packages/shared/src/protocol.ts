@@ -1,5 +1,5 @@
 export type Style = "standard" | "kansai" | "zundamon";
-export type DetectedSource = "claude" | "codex" | "generic";
+export type DetectedSource = "claude" | "codex" | "hermes" | "generic";
 export type SourceMode = "auto" | DetectedSource;
 export type InputMode = "pty" | "file";
 export type SourceState = { mode: SourceMode; detected: DetectedSource | null };

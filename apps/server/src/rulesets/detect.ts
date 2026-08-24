@@ -1,7 +1,14 @@
 import type { RuleSetId } from "./types.js";
 import { ANSI_ESCAPE_RE } from "../terminal-escapes.js";
 
-type Scores = { claude: number; codex: number };
+type Scores = { claude: number; codex: number; hermes: number };
+
+type HermesSignal = "identity" | "cli" | "tool" | "tui" | "slash";
+
+type LineScore = {
+  scores: Scores;
+  hermesSignals: HermesSignal[];
+};
 
 type DetectorOptions = {
   threshold?: number;
@@ -37,9 +44,49 @@ const CODEX_STRONG = [
 const CODEX_MEDIUM = [/^codex$/i, /\bcodex_core::/i];
 const CODEX_WEAK = [/\bELIFECYCLE\b/i, /exit code/i];
 
-function scoreLine(line: string): Scores {
+// A bare `hermes` is common in prose, filenames, and unrelated applications.
+// These patterns require the product name, an actual CLI invocation, or the
+// distinctive tool-feed/TUI wording documented by Hermes itself. Detection
+// still requires two independent signal families (see `decide`).
+const HERMES_IDENTITY = [
+  /\bHermes\s+Agent\b/iu,
+  /(?:^|[\s"'(])hermes-agent(?:\s+(?:v?\d|cli|tui|session|agent)\b|$)/iu,
+];
+const HERMES_CLI = [
+  /(?:^|[\s$>❯])hermes\s+(?:--tui\b|chat\b|--continue\b|--resume\b|-c\b|-r\b|--yolo\b|-w\b)/iu,
+  /\bhermes\s+chat\s+-q\b/iu,
+];
+const HERMES_TOOL = [
+  /(?:^|[┊│|])\s*(?:💻\s*)?terminal\s+`/iu,
+  /(?:^|[┊│|])\s*(?:🔍\s*)?(?:web_search|web_extract)\b/iu,
+  /(?:^|[┊│|])\s*(?:📄\s*)?skills?\b/iu,
+];
+const HERMES_TUI = [
+  /\b(?:terminal backend|working directory|available tools|installed skills)\b/iu,
+  /^\s*[│┃]?\s*(?:tools|skills):\s*(?:terminal|web|skills?)/iu,
+  /\b(?:pondering|contemplating|got it!)\b.*\(\s*\d+(?:\.\d+)?s\s*\)/iu,
+  /⚕\s*[^│|]+[│|].*\b(?:tokens?|context|duration)\b/iu,
+  /^\s*⚕\s*[^│|]+[│|]/iu,
+];
+const HERMES_SLASH = [
+  /^\s*(?:[❯>]\s*)?\/(?:new|reset|model|help|tools|skills|background|skin|voice|reasoning|title|status|context|sessions|verbose|usage|personality|worktree|busy|stop|quit|exit)\b/iu,
+];
+
+/**
+ * The launcher knows the executable that owns the PTY. An exact Hermes
+ * executable name is a stronger signal than a bare word in captured output,
+ * so it may seed auto mode before the TUI paints its first frame.
+ */
+export function detectSourceFromCommand(cmd: string): RuleSetId | null {
+  const executable = cmd.trim().replaceAll("\\", "/").split("/").pop()?.toLowerCase();
+  return executable === "hermes" || executable === "hermes-agent" ? "hermes" : null;
+}
+
+function scoreLine(line: string): LineScore {
   let claude = 0;
   let codex = 0;
+  let hermes = 0;
+  const hermesSignals = new Set<HermesSignal>();
 
   for (const re of CLAUDE_STRONG) {
     if (re.test(line)) claude += STRONG_SCORE;
@@ -58,7 +105,28 @@ function scoreLine(line: string): Scores {
     if (re.test(line)) codex += WEAK_SCORE;
   }
 
-  return { claude, codex };
+  if (HERMES_IDENTITY.some((re) => re.test(line))) {
+    hermes += STRONG_SCORE;
+    hermesSignals.add("identity");
+  }
+  if (HERMES_CLI.some((re) => re.test(line))) {
+    hermes += STRONG_SCORE;
+    hermesSignals.add("cli");
+  }
+  if (HERMES_TOOL.some((re) => re.test(line))) {
+    hermes += STRONG_SCORE;
+    hermesSignals.add("tool");
+  }
+  if (HERMES_TUI.some((re) => re.test(line))) {
+    hermes += MEDIUM_SCORE;
+    hermesSignals.add("tui");
+  }
+  if (HERMES_SLASH.some((re) => re.test(line))) {
+    hermes += MEDIUM_SCORE;
+    hermesSignals.add("slash");
+  }
+
+  return { scores: { claude, codex, hermes }, hermesSignals: [...hermesSignals] };
 }
 
 function normalizeSignalLine(line: string): string {
@@ -69,10 +137,21 @@ function normalizeSignalLine(line: string): string {
     .trim();
 }
 
-function decide(scores: Scores, threshold: number): RuleSetId | null {
-  const diff = Math.abs(scores.claude - scores.codex);
-  if (diff < threshold) return null;
-  return scores.claude > scores.codex ? "claude" : "codex";
+function decide(scores: Scores, threshold: number, hermesSignals: ReadonlySet<HermesSignal>): RuleSetId | null {
+  const hermesEligible =
+    hermesSignals.size >= 2 &&
+    (["identity", "cli", "tool"] as const).some((signal) => hermesSignals.has(signal));
+  const candidates: Array<[RuleSetId, number]> = [
+    ["claude", scores.claude],
+    ["codex", scores.codex],
+  ];
+  if (hermesEligible) candidates.push(["hermes", scores.hermes]);
+
+  candidates.sort(([, scoreA], [, scoreB]) => scoreB - scoreA);
+  const winner = candidates[0];
+  const runnerUp = candidates[1];
+  if (!winner || !runnerUp || winner[1] - runnerUp[1] < threshold) return null;
+  return winner[0];
 }
 
 export function createAutoDetector(options: DetectorOptions = {}) {
@@ -80,7 +159,8 @@ export function createAutoDetector(options: DetectorOptions = {}) {
   const maxLines = options.maxLines ?? MAX_DETECT_LINES;
 
   let detected: RuleSetId | null = null;
-  let scores: Scores = { claude: 0, codex: 0 };
+  let scores: Scores = { claude: 0, codex: 0, hermes: 0 };
+  const hermesSignals = new Set<HermesSignal>();
   let seen = 0;
 
   function update(line: string): RuleSetId | null {
@@ -88,12 +168,14 @@ export function createAutoDetector(options: DetectorOptions = {}) {
 
     const delta = scoreLine(line);
     scores = {
-      claude: scores.claude + delta.claude,
-      codex: scores.codex + delta.codex
+      claude: scores.claude + delta.scores.claude,
+      codex: scores.codex + delta.scores.codex,
+      hermes: scores.hermes + delta.scores.hermes,
     };
+    for (const signal of delta.hermesSignals) hermesSignals.add(signal);
     seen += 1;
 
-    const decided = decide(scores, threshold);
+    const decided = decide(scores, threshold, hermesSignals);
     if (decided) {
       detected = decided;
       return detected;
@@ -113,7 +195,8 @@ export function createAutoDetector(options: DetectorOptions = {}) {
 
   function reset() {
     detected = null;
-    scores = { claude: 0, codex: 0 };
+    scores = { claude: 0, codex: 0, hermes: 0 };
+    hermesSignals.clear();
     seen = 0;
   }
 

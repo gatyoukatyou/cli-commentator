@@ -65,7 +65,7 @@ export const isStyle = (value: unknown): value is Style =>
   value === "standard" || value === "kansai" || value === "zundamon";
 
 export const isSourceMode = (value: unknown): value is SourceMode =>
-  value === "auto" || value === "claude" || value === "codex" || value === "generic";
+  value === "auto" || value === "claude" || value === "codex" || value === "hermes" || value === "generic";
 
 export const isEventType = (value: unknown): value is EventType =>
   typeof value === "string" && EVENT_TYPES.has(value as EventType);
@@ -79,6 +79,7 @@ export const isSourceState = (value: unknown): value is SourceState =>
   (value.detected === null ||
     value.detected === "claude" ||
     value.detected === "codex" ||
+    value.detected === "hermes" ||
     value.detected === "generic");
 
 export const isEvent = (value: unknown): value is Event =>
