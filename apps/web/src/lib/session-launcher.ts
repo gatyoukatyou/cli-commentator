@@ -1,6 +1,6 @@
 import type { LaunchSessionInput, SourceState, Style } from "../types";
 
-export type LaunchPresetId = "bash" | "codex" | "claude" | "custom";
+export type LaunchPresetId = "bash" | "codex" | "claude" | "hermes" | "custom";
 
 export type LaunchDraft = {
   presetId: LaunchPresetId;
@@ -45,6 +45,13 @@ const PRESET_CONFIG: Record<
     logSource: "claude",
     recommended: true,
   },
+  hermes: {
+    label: "Hermes Agent",
+    description: "Hermes Agent TUI を PTY で起動",
+    cmd: "hermes",
+    args: "",
+    logSource: "hermes",
+  },
   custom: {
     label: "Custom",
     description: "任意コマンドを起動",
@@ -54,7 +61,7 @@ const PRESET_CONFIG: Record<
   },
 };
 
-const PRESET_ORDER: LaunchPresetId[] = ["claude", "codex", "bash", "custom"];
+const PRESET_ORDER: LaunchPresetId[] = ["claude", "codex", "hermes", "bash", "custom"];
 
 export const LAUNCH_PRESETS: LaunchPreset[] = PRESET_ORDER.map((id) => ({
   id,

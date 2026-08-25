@@ -1,5 +1,5 @@
 import type { CommentaryMode, CommentaryPayload, Event, Style } from "../types.js";
-import { isCodexProgressNoise } from "../progress-noise.js";
+import { isCodexProgressNoise, isTerminalRenderingNoise } from "../progress-noise.js";
 import { commentStandard } from "../styles/standard.js";
 import { commentKansai } from "../styles/kansai.js";
 import { commentZundamon } from "../styles/zundamon.js";
@@ -16,6 +16,24 @@ const COMMENTERS: Record<Style, (ev: Event, subject: NarrationSubject) => string
 };
 
 const DETAIL_PREVIEW_MAX = 96;
+
+const HERMES_EXPLANATIONS: Record<string, string> = {
+  "Hermes Agentセッションを開始した": "Hermesのセッションを開始し、指示や応答を受け付ける準備をしています。",
+  "Hermesの入力を待っている": "入力待ちです。次の指示を受け取るまで処理は進みません。",
+  "Hermesが応答をストリーミングしている": "モデルの応答を少しずつ受け取り、表示を更新しています。",
+  "ターミナルツールを実行している": "ターミナルの結果を受け取り、次の処理を判断しています。",
+  "Webツールを実行している": "Webから情報を取得し、次の判断材料を集めています。",
+  "スキルを読み込んでいる": "必要なスキルの定義を読み込み、使える手順を確認しています。",
+  "Hermesのコマンドを実行している": "コマンドの実行結果を待ち、処理を続けるか判断しています。",
+  "Hermesの承認を待っている": "安全確認のため、次の操作を実行してよいか入力を待っています。",
+  "Hermesのスラッシュコマンドを実行している": "セッション設定に関わるコマンドを処理しています。",
+  "Hermesの処理を中断した": "ユーザーの中断を受け付け、現在の処理を止めています。",
+  "Hermesの応答が完了した": "応答の生成が一区切りつき、結果を確認できる状態です。",
+  "Hermesセッションを終了した": "Hermesセッションが終了し、処理が止まっています。",
+  "Hermesでエラーが発生している": "Hermesの処理で問題が起き、原因を確認する必要があります。",
+};
+
+const GENERIC_STATUS_CHROME_RE = /^(?:\?\s+for\s+shortcuts|esc\s+to\s+interrupt|try\s+"[^"]*"|manual\s+mode\s+on|connecting…?|[^\p{L}\p{N}]*(?:analyzing|formulating|brainstorming|reflecting|synthesizing|pondering|contemplating|thinking|working)(?:\b|!).*(?:\.\.\.|…).*|\d+\s*s\b.*\box\s+alpha\w*\b.*)$/iu;
 
 function detailPreview(detail?: string): string {
   if (!detail) return "";
@@ -51,6 +69,31 @@ function detailSpotlight(ev: Event, style: Style): string {
   return "";
 }
 
+function isLowValueGenericOutput(ev: Event): boolean {
+  if (ev.type !== "stdout" || ev.summary !== "ログ更新") return false;
+  const detail = ev.detail?.trim() ?? "";
+  // Keep the existing fallback behaviour for a detail-less generic event.
+  // There is no redraw text to identify here, and callers/tests rely on the
+  // ruleset still producing a normal generic narration for it.
+  if (!detail) return false;
+  return (
+    isCodexProgressNoise(detail) ||
+    isTerminalRenderingNoise(detail) ||
+    GENERIC_STATUS_CHROME_RE.test(detail)
+  );
+}
+
+function hermesExplanation(ev: Event): string | undefined {
+  return HERMES_EXPLANATIONS[ev.summary];
+}
+
+function genericOutputExplanation(ev: Event): string | undefined {
+  if (ev.type !== "stdout" || ev.summary !== "ログ更新" || isLowValueGenericOutput(ev)) {
+    return undefined;
+  }
+  if (!ev.detail?.trim()) return undefined;
+  return "CLIからの出力を受け取り、現在の処理状況を確認しています。";
+}
 
 function inferCommentaryMode(payload: CommentaryPayload): CommentaryMode {
   if (payload.narration && payload.explanation) return "both";
@@ -59,11 +102,7 @@ function inferCommentaryMode(payload: CommentaryPayload): CommentaryMode {
 }
 
 export function isSuppressedCommentaryEvent(ev: Event): boolean {
-  return (
-    ev.type === "stdout" &&
-    ev.summary === "ログ更新" &&
-    isCodexProgressNoise((ev.detail ?? "").trim())
-  );
+  return isLowValueGenericOutput(ev);
 }
 
 export function withCommentaryMode(payload: CommentaryPayload): CommentaryPayload {
@@ -185,10 +224,14 @@ export function commentByRules(
   // A concrete subject names the same target in visible narration and speech;
   // the phase change is carried by the explanation instead.
   const lead = subject.kind !== "none" ? core : contextual || core;
+  const explanation =
+    hermesExplanation(ev) ??
+    contextExplanation(beginner, context) ??
+    genericOutputExplanation(ev);
 
   return withCommentaryMode({
     narration: [lead, spotlight].filter(Boolean).join(" "),
-    explanation: contextExplanation(beginner, context),
+    explanation,
     glossaryNotes,
     meta: {
       narrationProvider: "rules",

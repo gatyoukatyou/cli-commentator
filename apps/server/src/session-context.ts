@@ -103,13 +103,13 @@ function limited(value: string | null | undefined, max: number): string | null {
 }
 
 function isWaitingEvent(event: Event): boolean {
-  return /(?:確認待ち|許可を待|承認待ち|回答を待|入力待ち|質問への回答|長考・沈黙)/u.test(
+  return /(?:確認待ち|許可を待|承認待ち|承認を待|回答を待|入力待ち|入力を待|質問への回答|長考・沈黙)/u.test(
     event.summary
   );
 }
 
 function explicitlyRequiresHuman(event: Event): boolean {
-  return /(?:確認待ち|許可を待|承認待ち|回答を待|入力待ち|質問への回答|HUMAN(?:の)?(?:判断|対応))/iu.test(
+  return /(?:確認待ち|許可を待|承認待ち|承認を待|回答を待|入力待ち|入力を待|質問への回答|HUMAN(?:の)?(?:判断|対応))/iu.test(
     event.summary
   );
 }

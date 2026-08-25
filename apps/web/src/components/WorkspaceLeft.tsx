@@ -3,6 +3,8 @@ import type { LaunchDraft, LaunchPresetId } from "../lib/session-launcher";
 import type { ProfileSummary, PtySize, Style } from "../types";
 import { LauncherPanel } from "./LauncherPanel";
 import { ProfileSelector } from "./ProfileSelector";
+import { getLauncherPanelCollapsed } from "../lib/launcher-panel-state";
+import { copyWithFallback } from "../lib/tauri";
 import type { TerminalPaneHandle, TerminalPaneTheme } from "./TerminalPane";
 import {
   TERMINAL_INTERRUPT_LABEL,
@@ -57,6 +59,24 @@ export function WorkspaceLeft({
   onDeleteProfile,
 }: WorkspaceLeftProps) {
   const [terminalFocused, setTerminalFocused] = useState(false);
+  const [terminalCopyState, setTerminalCopyState] = useState<"idle" | "copied" | "empty" | "failed">("idle");
+  const [launcherCollapsedOverride, setLauncherCollapsedOverride] = useState<boolean | null>(null);
+  const launcherCollapsed = getLauncherPanelCollapsed(currentSessionLabel, launcherCollapsedOverride);
+
+  const handleLaunch = () => {
+    onLaunch();
+    setLauncherCollapsedOverride(true);
+  };
+
+  const handleCopyTerminal = async () => {
+    const text = terminalPaneRef.current?.getText() ?? "";
+    if (!text) {
+      setTerminalCopyState("empty");
+      return;
+    }
+    setTerminalCopyState((await copyWithFallback(text)) ? "copied" : "failed");
+  };
+
   const inputStatus = !connected
     ? "サーバー未接続（入力できません）"
     : terminalFocused
@@ -71,7 +91,10 @@ export function WorkspaceLeft({
         style={style}
         connected={connected}
         onSelectPreset={onSelectPreset}
-        onLaunch={onLaunch}
+        onLaunch={handleLaunch}
+        collapsed={launcherCollapsed}
+        onToggleCollapsed={() => setLauncherCollapsedOverride(!launcherCollapsed)}
+        currentSessionLabel={currentSessionLabel}
       />
 
       <div className="panel terminal-panel">
@@ -93,6 +116,20 @@ export function WorkspaceLeft({
             <button
               type="button"
               className="debug-panel__btn debug-panel__btn--secondary"
+              onClick={() => void handleCopyTerminal()}
+              title="選択範囲があれば選択範囲、なければターミナルの表示内容をコピー"
+            >
+              {terminalCopyState === "copied"
+                ? "コピー済み"
+                : terminalCopyState === "empty"
+                  ? "内容なし"
+                  : terminalCopyState === "failed"
+                    ? "コピー失敗"
+                    : "セッションをコピー"}
+            </button>
+            <button
+              type="button"
+              className="debug-panel__btn debug-panel__btn--secondary"
               onClick={onClearTerminal}
             >
               クリア
@@ -102,7 +139,7 @@ export function WorkspaceLeft({
               className="debug-panel__btn debug-panel__btn--secondary"
               onClick={() => sendTerminalInterrupt(onTerminalData)}
               aria-label={TERMINAL_INTERRUPT_LABEL}
-              title={`${TERMINAL_INTERRUPT_LABEL}。文字のコピーは⌘C`}
+              title={`${TERMINAL_INTERRUPT_LABEL}。文字のコピーは「セッションをコピー」を使ってください`}
             >
               {TERMINAL_INTERRUPT_LABEL}
             </button>

@@ -195,6 +195,25 @@ Notes:
 - `pnpm dev:codex:file` clears that log first, then starts with `INPUT_MODE=file` and `LOG_SOURCE=codex`.
 - Saved UI profiles can now store `input mode=file` and `log file=<that log file>` directly.
 
+### 2-d) Commentate Hermes Agent in the terminal
+
+Hermes Agent runs as a terminal TUI and uses ANSI colors, box drawing, and streaming tool feeds. cli-commentator normalizes those redraws into short events for input waiting, model streaming, terminal / web / skills tools, approvals, slash commands, completion, interruption, and errors.
+
+You can select Hermes explicitly with the launcher preset or with these environment variables:
+
+```bash
+LOG_SOURCE=hermes TARGET_CMD=hermes pnpm dev:server
+```
+
+These commands use the same Hermes ruleset:
+
+```bash
+LOG_SOURCE=hermes TARGET_CMD=hermes TARGET_ARGS="--tui" pnpm dev:server
+LOG_SOURCE=hermes TARGET_CMD=hermes TARGET_ARGS_JSON='["chat","-q","Hello"]' pnpm dev:server
+```
+
+With `LOG_SOURCE=auto`, detection waits for a combination of `Hermes Agent` / `hermes-agent`, Hermes CLI guidance, or the distinctive TUI tool-feed and slash-command signals. A general prose occurrence of `hermes`, box drawing alone, or one isolated slash command does not select Hermes.
+
 ### 3) Automatic fallback (`pty` -> `file`)
 
 When `INPUT_MODE=pty` and PTY startup fails:
@@ -214,7 +233,7 @@ Main keys:
 - `INPUT_MODE` (`pty` or `file`)
 - `INPUT_FILE` (required for `INPUT_MODE=file`)
 - `TARGET_CMD`, `TARGET_ARGS`, `TARGET_ARGS_JSON`, `TARGET_CWD`
-- `LOG_SOURCE` (`auto|claude|codex|generic`)
+- `LOG_SOURCE` (`auto|claude|codex|hermes|generic`; Hermes TUI output is supported after ANSI normalization in both auto and explicit modes)
 - `SILENCE_TIMEOUT_MS` (milliseconds without PTY/file output before emitting a silence event; default: `60000`)
 
 Web dev key (must match server port, mainly for web mode):

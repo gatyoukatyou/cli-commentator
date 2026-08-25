@@ -62,7 +62,7 @@ export function isStyle(value: unknown): value is Style {
 
 export function normalizeSource(value?: string): SourceMode {
   const source = (value ?? "").trim().toLowerCase();
-  if (source === "claude" || source === "codex" || source === "generic") return source;
+  if (source === "claude" || source === "codex" || source === "hermes" || source === "generic") return source;
   return "auto";
 }
 

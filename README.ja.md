@@ -19,7 +19,7 @@ CLIの出力を別ウィンドウで実況するMVP。
 
 ## TARGET_CMD の例
 
-`~/.config/cli-commentator/env` の `TARGET_CMD` に指定します。テンプレートは `apps/server/.env.example` です。作業ツリー内に実体の `.env` を作らないでください。例: `/bin/bash`, `/bin/zsh`, `powershell`, `claude`, `codex`
+`~/.config/cli-commentator/env` の `TARGET_CMD` に指定します。テンプレートは `apps/server/.env.example` です。作業ツリー内に実体の `.env` を作らないでください。例: `/bin/bash`, `/bin/zsh`, `powershell`, `claude`, `codex`, `hermes`
 
 ## ローカルで使う・開発する
 
