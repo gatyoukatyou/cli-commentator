@@ -31,7 +31,7 @@
     "verify:updater": "node ./scripts/verify-updater-config.mjs"
   },
   "devDependencies": {
-    "concurrently": "^10.0.4",
+    "concurrently": "^10.0.5",
     "cross-env": "^10.1.0",
     "plist": "^5.0.0",
     "tar": "^7.5.22",
