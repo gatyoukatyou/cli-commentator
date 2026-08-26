@@ -16,6 +16,7 @@
     "ensure:desktop-sidecar": "node ./scripts/ensure-desktop-sidecar-prepared.mjs",
     "prepare:desktop-sidecar": "node ./scripts/prepare-desktop-sidecar.mjs",
     "build:sidecar": "pnpm prepare:desktop-sidecar",
+    "test:desktop-bundle-artifacts": "node --test ./scripts/verify-desktop-bundle-artifacts.test.mjs",
     "test:desktop-sidecar-runtime": "node --test ./scripts/desktop-sidecar-runtime.test.mjs",
     "test:local-readiness": "node --test ./scripts/check-local-readiness.test.mjs",
     "check:doc-sync": "node ./scripts/check-doc-sync.mjs",

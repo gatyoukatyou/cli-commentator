@@ -66,6 +66,10 @@ release artifacts and the checks required before merging a workflow update:
   (`https://api.github.com/repos/gatyoukatyou/cli-commentator/releases/assets/<asset-id>`),
   not the browser download form (`releases/download/<tag>/<asset>`). Treat the
   URLs in `latest.json` as the source of truth when validating the assets.
+  `pnpm verify:desktop-bundle-artifacts` accepts both forms. For API URLs, it
+  fetches authenticated GitHub asset metadata, resolves the asset ID to the
+  actual filename, and then matches that name against the local files. It tries
+  `GH_RELEASE_TOKEN`, `GITHUB_TOKEN`, and `gh auth token`, in that order.
 - The existing updater endpoint that downloads `latest.json` is unchanged in
   `apps/desktop/src-tauri/tauri.conf.json`:
   `https://github.com/gatyoukatyou/cli-commentator/releases/latest/download/latest.json`.
@@ -170,6 +174,10 @@ The desktop updater contract is intentionally narrow:
 - Asset resolution: each `latest.json` platform entry must point to the
   matching versioned `.app.tar.gz` asset for that architecture in the tagged
   release.
+- Bundle verifier: accepts both normal download URLs and GitHub asset API URLs.
+  API URLs are resolved through authenticated metadata instead of treating the
+  numeric asset ID as a filename. It rejects non-GitHub hosts, another repository,
+  and non-numeric asset IDs.
 - Signature: each platform entry must include a non-empty updater signature,
   and the matching versioned `.app.tar.gz.sig` asset must be present in the
   release.
