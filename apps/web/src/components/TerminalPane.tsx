@@ -182,10 +182,7 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(function 
     fitAddonRef.current = fitAddon;
     terminal.attachCustomKeyEventHandler((event) => {
       const inputGate = terminalInputGateRef.current;
-      if (inputGate.shouldSuppressKeyEvent(event)) {
-        event.preventDefault();
-        return false;
-      }
+      if (inputGate.handleKeyEvent(event) === "ime") return true;
 
       return handleTerminalLatestKey(event, {
         getLatestButton: () => latestButtonRef.current,

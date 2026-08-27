@@ -52,62 +52,82 @@ describe("createTerminalInputGate", () => {
     expect(gate.shouldForward("a")).toBe(true);
   });
 
-  it("suppresses IME control key events but preserves physical controls", () => {
+  it("lets xterm finalize IME controls and preserves physical controls", () => {
     const gate = createTerminalInputGate(() => 1000);
-    const preventDefault = () => {};
 
     expect(
-      gate.shouldSuppressKeyEvent({
+      gate.handleKeyEvent({
         isComposing: true,
         key: "Tab",
         keyCode: 9,
-        preventDefault,
+        type: "keydown",
       })
-    ).toBe(true);
+    ).toBe("ime");
     expect(
-      gate.shouldSuppressKeyEvent({
+      gate.handleKeyEvent({
         isComposing: true,
         key: "Enter",
         keyCode: 13,
-        preventDefault,
+        type: "keydown",
       })
-    ).toBe(true);
+    ).toBe("ime");
     expect(
-      gate.shouldSuppressKeyEvent({
+      gate.handleKeyEvent({
         isComposing: false,
         key: "a",
         keyCode: 229,
-        preventDefault,
+        type: "keydown",
       })
-    ).toBe(true);
+    ).toBe("ime");
 
     gate.noteCompositionStart();
     expect(
-      gate.shouldSuppressKeyEvent({
+      gate.handleKeyEvent({
         isComposing: false,
         key: "Tab",
         keyCode: 9,
-        preventDefault,
+        type: "keydown",
       })
-    ).toBe(true);
+    ).toBe("ime");
+    expect(
+      gate.handleKeyEvent({
+        isComposing: true,
+        key: "Tab",
+        keyCode: 9,
+        type: "keyup",
+      })
+    ).toBe("ime");
+    expect(gate.shouldForward("日本語")).toBe(true);
+    expect(gate.shouldForward("\t")).toBe(false);
     gate.noteCompositionEnd();
 
     expect(
-      gate.shouldSuppressKeyEvent({
+      gate.handleKeyEvent({
         isComposing: false,
         key: "Tab",
         keyCode: 9,
-        preventDefault,
+        type: "keyup",
       })
-    ).toBe(false);
+    ).toBe("normal");
     expect(
-      gate.shouldSuppressKeyEvent({
+      gate.handleKeyEvent({
         isComposing: false,
         key: "Enter",
         keyCode: 13,
-        preventDefault,
+        type: "keyup",
       })
-    ).toBe(false);
+    ).toBe("normal");
+  });
+
+  it("allows composition data if xterm reports the control key first", () => {
+    const gate = createTerminalInputGate(() => 1000);
+
+    gate.noteCompositionStart();
+    expect(
+      gate.handleKeyEvent({ isComposing: true, key: "Enter", keyCode: 13, type: "keydown" })
+    ).toBe("ime");
+    expect(gate.shouldForward("\r")).toBe(false);
+    expect(gate.shouldForward("日本語入力テスト")).toBe(true);
   });
 
   it("suppresses control beforeinput from an active IME only", () => {

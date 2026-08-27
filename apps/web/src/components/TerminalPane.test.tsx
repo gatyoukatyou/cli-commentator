@@ -212,8 +212,8 @@ describe("TerminalPane", () => {
     await act(async () => {
       terminal.textarea.dispatchEvent(new Event("compositionstart", { bubbles: true }));
     });
-    expect(terminal.runCustomKeyEvent(imeTab)).toBe(false);
-    expect(imeTab.preventDefault).toHaveBeenCalledOnce();
+    expect(terminal.runCustomKeyEvent(imeTab)).toBe(true);
+    expect(imeTab.preventDefault).not.toHaveBeenCalled();
     terminal.emitData("\t");
 
     await act(async () => {
