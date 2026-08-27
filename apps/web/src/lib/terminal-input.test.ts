@@ -26,6 +26,107 @@ describe("createTerminalInputGate", () => {
     expect(gate.shouldForward("あ")).toBe(false);
   });
 
+  it("keeps all composition data closed until compositionend", () => {
+    let now = 1000;
+    const gate = createTerminalInputGate(() => now);
+
+    gate.noteCompositionStart();
+    expect(gate.shouldForward("に")).toBe(false);
+    expect(gate.shouldForward("\t")).toBe(false);
+
+    now += 20;
+    gate.noteCompositionEnd();
+    expect(gate.shouldForward("日本語入力テスト")).toBe(true);
+
+    now += 100;
+    expect(gate.shouldForward("日本語入力テスト")).toBe(false);
+  });
+
+  it("does not leave the gate closed after composition is cancelled", () => {
+    const gate = createTerminalInputGate(() => 1000);
+
+    gate.noteCompositionStart();
+    expect(gate.shouldForward("a")).toBe(false);
+
+    gate.noteCompositionCancel();
+    expect(gate.shouldForward("a")).toBe(true);
+  });
+
+  it("suppresses IME control key events but preserves physical controls", () => {
+    const gate = createTerminalInputGate(() => 1000);
+    const preventDefault = () => {};
+
+    expect(
+      gate.shouldSuppressKeyEvent({
+        isComposing: true,
+        key: "Tab",
+        keyCode: 9,
+        preventDefault,
+      })
+    ).toBe(true);
+    expect(
+      gate.shouldSuppressKeyEvent({
+        isComposing: true,
+        key: "Enter",
+        keyCode: 13,
+        preventDefault,
+      })
+    ).toBe(true);
+    expect(
+      gate.shouldSuppressKeyEvent({
+        isComposing: false,
+        key: "a",
+        keyCode: 229,
+        preventDefault,
+      })
+    ).toBe(true);
+
+    gate.noteCompositionStart();
+    expect(
+      gate.shouldSuppressKeyEvent({
+        isComposing: false,
+        key: "Tab",
+        keyCode: 9,
+        preventDefault,
+      })
+    ).toBe(true);
+    gate.noteCompositionEnd();
+
+    expect(
+      gate.shouldSuppressKeyEvent({
+        isComposing: false,
+        key: "Tab",
+        keyCode: 9,
+        preventDefault,
+      })
+    ).toBe(false);
+    expect(
+      gate.shouldSuppressKeyEvent({
+        isComposing: false,
+        key: "Enter",
+        keyCode: 13,
+        preventDefault,
+      })
+    ).toBe(false);
+  });
+
+  it("suppresses control beforeinput from an active IME only", () => {
+    const gate = createTerminalInputGate();
+
+    gate.noteCompositionStart();
+    expect(
+      gate.shouldSuppressBeforeInput({ data: "\t", inputType: "insertText", isComposing: false })
+    ).toBe(true);
+    expect(
+      gate.shouldSuppressBeforeInput({ data: "日本語", inputType: "insertCompositionText", isComposing: true })
+    ).toBe(false);
+
+    gate.noteCompositionEnd();
+    expect(
+      gate.shouldSuppressBeforeInput({ data: "\t", inputType: "insertText", isComposing: false })
+    ).toBe(false);
+  });
+
   it("suppresses duplicate pasted chunks in a short window", () => {
     let now = 1000;
     const gate = createTerminalInputGate(() => now);

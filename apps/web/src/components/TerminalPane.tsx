@@ -180,12 +180,18 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(function 
     terminal.open(host);
     terminalRef.current = terminal;
     fitAddonRef.current = fitAddon;
-    terminal.attachCustomKeyEventHandler((event) =>
-      handleTerminalLatestKey(event, {
+    terminal.attachCustomKeyEventHandler((event) => {
+      const inputGate = terminalInputGateRef.current;
+      if (inputGate.shouldSuppressKeyEvent(event)) {
+        event.preventDefault();
+        return false;
+      }
+
+      return handleTerminalLatestKey(event, {
         getLatestButton: () => latestButtonRef.current,
         isAtLatest: () => isAtLatestRef.current,
-      })
-    );
+      });
+    });
 
     const viewport = host.querySelector<HTMLElement>(".xterm-viewport");
     const handleViewportScroll = () => {
@@ -212,14 +218,26 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(function 
     const handleCompositionEnd = () => {
       terminalInputGateRef.current.noteCompositionEnd();
     };
+    const handleCompositionCancel = () => {
+      terminalInputGateRef.current.noteCompositionCancel();
+    };
+    const handleBeforeInput = (event: InputEvent) => {
+      if (terminalInputGateRef.current.shouldSuppressBeforeInput(event)) {
+        event.preventDefault();
+      }
+    };
     const handlePaste = () => {
       terminalInputGateRef.current.notePaste();
     };
     const handleFocus = () => onFocusChange(true);
     const handleBlur = () => onFocusChange(false);
 
-    textarea?.addEventListener("compositionstart", handleCompositionStart);
-    textarea?.addEventListener("compositionend", handleCompositionEnd);
+    // Capture compositionend before xterm's handler so its delayed/synchronous
+    // committed text is accepted by the gate exactly once.
+    textarea?.addEventListener("compositionstart", handleCompositionStart, true);
+    textarea?.addEventListener("compositionend", handleCompositionEnd, true);
+    textarea?.addEventListener("compositioncancel", handleCompositionCancel, true);
+    textarea?.addEventListener("beforeinput", handleBeforeInput, true);
     textarea?.addEventListener("paste", handlePaste);
     textarea?.addEventListener("focus", handleFocus);
     textarea?.addEventListener("blur", handleBlur);
@@ -246,8 +264,10 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(function 
       viewport?.removeEventListener("scroll", handleViewportScroll);
       scrollDisposable.dispose();
       resizeDisposable.dispose();
-      textarea?.removeEventListener("compositionstart", handleCompositionStart);
-      textarea?.removeEventListener("compositionend", handleCompositionEnd);
+      textarea?.removeEventListener("compositionstart", handleCompositionStart, true);
+      textarea?.removeEventListener("compositionend", handleCompositionEnd, true);
+      textarea?.removeEventListener("compositioncancel", handleCompositionCancel, true);
+      textarea?.removeEventListener("beforeinput", handleBeforeInput, true);
       textarea?.removeEventListener("paste", handlePaste);
       textarea?.removeEventListener("focus", handleFocus);
       textarea?.removeEventListener("blur", handleBlur);
