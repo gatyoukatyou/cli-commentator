@@ -1,12 +1,17 @@
 #!/usr/bin/env node
 
+import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import path from "node:path";
+import { pathToFileURL } from "node:url";
 import * as plist from "plist";
 import * as tar from "tar";
 
 const EXPECTED_BUNDLE_IDENTIFIER = "com.cli-commentator.desktop";
 const EXPECTED_BUNDLE_EXECUTABLE = "cli-commentator-desktop";
+export const EXPECTED_GITHUB_REPOSITORY = "gatyoukatyou/cli-commentator";
+const GITHUB_DOWNLOAD_HOST = "github.com";
+const GITHUB_API_HOST = "api.github.com";
 const EXPECTED_PLATFORM_ASSETS = {
   "darwin-aarch64": "aarch64.app.tar.gz",
   "darwin-aarch64-app": "aarch64.app.tar.gz",
@@ -33,9 +38,235 @@ const REQUIREMENTS = {
   },
 };
 
+export class VerificationError extends Error {
+  constructor(message) {
+    super(message);
+    this.name = "VerificationError";
+  }
+}
+
 function fail(message) {
-  console.error(`[desktop-artifacts] ERROR: ${message}`);
-  process.exit(1);
+  throw new VerificationError(message);
+}
+
+function splitRepository(repository) {
+  const [owner, name, ...rest] = String(repository).split("/");
+  if (!owner || !name || rest.length > 0) {
+    throw new Error("Expected GitHub repository in owner/name form");
+  }
+  return { owner, name };
+}
+
+function decodeUrlSegment(value, label) {
+  let decoded;
+  try {
+    decoded = decodeURIComponent(value);
+  } catch {
+    fail(`GitHub asset URL has an invalid encoded ${label}`);
+  }
+  if (!decoded || decoded.includes("/") || decoded.includes("\\")) {
+    fail(`GitHub asset URL has an invalid ${label}`);
+  }
+  return decoded;
+}
+
+function assertExpectedRepository(owner, name, expectedRepository) {
+  const expected = splitRepository(expectedRepository);
+  if (owner !== expected.owner || name !== expected.name) {
+    fail(`GitHub asset URL repository must be ${expectedRepository}`);
+  }
+}
+
+/**
+ * Parse the two URL shapes emitted by the desktop release process.
+ *
+ * API asset URLs intentionally return an asset ID here. The caller must use
+ * resolveAssetReference() to resolve that ID through authenticated metadata
+ * before treating it as a local filename.
+ */
+export function parseAssetUrl(urlValue, { expectedRepository = EXPECTED_GITHUB_REPOSITORY } = {}) {
+  if (typeof urlValue !== "string" || urlValue.trim().length === 0) {
+    fail("latest.json platform URL must be a non-empty string");
+  }
+
+  let parsed;
+  try {
+    parsed = new URL(urlValue);
+  } catch {
+    fail("latest.json platform URL is not a valid URL");
+  }
+
+  if (
+    parsed.protocol !== "https:" ||
+    parsed.username ||
+    parsed.password ||
+    parsed.search ||
+    parsed.hash
+  ) {
+    fail("GitHub asset URL must use HTTPS without credentials, query, or fragment");
+  }
+
+  const segments = parsed.pathname.split("/");
+  if (parsed.hostname === GITHUB_DOWNLOAD_HOST) {
+    if (segments.length !== 7 || segments[3] !== "releases" || segments[4] !== "download") {
+      fail("GitHub download URL has an unsupported path");
+    }
+
+    const owner = decodeUrlSegment(segments[1], "owner");
+    const repository = decodeUrlSegment(segments[2], "repository");
+    assertExpectedRepository(owner, repository, expectedRepository);
+    const assetName = decodeUrlSegment(segments[6], "asset name");
+    if (assetName === "." || assetName === "..") {
+      fail("GitHub download URL has an invalid asset name");
+    }
+
+    return {
+      kind: "download",
+      url: parsed.toString(),
+      owner,
+      repository,
+      tag: decodeUrlSegment(segments[5], "tag"),
+      assetName,
+    };
+  }
+
+  if (parsed.hostname === GITHUB_API_HOST) {
+    if (segments.length !== 7 || segments[1] !== "repos" || segments[4] !== "releases" || segments[5] !== "assets") {
+      fail("GitHub asset API URL has an unsupported path");
+    }
+
+    const owner = decodeUrlSegment(segments[2], "owner");
+    const repository = decodeUrlSegment(segments[3], "repository");
+    assertExpectedRepository(owner, repository, expectedRepository);
+    const assetId = segments[6];
+    if (!/^[1-9][0-9]*$/u.test(assetId)) {
+      fail("GitHub asset API URL must end with a numeric asset ID");
+    }
+
+    return {
+      kind: "github-api",
+      url: parsed.toString(),
+      owner,
+      repository,
+      assetId,
+    };
+  }
+
+  fail(`Unsupported GitHub asset URL host: ${parsed.hostname}`);
+}
+
+export function redactSecrets(message, secrets = []) {
+  const candidates = [
+    ...secrets,
+    process.env.GH_RELEASE_TOKEN,
+    process.env.GITHUB_TOKEN,
+  ].filter((value) => typeof value === "string" && value.length > 0);
+  let redacted = String(message);
+  for (const secret of candidates) {
+    redacted = redacted.split(secret).join("[REDACTED]");
+  }
+  return redacted;
+}
+
+export function resolveGithubToken({ env = process.env, execFileSyncImpl = execFileSync } = {}) {
+  for (const variable of ["GH_RELEASE_TOKEN", "GITHUB_TOKEN"]) {
+    const value = env?.[variable];
+    if (typeof value === "string" && value.trim().length > 0) return value.trim();
+  }
+
+  try {
+    const value = execFileSyncImpl("gh", ["auth", "token"], {
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+    });
+    return typeof value === "string" && value.trim().length > 0 ? value.trim() : null;
+  } catch {
+    return null;
+  }
+}
+
+function validateMetadataAssetName(name) {
+  if (typeof name !== "string" || name.trim().length === 0 || name.includes("/") || name.includes("\\")) {
+    fail("GitHub asset metadata returned an invalid asset name");
+  }
+  if (name === "." || name === "..") fail("GitHub asset metadata returned an invalid asset name");
+  return name;
+}
+
+export async function resolveAssetReference(
+  urlValue,
+  {
+    expectedRepository = EXPECTED_GITHUB_REPOSITORY,
+    fetchImpl = globalThis.fetch,
+    getToken = () => resolveGithubToken(),
+  } = {}
+) {
+  const parsed = parseAssetUrl(urlValue, { expectedRepository });
+  if (parsed.kind === "download") return parsed;
+
+  if (typeof fetchImpl !== "function") {
+    fail("GitHub asset metadata fetch is unavailable");
+  }
+
+  let token;
+  try {
+    token = await getToken();
+  } catch {
+    fail("GitHub asset metadata requires an authentication token");
+  }
+  if (typeof token !== "string" || token.trim().length === 0) {
+    fail("GitHub asset metadata requires an authentication token");
+  }
+
+  let response;
+  try {
+    response = await fetchImpl(parsed.url, {
+      method: "GET",
+      headers: {
+        Accept: "application/vnd.github+json",
+        Authorization: `Bearer ${token.trim()}`,
+        "X-GitHub-Api-Version": "2022-11-28",
+      },
+    });
+  } catch {
+    fail(`GitHub asset metadata request failed for asset ${parsed.assetId}`);
+  }
+
+  if (!response?.ok) {
+    const status = Number.isInteger(response?.status) ? ` (HTTP ${response.status})` : "";
+    fail(`GitHub asset metadata request failed for asset ${parsed.assetId}${status}`);
+  }
+
+  let metadata;
+  try {
+    metadata = await response.json();
+  } catch {
+    fail(`GitHub asset metadata response was not valid JSON for asset ${parsed.assetId}`);
+  }
+
+  if (!metadata || String(metadata.id) !== parsed.assetId) {
+    fail(`GitHub asset metadata ID did not match ${parsed.assetId}`);
+  }
+  if (metadata.state !== "uploaded") {
+    fail(`GitHub asset ${parsed.assetId} is not uploaded`);
+  }
+
+  const assetName = validateMetadataAssetName(metadata.name);
+  let browserReference;
+  try {
+    browserReference = parseAssetUrl(metadata.browser_download_url, { expectedRepository });
+  } catch {
+    fail(`GitHub asset metadata browser URL is invalid for asset ${parsed.assetId}`);
+  }
+  if (browserReference.kind !== "download" || browserReference.assetName !== assetName) {
+    fail(`GitHub asset metadata name did not match its browser URL for asset ${parsed.assetId}`);
+  }
+
+  return {
+    ...parsed,
+    assetName,
+    metadata,
+  };
 }
 
 function parseArgs(argv) {
@@ -185,11 +416,14 @@ function parseLatestJson(bundleDir, entries) {
   return { path: latestPath, data: latest };
 }
 
-function validateLatestJson(latest, entries) {
+export async function validateLatestJson(latest, entries, options = {}) {
   if (!latest) return;
 
   const assetNames = new Set(
     entries.filter((entry) => entry.stats.isFile()).map((entry) => path.basename(entry.path))
+  );
+  const resolveReference = options.resolveAssetReference ?? ((url) =>
+    resolveAssetReference(url, options)
   );
 
   for (const [platform, expectedAssetSuffix] of Object.entries(EXPECTED_PLATFORM_ASSETS)) {
@@ -202,12 +436,17 @@ function validateLatestJson(latest, entries) {
       fail(`latest.json ${platform}.signature must be a non-empty string`);
     }
 
-    let basename;
+    let assetReference;
     try {
-      basename = path.posix.basename(new URL(platformEntry.url).pathname);
+      assetReference = await resolveReference(platformEntry.url);
     } catch (error) {
-      fail(`latest.json ${platform}.url is not a valid URL: ${platformEntry.url}`);
+      if (error instanceof VerificationError) {
+        fail(`latest.json ${platform}.url: ${error.message}`);
+      }
+      fail(`latest.json ${platform}.url could not be resolved`);
     }
+
+    const basename = assetReference.assetName;
 
     if (!basename.endsWith(expectedAssetSuffix)) {
       fail(`latest.json ${platform}.url points to unexpected asset: ${basename}`);
@@ -300,14 +539,14 @@ async function validateAppTarGzArchive(archivePath, latest) {
   );
 }
 
-async function main() {
+export async function main() {
   const args = parseArgs(process.argv.slice(2));
   const bundleDir = path.resolve(args.bundleDir);
   if (!existsSync(bundleDir)) fail(`Bundle directory does not exist: ${bundleDir}`);
 
   const entries = walk(bundleDir);
   const latest = parseLatestJson(bundleDir, entries);
-  validateLatestJson(latest, entries);
+  await validateLatestJson(latest, entries);
 
   for (const requirement of args.requirements) {
     const rule = REQUIREMENTS[requirement];
@@ -325,4 +564,9 @@ async function main() {
   console.log("[desktop-artifacts] Desktop bundle artifact checks passed.");
 }
 
-main().catch((error) => fail(error?.message || String(error)));
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  main().catch((error) => {
+    console.error(`[desktop-artifacts] ERROR: ${redactSecrets(error?.message || String(error))}`);
+    process.exitCode = 1;
+  });
+}

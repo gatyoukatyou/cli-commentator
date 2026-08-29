@@ -65,7 +65,10 @@ signed/unsigned release branches、署名・notarization 入力、updater 設定
   （`https://api.github.com/repos/gatyoukatyou/cli-commentator/releases/assets/<asset-id>`）
   でした。ブラウザのダウンロード形式（`releases/download/<tag>/<asset>`）では
   ありません。assetを確認するときは、`latest.json` に記録されたURLを実測値
-  として扱ってください。
+  として扱ってください。`pnpm verify:desktop-bundle-artifacts` は両方の形式を
+  受け付けます。API形式では、認証済みGitHub APIからasset metadataを取得し、
+  asset IDから実際のファイル名を解決してからローカルファイルと照合します。
+  認証情報は `GH_RELEASE_TOKEN`、`GITHUB_TOKEN`、`gh auth token` の順に使います。
 - `latest.json` 自体を取得する既存のUpdater endpointは、
   `apps/desktop/src-tauri/tauri.conf.json` と同じく
   `https://github.com/gatyoukatyou/cli-commentator/releases/latest/download/latest.json`
@@ -169,6 +172,9 @@ Desktop updater の契約は意図的に狭く固定します。
 - 対象 platform key: `darwin-aarch64`, `darwin-aarch64-app`, `darwin-x86_64`, `darwin-x86_64-app`。
 - asset 解決: `latest.json` の各 platform entry は、タグ付きrelease内の
   該当アーキテクチャの版数入り `.app.tar.gz` asset を指す。
+- 検査スクリプト: 通常のダウンロードURLとGitHub asset API URLを受け付ける。
+  API URLではasset IDをファイル名として扱わず、認証済みmetadataの名前を使って
+  ローカルの成果物と照合する。GitHub以外のhost、別repository、非数値のasset IDは拒否する。
 - 署名: 各 platform entry は空でない updater signature を持ち、対応する
   版数入り `.app.tar.gz.sig` asset もreleaseに存在する。
 - インストーラ: `.dmg` は人間が初回導入に使う配布物、`.app.tar.gz` と `.sig` は updater 用配布物。
