@@ -147,6 +147,7 @@ export type WsIncoming =
   | { kind: "setStyle"; style: Style }
   | { kind: "launchSession"; session: LaunchSessionInput }
   | { kind: "writeInput"; data: string }
+  | { kind: "stopSession" }
   | ({ kind: "resizePty" } & PtySize)
   | { kind: "getProfiles" }
   | { kind: "getProfile"; id: string }

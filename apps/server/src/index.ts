@@ -557,7 +557,11 @@ function setupPTY(
       return;
     }
 
-    const ev = withEventPriority({ ts: Date.now(), type: "done", summary: `終了 code=${exitCode}` });
+    const ev = withEventPriority({
+      ts: Date.now(),
+      type: "done",
+      summary: signal && signal > 0 ? `終了 signal=${signal}` : `終了 code=${exitCode}`,
+    });
     const context = sessionContext.observeEvent(ev);
     broadcast({ kind: "event", ev });
 
@@ -918,6 +922,21 @@ wss.on("connection", async (ws, request) => {
             ptyManager.write(msg.data);
           }
           break;
+
+        case "stopSession": {
+          // HUMAN向けの強制停止要求。Desktop Serverは停止させず、
+          // 現在のPTYの子プロセスだけを既存のkill経路で終了させる。
+          // ptyManager.kill()はcurrentを先にnull化するためonExitの
+          // current判定に引っかかる。そのためcurrentの子だけをkillし、
+          // 状態遷移・done通知は既存のonExit経路に任せる。
+          if (!ptyOwnerRegistry.isController(ws)) break;
+          if (restartInFlight) break;
+          if (runtimeInputMode !== "pty") break;
+          const stopTarget = ptyManager.current;
+          if (stopTarget === null) break;
+          stopTarget.kill();
+          break;
+        }
 
         case "resizePty": {
           if (!ptyOwnerRegistry.isController(ws)) break;
