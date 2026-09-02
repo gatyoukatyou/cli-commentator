@@ -14,6 +14,6 @@ tauri-build = { version = "2", features = [] }
 tauri = { version = "2", features = [] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-process-wrap = { version = "9", features = ["std", "process-group", "job-object"] }
+process-wrap = { version = "10", features = ["std", "process-group", "job-object"] }
 tauri-plugin-autostart = "2"
 tauri-plugin-updater = "2"
