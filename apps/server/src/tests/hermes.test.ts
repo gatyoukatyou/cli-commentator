@@ -258,6 +258,78 @@ describe("Hermes Agent ruleset", () => {
     expect(normalizeSource(" HERMES ")).toBe("hermes");
   });
 
+  it("narrates tool activity from the v0.20 TUI fixture without flooding or leaking content", async () => {
+    const raw = await fixture("tui-tool-activity.log");
+    // PTY delivers small chunks; replay realistically instead of one big blob.
+    const chunks: string[] = [];
+    for (let offset = 0; offset < raw.length; offset += 512) {
+      chunks.push(raw.slice(offset, offset + 512));
+    }
+    const events = chunks.flatMap((chunk) => extractEvents(chunk, "hermes"));
+    const summaries = events.map((event) => event.summary);
+
+    const countBy = (summary: string) => summaries.filter((s) => s === summary).length;
+    // Meaningful stages are picked up.
+    expect(countBy("Hermes Agentセッションを開始した")).toBe(1);
+    expect(countBy("Hermesが検索を実行している")).toBeGreaterThanOrEqual(1);
+    expect(countBy("Hermesがファイルを読んでいる")).toBeGreaterThanOrEqual(1);
+    expect(countBy("Hermesがターミナルコマンドを実行している")).toBeGreaterThanOrEqual(1);
+    expect(countBy("Hermesが別の作業へ移った")).toBeGreaterThanOrEqual(1);
+    // 過密実況にならない（連続同カテゴリは1回だけ）。
+    expect(countBy("Hermesが検索を実行している")).toBeLessThanOrEqual(2);
+    expect(countBy("Hermesがファイルを読んでいる")).toBeLessThanOrEqual(2);
+    // 30分ツール連続でも実況が溢れない規模に抑える。
+    expect(events.length).toBeLessThanOrEqual(20);
+    // 「outputなし」ではなく実際の活動を捉えている。
+    expect(summaries).not.toContain("ログ更新");
+    // ANSI断片・原文・題目・ステータスバーの内容を実況しない。
+    const serialized = JSON.stringify(events);
+    expect(serialized).not.toMatch(/\u001b/);
+    expect(serialized).not.toContain("MARKER");
+    expect(serialized).not.toContain("notes.txt");
+    expect(serialized).not.toContain("grep");
+    expect(serialized).not.toContain("wc -l");
+    expect(serialized).not.toContain("preparing");
+    expect(serialized).not.toContain("deadbeef");
+    expect(serialized).not.toContain("test-model");
+    expect(serialized).not.toContain("Summarize the sample folder");
+  });
+
+  it("narrates tool activity from redraw-structured TUI frames without leaking content", async () => {
+    // Real v0.2x streams redraw the live region with CR and CSI erase/cursor
+    // sequences (erase-line, cursor-up) before the tool row lands on the line.
+    // The frame boundaries also split escape sequences mid-sequence.
+    const raw = await fixture("tui-tool-activity-redraw.log");
+    const chunks: string[] = [];
+    for (let offset = 0; offset < raw.length; offset += 64) {
+      chunks.push(raw.slice(offset, offset + 64));
+    }
+    const events = chunks.flatMap((chunk) => extractEvents(chunk, "hermes"));
+    const summaries = events.map((event) => event.summary);
+
+    const countBy = (summary: string) => summaries.filter((s) => s === summary).length;
+    expect(countBy("Hermes Agentセッションを開始した")).toBe(1);
+    // Same-category reads collapse; a title change re-arms the category.
+    expect(countBy("Hermesがファイルを読んでいる")).toBe(2);
+    expect(countBy("Hermesがターミナルコマンドを実行している")).toBe(1);
+    expect(countBy("Hermesが検索を実行している")).toBe(1);
+    expect(countBy("Hermesが別の作業へ移った")).toBe(2);
+    expect(countBy("Hermesがモデル応答を生成している")).toBe(1);
+    expect(countBy("Hermesの応答が完了した")).toBe(1);
+    expect(events.length).toBeLessThanOrEqual(12);
+    // Redraw residue, canary text, arguments, file names, and durations stay out.
+    const serialized = JSON.stringify(events);
+    expect(serialized).not.toMatch(/\u001b/);
+    expect(serialized).not.toContain("MARKER");
+    expect(serialized).not.toContain("STATUS");
+    expect(serialized).not.toContain("RESIDUE");
+    expect(serialized).not.toContain("file1.md");
+    expect(serialized).not.toContain("file2.md");
+    expect(serialized).not.toContain("file3.md");
+    expect(serialized).not.toContain("wc -l");
+    expect(serialized).not.toContain("0.2s");
+  });
+
   it("provides a visible explanation for Hermes progress and suppresses low-value generic redraws", () => {
     const hermesProgress = {
       ts: 1,
