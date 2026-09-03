@@ -4,11 +4,12 @@ import type { ProfileSummary, PtySize, Style } from "../types";
 import { LauncherPanel } from "./LauncherPanel";
 import { ProfileSelector } from "./ProfileSelector";
 import { getLauncherPanelCollapsed } from "../lib/launcher-panel-state";
+import { formatSessionStatusLabel } from "../lib/session-status";
 import { copyWithFallback } from "../lib/tauri";
 import type { TerminalPaneHandle, TerminalPaneTheme } from "./TerminalPane";
 import {
+  TERMINAL_FORCE_STOP_LABEL,
   TERMINAL_INTERRUPT_LABEL,
-  sendTerminalInterrupt,
 } from "../lib/terminal-interrupt";
 
 const TerminalPane = lazy(() => import("./TerminalPane"));
@@ -23,6 +24,9 @@ type WorkspaceLeftProps = {
   terminalPaneRef: RefObject<TerminalPaneHandle | null>;
   terminalTheme: TerminalPaneTheme;
   currentSessionLabel: string;
+  sessionEnded: boolean;
+  interruptArmed: boolean;
+  onInterrupt: () => void;
   pendingTerminalOutput: string;
   onTerminalData: (data: string) => void;
   onTerminalResize: (size: PtySize) => void;
@@ -46,6 +50,9 @@ export function WorkspaceLeft({
   terminalPaneRef,
   terminalTheme,
   currentSessionLabel,
+  sessionEnded,
+  interruptArmed,
+  onInterrupt,
   pendingTerminalOutput,
   onTerminalData,
   onTerminalResize,
@@ -61,6 +68,7 @@ export function WorkspaceLeft({
   const [terminalFocused, setTerminalFocused] = useState(false);
   const [terminalCopyState, setTerminalCopyState] = useState<"idle" | "copied" | "empty" | "failed">("idle");
   const [launcherCollapsedOverride, setLauncherCollapsedOverride] = useState<boolean | null>(null);
+  const sessionStatusLabel = formatSessionStatusLabel(currentSessionLabel, sessionEnded);
   const launcherCollapsed = getLauncherPanelCollapsed(currentSessionLabel, launcherCollapsedOverride);
 
   const handleLaunch = () => {
@@ -94,7 +102,7 @@ export function WorkspaceLeft({
         onLaunch={handleLaunch}
         collapsed={launcherCollapsed}
         onToggleCollapsed={() => setLauncherCollapsedOverride(!launcherCollapsed)}
-        currentSessionLabel={currentSessionLabel}
+        currentSessionLabel={sessionStatusLabel}
       />
 
       <div className="panel terminal-panel">
@@ -102,7 +110,7 @@ export function WorkspaceLeft({
           <div>
             <div className="terminal-panel__title">Managed Terminal</div>
             <div className="terminal-panel__hint">
-              現在のセッション: {currentSessionLabel}
+              現在のセッション: {sessionStatusLabel}
             </div>
             <div
               className={`terminal-panel__input-status ${connected && terminalFocused ? "terminal-panel__input-status--active" : ""}`}
@@ -136,12 +144,16 @@ export function WorkspaceLeft({
             </button>
             <button
               type="button"
-              className="debug-panel__btn debug-panel__btn--secondary"
-              onClick={() => sendTerminalInterrupt(onTerminalData)}
-              aria-label={TERMINAL_INTERRUPT_LABEL}
-              title={`${TERMINAL_INTERRUPT_LABEL}。文字のコピーは「セッションをコピー」を使ってください`}
+              className={`debug-panel__btn debug-panel__btn--secondary ${interruptArmed ? "debug-panel__btn--danger" : ""}`}
+              onClick={onInterrupt}
+              aria-label={interruptArmed ? TERMINAL_FORCE_STOP_LABEL : TERMINAL_INTERRUPT_LABEL}
+              title={
+                interruptArmed
+                  ? `${TERMINAL_FORCE_STOP_LABEL}。CLIの終了検知やCtrl+Cが効かない場合に、このセッションの子プロセスだけを停止します。文字のコピーは「セッションをコピー」を使ってください`
+                  : `${TERMINAL_INTERRUPT_LABEL}。続けてもう一度押すとセッションを強制終了します。文字のコピーは「セッションをコピー」を使ってください`
+              }
             >
-              {TERMINAL_INTERRUPT_LABEL}
+              {interruptArmed ? TERMINAL_FORCE_STOP_LABEL : TERMINAL_INTERRUPT_LABEL}
             </button>
           </div>
         </div>

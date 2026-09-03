@@ -26,6 +26,11 @@ import {
   type LaunchPresetId,
 } from "./lib/session-launcher";
 import type { DesktopServerState } from "./lib/recovery";
+import {
+  TERMINAL_FORCE_STOP_WINDOW_MS,
+  TERMINAL_INTERRUPT_SEQUENCE,
+  decideTerminalInterrupt,
+} from "./lib/terminal-interrupt";
 import { copyWithFallback, getTauriCore, type ServerStatusDetail } from "./lib/tauri";
 import { normalizeSuggestion } from "./lib/text";
 import type {
@@ -53,6 +58,10 @@ export default function App() {
   const [source, setSource] = useState<SourceState>({ mode: "auto", detected: null });
   const [launchDraft, setLaunchDraft] = useState<LaunchDraft>(() => buildLaunchDraft("claude", "kansai"));
   const [currentSessionLabel, setCurrentSessionLabel] = useState("bash");
+  const [sessionEnded, setSessionEnded] = useState(false);
+  const [interruptArmed, setInterruptArmed] = useState(false);
+  const lastInterruptAtRef = useRef<number | null>(null);
+  const interruptResetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [tauriServerPort, setTauriServerPort] = useState<number | null>(null);
   const [desktopServerState, setDesktopServerState] = useState<DesktopServerState | null>(null);
   const [skin, setSkin] = useState<Skin>(() => {
@@ -110,6 +119,7 @@ export default function App() {
   // ルールベースの即時イベント: urgentは要対応表示＋定型文の割り込み読み上げ
   const handleServerEvent = useCallback(
     (ev: Event) => {
+      if (ev.type === "done") setSessionEnded(true);
       if ((ev.priority ?? "progress") !== "urgent") return;
       setAttention(toAttentionNotice(ev));
       if (speakUrgentNow(buildUrgentEventSpeechText(ev))) {
@@ -212,6 +222,13 @@ export default function App() {
 
   const handlePtyRestart = useCallback(() => {
     setPtyResizeSyncToken((value) => value + 1);
+    setSessionEnded(false);
+    setInterruptArmed(false);
+    lastInterruptAtRef.current = null;
+    if (interruptResetTimerRef.current) {
+      clearTimeout(interruptResetTimerRef.current);
+      interruptResetTimerRef.current = null;
+    }
   }, []);
 
   const handleCopySuggestion = async () => {
@@ -303,6 +320,45 @@ export default function App() {
     [wsRef]
   );
 
+  // 中断ボタンの2段階エスカレーション:
+  // 1回目はCtrl+C送信、ウィンドウ内の2回目でセッション強制終了(stopSession)を送る
+  const handleTerminalInterrupt = useCallback(() => {
+    const now = Date.now();
+    const decision = decideTerminalInterrupt({ now, lastInterruptAt: lastInterruptAtRef.current });
+    if (decision === "force-stop") {
+      lastInterruptAtRef.current = null;
+      if (interruptResetTimerRef.current) {
+        clearTimeout(interruptResetTimerRef.current);
+        interruptResetTimerRef.current = null;
+      }
+      setInterruptArmed(false);
+      if (wsRef.current?.readyState === WebSocket.OPEN) {
+        wsRef.current.send(JSON.stringify({ kind: "stopSession" }));
+      } else {
+        setPtyError("サーバーに接続されていません");
+      }
+      return;
+    }
+    lastInterruptAtRef.current = now;
+    setInterruptArmed(true);
+    if (interruptResetTimerRef.current) {
+      clearTimeout(interruptResetTimerRef.current);
+    }
+    interruptResetTimerRef.current = setTimeout(() => {
+      lastInterruptAtRef.current = null;
+      setInterruptArmed(false);
+    }, TERMINAL_FORCE_STOP_WINDOW_MS);
+    sendTerminalInput(TERMINAL_INTERRUPT_SEQUENCE);
+  }, [sendTerminalInput, wsRef]);
+
+  useEffect(() => {
+    return () => {
+      if (interruptResetTimerRef.current) {
+        clearTimeout(interruptResetTimerRef.current);
+      }
+    };
+  }, []);
+
   const sendStyle = (s: Style) => {
     setStyle(s);
     // D-2: Only send when connection is open
@@ -393,6 +449,9 @@ export default function App() {
           terminalPaneRef={terminalPaneRef}
           terminalTheme={terminalTheme}
           currentSessionLabel={currentSessionLabel}
+          sessionEnded={sessionEnded}
+          interruptArmed={interruptArmed}
+          onInterrupt={handleTerminalInterrupt}
           pendingTerminalOutput={pendingTerminalOutput}
           onTerminalData={sendTerminalInput}
           onTerminalResize={handleTerminalResize}
