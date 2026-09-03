@@ -1,5 +1,5 @@
 import type { Event } from "../types.js";
-import { ANSI_ESCAPE_RE, createEscapeCarry } from "../terminal-escapes.js";
+import { createEscapeCarry } from "../terminal-escapes.js";
 import type { Rule, RuleSet } from "./types.js";
 
 /**
@@ -246,7 +246,9 @@ export const hermesRuleset: RuleSet = {
 };
 
 type HermesState = {
-  buffer: string;
+  cells: string[];
+  col: number;
+  pending: string;
   started: boolean;
   ended: boolean;
   waitingForInput: boolean;
@@ -262,7 +264,9 @@ let state: HermesState = createState();
 
 function createState(): HermesState {
   return {
-    buffer: "",
+    cells: [],
+    col: 0,
+    pending: "",
     started: false,
     ended: false,
     waitingForInput: false,
@@ -272,11 +276,128 @@ function createState(): HermesState {
   };
 }
 
-function normalizeStream(chunk: string): string {
-  return chunk
-    .replace(ANSI_ESCAPE_RE, "")
-    .replace(/\r/g, "")
-    .replace(/[\u0000-\u0009\u000b-\u001f\u007f]/gu, "");
+/**
+ * Hermes redraws its live TUI region in place: the stream carries CSI
+ * erase-line (`ESC[nK`), cursor-up (`ESC[nA`) and bare `CR` sequences between
+ * the rendered rows. Stripping them blindly glues redraw residue onto the
+ * next row, so the `┊ <emoji>` tool-row prefix never sits at the start of a
+ * reconstructed line and every tool activity is missed.
+ *
+ * The builder emulates a single-line terminal instead: `CR` returns the
+ * cursor to column 0 (subsequent characters overwrite), erase/cursor-up
+ * sequences clear the partial line that the TUI is about to redraw, and `LF`
+ * commits the line. Split sequences are repaired upstream by `escapeCarry`;
+ * an incomplete tail is held back in `pending` the same way.
+ */
+type EscapeSequence = { end: number; params: string; final: string };
+
+function parseEscapeAt(text: string, start: number): EscapeSequence | null {
+  const intro = text[start + 1];
+  if (intro === "[") {
+    let j = start + 2;
+    while (j < text.length && /[0-?]/.test(text[j])) j += 1;
+    while (j < text.length && /[ -/]/.test(text[j])) j += 1;
+    if (j >= text.length) return null;
+    return { end: j + 1, params: text.slice(start + 2, j), final: text[j] };
+  }
+  if (intro === "]") {
+    const bel = text.indexOf("\u0007", start);
+    const st = text.indexOf("\u001B\\", start);
+    let end = -1;
+    if (bel >= 0 && (st < 0 || bel < st)) end = bel + 1;
+    else if (st >= 0) end = st + 2;
+    if (end < 0) return null;
+    return { end, params: "", final: "osc" };
+  }
+  return { end: start + 2, params: "", final: "esc" };
+}
+
+function clearLine(): void {
+  state.cells = [];
+  state.col = 0;
+}
+
+function writeToLine(ch: string): void {
+  while (state.cells.length < state.col) state.cells.push(" ");
+  state.cells[state.col] = ch;
+  state.col += 1;
+}
+
+function applyCsiToLine(params: string, final: string): void {
+  const n = Number.parseInt(params, 10);
+  switch (final) {
+    case "K":
+      // 0K erases from the cursor to end of line; 1K/2K erase the drawn line.
+      if (params === "" || n === 0) state.cells = state.cells.slice(0, state.col);
+      else clearLine();
+      break;
+    case "A":
+    case "F":
+    case "H":
+      // The cursor moves up/home to redraw that region; the partial line is
+      // about to be overwritten, so drop it.
+      clearLine();
+      break;
+    case "G":
+      state.col = Math.max(0, (Number.isNaN(n) ? 1 : n) - 1);
+      break;
+    case "J":
+      if (params !== "" && n !== 0) clearLine();
+      break;
+    default:
+      break;
+  }
+}
+
+function pushChunkToLines(chunk: string): string[] {
+  const text = state.pending + chunk;
+  state.pending = "";
+  const lines: string[] = [];
+  let i = 0;
+  while (i < text.length) {
+    const ch = text[i];
+    if (ch === "\u001B") {
+      const seq = parseEscapeAt(text, i);
+      if (!seq) {
+        state.pending = text.slice(i);
+        break;
+      }
+      if (seq.final !== "osc" && seq.final !== "esc") {
+        applyCsiToLine(seq.params, seq.final);
+      }
+      i = seq.end;
+      continue;
+    }
+    if (ch === "\r") {
+      state.col = 0;
+      i += 1;
+      continue;
+    }
+    if (ch === "\n") {
+      lines.push(state.cells.join(""));
+      clearLine();
+      i += 1;
+      continue;
+    }
+    if (ch === "\t") {
+      writeToLine(" ");
+      writeToLine(" ");
+      i += 1;
+      continue;
+    }
+    if (ch.charCodeAt(0) < 0x20 || ch.charCodeAt(0) === 0x7f) {
+      i += 1;
+      continue;
+    }
+    writeToLine(ch);
+    i += 1;
+  }
+  if (state.cells.length > HERMES_BUFFER_LIMIT) {
+    const dropped = state.cells.length - HERMES_BUFFER_LIMIT;
+    state.cells = state.cells.slice(dropped);
+    state.col = Math.max(0, state.col - dropped);
+  }
+  return lines;
 }
 
 function normalizeLine(line: string): string {
@@ -496,19 +617,17 @@ export function resetHermesExtractionState(): void {
 }
 
 export function extractHermesEvents(chunk: string, ts = Date.now()): Event[] {
-  const text = normalizeStream(escapeCarry(chunk));
-  state.buffer = `${state.buffer}${text}`.slice(-HERMES_BUFFER_LIMIT);
-  const parts = state.buffer.split("\n");
-  state.buffer = parts.pop() ?? "";
+  const committed = pushChunkToLines(escapeCarry(chunk));
 
   const events: Event[] = [];
-  for (const line of parts) {
+  for (const line of committed) {
     const event = eventForLine(line, ts);
     if (event) events.push(event);
   }
 
-  if (state.buffer && shouldProcessProvisional(state.buffer)) {
-    const event = eventForLine(state.buffer, ts, true);
+  const provisionalLine = state.cells.join("");
+  if (provisionalLine && shouldProcessProvisional(provisionalLine)) {
+    const event = eventForLine(provisionalLine, ts, true);
     if (event) events.push(event);
   }
 

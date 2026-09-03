@@ -295,6 +295,41 @@ describe("Hermes Agent ruleset", () => {
     expect(serialized).not.toContain("Summarize the sample folder");
   });
 
+  it("narrates tool activity from redraw-structured TUI frames without leaking content", async () => {
+    // Real v0.2x streams redraw the live region with CR and CSI erase/cursor
+    // sequences (erase-line, cursor-up) before the tool row lands on the line.
+    // The frame boundaries also split escape sequences mid-sequence.
+    const raw = await fixture("tui-tool-activity-redraw.log");
+    const chunks: string[] = [];
+    for (let offset = 0; offset < raw.length; offset += 64) {
+      chunks.push(raw.slice(offset, offset + 64));
+    }
+    const events = chunks.flatMap((chunk) => extractEvents(chunk, "hermes"));
+    const summaries = events.map((event) => event.summary);
+
+    const countBy = (summary: string) => summaries.filter((s) => s === summary).length;
+    expect(countBy("Hermes Agentセッションを開始した")).toBe(1);
+    // Same-category reads collapse; a title change re-arms the category.
+    expect(countBy("Hermesがファイルを読んでいる")).toBe(2);
+    expect(countBy("Hermesがターミナルコマンドを実行している")).toBe(1);
+    expect(countBy("Hermesが検索を実行している")).toBe(1);
+    expect(countBy("Hermesが別の作業へ移った")).toBe(2);
+    expect(countBy("Hermesがモデル応答を生成している")).toBe(1);
+    expect(countBy("Hermesの応答が完了した")).toBe(1);
+    expect(events.length).toBeLessThanOrEqual(12);
+    // Redraw residue, canary text, arguments, file names, and durations stay out.
+    const serialized = JSON.stringify(events);
+    expect(serialized).not.toMatch(/\u001b/);
+    expect(serialized).not.toContain("MARKER");
+    expect(serialized).not.toContain("STATUS");
+    expect(serialized).not.toContain("RESIDUE");
+    expect(serialized).not.toContain("file1.md");
+    expect(serialized).not.toContain("file2.md");
+    expect(serialized).not.toContain("file3.md");
+    expect(serialized).not.toContain("wc -l");
+    expect(serialized).not.toContain("0.2s");
+  });
+
   it("provides a visible explanation for Hermes progress and suppresses low-value generic redraws", () => {
     const hermesProgress = {
       ts: 1,
