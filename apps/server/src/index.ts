@@ -934,7 +934,7 @@ wss.on("connection", async (ws, request) => {
           if (runtimeInputMode !== "pty") break;
           const stopTarget = ptyManager.current;
           if (stopTarget === null) break;
-          stopTarget.kill();
+          ptyManager.requestStopCurrent();
           break;
         }
 

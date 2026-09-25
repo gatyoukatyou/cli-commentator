@@ -139,6 +139,7 @@ export type PTYManager = {
   readonly current: IPty | null;
   spawn: (config: PTYConfig) => IPty;
   releaseIfCurrent: (pty: IPty) => boolean;
+  requestStopCurrent: () => void;
   kill: () => void;
   resize: (cols: number, rows: number) => void;
   write: (data: string) => void;
@@ -196,6 +197,18 @@ export function createPTYManager(): PTYManager {
       if (currentPty !== pty) return false;
       currentPty = null;
       return true;
+    },
+
+    requestStopCurrent() {
+      if (!currentPty) return;
+      try {
+        currentPty.kill();
+      } catch (error) {
+        // A natural exit can win the race while the PTY is still awaiting onExit.
+        if ((error as NodeJS.ErrnoException).code !== "ESRCH") {
+          console.warn("Failed to stop the current PTY:", error);
+        }
+      }
     },
 
     kill() {
