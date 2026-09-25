@@ -19,6 +19,7 @@ import {
 import type { CommentaryItem } from "./lib/log-filter";
 import { createPtyResizeCoalescer, type PtyResizeCoalescer } from "./lib/pty-resize";
 import { getTerminalTheme } from "./lib/terminal-theme";
+import { updateSessionEnded } from "./lib/session-status";
 import {
   buildLaunchDraft,
   buildLaunchSessionInput,
@@ -119,7 +120,10 @@ export default function App() {
   // ルールベースの即時イベント: urgentは要対応表示＋定型文の割り込み読み上げ
   const handleServerEvent = useCallback(
     (ev: Event) => {
-      if (ev.type === "done") setSessionEnded(true);
+      // A `done` event can mark a completed Hermes response while its PTY remains active.
+      if (ev.type === "done") {
+        setSessionEnded((current) => updateSessionEnded(current, { kind: "event", ev }));
+      }
       if ((ev.priority ?? "progress") !== "urgent") return;
       setAttention(toAttentionNotice(ev));
       if (speakUrgentNow(buildUrgentEventSpeechText(ev))) {
@@ -222,13 +226,17 @@ export default function App() {
 
   const handlePtyRestart = useCallback(() => {
     setPtyResizeSyncToken((value) => value + 1);
-    setSessionEnded(false);
+    setSessionEnded((current) => updateSessionEnded(current, { kind: "ptyRestart" }));
     setInterruptArmed(false);
     lastInterruptAtRef.current = null;
     if (interruptResetTimerRef.current) {
       clearTimeout(interruptResetTimerRef.current);
       interruptResetTimerRef.current = null;
     }
+  }, []);
+
+  const handlePtyExit = useCallback(() => {
+    setSessionEnded((current) => updateSessionEnded(current, { kind: "ptyExit" }));
   }, []);
 
   const handleCopySuggestion = async () => {
@@ -267,6 +275,7 @@ export default function App() {
     stopAndClearSpeech,
     resetTTSLifecycleSession,
     onServerEvent: handleServerEvent,
+    onPtyExit: handlePtyExit,
     onPtyRestart: handlePtyRestart,
     clearAttention,
   });

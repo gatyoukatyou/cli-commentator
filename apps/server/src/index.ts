@@ -564,6 +564,7 @@ function setupPTY(
     });
     const context = sessionContext.observeEvent(ev);
     broadcast({ kind: "event", ev });
+    broadcast({ kind: "ptyExit", exitCode, signal: signal ?? null });
 
     const exitWithCode = exitCode ?? 0;
     if (MANAGED_SERVER) {

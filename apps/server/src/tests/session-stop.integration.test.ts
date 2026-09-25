@@ -13,6 +13,15 @@ const STUBBORN_CLI_SCRIPT =
 type ServerMessage = {
   kind?: string;
   ev?: { type?: string; summary?: string };
+  exitCode?: number;
+  signal?: number | null;
+  cmd?: string;
+  args?: string[];
+};
+
+type StartServerOptions = {
+  logSource?: string;
+  script?: string;
 };
 
 function delay(ms: number): Promise<void> {
@@ -93,7 +102,7 @@ async function stopServer(child: ChildProcess): Promise<void> {
   ]);
 }
 
-async function startServer(): Promise<{ child: ChildProcess; port: number; stdout: () => string }> {
+async function startServer(options: StartServerOptions = {}): Promise<{ child: ChildProcess; port: number; stdout: () => string }> {
   const port = await getFreePort();
   const child = spawn(process.execPath, ["--import", "tsx", "src/index.ts"], {
     cwd: process.cwd(),
@@ -103,8 +112,9 @@ async function startServer(): Promise<{ child: ChildProcess; port: number; stdou
       CLI_COMMENTATOR_MANAGED_SERVER: "1",
       INPUT_MODE: "pty",
       TARGET_CMD: process.execPath,
-      TARGET_ARGS_JSON: JSON.stringify(["-e", STUBBORN_CLI_SCRIPT]),
+      TARGET_ARGS_JSON: JSON.stringify(["-e", options.script ?? STUBBORN_CLI_SCRIPT]),
       TARGET_CWD: process.cwd(),
+      LOG_SOURCE: options.logSource ?? "generic",
       LLM_PROVIDER: "disabled",
     },
     stdio: ["ignore", "pipe", "pipe"],
@@ -134,6 +144,61 @@ async function connect(port: number): Promise<{ ws: WebSocket; messages: ServerM
 }
 
 describe.skipIf(!canRun)("stopSession force-stop lifecycle", () => {
+  it("keeps Hermes response completion separate from PTY exit, then reports exit and restart", async () => {
+    const hermesLifecycleScript =
+      'setTimeout(() => console.log("Task completed"), 700); setTimeout(() => console.log("📖 follow-up.md"), 1100); setInterval(() => {}, 1000)';
+    const { child, port, stdout } = await startServer({ logSource: "hermes", script: hermesLifecycleScript });
+    const { ws, messages } = await connect(port);
+
+    try {
+      const responseDone = await waitForMessage(
+        messages,
+        (message) => message.kind === "event" && message.ev?.type === "done" && message.ev.summary === "Hermesの応答が完了した",
+      );
+      expect(responseDone.ev?.summary).toBe("Hermesの応答が完了した");
+      expect(messages.some((message) => message.kind === "ptyExit")).toBe(false);
+
+      const followUp = await waitForMessage(
+        messages,
+        (message) => message.kind === "event" && message.ev?.type === "read",
+      );
+      expect(followUp.ev?.type).toBe("read");
+      expect(messages.some((message) => message.kind === "ptyExit")).toBe(false);
+
+      ws.send(JSON.stringify({ kind: "stopSession" }));
+      const ptyExit = await waitForMessage(messages, (message) => message.kind === "ptyExit");
+      expect(typeof ptyExit.exitCode).toBe("number");
+      expect(ptyExit.signal === null || typeof ptyExit.signal === "number").toBe(true);
+      expect(child.exitCode).toBeNull();
+      expect(await isHealthy(port)).toBe(true);
+
+      messages.length = 0;
+      ws.send(JSON.stringify({
+        kind: "launchSession",
+        session: {
+          name: "restart after Hermes exit",
+          cmd: process.execPath,
+          args: ["-e", STUBBORN_CLI_SCRIPT],
+          cwd: process.cwd(),
+          style: "standard",
+          logSource: "generic",
+        },
+      }));
+      const restart = await waitForMessage(messages, (message) => message.kind === "ptyRestart");
+      expect(restart.cmd).toBe(process.execPath);
+      await waitForMessage(messages, (message) => message.kind === "event" && message.ev?.type === "start");
+      expect(messages.some((message) => message.kind === "ptyExit")).toBe(false);
+
+      ws.send(JSON.stringify({ kind: "stopSession" }));
+      await waitForMessage(messages, (message) => message.kind === "ptyExit");
+    } catch (err) {
+      throw new Error(`Hermes PTY lifecycle failed; server output:\n${stdout()}\nmessages: ${JSON.stringify(messages)}`, { cause: err });
+    } finally {
+      ws.close();
+      await stopServer(child);
+    }
+  }, 25_000);
+
   it("stops a CLI that ignores Ctrl+C, keeps the server alive, and allows relaunch", async () => {
     const { child, port, stdout } = await startServer();
     const { ws, messages } = await connect(port);

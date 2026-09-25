@@ -140,6 +140,7 @@ export type WsOutgoing =
   | { kind: "profileDetail"; profile: Profile }
   | { kind: "profileError"; error: string }
   | { kind: "ptyRestart"; cmd: string; args: string[]; profileId: string | null }
+  | { kind: "ptyExit"; exitCode: number; signal: number | null }
   | { kind: "ptyError"; error: string }
   | { kind: "ptyUnavailable"; error: string; suggestion: string };
 
