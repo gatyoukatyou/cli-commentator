@@ -1,0 +1,10 @@
+Hermes Agent v0.0.0 (2099.1.1) · upstream 00000000
+─ Task one
+⠸ thinking… 1.0s⠹ thinking… 1.2s⠼ thinking… 1.4s
+MARKER[2K[0m[?25h  ┊ 📖 read_file file1.md 0.2s (↓ 12 tok)
+[0m[?25l  ┊ 📖 read_file file2.md 0.1s (↓ 8 tok)
+STATUS[2K[0m  ┊ 💻 $ wc -l file1.md 0.3s
+RESIDUE[1A[2K[0m  ┊ 🔎 search file2.md 0.4s…
+─ Task two
+[0m[?25h  ┊ 📖 read_file file3.md 0.2s
+turn complete
