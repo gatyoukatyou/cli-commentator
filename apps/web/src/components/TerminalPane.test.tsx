@@ -14,6 +14,8 @@ type FakeTerminalInstance = {
   options: { minimumContrastRatio: number; theme: TerminalPaneTheme };
   textarea: HTMLTextAreaElement;
   written: string;
+  emitData: (data: string) => void;
+  runCustomKeyEvent: (event: KeyboardEvent) => boolean;
 };
 
 const xtermState = vi.hoisted(() => ({
@@ -29,6 +31,8 @@ vi.mock("xterm", () => {
     options: { minimumContrastRatio: number; theme: TerminalPaneTheme };
     textarea = document.createElement("textarea");
     written = "";
+    private dataHandler: ((data: string) => void) | null = null;
+    private customKeyEventHandler: ((event: KeyboardEvent) => boolean) | null = null;
 
     constructor(options: { minimumContrastRatio: number; theme: TerminalPaneTheme }) {
       this.options = {
@@ -44,7 +48,9 @@ vi.mock("xterm", () => {
       host.append(this.textarea);
     }
 
-    attachCustomKeyEventHandler(): void {}
+    attachCustomKeyEventHandler(handler: (event: KeyboardEvent) => boolean): void {
+      this.customKeyEventHandler = handler;
+    }
 
     onScroll(): { dispose: () => void } {
       return { dispose: () => {} };
@@ -54,7 +60,17 @@ vi.mock("xterm", () => {
       return { dispose: () => {} };
     }
 
-    onData(): void {}
+    onData(handler: (data: string) => void): void {
+      this.dataHandler = handler;
+    }
+
+    emitData(data: string): void {
+      this.dataHandler?.(data);
+    }
+
+    runCustomKeyEvent(event: KeyboardEvent): boolean {
+      return this.customKeyEventHandler?.(event) ?? true;
+    }
 
     write(data: string, callback?: () => void): void {
       this.written += data;
@@ -154,5 +170,77 @@ describe("TerminalPane", () => {
       root.unmount();
     });
     expect(terminal.disposed).toBe(true);
+  });
+
+  it("forwards committed Japanese once, blocks IME controls, and preserves physical Tab", async () => {
+    const host = document.createElement("div");
+    document.body.append(host);
+    const root = createRoot(host);
+    const callbacks = {
+      onData: vi.fn(),
+      onFocusChange: vi.fn(),
+      onResize: vi.fn(),
+      onPendingOutputFlushed: vi.fn(),
+    };
+
+    await act(async () => {
+      root.render(
+        <TerminalPane
+          className="terminal"
+          onData={callbacks.onData}
+          onFocusChange={callbacks.onFocusChange}
+          onResize={callbacks.onResize}
+          onPendingOutputFlushed={callbacks.onPendingOutputFlushed}
+          pendingOutput=""
+          theme={CLI_TERMINAL_THEME}
+        />
+      );
+    });
+
+    const [terminal] = xtermState.instances;
+    const imeTab = {
+      altKey: false,
+      ctrlKey: false,
+      isComposing: true,
+      key: "Tab",
+      keyCode: 9,
+      metaKey: false,
+      preventDefault: vi.fn(),
+      shiftKey: false,
+    } as unknown as KeyboardEvent;
+
+    await act(async () => {
+      terminal.textarea.dispatchEvent(new Event("compositionstart", { bubbles: true }));
+    });
+    expect(terminal.runCustomKeyEvent(imeTab)).toBe(true);
+    expect(imeTab.preventDefault).not.toHaveBeenCalled();
+    terminal.emitData("\t");
+
+    await act(async () => {
+      terminal.textarea.dispatchEvent(new Event("compositionend", { bubbles: true }));
+    });
+    terminal.emitData("日本語入力テスト");
+    terminal.emitData("日本語入力テスト");
+
+    expect(callbacks.onData).toHaveBeenCalledTimes(1);
+    expect(callbacks.onData).toHaveBeenCalledWith("日本語入力テスト");
+
+    const physicalTab = {
+      altKey: false,
+      ctrlKey: false,
+      isComposing: false,
+      key: "Tab",
+      keyCode: 9,
+      metaKey: false,
+      preventDefault: vi.fn(),
+      shiftKey: false,
+    } as unknown as KeyboardEvent;
+    expect(terminal.runCustomKeyEvent(physicalTab)).toBe(true);
+    terminal.emitData("\t");
+    expect(callbacks.onData).toHaveBeenCalledWith("\t");
+
+    await act(async () => {
+      root.unmount();
+    });
   });
 });
