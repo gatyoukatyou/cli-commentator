@@ -220,7 +220,9 @@ describe("pty/manager", () => {
         onData: vi.fn(),
         onExit: vi.fn(),
         write: vi.fn(),
-        kill: vi.fn(),
+        kill: vi.fn(() => {
+          throw Object.assign(new Error("process already exited"), { code: "ESRCH" });
+        }),
         resize: secondResize,
       };
       const spawn = vi
@@ -257,6 +259,10 @@ describe("pty/manager", () => {
 
         manager.resize(120, 40);
         expect(secondResize).toHaveBeenCalledWith(120, 40);
+        expect(() => manager.requestStopCurrent()).not.toThrow();
+        expect(secondTerm.kill).toHaveBeenCalledTimes(1);
+        expect(manager.current).toBe(secondTerm);
+
         manager.kill();
         manager.resize(144, 48);
         expect(secondResize).toHaveBeenCalledTimes(1);

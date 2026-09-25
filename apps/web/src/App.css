@@ -586,6 +586,11 @@
   background-color: transparent;
 }
 
+.debug-panel__btn--danger {
+  background-color: var(--color-danger);
+  color: var(--color-bg-primary);
+}
+
 .debug-panel__recovery {
   margin: 0 0 var(--space-2);
   padding-left: var(--space-4);
