@@ -63,6 +63,11 @@ export function createTerminalInputGate(now: () => number = () => Date.now()): T
 
   return {
     handleKeyEvent(event) {
+      // keyCode 229 is xterm's IME marker, not the Enter/Tab control key.
+      // xterm's CompositionHelper does not emit a control byte for it, so do
+      // not leave one pending to consume the next independent keypress.
+      if (event.keyCode === 229) return "ime";
+
       const imeActive = composing || event.isComposing;
       if (imeActive && isCompositionControlKey(event)) {
         if (event.type === undefined || event.type === "keydown") {
@@ -76,9 +81,6 @@ export function createTerminalInputGate(now: () => number = () => Date.now()): T
         return "ime";
       }
 
-      // keyCode 229 is xterm's IME marker. xterm must handle it itself; it
-      // does not represent a byte that should be sent to the PTY.
-      if (event.keyCode === 229) return "ime";
       return "normal";
     },
 

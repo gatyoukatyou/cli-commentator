@@ -130,6 +130,26 @@ describe("createTerminalInputGate", () => {
     expect(gate.shouldForward("日本語入力テスト")).toBe(true);
   });
 
+  it("does not suppress Enter after an IME keyCode 229 marker", () => {
+    let now = 1000;
+    const gate = createTerminalInputGate(() => now);
+
+    gate.noteCompositionStart();
+    expect(
+      gate.handleKeyEvent({ isComposing: true, key: "Enter", keyCode: 229, type: "keydown" })
+    ).toBe("ime");
+
+    now += 10;
+    gate.noteCompositionEnd();
+    expect(gate.shouldForward("日本語")).toBe(true);
+
+    now += 50;
+    expect(
+      gate.handleKeyEvent({ isComposing: false, key: "Enter", keyCode: 13, type: "keydown" })
+    ).toBe("normal");
+    expect(gate.shouldForward("\r")).toBe(true);
+  });
+
   it("suppresses control beforeinput from an active IME only", () => {
     const gate = createTerminalInputGate();
 
