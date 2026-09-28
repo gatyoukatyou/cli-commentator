@@ -21,6 +21,7 @@ main {
 
 .page-header,
 .status-panel,
+.codex-state-panel,
 .commentary-panel,
 .approval-panel,
 .controls-panel,
@@ -31,6 +32,8 @@ main {
   border-radius: 0.8rem;
   background: #fff;
 }
+
+.codex-state-panel { border-left: 0.35rem solid #087e72; }
 
 .page-header { padding-inline: 0; border: 0; background: transparent; }
 .eyebrow { margin: 0; color: #405364; font-weight: 700; letter-spacing: 0.06em; }
@@ -95,12 +98,19 @@ button.danger { border-color: #7a2b2b; color: #7a2b2b; }
 .evidence-panel dl { display: grid; grid-template-columns: minmax(7rem, 0.3fr) minmax(0, 1fr); gap: 0.3rem 0.8rem; overflow-wrap: anywhere; }
 .evidence-panel dt { font-weight: 700; }
 .evidence-panel dd { margin: 0; }
+.codex-state-panel dl { display: grid; grid-template-columns: minmax(7rem, 0.3fr) minmax(0, 1fr); gap: 0.3rem 0.8rem; overflow-wrap: anywhere; }
+.codex-state-panel dt { font-weight: 700; }
+.codex-state-panel dd { margin: 0; }
+.codex-state-note { margin-block: 0.8rem 0; color: #405364; font-size: 0.95rem; }
+.approval-preview-block { margin-block: 1rem; padding: 0.8rem; border-radius: 0.5rem; background: #f4f7f9; }
+.approval-preview-block pre { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; font: inherit; }
+.approval-preview-block p { margin: 0; }
 
 @media (max-width: 650px) {
   body { padding: 0.75rem; }
   .status-grid { grid-template-columns: 1fr; }
-  .page-header, .status-panel, .commentary-panel, .approval-panel, .controls-panel, .evidence-panel { padding: 1rem; }
+  .page-header, .status-panel, .codex-state-panel, .commentary-panel, .approval-panel, .controls-panel, .evidence-panel { padding: 1rem; }
   button { width: 100%; }
-  .evidence-panel dl { grid-template-columns: 1fr; gap: 0; }
+  .evidence-panel dl, .codex-state-panel dl { grid-template-columns: 1fr; gap: 0; }
   .evidence-panel dd { margin-block-end: 0.45rem; }
 }

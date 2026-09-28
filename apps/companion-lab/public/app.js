@@ -1,6 +1,8 @@
 const nodes = Object.fromEntries([
   'phase', 'current-work', 'changed', 'decision', 'announcement', 'transcript', 'detail',
+  'page-title', 'mode-banner', 'codex-state-panel', 'turn-status', 'child-status', 'stop-requested', 'model', 'final-report',
   'approval-panel', 'approval-heading', 'approval-title', 'approval-details', 'approval-state',
+  'approval-preview-block', 'approval-preview', 'approval-blocked-reason',
   'session-id', 'generation', 'operation-id', 'evidence',
   'start', 'advance', 'read-again', 'more-detail', 'speech-stop', 'approve', 'reject', 'hold', 'stop-work',
 ].map((id) => [id, document.getElementById(id)]));
@@ -91,7 +93,9 @@ function render(next, source = 'state', generationAtRequest = lastGeneration) {
   }
   const generationChanged = previousGeneration !== next.generation;
   const recovering = connectionUnknown;
-  if (!generationChanged && !recovering) return;
+  const previousSnapshot = snapshot;
+  const codexRefresh = next.source === 'codex';
+  if (!generationChanged && !recovering && !codexRefresh) return;
   connectionUnknown = false;
   snapshot = next;
   lastGeneration = snapshot.generation;
@@ -100,6 +104,24 @@ function render(next, source = 'state', generationAtRequest = lastGeneration) {
     detailVisible = false;
     nodes.detail.textContent = '';
     nodes.detail.hidden = true;
+  }
+
+  const isCodex = snapshot.source === 'codex';
+  nodes['page-title'].textContent = isCodex ? 'Codexとの実接続' : '架空の作業体験デモ';
+  nodes['mode-banner'].textContent = isCodex
+    ? 'Codexとの実接続・練習用ファイルの読み取りを行います。Codexの既存の認証・利用枠を使います（ChatGPTログインの場合はサブスク枠）。固定のsample.txtを読み取り、自由な依頼や作業場所は指定できません。'
+    : 'これは架空の作業を使う体験デモです。実際のCLI実行・ファイル変更・共有は行いません。';
+  document.title = isCodex ? 'Codexとの実接続 | CLI Commentator' : 'CLI Commentator 体験デモ';
+  nodes['codex-state-panel'].hidden = !isCodex;
+  if (isCodex) {
+    const codex = snapshot.codex;
+    nodes['turn-status'].textContent = turnStatusText(codex?.turnStatus);
+    nodes['child-status'].textContent = childStatusText(codex?.childStatus);
+    nodes['stop-requested'].textContent = codex?.childStatus === 'closed'
+      ? '停止操作済み。接続の終了を確認しました。'
+      : codex?.stopRequested ? '要求済み。終了はまだ確認中の場合があります。' : 'なし';
+    nodes.model.textContent = codex?.model || '未指定';
+    nodes['final-report'].textContent = codex?.finalReport || 'まだCodexからの最終報告はありません。';
   }
 
   nodes.phase.textContent = snapshot.phaseLabel;
@@ -129,36 +151,102 @@ function render(next, source = 'state', generationAtRequest = lastGeneration) {
     }
   }
 
-  const active = snapshot.status === 'running' || snapshot.status === 'awaiting-human';
-  setAriaDisabled(nodes.start, connectionUnknown || active);
-  setAriaDisabled(nodes.advance, connectionUnknown || snapshot.status !== 'running');
+  const active = snapshot.status === 'starting' || snapshot.status === 'running' || snapshot.status === 'awaiting-human' || snapshot.status === 'stopping';
+  setAriaDisabled(nodes.start, connectionUnknown || !snapshot.capabilities.start || active);
+  setAriaDisabled(nodes.advance, connectionUnknown || !snapshot.capabilities.advance || snapshot.status !== 'running');
+  nodes.advance.textContent = isCodex ? '次へ進む（実接続では未対応）' : '次へ進む';
   setAriaDisabled(nodes['read-again'], connectionUnknown || !latest);
   setAriaDisabled(nodes['more-detail'], connectionUnknown);
-  setAriaDisabled(nodes['stop-work'], connectionUnknown || snapshot.status === 'finished' || snapshot.status === 'stopped');
+  const codexCanStop = isCodex && snapshot.codex && snapshot.codex.childStatus !== 'closed' && !snapshot.codex.stopRequested;
+  const canStop = snapshot.capabilities.stop && (isCodex ? codexCanStop : snapshot.status !== 'finished' && snapshot.status !== 'stopped');
+  setAriaDisabled(nodes['stop-work'], connectionUnknown || !canStop);
+  nodes['stop-work'].textContent = isCodex
+    ? (snapshot.codex?.childStatus === 'closed'
+      ? 'Codex接続は終了済み'
+      : snapshot.codex?.stopRequested ? 'Codexの終了を確認中' : 'Codex接続を停止')
+    : 'デモを停止';
 
   const approval = snapshot.approval;
   nodes['approval-panel'].hidden = approval === null;
   if (approval) {
+    const canAccept = isCodex
+      ? approval.canAccept === true && typeof approval.preview === 'string' && approval.preview.trim().length > 0
+      : true;
     nodes['approval-heading'].textContent = approval.status === 'pending' ? 'あなたの判断が必要です' : '判断の結果';
     nodes['approval-title'].textContent = approval.title;
     nodes['approval-details'].textContent = approval.details;
+    nodes['approval-preview-block'].hidden = !isCodex;
+    nodes['approval-preview'].textContent = approval.preview || '対象のコマンドと作業場所を確認できません。';
+    nodes['approval-blocked-reason'].textContent = canAccept
+      ? '表示した対象を確認し、承認する場合は「Codexの要求を承認」を選んでください。'
+      : approval.blockedReason || '対象のコマンドと作業場所を確認できないため、承認できません。拒否は選べます。';
     const pending = approval.status === 'pending';
-    for (const button of [nodes.approve, nodes.reject, nodes.hold]) {
-      setAriaDisabled(button, connectionUnknown || !pending);
-    }
+    setAriaDisabled(nodes.approve, connectionUnknown || !snapshot.capabilities.humanDecision || !pending || !canAccept);
+    setAriaDisabled(nodes.reject, connectionUnknown || !snapshot.capabilities.humanDecision || !pending);
+    setAriaDisabled(nodes.hold, connectionUnknown || !snapshot.capabilities.hold || !pending);
+    nodes.approve.textContent = isCodex ? 'Codexの要求を承認' : 'デモ内で承認';
+    nodes.reject.textContent = isCodex ? 'Codexの要求を拒否' : 'デモ内で拒否';
+    nodes.hold.textContent = isCodex ? '保留する（実接続では未対応）' : '保留する';
     nodes['approval-state'].textContent = pending
-      ? '返答待ちです。保留して、あとで判断することもできます。'
+      ? isCodex
+        ? (canAccept ? 'Codexからの確認待ちです。対象と理由を確認して返答してください。' : 'この要求は承認できません。確認できない点があるため、拒否できます。')
+        : '返答待ちです。保留して、あとで判断することもできます。'
       : approval.status === 'cancelled'
-        ? 'デモが停止したため、この判断は取り消されました。'
-        : approval.status === 'approve'
-          ? '承認を記録しました。実際の共有は行っていません。'
-          : '拒否を記録しました。実際の共有は行っていません。';
+        ? (isCodex ? '停止処理により、この要求は取り消されました。' : 'デモが停止したため、この判断は取り消されました。')
+        : isCodex && approval.status === 'sent'
+          ? '承認の返答をCodexへ送りました。コマンドが実行されたかはまだ未確認です。'
+          : isCodex && approval.status === 'decline'
+            ? '拒否の返答をCodexへ送りました。ターンの結果はまだ未確認です。'
+            : isCodex && (approval.status === 'unknown' || approval.status === 'failed')
+              ? '返答をCodexへ送れたか確認できません。状態不明として扱っています。'
+              : approval.status === 'approve' || (isCodex && approval.status === 'accept') || (isCodex && approval.status === 'executed')
+                ? (isCodex ? 'Codexの確認要求に承認を返しました。実作業の結果は別に確認してください。' : '承認を記録しました。実際の共有は行っていません。')
+                : (isCodex ? 'Codexの確認要求を拒否しました。' : '拒否を記録しました。実際の共有は行っていません。');
+  } else {
+    nodes.approve.textContent = isCodex ? 'Codexの要求を承認' : 'デモ内で承認';
+    nodes.reject.textContent = isCodex ? 'Codexの要求を拒否' : 'デモ内で拒否';
+    nodes.hold.textContent = isCodex ? '保留する（実接続では未対応）' : '保留する';
+    setAriaDisabled(nodes.approve, true);
+    setAriaDisabled(nodes.reject, true);
+    setAriaDisabled(nodes.hold, connectionUnknown || !snapshot.capabilities.hold);
   }
 
   if (generationChanged) {
-    announce(`${snapshot.phaseLabel}。いまの作業、変わったこと、あなたの判断を更新しました。`);
+    announce(isCodex
+      ? 'Codexとの接続状況を更新しました。AIの作業とCodexとの接続を確認してください。'
+      : `${snapshot.phaseLabel}。いまの作業、変わったこと、あなたの判断を更新しました。`);
+  } else if (isCodex && previousSnapshot?.codex && snapshot.codex && (
+    previousSnapshot.codex.turnStatus !== snapshot.codex.turnStatus
+    || previousSnapshot.codex.childStatus !== snapshot.codex.childStatus
+  )) {
+    announce(`AIの作業は${turnStatusText(snapshot.codex.turnStatus)}、Codexとの接続は${childStatusText(snapshot.codex.childStatus)}です。`);
   }
-  if (recovering && !generationChanged) announce(`接続が戻りました。${snapshot.phaseLabel}の状態を確認しました。`);
+  if (recovering && !generationChanged) announce(isCodex
+    ? '接続が戻りました。Codexとの接続状況を確認しました。'
+    : `接続が戻りました。${snapshot.phaseLabel}の状態を確認しました。`);
+}
+
+function turnStatusText(status) {
+  return ({
+    'not-started': '未開始',
+    inProgress: '進行中',
+    completed: '完了',
+    failed: '失敗',
+    interrupted: '中断',
+    unknown: '不明',
+  })[status] || '不明';
+}
+
+function childStatusText(status) {
+  const text = ({
+    'not-started': '未開始',
+    starting: '準備中',
+    running: '接続中',
+    closing: '終了処理中',
+    closed: '終了を確認',
+    unknown: '不明',
+  })[status] || '不明';
+  return text;
 }
 
 function setAriaDisabled(button, disabled) {
@@ -238,10 +326,12 @@ nodes.reject.addEventListener('click', () => decide('reject'));
 nodes['read-again'].addEventListener('click', speakLatest);
 nodes['speech-stop'].addEventListener('click', () => {
   stopSpeech();
-  announce('音声を止めました。デモの進行状態は変わっていません。');
+  announce(snapshot?.source === 'codex'
+    ? '音声を止めました。作業の進行状態は変わっていません。'
+    : '音声を止めました。デモの進行状態は変わっていません。');
 });
 nodes['more-detail'].addEventListener('click', async () => {
-  if (connectionUnknown) return;
+  if (connectionUnknown || nodes['more-detail'].getAttribute('aria-disabled') === 'true') return;
   const requestedGeneration = snapshot?.generation;
   const result = await post('/api/explain', { detail: true });
   if (
@@ -264,6 +354,10 @@ async function decide(decision) {
     expectedGeneration: snapshot.approval.expectedGeneration,
     decision,
   });
+}
+
+for (const button of [nodes.start, nodes.advance, nodes['read-again'], nodes['more-detail'], nodes.approve, nodes.reject, nodes.hold, nodes['stop-work']]) {
+  setAriaDisabled(button, true);
 }
 
 void bootstrap();
