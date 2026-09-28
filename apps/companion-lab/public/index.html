@@ -12,8 +12,8 @@
     <main>
       <header class="page-header">
         <p class="eyebrow">CLI Commentator</p>
-        <h1>架空の作業体験デモ</h1>
-        <p class="simulation-banner">これは架空の作業を使う体験デモです。実際のCLI実行・ファイル変更・共有は行いません。</p>
+        <h1 id="page-title">架空の作業体験デモ</h1>
+        <p id="mode-banner" class="simulation-banner">これは架空の作業を使う体験デモです。実際のCLI実行・ファイル変更・共有は行いません。</p>
       </header>
 
       <section class="status-panel" aria-labelledby="status-heading">
@@ -36,6 +36,19 @@
         <p id="announcement" class="announcement" role="status" aria-live="polite" aria-atomic="true">デモは未開始です。</p>
       </section>
 
+      <section id="codex-state-panel" class="codex-state-panel" aria-labelledby="codex-state-heading" hidden>
+        <h2 id="codex-state-heading">AIの作業と接続</h2>
+        <dl>
+          <dt>AIの作業</dt><dd id="turn-status">未開始</dd>
+          <dt>Codexとの接続</dt><dd id="child-status">未開始</dd>
+          <dt>停止操作</dt><dd id="stop-requested">なし</dd>
+          <dt>モデル</dt><dd id="model">未指定</dd>
+        </dl>
+        <p class="codex-state-note">「AIの作業」はCodexから届くturnの状態、「Codexとの接続」は専用プログラムの状態です。</p>
+        <h3>Codexからの最終報告（AIの報告）</h3>
+        <p id="final-report">まだ報告はありません。</p>
+      </section>
+
       <section class="commentary-panel" aria-labelledby="commentary-heading">
         <h2 id="commentary-heading">二人の実況と字幕</h2>
         <p class="voice-note">音声は任意です。役割名も読み上げます。同じ声になる場合があります。</p>
@@ -52,6 +65,12 @@
         <h2 id="approval-heading">あなたの判断が必要です</h2>
         <p id="approval-title" class="approval-title"></p>
         <p id="approval-details"></p>
+        <div id="approval-preview-block" class="approval-preview-block" hidden>
+          <h3>対象のコマンドと作業場所</h3>
+          <pre id="approval-preview"></pre>
+          <h3>承認できるか</h3>
+          <p id="approval-blocked-reason"></p>
+        </div>
         <div class="button-row">
           <button id="approve" type="button" class="primary">デモ内で承認</button>
           <button id="reject" type="button">デモ内で拒否</button>
