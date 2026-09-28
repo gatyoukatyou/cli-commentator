@@ -1,6 +1,6 @@
 # 段階2：Codexとの実接続
 
-管理タスクは [tasks #140](https://github.com/gatyoukatyou/tasks/issues/140) です。B案の段階1 [PR #483](https://github.com/gatyoukatyou/cli-commentator/pull/483) を土台に、専用のCodexプロセスから実際の進行を受け取ります。既存の端末・Desktopの変更は別の段階です。
+管理タスクは [tasks #140](https://github.com/gatyoukatyou/tasks/issues/140)、段階2の変更は [PR #484](https://github.com/gatyoukatyou/cli-commentator/pull/484) です。B案の段階1 [PR #483](https://github.com/gatyoukatyou/cli-commentator/pull/483) を土台に、専用のCodexプロセスから実際の進行を受け取ります。既存の端末・Desktopの変更は別の段階です。
 
 ## 作業計画と範囲
 
@@ -126,4 +126,4 @@ CLIの設定上書きでは、`mcp_servers={}`だけでは既存MCPの無効化�
 
 実画面ではキーボードだけで開始・詳しい説明・接続停止を操作しました。AIの回答が完了した時点では接続中を示し、停止操作の後に接続終了を確認する説明へ変わりました。音声の再生・音声停止と接続断の表示は28日に確認しました。音質、VoiceOverとの併用、利用者が内容を理解できるかはHUMAN評価として残します。
 
-段階2のPRは段階1のブランチを比較元にします。GitHubでは専用の`companion-lab`チェックが対象です。main向けの旧server・web・Desktop・CodeQLの全チェックをこのPRで実行したとは扱いません。最終のPR URL、head、チェック結果は管理タスク #140 の最新コメントを参照してください。
+段階2のPRは段階1のブランチを比較元にします。GitHubでは専用の`companion-lab`に加え、既存のserver・web・Desktop等を確認するCIも実行されます。CodeQLはこの比較元では実行対象外です。段階1をmainへ反映した後は、比較元をmainへ付け替えて再確認します。最終のPR URL、head、チェック結果は管理タスク #140 の最新コメントを参照してください。
