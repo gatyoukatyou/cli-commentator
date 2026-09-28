@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#17202a">
+    <title>CLI Commentator 体験デモ</title>
+    <link rel="stylesheet" href="/styles.css">
+    <script src="/app.js" type="module"></script>
+  </head>
+  <body>
+    <main>
+      <header class="page-header">
+        <p class="eyebrow">CLI Commentator</p>
+        <h1>架空の作業体験デモ</h1>
+        <p class="simulation-banner">これは架空の作業を使う体験デモです。実際のCLI実行・ファイル変更・共有は行いません。</p>
+      </header>
+
+      <section class="status-panel" aria-labelledby="status-heading">
+        <h2 id="status-heading">現在地</h2>
+        <p id="phase" class="phase">未開始</p>
+        <div class="status-grid">
+          <div>
+            <h3>いまの作業</h3>
+            <p id="current-work">開始すると、架空の作業を順番に体験できます。</p>
+          </div>
+          <div>
+            <h3>変わったこと</h3>
+            <p id="changed">まだ何も変更していません。</p>
+          </div>
+          <div>
+            <h3>あなたの判断</h3>
+            <p id="decision">開始して、台本の調査から進めてください。</p>
+          </div>
+        </div>
+        <p id="announcement" class="announcement" role="status" aria-live="polite" aria-atomic="true">デモは未開始です。</p>
+      </section>
+
+      <section class="commentary-panel" aria-labelledby="commentary-heading">
+        <h2 id="commentary-heading">二人の実況と字幕</h2>
+        <p class="voice-note">音声は任意です。役割名も読み上げます。同じ声になる場合があります。</p>
+        <ol id="transcript" class="transcript" aria-label="現在の実況と解説"></ol>
+        <div class="button-row">
+          <button id="read-again" type="button">もう一度読む</button>
+          <button id="more-detail" type="button">詳しく説明</button>
+          <button id="speech-stop" type="button">音声を止める</button>
+        </div>
+        <p id="detail" class="detail" hidden></p>
+      </section>
+
+      <section id="approval-panel" class="approval-panel" aria-labelledby="approval-heading" hidden>
+        <h2 id="approval-heading">あなたの判断が必要です</h2>
+        <p id="approval-title" class="approval-title"></p>
+        <p id="approval-details"></p>
+        <div class="button-row">
+          <button id="approve" type="button" class="primary">デモ内で承認</button>
+          <button id="reject" type="button">デモ内で拒否</button>
+          <button id="hold" type="button">保留する</button>
+        </div>
+        <p id="approval-state" class="approval-state"></p>
+      </section>
+
+      <section class="controls-panel" aria-labelledby="controls-heading">
+        <h2 id="controls-heading">デモの操作</h2>
+        <div class="button-row">
+          <button id="start" type="button" class="primary">開始 / もう一度体験</button>
+          <button id="advance" type="button">次へ進む</button>
+          <button id="stop-work" type="button" class="danger">デモを停止</button>
+        </div>
+      </section>
+
+      <details class="evidence-panel">
+        <summary>状態の根拠を確認</summary>
+        <dl>
+          <dt>セッション</dt><dd id="session-id">まだありません</dd>
+          <dt>世代</dt><dd id="generation">0</dd>
+          <dt>最終操作</dt><dd id="operation-id">まだありません</dd>
+          <dt>根拠</dt><dd id="evidence">まだイベントはありません。</dd>
+        </dl>
+      </details>
+    </main>
+  </body>
+</html>
