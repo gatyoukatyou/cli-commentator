@@ -2,8 +2,12 @@ import { randomUUID } from 'node:crypto';
 
 export type LabStatus =
   | 'not-started'
+  | 'starting'
   | 'running'
   | 'awaiting-human'
+  | 'stopping'
+  | 'failed'
+  | 'interrupted'
   | 'finished'
   | 'stopped'
   | 'unknown';
@@ -16,15 +20,44 @@ export type LabPhase =
   | 'correction'
   | 'test-passed'
   | 'approval'
+  | 'codex-starting'
+  | 'codex-running'
+  | 'codex-stopping'
+  | 'codex-failed'
+  | 'codex-interrupted'
+  | 'codex-unknown'
   | 'finished'
   | 'stopped';
 
 export type HumanDecision = 'approve' | 'reject';
-export type ApprovalStatus = HumanDecision | 'pending' | 'cancelled';
+export type CodexDecision = 'accept' | 'decline' | 'cancel';
+export type ApprovalStatus = HumanDecision | CodexDecision | 'pending' | 'cancelled' | 'sent' | 'executed' | 'failed' | 'unknown';
+export type LabSource = 'simulation' | 'codex';
+
+export interface LabCapabilities {
+  start: boolean;
+  advance: boolean;
+  hold: boolean;
+  humanDecision: boolean;
+  stop: boolean;
+}
+
+export interface CodexRuntimeState {
+  childStatus: 'not-started' | 'starting' | 'running' | 'closing' | 'closed' | 'unknown';
+  childExitCode: number | null;
+  threadId: string | null;
+  turnId: string | null;
+  turnStatus: 'not-started' | 'inProgress' | 'completed' | 'failed' | 'interrupted' | 'unknown';
+  itemId: string | null;
+  model: string | null;
+  reasoningEffort: string | null;
+  finalReport: string | null;
+  stopRequested: boolean;
+}
 
 export interface Evidence {
   id: string;
-  source: 'fictional-scenario' | 'human-ui' | 'demo-control';
+  source: 'fictional-scenario' | 'human-ui' | 'demo-control' | 'service-operation' | 'sample-file' | 'codex-app-server' | 'owned-child';
   statement: string;
 }
 
@@ -53,10 +86,21 @@ export interface ApprovalRecord {
   status: ApprovalStatus;
   title: string;
   details: string;
+  kind?: 'demo-share' | 'commandExecution';
+  requestId?: string;
+  threadId?: string;
+  turnId?: string;
+  itemId?: string;
+  preview?: string;
+  canAccept?: boolean;
+  blockedReason?: string | null;
 }
 
 export interface LabSnapshot {
-  simulationOnly: true;
+  simulationOnly: boolean;
+  source: LabSource;
+  capabilities: LabCapabilities;
+  codex: CodexRuntimeState | null;
   sessionId: string | null;
   status: LabStatus;
   phase: LabPhase;
@@ -72,7 +116,7 @@ export interface LabSnapshot {
 }
 
 export interface OperationResult {
-  simulationOnly: true;
+  simulationOnly: boolean;
   accepted: boolean;
   code: string;
   message: string;
@@ -166,6 +210,12 @@ const phaseLabels: Record<LabPhase, string> = {
   correction: '修正を調整中',
   'test-passed': 'テスト成功',
   approval: 'あなたの判断待ち',
+  'codex-starting': 'Codex接続中',
+  'codex-running': 'Codex作業中',
+  'codex-stopping': 'Codex停止を確認中',
+  'codex-failed': 'Codex作業失敗',
+  'codex-interrupted': 'Codex作業停止を確認',
+  'codex-unknown': 'Codexの状態不明',
   finished: 'デモ終了',
   stopped: 'デモ停止',
 };
@@ -190,6 +240,9 @@ export class CompanionLabService {
   snapshot(): LabSnapshot {
     return structuredClone({
       simulationOnly: true as const,
+      source: 'simulation' as const,
+      capabilities: { start: true, advance: true, hold: true, humanDecision: true, stop: true },
+      codex: null,
       sessionId: this.sessionId,
       status: this.status,
       phase: this.phase,
@@ -437,10 +490,10 @@ export class CompanionLabService {
   }
 
   private result(accepted: boolean, code: string, message: string, operationId: string): OperationResult {
-    return { simulationOnly: true, accepted, code, message, operationId, snapshot: this.snapshot() };
+    return { simulationOnly: this.snapshot().simulationOnly, accepted, code, message, operationId, snapshot: this.snapshot() };
   }
 }
 
-export function isTerminalStatus(status: LabStatus): status is 'finished' | 'stopped' {
-  return isTerminal(status);
+export function isTerminalStatus(status: LabStatus): status is 'finished' | 'stopped' | 'failed' | 'interrupted' {
+  return status === 'finished' || status === 'stopped' || status === 'failed' || status === 'interrupted';
 }

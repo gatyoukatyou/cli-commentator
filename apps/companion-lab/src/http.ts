@@ -1,10 +1,10 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
-import { timingSafeEqual, randomBytes } from 'node:crypto';
+import { randomBytes, randomUUID, timingSafeEqual } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { once } from 'node:events';
-import type { HumanDecision } from './core.js';
-import { CompanionLabService } from './core.js';
+import type { HumanDecision, OperationResult } from './core.js';
+import type { Awaitable, CompanionLabServiceLike } from './service.js';
 
 const MAX_BODY_BYTES = 4096;
 const CSRF_COOKIE = 'companion_lab_csrf';
@@ -22,7 +22,7 @@ interface StartOptions {
 }
 
 export async function startHttpServer(
-  lab: CompanionLabService,
+  lab: CompanionLabServiceLike,
   { port = Number(process.env.COMPANION_LAB_PORT ?? 43210), host = '127.0.0.1' }: StartOptions = {},
 ): Promise<HttpServerHandle> {
   if (host !== '127.0.0.1') throw new Error('The demo server can only bind to 127.0.0.1.');
@@ -33,7 +33,7 @@ export async function startHttpServer(
   let boundPort = port;
   const server = createServer((request, response) => {
     void handleRequest(request, response).catch(() => {
-      sendJson(response, 500, { simulationOnly: true, error: 'internal_error' });
+      sendJson(response, 500, { simulationOnly: simulationOnly(), error: 'internal_error' });
     });
   });
   server.maxHeadersCount = 32;
@@ -56,7 +56,7 @@ export async function startHttpServer(
   async function handleRequest(request: IncomingMessage, response: ServerResponse): Promise<void> {
     applySecurityHeaders(response);
     if (request.headers.host !== `127.0.0.1:${boundPort}`) {
-      sendJson(response, 403, { simulationOnly: true, error: 'invalid_host' });
+      sendJson(response, 403, { simulationOnly: simulationOnly(), error: 'invalid_host' });
       return;
     }
 
@@ -82,66 +82,74 @@ export async function startHttpServer(
     }
     if (request.method === 'GET' && url.pathname === '/api/csrf') {
       response.setHeader('set-cookie', `${CSRF_COOKIE}=${csrfToken}; SameSite=Strict; HttpOnly; Path=/`);
-      sendJson(response, 200, { simulationOnly: true, csrfToken });
+      sendJson(response, 200, { simulationOnly: simulationOnly(), csrfToken });
       return;
     }
 
     if (request.method !== 'POST') {
-      sendJson(response, 404, { simulationOnly: true, error: 'not_found' });
+      sendJson(response, 404, { simulationOnly: simulationOnly(), error: 'not_found' });
       return;
     }
     if (!hasSameOrigin(request, origin)) {
-      sendJson(response, 403, { simulationOnly: true, error: 'origin_rejected' });
+      sendJson(response, 403, { simulationOnly: simulationOnly(), error: 'origin_rejected' });
       return;
     }
     if (!hasCsrf(request, csrfToken)) {
-      sendJson(response, 403, { simulationOnly: true, error: 'csrf_rejected' });
+      sendJson(response, 403, { simulationOnly: simulationOnly(), error: 'csrf_rejected' });
       return;
     }
 
     if (url.pathname === '/api/start') {
       const body = await readJsonObject(request);
       if (body === null || Object.keys(body).some((key) => key !== 'expectedGeneration') || !isGeneration(body.expectedGeneration)) {
-        sendJson(response, 400, { simulationOnly: true, error: 'invalid_input' });
+        sendJson(response, 400, { simulationOnly: simulationOnly(), error: 'invalid_input' });
         return;
       }
-      sendOperation(response, lab.start(body.expectedGeneration));
+      await sendOperation(response, lab.start(body.expectedGeneration));
       return;
     }
     if (url.pathname === '/api/advance') {
       const body = await readJsonObject(request);
       if (body === null || Object.keys(body).some((key) => key !== 'expectedGeneration') || !isGeneration(body.expectedGeneration)) {
-        sendJson(response, 400, { simulationOnly: true, error: 'invalid_input' });
+        sendJson(response, 400, { simulationOnly: simulationOnly(), error: 'invalid_input' });
         return;
       }
-      sendOperation(response, lab.advance(body.expectedGeneration));
+      if (!lab.snapshot().capabilities.advance) {
+        await sendOperation(response, unsupportedOperation('advance'));
+        return;
+      }
+      await sendOperation(response, lab.advance(body.expectedGeneration));
       return;
     }
     if (url.pathname === '/api/hold') {
       const body = await readJsonObject(request);
       if (body === null || Object.keys(body).length > 0) {
-        sendJson(response, 400, { simulationOnly: true, error: 'invalid_input' });
+        sendJson(response, 400, { simulationOnly: simulationOnly(), error: 'invalid_input' });
         return;
       }
-      sendOperation(response, lab.hold());
+      if (!lab.snapshot().capabilities.hold) {
+        await sendOperation(response, unsupportedOperation('hold'));
+        return;
+      }
+      await sendOperation(response, lab.hold());
       return;
     }
     if (url.pathname === '/api/stop') {
       const body = await readJsonObject(request);
       if (body === null || Object.keys(body).length > 0) {
-        sendJson(response, 400, { simulationOnly: true, error: 'invalid_input' });
+        sendJson(response, 400, { simulationOnly: simulationOnly(), error: 'invalid_input' });
         return;
       }
-      sendOperation(response, lab.stop());
+      await sendOperation(response, lab.stop());
       return;
     }
     if (url.pathname === '/api/explain') {
       const body = await readJsonObject(request);
       if (body === null || Object.keys(body).some((key) => key !== 'detail') || (body.detail !== undefined && typeof body.detail !== 'boolean')) {
-        sendJson(response, 400, { simulationOnly: true, error: 'invalid_input' });
+        sendJson(response, 400, { simulationOnly: simulationOnly(), error: 'invalid_input' });
         return;
       }
-      sendJson(response, 200, lab.explain(body.detail === true));
+      sendJson(response, 200, await lab.explain(body.detail === true));
       return;
     }
     if (url.pathname === '/api/decision') {
@@ -156,10 +164,10 @@ export async function startHttpServer(
         || !isGeneration(body.expectedGeneration)
         || (body.decision !== 'approve' && body.decision !== 'reject')
       ) {
-        sendJson(response, 400, { simulationOnly: true, error: 'invalid_input' });
+        sendJson(response, 400, { simulationOnly: simulationOnly(), error: 'invalid_input' });
         return;
       }
-      sendOperation(response, lab.decideFromHuman({
+      await sendOperation(response, lab.decideFromHuman({
         sessionId: body.sessionId,
         approvalId: body.approvalId,
         expectedGeneration: body.expectedGeneration,
@@ -167,10 +175,33 @@ export async function startHttpServer(
       }));
       return;
     }
-    sendJson(response, 404, { simulationOnly: true, error: 'not_found' });
+    sendJson(response, 404, { simulationOnly: simulationOnly(), error: 'not_found' });
   }
 
-  function sendOperation(response: ServerResponse, result: ReturnType<CompanionLabService['start']>): void {
+  function simulationOnly(): boolean {
+    try {
+      return lab.snapshot().simulationOnly;
+    } catch {
+      return false;
+    }
+  }
+
+  function unsupportedOperation(operation: 'advance' | 'hold'): OperationResult {
+    const current = lab.snapshot();
+    return {
+      simulationOnly: current.simulationOnly,
+      accepted: false,
+      code: 'unsupported_capability',
+      message: operation === 'advance'
+        ? '実接続モードでは「次へ進む」操作は使えません。Codexの進行状況は自動で更新されます。'
+        : '実接続モードでは保留操作は使えません。判断が必要な場合は、表示された内容を確認してください。',
+      operationId: `unsupported-${randomUUID()}`,
+      snapshot: current,
+    };
+  }
+
+  async function sendOperation(response: ServerResponse, operation: Awaitable<OperationResult>): Promise<void> {
+    const result = await operation;
     sendJson(response, result.accepted ? 200 : 409, result);
   }
 }
