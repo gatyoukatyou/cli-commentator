@@ -1,0 +1,24 @@
+{
+  "name": "@cli-commentator/companion-lab",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "dev": "tsx src/main.ts",
+    "mcp": "tsx src/mcp-main.ts",
+    "test": "tsx --test src/tests/*.test.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/server": "2.1.0",
+    "zod": "^4.2.0"
+  },
+  "devDependencies": {
+    "@modelcontextprotocol/client": "2.1.0",
+    "@types/node": "^24.10.0",
+    "tsx": "^4.23.12",
+    "typescript": "^6.0.3"
+  }
+}
