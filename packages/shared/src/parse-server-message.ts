@@ -52,6 +52,9 @@ const isStringArray = (value: unknown): value is string[] =>
 const isNullableString = (value: unknown): value is string | null =>
   value === null || typeof value === "string";
 
+const isNullableNumber = (value: unknown): value is number | null =>
+  value === null || typeof value === "number";
+
 const isOptionalString = (value: unknown): value is string | undefined =>
   value === undefined || typeof value === "string";
 
@@ -204,6 +207,10 @@ export function parseServerMessage(value: unknown): WsOutgoing | null {
       return typeof message.cmd === "string" &&
         isStringArray(message.args) &&
         isNullableString(message.profileId)
+        ? (message as WsOutgoing)
+        : null;
+    case "ptyExit":
+      return typeof message.exitCode === "number" && isNullableNumber(message.signal)
         ? (message as WsOutgoing)
         : null;
     case "ptyUnavailable":

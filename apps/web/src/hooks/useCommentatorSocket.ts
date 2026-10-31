@@ -46,6 +46,7 @@ type UseCommentatorSocketOptions = {
   stopAndClearSpeech: () => void;
   resetTTSLifecycleSession: (trigger: string) => void;
   onServerEvent: (ev: Event) => void;
+  onPtyExit: () => void;
   onPtyRestart: () => void;
   clearAttention: () => void;
 };
@@ -87,6 +88,7 @@ export function useCommentatorSocket({
   stopAndClearSpeech,
   resetTTSLifecycleSession,
   onServerEvent,
+  onPtyExit,
   onPtyRestart,
   clearAttention,
 }: UseCommentatorSocketOptions) {
@@ -226,6 +228,9 @@ export function useCommentatorSocket({
               setCurrentSessionLabel([message.cmd, ...message.args].filter(Boolean).join(" ") || "session");
               onPtyRestart();
               break;
+            case "ptyExit":
+              onPtyExit();
+              break;
             case "ptyError":
               setPtyError(message.error);
               break;
@@ -293,6 +298,7 @@ export function useCommentatorSocket({
     clearPendingSpeech,
     clearTerminal,
     onServerEvent,
+    onPtyExit,
     onPtyRestart,
     pendingEditIdRef,
     profilesRef,

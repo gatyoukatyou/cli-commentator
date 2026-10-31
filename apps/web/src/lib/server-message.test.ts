@@ -65,6 +65,20 @@ describe("parseServerMessage", () => {
     });
   });
 
+  it("parses the explicit PTY exit notification", () => {
+    expect(parseServerMessage({ kind: "ptyExit", exitCode: 143, signal: 1 })).toEqual({
+      kind: "ptyExit",
+      exitCode: 143,
+      signal: 1,
+    });
+    expect(parseServerMessage({ kind: "ptyExit", exitCode: 0, signal: null })).toEqual({
+      kind: "ptyExit",
+      exitCode: 0,
+      signal: null,
+    });
+    expect(parseServerMessage({ kind: "ptyExit", exitCode: "0", signal: null })).toBeNull();
+  });
+
   it("rejects malformed messages", () => {
     expect(parseServerMessage({ kind: "style", style: "unknown" })).toBeNull();
     expect(parseServerMessage({ kind: "commentary", ts: 123 })).toBeNull();
