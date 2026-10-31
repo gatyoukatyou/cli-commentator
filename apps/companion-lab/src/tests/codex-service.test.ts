@@ -334,3 +334,259 @@ test('a confirmed child close lets a later start recover from unknown state', ()
   assert.notEqual(service.snapshot().sessionId, sessionId);
   assert.equal(service.snapshot().status, 'starting');
 });
+
+test('explain orders confirmed facts, unconfirmed points, and next action without leaking internal IDs or treating unconfirmed state as success', () => {
+  const internalIdPattern = /thread-current|turn-current|item-command-current|item-agent-final|rpc-approval-current|approval-current|codex-evidence-|codex-op-/;
+
+  const { client, service } = makeService();
+  const initialExplain = service.explain(true);
+  assert.match(initialExplain.detail, /まだ作業は始まっていません.*未実施.*『練習タスクを開始』/);
+  assert.doesNotMatch(initialExplain.detail, internalIdPattern);
+
+  const sessionId = startService(client, service);
+  assert.match(service.explain(true).detail, /接続準備を始めました.*未確認.*『Codex接続を停止』/);
+
+  client.emit(sessionId, { type: 'child-status', status: 'running' });
+  client.emit(sessionId, { type: 'thread-started', threadId: THREAD_ID, model: 'test-model', reasoningEffort: 'low' });
+  assert.match(service.explain(true).detail, /安全設定を確認しました.*未確認.*『Codex接続を停止』/);
+  assert.doesNotMatch(service.explain(true).detail, internalIdPattern);
+  assert.ok(service.explain(true).evidence.some((entry) => entry.statement.includes(THREAD_ID)));
+
+  client.emit(sessionId, { type: 'turn-started', threadId: THREAD_ID, turnId: TURN_ID });
+  assert.match(service.explain(true).detail, /読み取り作業を始めています.*未確認.*『Codex接続を停止』/);
+  assert.doesNotMatch(service.explain(true).detail, internalIdPattern);
+
+  client.requestApproval(sessionId, approvalRequest());
+  assert.match(service.explain(true).detail, /実行確認が届いています.*実行されておらず.*『Codexの要求を承認』または『Codexの要求を拒否』/);
+  assert.doesNotMatch(service.explain(true).detail, internalIdPattern);
+  humanDecision(service, sessionId, service.snapshot().approval!, 'approve');
+  assert.match(service.explain(true).detail, /承認をAIへ送りました.*未確認.*『Codex接続を停止』/);
+
+  client.emit(sessionId, {
+    type: 'command-completed',
+    threadId: THREAD_ID,
+    turnId: TURN_ID,
+    itemId: 'item-command-current',
+    status: 'completed',
+    exitCode: 0,
+  });
+  assert.match(service.explain(true).detail, /読み取り処理が正常に終了したことを確認しました.*AIの回答と作業全体の完了はまだ未確認.*『Codex接続を停止』/);
+  assert.doesNotMatch(service.explain(true).detail, internalIdPattern);
+
+  client.emit(sessionId, {
+    type: 'agent-message-completed',
+    threadId: THREAD_ID,
+    turnId: TURN_ID,
+    itemId: 'item-agent-final',
+    text: '営業時間は平日9時から17時です。',
+    finalAnswer: true,
+  });
+  assert.match(service.explain(true).detail, /読み取り処理の正常終了とAIからの回答受信を確認しました.*回答内容の正しさと作業全体の完了通知はまだ未確認.*『Codex接続を停止』/);
+  assert.doesNotMatch(service.explain(true).detail, internalIdPattern);
+
+  client.emit(sessionId, { type: 'turn-completed', threadId: THREAD_ID, turnId: TURN_ID, status: 'completed' });
+  const finishedExplain = service.explain(true);
+  assert.equal(
+    finishedExplain.detail,
+    'AIから回答を受け取りました。内容の正しさは未確認です。AIとの接続は続いています。終了する場合は『Codex接続を停止』を選んでください。',
+  );
+  assert.doesNotMatch(finishedExplain.detail, internalIdPattern);
+  assert.ok(finishedExplain.evidence.some((entry) => entry.statement.includes(TURN_ID)));
+
+  service.stop();
+  assert.match(service.explain(true).detail, /AIから回答を受け取り、作業完了を確認しました.*内容の正しさとAIとの接続終了はまだ未確認.*お待ちください/);
+
+  client.emit(sessionId, { type: 'child-status', status: 'closed', exitCode: 0, expected: true });
+  assert.equal(
+    service.explain(true).detail,
+    'AIから回答を受け取り、AIとの接続終了も確認しました。回答内容の正しさは未確認です。もう一度試す場合は『もう一度実行』を選んでください。',
+  );
+
+  for (const [status, expectedPattern] of [
+    ['failed', /読み取り処理は失敗しましたが、AIから回答を受け取りました。内容の正しさは未確認です。/],
+    ['declined', /コマンド実行は拒否されましたが、AIから回答を受け取りました。内容の正しさは未確認です。/],
+  ] as const) {
+    const branch = makeActiveService();
+    branch.client.emit(branch.sessionId, {
+      type: 'command-completed',
+      threadId: THREAD_ID,
+      turnId: TURN_ID,
+      itemId: 'item-command-current',
+      status,
+      exitCode: status === 'failed' ? 1 : null,
+    });
+    branch.client.emit(branch.sessionId, {
+      type: 'agent-message-completed',
+      threadId: THREAD_ID,
+      turnId: TURN_ID,
+      itemId: 'item-agent-final',
+      text: '読めたつもりです。',
+      finalAnswer: true,
+    });
+    branch.client.emit(branch.sessionId, { type: 'turn-completed', threadId: THREAD_ID, turnId: TURN_ID, status: 'completed' });
+    assert.match(branch.service.explain(true).detail, expectedPattern);
+    assert.doesNotMatch(branch.service.explain(true).detail, /正常に終了/);
+  }
+
+  const unknownBranch = makeActiveService();
+  unknownBranch.client.emit(unknownBranch.sessionId, { type: 'protocol-failure', message: 'broken pipe' });
+  assert.match(unknownBranch.service.explain(true).detail, /確認できません.*未確認.*成功とは扱っていません/);
+});
+
+test('a failed turn separates the partial command result from the failed turn and never claims that no work was completed', () => {
+  const outcomes = [
+    {
+      label: 'completed with exit code 0',
+      command: { status: 'completed' as const, exitCode: 0 },
+      expected: /途中の読み取り処理は正常に終了しましたが、AIの作業全体は失敗しました。/,
+    },
+    {
+      label: 'failed',
+      command: { status: 'failed' as const, exitCode: 1 },
+      expected: /途中の読み取り処理とAIの作業全体が失敗したことを確認しました。/,
+    },
+    {
+      label: 'declined',
+      command: { status: 'declined' as const, exitCode: null },
+      expected: /コマンド実行は拒否され、AIの作業全体も失敗したことを確認しました。/,
+    },
+    {
+      label: 'completed with a non-zero exit code',
+      command: { status: 'completed' as const, exitCode: 1 },
+      expected: /読み取り処理の終了通知は届きましたが正常終了は未確認で、AIの作業全体は失敗しました。/,
+    },
+    {
+      label: 'completed with an unknown exit code',
+      command: { status: 'completed' as const, exitCode: null },
+      expected: /読み取り処理の終了通知は届きましたが正常終了は未確認で、AIの作業全体は失敗しました。/,
+    },
+    {
+      label: 'not run',
+      command: null,
+      expected: /AIの作業全体が失敗したことを確認しました。途中の処理がどこまで進んだかは未確認です。/,
+    },
+  ];
+
+  for (const outcome of outcomes) {
+    const { client, service, sessionId } = makeActiveService();
+    if (outcome.command) {
+      client.emit(sessionId, {
+        type: 'command-completed',
+        threadId: THREAD_ID,
+        turnId: TURN_ID,
+        itemId: 'item-command-current',
+        status: outcome.command.status,
+        exitCode: outcome.command.exitCode,
+      });
+    }
+    client.emit(sessionId, { type: 'turn-completed', threadId: THREAD_ID, turnId: TURN_ID, status: 'failed' });
+
+    const snapshot = service.snapshot();
+    assert.equal(snapshot.status, 'failed', outcome.label);
+    assert.equal(snapshot.codex?.turnStatus, 'failed', outcome.label);
+    assert.match(snapshot.decision, /AIの作業全体/, outcome.label);
+    assert.doesNotMatch(snapshot.decision, /完了した作業はありません|完了した作業はなく/, outcome.label);
+
+    const detail = service.explain(true).detail;
+    assert.match(detail, outcome.expected, outcome.label);
+    assert.doesNotMatch(detail, /完了した作業はありません|完了した作業はなく/, outcome.label);
+    assert.match(detail, /AIとの接続は続いています/, outcome.label);
+    assert.match(detail, /未確認です/, outcome.label);
+    assert.match(detail, /終了する場合は『Codex接続を停止』を選んでください。$/, outcome.label);
+
+    const confirmedIndex = detail.indexOf('AIの作業全体');
+    const unconfirmedIndex = detail.indexOf('未確認です');
+    const nextIndex = detail.indexOf('『Codex接続を停止』');
+    assert.ok(confirmedIndex >= 0 && confirmedIndex < unconfirmedIndex, outcome.label);
+    assert.ok(unconfirmedIndex < nextIndex, outcome.label);
+  }
+});
+
+test('a failed turn with a closed child reports the connection end and the restart action without claiming no work was completed', () => {
+  const { client, service, sessionId } = makeActiveService();
+  client.emit(sessionId, {
+    type: 'command-completed',
+    threadId: THREAD_ID,
+    turnId: TURN_ID,
+    itemId: 'item-command-current',
+    status: 'completed',
+    exitCode: 0,
+  });
+  client.emit(sessionId, { type: 'turn-completed', threadId: THREAD_ID, turnId: TURN_ID, status: 'failed' });
+  client.emit(sessionId, { type: 'child-status', status: 'closed', exitCode: 0, expected: true });
+
+  const snapshot = service.snapshot();
+  assert.equal(snapshot.status, 'failed');
+  assert.equal(snapshot.codex?.childStatus, 'closed');
+
+  const detail = service.explain(true).detail;
+  assert.match(detail, /途中の読み取り処理は正常に終了しましたが、AIの作業全体は失敗しました。/);
+  assert.match(detail, /AIとの接続終了も確認しました。/);
+  assert.match(detail, /失敗の原因と、エラーの詳しい内容は未確認です。/);
+  assert.match(detail, /もう一度試す場合は『もう一度実行』を選んでください。$/);
+  assert.doesNotMatch(detail, /完了した作業はありません|完了した作業はなく/);
+  assert.doesNotMatch(snapshot.decision, /完了した作業はありません|完了した作業はなく/);
+  assert.equal(
+    snapshot.decision,
+    '途中の読み取り処理は正常に終了しましたが、AIの作業全体は失敗しました。AIとの接続終了も確認しました。もう一度試す場合は『もう一度実行』を選んでください。',
+  );
+
+  const confirmedIndex = detail.indexOf('AIの作業全体');
+  const unconfirmedIndex = detail.indexOf('未確認です');
+  const nextIndex = detail.indexOf('『もう一度実行』');
+  assert.ok(confirmedIndex >= 0 && confirmedIndex < unconfirmedIndex);
+  assert.ok(unconfirmedIndex < nextIndex);
+});
+
+test('stopping a finished, failed, or interrupted turn keeps answer completion, failure, and interruption distinct', () => {
+  const cases = [
+    {
+      label: 'finished',
+      turnStatus: 'completed' as const,
+      status: 'finished' as const,
+      message: 'AIの回答作業は完了しています。Codexとの接続終了を確認しています。',
+      decision: 'AIの回答作業は完了しています。AIとの接続終了を確認しています。',
+      detail: /作業完了を確認しました.*AIとの接続終了はまだ未確認.*接続が閉じるまでお待ちください/,
+    },
+    {
+      label: 'failed',
+      turnStatus: 'failed' as const,
+      status: 'failed' as const,
+      message: 'AIの作業は失敗しています。Codexとの接続終了を確認しています。',
+      decision: 'AIの作業は失敗しています。AIとの接続終了を確認しています。',
+      detail: /AIの作業全体が失敗したことを確認しました.*AIとの接続終了を確認しています.*接続終了の確認が終わるまでお待ちください/,
+    },
+    {
+      label: 'interrupted',
+      turnStatus: 'interrupted' as const,
+      status: 'interrupted' as const,
+      message: 'AIの作業は中断しています。Codexとの接続終了を確認しています。',
+      decision: 'AIの作業は中断しています。AIとの接続終了を確認しています。',
+      detail: /AIの作業中断を確認しました.*AIとの接続終了を確認しています.*接続終了の確認が終わるまでお待ちください/,
+    },
+  ];
+
+  for (const item of cases) {
+    const { client, service, sessionId } = makeActiveService();
+    client.emit(sessionId, { type: 'turn-completed', threadId: THREAD_ID, turnId: TURN_ID, status: item.turnStatus });
+    assert.equal(service.snapshot().status, item.status, item.label);
+    assert.equal(service.snapshot().codex?.childStatus, 'running', item.label);
+    assert.equal(service.snapshot().codex?.stopRequested, false, item.label);
+
+    const stopped = service.stop();
+    assert.equal(stopped.accepted, true, item.label);
+    assert.equal(stopped.code, 'stop_requested', item.label);
+    assert.equal(stopped.message, item.message, item.label);
+    assert.equal(service.snapshot().codex?.stopRequested, true, item.label);
+    assert.equal(service.snapshot().decision, item.decision, item.label);
+
+    const detail = service.explain(true).detail;
+    assert.match(detail, item.detail, item.label);
+
+    if (item.status !== 'finished') {
+      assert.doesNotMatch(stopped.message, /回答作業は完了|作業は完了/, item.label);
+      assert.doesNotMatch(service.snapshot().decision, /回答作業は完了|作業は完了/, item.label);
+      assert.doesNotMatch(detail, /回答作業は完了|作業は完了/, item.label);
+    }
+  }
+});

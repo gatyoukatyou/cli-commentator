@@ -66,6 +66,25 @@ h3 { margin-block-end: 0.25rem; font-size: 1rem; }
 .announcement { margin: 0.8rem 0 0; color: #33475a; }
 .voice-note { color: #405364; }
 
+.voice-settings {
+  margin-block: 0.9rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid #c7d0d8;
+  border-radius: 0.5rem;
+  background: #f7fafc;
+}
+.voice-settings legend { padding-inline: 0.35rem; font-weight: 700; }
+.voice-setting {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.55rem;
+  margin-block-end: 0.5rem;
+  font-weight: 700;
+}
+.voice-setting input { flex: none; width: 1.15rem; height: 1.15rem; margin-block-start: 0.25rem; }
+.voice-setting input:focus-visible { outline: 3px solid #ad4a00; outline-offset: 2px; }
+.accessibility-note { margin: 0.5rem 0 0; color: #405364; font-size: 0.95rem; }
+
 .transcript { display: grid; gap: 0.7rem; padding-inline-start: 1.5rem; }
 .transcript li { padding: 0.65rem 0.85rem; border-left: 0.25rem solid #485d70; background: #f5f7f8; }
 .transcript li:nth-child(2) { border-left-color: #6246a8; }

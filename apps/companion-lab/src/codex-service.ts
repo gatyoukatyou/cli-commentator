@@ -15,6 +15,8 @@ import { CodexAppServerClient, type CodexApprovalRequest, type CodexClientObserv
 const MAX_EVENTS = 100;
 const MAX_TEXT_CHARS = 4000;
 
+type CommandOutcome = { status: 'completed' | 'failed' | 'declined'; exitCode: number | null };
+
 /**
  * Real Codex-backed companion service. It has the same synchronous operation
  * surface as the fictional service; asynchronous app-server events update the
@@ -49,6 +51,7 @@ export class CodexCompanionLabService implements CodexClientObserver {
   };
   private readonly client: CodexAppServerClient;
   private readonly safeApproval = new Map<string, boolean>();
+  private lastCommand: CommandOutcome | null = null;
 
   constructor(client = new CodexAppServerClient()) {
     this.client = client;
@@ -93,6 +96,7 @@ export class CodexCompanionLabService implements CodexClientObserver {
     this.phase = 'codex-starting';
     this.approval = null;
     this.safeApproval.clear();
+    this.lastCommand = null;
     this.events = [];
     this.codex = {
       childStatus: 'starting',
@@ -116,7 +120,7 @@ export class CodexCompanionLabService implements CodexClientObserver {
       '安全な接続設定を確認してからAIに依頼します。',
     ]);
     this.client.start(this.sessionId, this);
-    return this.result(true, 'started', 'AIとの接続準備を始めました。', operationId);
+    return this.result(true, 'started', '練習タスクの準備を開始しました。安全設定を確認しています。', operationId);
   }
 
   advance(_expectedGeneration: number): OperationResult {
@@ -145,8 +149,14 @@ export class CodexCompanionLabService implements CodexClientObserver {
       this.status = 'stopping';
       this.phase = 'codex-stopping';
       this.decision = '停止を依頼しました。AIの作業が止まったかを確認しています。';
+    } else if (this.status === 'finished') {
+      this.decision = 'AIの回答作業は完了しています。AIとの接続終了を確認しています。';
+    } else if (this.status === 'failed') {
+      this.decision = 'AIの作業は失敗しています。AIとの接続終了を確認しています。';
+    } else if (this.status === 'interrupted') {
+      this.decision = 'AIの作業は中断しています。AIとの接続終了を確認しています。';
     } else {
-      this.decision = '作業は終了しました。AIとの接続終了を確認しています。';
+      this.decision = '作業は終了しています。AIとの接続終了を確認しています。';
     }
     this.codex = { ...this.codex, stopRequested: true };
     this.record(operationId, this.status === 'stopping' ? 'codex-stopping' : this.phase, [
@@ -170,7 +180,20 @@ export class CodexCompanionLabService implements CodexClientObserver {
       ]);
       return this.result(false, 'connection_unknown', 'AIの作業停止を確認できません。', operationId);
     }
-    return this.result(true, 'stop_requested', '停止を依頼しました。作業の停止とAIとの接続終了を確認しています。', operationId);
+    return this.result(
+      true,
+      'stop_requested',
+      this.status === 'stopping'
+        ? '停止を依頼しました。AIの作業停止とCodex接続の終了を確認しています。'
+        : this.status === 'finished'
+          ? 'AIの回答作業は完了しています。Codexとの接続終了を確認しています。'
+          : this.status === 'failed'
+            ? 'AIの作業は失敗しています。Codexとの接続終了を確認しています。'
+            : this.status === 'interrupted'
+              ? 'AIの作業は中断しています。Codexとの接続終了を確認しています。'
+              : 'Codexとの接続終了を要求しました。終了の確認を待っています。',
+      operationId,
+    );
   }
 
   decideFromHuman(input: {
@@ -232,21 +255,25 @@ export class CodexCompanionLabService implements CodexClientObserver {
       codexDecision === 'accept' ? '一回限りの実行許可を送ったよ。' : '実行を拒否したよ。',
       '返答の送信と実際の作業結果は別です。作業完了の通知を待ちます。',
     ]);
-    return this.result(true, codexDecision === 'accept' ? 'approval_sent' : 'decline_sent', '返答をAIへ送りました。作業結果はまだ確認できていません。', operationId);
+    return this.result(
+      true,
+      codexDecision === 'accept' ? 'approval_sent' : 'decline_sent',
+      codexDecision === 'accept'
+        ? '承認の返答を送りました。実行結果を確認しています。'
+        : '拒否の返答を送りました。AIの作業結果を確認しています。',
+      operationId,
+    );
   }
 
   explain(detail = false): { simulationOnly: false; source: 'codex'; summary: string; detail: string; evidence: Evidence[]; generation: number } {
     const current = this.snapshot();
     const latest = current.events.at(-1);
-    const summary = `${current.phaseLabel}: ${current.currentWork} ${current.changed} ${current.decision}`;
-    const detailText = detail
-      ? `${summary}${current.codex?.finalReport ? ` AIの報告（未検証）: ${current.codex.finalReport}` : ''}`
-      : current.decision;
+    const explanation = this.buildExplanation(current);
     return {
       simulationOnly: false,
       source: 'codex',
-      summary,
-      detail: truncate(detailText, MAX_TEXT_CHARS),
+      summary: explanation,
+      detail: truncate(detail ? explanation : current.decision, MAX_TEXT_CHARS),
       evidence: latest ? structuredClone(latest.evidence) : [],
       generation: current.generation,
     };
@@ -258,7 +285,7 @@ export class CodexCompanionLabService implements CodexClientObserver {
     return {
       simulationOnly: false,
       source: 'codex',
-      summary: `Codexと実際に接続しています。現在は「${current.phaseLabel}」です。これまでの状態: ${observations}。${current.changed} ${current.decision}`,
+      summary: `Codexと実際に接続しています。現在は「${current.phaseLabel}」です。これまでの状態: ${observations}。${this.buildExplanation(current)}`,
       generation: current.generation,
       eventCount: current.events.length,
     };
@@ -328,6 +355,7 @@ export class CodexCompanionLabService implements CodexClientObserver {
       case 'command-completed':
         if (!this.matchesThreadTurn(observation.threadId, observation.turnId)) return;
         this.codex = { ...this.codex, itemId: observation.itemId };
+        this.lastCommand = { status: observation.status, exitCode: observation.exitCode };
         this.status = 'running';
         this.phase = 'codex-running';
         this.currentWork = observation.status === 'declined'
@@ -360,7 +388,7 @@ export class CodexCompanionLabService implements CodexClientObserver {
         if (!this.matchesThreadTurn(observation.threadId, observation.turnId) || !observation.finalAnswer) return;
         this.codex = { ...this.codex, finalReport: truncate(observation.text, MAX_TEXT_CHARS), itemId: observation.itemId };
         this.currentWork = 'AIから回答を受け取りました。作業完了の通知を待っています。';
-        this.changed = `AIの報告（未検証）: ${truncate(observation.text, MAX_TEXT_CHARS)}`;
+        this.changed = 'AIから回答を受け取りました。内容の正しさは未確認です。';
         this.decision = '回答の受信と作業完了は別です。回答内容も独立に確認した結果ではありません。';
         this.record(operationId, 'codex-running', [
           this.evidence('codex-app-server', `agentMessage final_answer item ${observation.itemId} の完了を受け取りました。内容はAIの報告で、独立検証ではありません。`),
@@ -377,17 +405,17 @@ export class CodexCompanionLabService implements CodexClientObserver {
           this.phase = 'finished';
           this.currentWork = 'AIの回答作業が完了しました。';
           this.changed = this.codex.finalReport
-            ? 'AIの回答作業が完了しました。'
+            ? 'AIから回答を受け取りました。内容の正しさは未確認です。'
             : 'AIの作業は完了しましたが、回答本文はありません。';
           this.decision = this.codex.finalReport
-            ? 'AIの回答内容の正しさは別途確認が必要です。AIとの接続は動作中のため、停止操作で終了を確認してください。'
-            : '回答がないため内容は不明です。AIとの接続は動作中のため、停止操作で終了を確認してください。';
+            ? 'AIの回答内容の正しさは別途確認が必要です。AIとの接続は続いています。終了する場合は『Codex接続を停止』を選んでください。'
+            : '回答がないため内容は不明です。AIとの接続は続いています。終了する場合は『Codex接続を停止』を選んでください。';
         } else if (observation.status === 'failed') {
           this.status = 'failed';
           this.phase = 'codex-failed';
           this.currentWork = 'AIの作業に失敗しました。';
           this.changed = 'AIの作業が失敗したことを確認しました。';
-          this.decision = 'エラーの詳しい内容は表示していません。AIとの接続が続いている場合は停止してください。';
+          this.decision = `${describeCommandOutcome(this.lastCommand)}エラーの詳しい内容は表示していません。AIとの接続が続いている場合は『Codex接続を停止』を選んでください。`;
         } else {
           this.status = 'interrupted';
           this.phase = 'codex-interrupted';
@@ -620,7 +648,7 @@ export class CodexCompanionLabService implements CodexClientObserver {
           this.phase = 'codex-failed';
           this.currentWork = 'AIの作業失敗後、接続終了も確認しました。';
           this.changed = '作業の失敗と接続終了を確認しました。';
-          this.decision = 'AIの作業は失敗しました。成功とは扱っていません。';
+          this.decision = `${describeCommandOutcome(this.lastCommand)}AIとの接続終了も確認しました。もう一度試す場合は『もう一度実行』を選んでください。`;
         }
         this.record(operationId, this.phase, [
           this.evidence('owned-child', `専用Codex子プロセスのcloseを観測しました。exitCode=${this.codex.childExitCode ?? '不明'}。`),
@@ -709,6 +737,120 @@ export class CodexCompanionLabService implements CodexClientObserver {
   private result(accepted: boolean, code: string, message: string, operationId: string): OperationResult {
     return { simulationOnly: false, accepted, code, message, operationId, snapshot: this.snapshot() };
   }
+
+  private buildExplanation(current: LabSnapshot): string {
+    const codex = current.codex;
+    const childClosed = codex?.childStatus === 'closed';
+    const stopRequested = codex?.stopRequested === true;
+    const hasReport = Boolean(codex?.finalReport);
+    const command = this.lastCommand;
+
+    switch (current.status) {
+      case 'not-started':
+        return 'まだ作業は始まっていません。AIとの接続やファイルの読み取りは未実施です。始める場合は『練習タスクを開始』を選んでください。';
+      case 'starting':
+        return codex?.threadId
+          ? '読み取り専用・通信なしの安全設定を確認しました。AIの読み取り結果と回答はまだ未確認です。そのまま待つか、止める場合は『Codex接続を停止』を選んでください。'
+          : '練習用ファイルを準備し、AIとの接続準備を始めました。安全設定の確認と作業開始はまだ未確認です。そのまま待つか、止める場合は『Codex接続を停止』を選んでください。';
+      case 'running':
+        if (current.approval?.status === 'sent' && !command) {
+          return '一回限りの承認をAIへ送りました。コマンドが実際に実行されたかと作業完了はまだ未確認です。結果が届くまで待つか、止める場合は『Codex接続を停止』を選んでください。';
+        }
+        if (current.approval?.status === 'decline' && !command) {
+          return '実行を拒否する返答をAIへ送りました。AIの作業がどう終わったかはまだ未確認です。結果が届くまで待つか、止める場合は『Codex接続を停止』を選んでください。';
+        }
+        if (hasReport) {
+          if (command?.status === 'completed' && command.exitCode === 0) {
+            return '読み取り処理の正常終了とAIからの回答受信を確認しました。回答内容の正しさと作業全体の完了通知はまだ未確認です。完了通知を待つか、止める場合は『Codex接続を停止』を選んでください。';
+          }
+          if (command?.status === 'failed') {
+            return '読み取り処理は失敗し、AIから回答を受け取りました。回答内容の正しさと作業全体の完了通知はまだ未確認です。完了通知を待つか、止める場合は『Codex接続を停止』を選んでください。';
+          }
+          if (command?.status === 'declined') {
+            return 'コマンド実行は拒否され、AIから回答を受け取りました。回答内容の正しさと作業全体の完了通知はまだ未確認です。完了通知を待つか、止める場合は『Codex接続を停止』を選んでください。';
+          }
+          return 'AIから回答を受け取りました。コマンドの実行結果、回答内容の正しさ、作業全体の完了通知はまだ未確認です。完了通知を待つか、止める場合は『Codex接続を停止』を選んでください。';
+        }
+        if (command) {
+          if (command.status === 'completed' && command.exitCode === 0) {
+            return '読み取り処理が正常に終了したことを確認しました。AIの回答と作業全体の完了はまだ未確認です。回答が届くまで待つか、止める場合は『Codex接続を停止』を選んでください。';
+          }
+          if (command.status === 'failed') {
+            return '読み取り処理が失敗したことを確認しました。AIの作業全体の終了状態はまだ未確認です。完了通知を待つか、止める場合は『Codex接続を停止』を選んでください。';
+          }
+          if (command.status === 'declined') {
+            return 'コマンドの実行が拒否され、行われなかったことを確認しました。AIの作業全体の終了状態はまだ未確認です。完了通知を待つか、止める場合は『Codex接続を停止』を選んでください。';
+          }
+          return '読み取り処理の終了通知を受け取りました。正常に終わったかとAIの回答はまだ未確認です。完了通知を待つか、止める場合は『Codex接続を停止』を選んでください。';
+        }
+        return 'AIが練習用ファイルの読み取り作業を始めています。実行結果とAIの回答はまだ未確認です。完了通知を待つか、止める場合は『Codex接続を停止』を選んでください。';
+      case 'awaiting-human':
+        return current.approval?.canAccept
+          ? 'AIから一回限りのコマンド実行確認が届いています。コマンドはまだ実行されておらず、結果も未確認です。対象と作業場所を確認し、『Codexの要求を承認』または『Codexの要求を拒否』を選んでください。'
+          : 'AIから実行確認が届いていますが、練習用ファイルだけを読む内容とは確認できません。コマンドはまだ実行されていません。『Codexの要求を拒否』または『Codex接続を停止』を選んでください。';
+      case 'stopping':
+        return 'AIへ作業の停止を依頼しました。AIの作業が実際に止まったかと接続の終了はまだ未確認です。停止の確認が終わるまでお待ちください。';
+      case 'finished':
+        if (childClosed) {
+          if (hasReport) {
+            if (command && (command.status !== 'completed' || command.exitCode !== 0)) {
+              return '読み取り処理の正常終了は確認できていませんが、AIの回答完了と接続終了を確認しました。回答内容の正しさは未確認です。もう一度試す場合は『もう一度実行』を選んでください。';
+            }
+            return 'AIから回答を受け取り、AIとの接続終了も確認しました。回答内容の正しさは未確認です。もう一度試す場合は『もう一度実行』を選んでください。';
+          }
+          return 'AIの作業完了と接続終了を確認しました。回答本文はなく、内容の正しさは未確認です。もう一度試す場合は『もう一度実行』を選んでください。';
+        }
+        if (stopRequested) {
+          return hasReport
+            ? 'AIから回答を受け取り、作業完了を確認しました。内容の正しさとAIとの接続終了はまだ未確認です。接続が閉じるまでお待ちください。'
+            : 'AIの作業完了を確認しました。回答本文はなく、AIとの接続終了はまだ未確認です。接続が閉じるまでお待ちください。';
+        }
+        if (hasReport) {
+          if (command?.status === 'failed') {
+            return '読み取り処理は失敗しましたが、AIから回答を受け取りました。内容の正しさは未確認です。AIとの接続は続いています。終了する場合は『Codex接続を停止』を選んでください。';
+          }
+          if (command?.status === 'declined') {
+            return 'コマンド実行は拒否されましたが、AIから回答を受け取りました。内容の正しさは未確認です。AIとの接続は続いています。終了する場合は『Codex接続を停止』を選んでください。';
+          }
+          if (command && command.exitCode !== 0) {
+            return '読み取り処理の正常終了は未確認ですが、AIから回答を受け取りました。内容の正しさは未確認です。AIとの接続は続いています。終了する場合は『Codex接続を停止』を選んでください。';
+          }
+          return 'AIから回答を受け取りました。内容の正しさは未確認です。AIとの接続は続いています。終了する場合は『Codex接続を停止』を選んでください。';
+        }
+        return 'AIの作業完了通知を受け取りました。回答本文はなく、内容の正しさは未確認です。AIとの接続は続いています。終了する場合は『Codex接続を停止』を選んでください。';
+      case 'interrupted':
+        if (childClosed) {
+          return hasReport
+            ? 'AIの作業中断と接続終了を確認しました。受け取った回答の内容の正しさは未確認です。もう一度試す場合は『もう一度実行』を選んでください。'
+            : 'AIの作業中断と接続終了を確認しました。完了した回答はありません。もう一度試す場合は『もう一度実行』を選んでください。';
+        }
+        return stopRequested
+          ? 'AIの作業中断を確認しました。AIとの接続終了を確認しています。接続終了の確認が終わるまでお待ちください。'
+          : 'AIの作業が中断されたことを確認しました。AIとの接続終了はまだ未確認です。終了する場合は『Codex接続を停止』を選んでください。';
+      case 'failed': {
+        const connection = childClosed
+          ? 'AIとの接続終了も確認しました。'
+          : stopRequested
+            ? 'AIとの接続終了を確認しています。'
+            : 'AIとの接続は続いています。';
+        const confirmed = `${describeCommandOutcome(command)}${connection}`;
+        const unconfirmed = '失敗の原因と、エラーの詳しい内容は未確認です。';
+        const next = childClosed
+          ? 'もう一度試す場合は『もう一度実行』を選んでください。'
+          : stopRequested
+            ? '接続終了の確認が終わるまでお待ちください。'
+            : '終了する場合は『Codex接続を停止』を選んでください。';
+        return `${confirmed}${unconfirmed}${next}`;
+      }
+      case 'stopped':
+        return 'AIへ作業を依頼する前に停止し、接続終了を確認しました。AIの作業は行われていません。もう一度試す場合は『もう一度実行』を選んでください。';
+      case 'unknown':
+      default:
+        return childClosed
+          ? 'AIとの接続終了は確認できましたが、AIの作業がどう終わったかは未確認です。成功や完了とは扱っていません。新しく始める場合は『もう一度実行』を選んでください。'
+          : 'AIの作業または接続の状態を確認できません。完了や停止は未確認のため、成功とは扱っていません。接続を止める場合は『Codex接続を停止』を選んでください。';
+    }
+  }
 }
 
 function isTerminal(status: LabStatus): boolean {
@@ -717,6 +859,22 @@ function isTerminal(status: LabStatus): boolean {
 
 function isTerminalTurnStatus(status: CodexRuntimeState['turnStatus']): boolean {
   return status === 'completed' || status === 'failed' || status === 'interrupted';
+}
+
+function describeCommandOutcome(command: CommandOutcome | null): string {
+  if (command?.status === 'completed' && command.exitCode === 0) {
+    return '途中の読み取り処理は正常に終了しましたが、AIの作業全体は失敗しました。';
+  }
+  if (command?.status === 'failed') {
+    return '途中の読み取り処理とAIの作業全体が失敗したことを確認しました。';
+  }
+  if (command?.status === 'declined') {
+    return 'コマンド実行は拒否され、AIの作業全体も失敗したことを確認しました。';
+  }
+  if (command && (command.exitCode === null || command.exitCode !== 0)) {
+    return '読み取り処理の終了通知は届きましたが正常終了は未確認で、AIの作業全体は失敗しました。';
+  }
+  return 'AIの作業全体が失敗したことを確認しました。途中の処理がどこまで進んだかは未確認です。';
 }
 
 function describeItem(itemType: string): string {

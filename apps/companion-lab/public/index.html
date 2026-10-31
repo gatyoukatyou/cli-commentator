@@ -52,6 +52,22 @@
       <section class="commentary-panel" aria-labelledby="commentary-heading">
         <h2 id="commentary-heading">二人の実況と字幕</h2>
         <p class="voice-note">音声は任意です。役割名も読み上げます。同じ声になる場合があります。</p>
+        <fieldset class="voice-settings">
+          <legend>読み上げとキー操作の設定</legend>
+          <label class="voice-setting">
+            <input id="single-key-toggle" type="checkbox">
+            <span>単一キー操作を有効にする（j: もう一度読む / k: 詳しく説明 / h: 操作の案内 / Escape: 音声を止める）</span>
+          </label>
+          <label class="voice-setting">
+            <input id="auto-voice-toggle" type="checkbox">
+            <span>確認できた重要な変化を自動で読み上げる</span>
+          </label>
+          <label class="voice-setting">
+            <input id="speak-detail-toggle" type="checkbox">
+            <span>「詳しく説明」を音声でも読み上げる</span>
+          </label>
+          <p id="accessibility-note" class="accessibility-note">単一キー操作と自動読み上げは初期状態ではオフです。VoiceOver等との併用時の動作は未確認のため、必要に応じてオフのままご利用ください。音声を止めても、AIの作業やCodexとの接続は止まりません。開始・承認・拒否・作業停止・次へ進む・保留は単一キーでは実行しません。</p>
+        </fieldset>
         <ol id="transcript" class="transcript" aria-label="現在の実況と解説"></ol>
         <div class="button-row">
           <button id="read-again" type="button">もう一度読む</button>
