@@ -1,6 +1,6 @@
 # 段階2：Codexとの実接続
 
-管理タスクは [tasks #140](https://github.com/gatyoukatyou/tasks/issues/140)、段階2の変更は [PR #484](https://github.com/gatyoukatyou/cli-commentator/pull/484) です。B案の段階1 [PR #483](https://github.com/gatyoukatyou/cli-commentator/pull/483) を土台に、専用のCodexプロセスから実際の進行を受け取ります。既存の端末・Desktopの変更は別の段階です。
+管理タスクは [tasks #140](https://github.com/gatyoukatyou/tasks/issues/140)、段階2の変更は [PR #484](https://github.com/gatyoukatyou/cli-commentator/pull/484) です。B案の段階1 [PR #483](https://github.com/gatyoukatyou/cli-commentator/pull/483) は `a88823c169543745f3ccfdfcd42d668cdd6f98a3` としてmainへマージ済みで、段階2はmainを比較元に、専用のCodexプロセスから実際の進行を受け取ります。既存の端末・Desktopの変更は別の段階です。
 
 ## 作業計画と範囲
 
@@ -138,4 +138,4 @@ CLIの設定上書きでは、`mcp_servers={}`だけでは既存MCPの無効化�
 - 2026-10-31の自動検証は、型検査、ブラウザ用JavaScriptの構文確認、自動テスト36件、文書同期チェック、文書チェックテスト11件がすべて成功しました。Ginoの独立検証では、実ブラウザ＋実Codex接続の一連の操作、Tab移動、通信断と復旧、失敗・中断後の停止案内、案1の初期値OFF・キーガード・音声停止後の遅延説明抑止・説明読み上げトグル切替時の遅延応答抑止（画面表示のみ）を確認しています。音声は再生APIの呼び出し記録による確認です。
 - 実際の音質、VoiceOver等との併用（キー競合を含む）、非エンジニア・視覚障害のある利用者の理解度は未確認です。実接続の承認要求も、固定の練習タスクでは発生しないため模擬検証のみです。詳細は [handoff 2026-10-31](../../handoff/status-2026-10-31.md) を参照してください。
 
-段階2のPRは段階1のブランチを比較元にします。GitHubでは専用の`companion-lab`に加え、既存のserver・web・Desktop等を確認するCIも実行されます。CodeQLはこの比較元では実行対象外です。段階1をmainへ反映した後は、比較元をmainへ付け替えて再確認します。最終のPR URL、head、チェック結果は管理タスク #140 の最新コメントを参照してください。
+段階2のPRは `main` を比較元にします。段階1は `a88823c169543745f3ccfdfcd42d668cdd6f98a3` としてmainへマージ済みです。GitHubでは専用の`companion-lab`に加え、既存のserver・web・Desktop等を確認するCIも実行され、CodeQLも含む全チェックが対象です。最終のPR URL、head、チェック結果は管理タスク #140 の最新コメントを参照してください。
