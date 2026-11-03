@@ -558,7 +558,7 @@ test('UI script separates Codex and simulation controls, moves focus off hidden 
       evidence: [{ id: 'codex-evidence-1', source: 'codex-app-server', statement: 'thread thread-1 のturn turn-1 が completed で完了しました。' }],
       dialogue: [
         { role: '実況', text: 'AIの回答作業が終わったよ。', evidenceIds: ['codex-evidence-1'] },
-        { role: '解説', text: '作業完了を確認しました。', evidenceIds: ['codex-evidence-1'] },
+        { role: '解説', text: '回答内容の正しさは別に確認します。AIとの接続は続いています。', evidenceIds: ['codex-evidence-1'] },
       ],
     }],
   });

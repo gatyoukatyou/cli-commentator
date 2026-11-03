@@ -103,6 +103,10 @@ function humanDecision(service: CodexCompanionLabService, sessionId: string, app
   });
 }
 
+function latestDialogue(service: CodexCompanionLabService) {
+  return service.snapshot().events.at(-1)?.dialogue.map(({ role, text }) => ({ role, text }));
+}
+
 test('start requires the current generation and permits one start while active', () => {
   const { client, service } = makeService();
 
@@ -143,6 +147,93 @@ test('command completion, failure, and decline do not finish the Codex turn', ()
     assert.match(snapshot.events.at(-1)?.evidence[0]?.statement ?? '', new RegExp(outcome.text));
     assert.notEqual(snapshot.phase, 'finished');
   }
+});
+
+test('turn completion dialogue distinguishes a continued connection and a closed connection', () => {
+  const cases = [
+    {
+      label: 'running',
+      childStatus: null,
+      connectionLine: 'AIとの接続は続いています。',
+      decisionPattern: /接続は続いています/,
+      explainPattern: /接続は続いています/,
+    },
+    {
+      label: 'closing',
+      childStatus: 'closing' as const,
+      connectionLine: 'AIとの接続終了を確認しています。',
+      decisionPattern: /接続終了を確認しています/,
+      explainPattern: /接続終了はまだ未確認.*接続が閉じるまで/,
+    },
+    {
+      label: 'closed',
+      childStatus: 'closed' as const,
+      connectionLine: 'AIとの接続終了も確認しました。',
+      decisionPattern: /接続終了も確認しました/,
+      explainPattern: /接続終了を確認しました/,
+    },
+    {
+      label: 'unknown',
+      childStatus: 'unknown' as const,
+      connectionLine: 'AIとの接続状態は確認できていません。',
+      decisionPattern: /接続状態は確認できていません/,
+      explainPattern: /接続状態は確認できていません/,
+    },
+  ];
+
+  for (const item of cases) {
+    const { client, service, sessionId } = makeActiveService();
+    if (item.childStatus) {
+      client.emit(sessionId, {
+        type: 'child-status',
+        status: item.childStatus,
+        exitCode: item.childStatus === 'closed' ? 0 : null,
+        expected: true,
+      });
+    }
+    client.emit(sessionId, { type: 'turn-completed', threadId: THREAD_ID, turnId: TURN_ID, status: 'completed' });
+
+    assert.equal(service.snapshot().status, 'finished', item.label);
+    assert.deepEqual(latestDialogue(service), [
+      { role: '実況', text: 'AIの回答作業が終わったよ。' },
+      { role: '解説', text: `回答内容の正しさは別に確認します。${item.connectionLine}` },
+    ], item.label);
+
+    const decision = service.snapshot().decision;
+    assert.match(decision, item.decisionPattern, item.label);
+    assert.match(service.explain(true).detail, item.explainPattern, item.label);
+    if (item.childStatus === null) {
+      assert.match(decision, /接続は続いています/, item.label);
+    } else {
+      assert.doesNotMatch(decision, /接続は続いています/, item.label);
+      assert.doesNotMatch(service.explain(true).detail, /接続は続いています/, item.label);
+    }
+  }
+});
+
+test('failed command dialogue separates the command result from the overall turn', () => {
+  const { client, service, sessionId } = makeActiveService();
+  client.emit(sessionId, {
+    type: 'command-completed',
+    threadId: THREAD_ID,
+    turnId: TURN_ID,
+    itemId: 'item-command-current',
+    status: 'failed',
+    exitCode: 1,
+  });
+  assert.deepEqual(latestDialogue(service), [
+    { role: '実況', text: '処理でエラーが起きたよ。' },
+    { role: '解説', text: '作業全体の結果はまだ分かりません。次の通知を確認します。' },
+  ]);
+});
+
+test('interrupted turn dialogue keeps partial results and checks the connection separately', () => {
+  const { client, service, sessionId } = makeActiveService();
+  client.emit(sessionId, { type: 'turn-completed', threadId: THREAD_ID, turnId: TURN_ID, status: 'interrupted' });
+  assert.deepEqual(latestDialogue(service), [
+    { role: '実況', text: 'AIの作業が中断したよ。' },
+    { role: '解説', text: '途中の結果は記録に残ります。接続が終了したかも別に確認します。' },
+  ]);
 });
 
 test('turn completion stays distinct from a still-running child and AI report is unverified', () => {
